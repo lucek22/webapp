@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Self-Measuring Pose App</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.roboflow.com/0.2.26/roboflow.js"></script>
+</head>
+<body>
+  <h1>Self-Measuring Pose App</h1>
+  <div id="statusBanner" class="status-banner hidden"></div>
+
+  <div class="control-column">
+    <div class="control-row">
+      <button id="webcamButton" disabled>Loading Model...</button>
+      <button id="captureButton" disabled>Start 3s Timer & Measure</button>
+    </div>
+    
+    <div class="calibration-select">
+      <label for="cameraFacing">Camera Source:</label>
+      <select id="cameraFacing">
+        <option value="user">Front Camera (Selfie)</option>
+        <option value="environment">Back Camera (Rear)</option>
+      </select>
+    </div>
+
+    <div class="calibration-select">
+      <label for="calibrationMode">Calibration Reference:</label>
+      <select id="calibrationMode">
+        <option value="a4">A4 Paper (AI / Hand Track)</option>
+        <option value="card">Standard Credit Card (Manual Overlay)</option>
+        <option value="letter">US Letter Paper - Landscape (Manual Overlay)</option>
+        <option value="ipd">Eye Distance (No Objects Held)</option>
+      </select>
+    </div>
+
+    <div id="cardSliderContainer" class="card-slider-container hidden">
+      <label for="cardSizeSlider">Match Overlay to Held Reference Size:</label>
+      <input type="range" id="cardSizeSlider" min="20" max="550" value="180">
+      <span id="cardSliderValue">180px</span>
+    </div>
+  </div>
+
+  <div class="app-container">
+      
+      <div class="video-container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="output_canvas"></canvas>
+        <div id="countdownOverlay" class="hidden"></div>
+        <div id="cardGuide" class="card-guide hidden">
+          <div class="card-guide-label">Align Credit Card Here</div>
+        </div>
+      </div>
+
+        <div id="resultsCard" class="hidden">
+        <h3>Your Measurements</h3>
+        <p>Height: <span id="heightResult">--</span></p>
+        <p>Wingspan: <span id="wingspanResult">--</span></p>
+        <small id="scaleNote">Using default scaling</small>
+        </div>
+
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>

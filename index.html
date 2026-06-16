@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Self-Measuring Pose App</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.roboflow.com/0.2.26/roboflow.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/ort.all.min.js"></script>
 </head>
 <body>
   <h1>Self-Measuring Pose App</h1>
@@ -28,11 +28,22 @@
     <div class="calibration-select">
       <label for="calibrationMode">Calibration Reference:</label>
       <select id="calibrationMode">
-        <option value="a4">A4 Paper (AI / Hand Track)</option>
+        <option value="a4">20cm Reference Object (AI / Hand Track)</option>
         <option value="card">Standard Credit Card (Manual Overlay)</option>
         <option value="letter">US Letter Paper - Landscape (Manual Overlay)</option>
         <option value="ipd">Eye Distance (No Objects Held)</option>
       </select>
+    </div>
+
+    <!-- AI Detection Guidelines Card -->
+    <div id="aiTipsCard" class="ai-tips-card hidden">
+      <h4>💡 AI Reference Detection Tips:</h4>
+      <ul>
+        <li><strong>Don't Block Edges:</strong> Hold the reference object by its corners or edges. Covering too much will prevent the AI from recognizing its shape.</li>
+        <li><strong>High Contrast:</strong> Use an object (like a colored notebook or folder) that contrast-stands out from your clothes.</li>
+        <li><strong>Hold It Flat:</strong> Face the object flat and square toward the camera (no steep angles).</li>
+        <li><strong>Good Lighting:</strong> Ensure your room is well-lit. Avoid bright lights directly behind you (backlighting).</li>
+      </ul>
     </div>
 
     <div id="cardSliderContainer" class="card-slider-container hidden">
@@ -50,6 +61,12 @@
         <div id="countdownOverlay" class="hidden"></div>
         <div id="cardGuide" class="card-guide hidden">
           <div class="card-guide-label">Align Credit Card Here</div>
+        </div>
+        
+        <!-- Real-time AI detection feedback badge -->
+        <div id="aiFeedbackBadge" class="ai-feedback-badge hidden">
+          <span class="badge-dot"></span>
+          <span id="aiFeedbackText">Searching for 20cm Reference...</span>
         </div>
       </div>
 

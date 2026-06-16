@@ -414,3 +414,115 @@ canvas {
     border-radius: 8px;
   }
 }
+
+/* --- REAL-TIME AI REFS & TIPS STYLING --- */
+
+/* Real-time AI Feedback Badge with Glassmorphism */
+.ai-feedback-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 14px;
+  border-radius: 20px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+/* Pulsing dot indicators for the feedback badge */
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444; /* red when searching */
+  box-shadow: 0 0 8px #ef4444;
+  display: inline-block;
+  animation: pulse-dot 1.5s infinite;
+}
+
+.ai-feedback-badge.detected {
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.ai-feedback-badge.detected .badge-dot {
+  background-color: #10b981; /* green */
+  box-shadow: 0 0 10px #10b981;
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.6;
+  }
+}
+
+/* Sleek, Modern Tips Card for AI Mode */
+.ai-tips-card {
+  width: 100%;
+  max-width: 640px;
+  background-color: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-top: 4px;
+  margin-bottom: 24px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+  animation: slide-down 0.3s ease-out;
+}
+
+.ai-tips-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-tips-card ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ai-tips-card li {
+  margin-bottom: 6px;
+}
+
+.ai-tips-card li:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

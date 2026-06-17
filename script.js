@@ -96,7 +96,6 @@ const frozenFrameCtx = frozenFrameCanvas.getContext('2d');
 const slider = document.getElementById('box-slider');
 const sliderValDisplay = document.getElementById('slider-val');
 const lockCalButton = document.getElementById('lock-cal-btn');
-const toggleLabelsChk = document.getElementById('toggle-labels-chk');
 const landmarkDirectory = document.getElementById('landmark-directory');
 
 // Initialize 33 Landmark Directory on load
@@ -1003,35 +1002,6 @@ function drawFullSkeletalMesh(landmarks) {
     canvasCtx.strokeStyle = '#ffffff';
     canvasCtx.lineWidth = 1.0;
     canvasCtx.stroke();
-
-    // Optional custom neon overlay labels
-    if (toggleLabelsChk && toggleLabelsChk.checked) {
-      canvasCtx.save();
-      
-      canvasCtx.font = 'bold 8px monospace';
-      const labelText = `#${idx} ${LANDMARK_NAMES[idx] || ''}`;
-      const textWidth = canvasCtx.measureText(labelText).width;
-      
-      // Draw slightly transparent capsule background for legibility
-      canvasCtx.fillStyle = 'rgba(9, 13, 22, 0.75)';
-      canvasCtx.strokeStyle = color;
-      canvasCtx.lineWidth = 0.5;
-      
-      // Position label slightly offset from the node to avoid overlapping the joint
-      const offsetX = 8;
-      const offsetY = -6;
-      
-      // Draw rounded rectangle for label
-      drawRoundedRect(canvasCtx, p.x + offsetX, p.y + offsetY, textWidth + 6, 11, 2);
-      canvasCtx.fill();
-      canvasCtx.stroke();
-      
-      // Draw text
-      canvasCtx.fillStyle = '#ffffff';
-      canvasCtx.fillText(labelText, p.x + offsetX + 3, p.y + offsetY + 8);
-      
-      canvasCtx.restore();
-    }
   });
 }
 

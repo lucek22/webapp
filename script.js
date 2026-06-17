@@ -531,7 +531,7 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   activeCalMethod = method;
   
   // Update buttons background
-  [tabArucoBtn, tabCardBtn, tabHeightBtn].forEach(btn => {
+  [tabArucoBtn, tabHeightBtn].forEach(btn => {
     btn.style.backgroundColor = (btn === activeBtn) ? '#3b82f6' : '#1e293b';
   });
 
@@ -553,10 +553,6 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
 
 tabArucoBtn.addEventListener('click', () => {
   switchCalibrationTab('aruco', tabArucoBtn, panelAruco);
-});
-
-tabCardBtn.addEventListener('click', () => {
-  switchCalibrationTab('card', tabCardBtn, panelCard);
 });
 
 tabHeightBtn.addEventListener('click', () => {
@@ -787,7 +783,7 @@ pose.onResults((results) => {
     }
 
     // Helper to mirror X coordinate for canvas drawing
-    const mirrorX = (normX) => (1.0 - normX) * 640;
+    const mirrorX = getCanvasX;
 
     // Resolve normalized coordinates to pixels (LEFT)
     const shoulder_l = { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * 480 };
@@ -1057,6 +1053,11 @@ const FINGER_COLORS = {
   pinky: '#f59e0b'    // Amber
 };
 
+let currentFacingMode = "user";
+function getCanvasX(normX) {
+  return currentFacingMode === "user" ? (1.0 - normX) * 640 : normX * 640;
+}
+
 function updateHandTracking(results) {
   if (isSnapshotFrozen) return;
 
@@ -1074,12 +1075,12 @@ function updateHandTracking(results) {
       if (side === 'Left') leftDetected = true;
       if (side === 'Right') rightDetected = true;
 
-      const wrist = { x: (1.0 - landmarks[0].x) * 640, y: landmarks[0].y * 480 };
-      const thumbTip = { x: (1.0 - landmarks[4].x) * 640, y: landmarks[4].y * 480 };
-      const indexTip = { x: (1.0 - landmarks[8].x) * 640, y: landmarks[8].y * 480 };
-      const middleTip = { x: (1.0 - landmarks[12].x) * 640, y: landmarks[12].y * 480 };
-      const ringTip = { x: (1.0 - landmarks[16].x) * 640, y: landmarks[16].y * 480 };
-      const pinkyTip = { x: (1.0 - landmarks[20].x) * 640, y: landmarks[20].y * 480 };
+      const wrist = { x: getCanvasX(landmarks[0].x), y: landmarks[0].y * 480 };
+      const thumbTip = { x: getCanvasX(landmarks[4].x), y: landmarks[4].y * 480 };
+      const indexTip = { x: getCanvasX(landmarks[8].x), y: landmarks[8].y * 480 };
+      const middleTip = { x: getCanvasX(landmarks[12].x), y: landmarks[12].y * 480 };
+      const ringTip = { x: getCanvasX(landmarks[16].x), y: landmarks[16].y * 480 };
+      const pinkyTip = { x: getCanvasX(landmarks[20].x), y: landmarks[20].y * 480 };
 
       let pinchSpanStr = "--.- cm";
       let handSpanStr = "--.- cm";
@@ -1169,7 +1170,7 @@ function drawHandMesh(multiHandLandmarks, multiHandedness) {
     const isLeft = handedness ? handedness.label === 'Left' : true;
     const sidePrefix = isLeft ? 'L' : 'R';
 
-    const pts = landmarks.map(lm => ({ x: (1.0 - lm.x) * 640, y: lm.y * 480 }));
+    const pts = landmarks.map(lm => ({ x: getCanvasX(lm.x), y: lm.y * 480 }));
 
     canvasCtx.beginPath();
     canvasCtx.moveTo(pts[0].x, pts[0].y);
@@ -1667,17 +1668,24 @@ async function startCamera() {
   yoloToggleBtn.style.display = 'block';
   captureBtn.style.display = 'block';
 
+  const cameraSwitchBtn = document.getElementById('camera-switch-btn');
+  if (cameraSwitchBtn) {
+    cameraSwitchBtn.style.display = 'flex';
+  }
+
   try {
     activeStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
         width: { ideal: 640 },
         height: { ideal: 480 },
-        facingMode: "user"
+        facingMode: currentFacingMode
       }
     });
     
     videoElement.srcObject = activeStream;
+    // Mirror the view only for front/user camera
+    videoElement.style.transform = currentFacingMode === "user" ? "scaleX(-1)" : "none";
     
     // Wait for video metadata to load and then start playing
     videoElement.onloadedmetadata = () => {
@@ -1730,7 +1738,7 @@ async function startCamera() {
             if (pixelsPerCm) {
               arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong style="color: #06b6d4;">${pixelsPerCm.toFixed(1)} px/cm</strong>`;
             } else {
-              arucoStatusText.innerHTML = `🔍 Scanning for ArUco DICT_4X4_50 ID 0 (200mm)...`;
+              arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
             }
           }
         }
@@ -1766,3 +1774,21 @@ async function startCamera() {
 }
 
 startButton.addEventListener('click', startCamera);
+
+// Camera switch event listener for switching between front/back cameras
+const cameraSwitchBtn = document.getElementById('camera-switch-btn');
+if (cameraSwitchBtn) {
+  cameraSwitchBtn.addEventListener('click', async () => {
+    if (!activeStream) return;
+    
+    // Stop the active stream tracks first
+    activeStream.getTracks().forEach(track => track.stop());
+    activeStream = null;
+    
+    // Toggle facing mode between user and environment
+    currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+    
+    // Restart camera with new facing mode
+    await startCamera();
+  });
+}

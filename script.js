@@ -167,6 +167,30 @@ const hipAngleRDisp = document.getElementById('angle-hip-r');
 const elbowAngleLDisp = document.getElementById('angle-elbow-l');
 const elbowAngleRDisp = document.getElementById('angle-elbow-r');
 
+// UI Hand Tracking Elements
+const handStatusLDisp = document.getElementById('hand-status-l');
+const handStatusRDisp = document.getElementById('hand-status-r');
+const pinchLDisp = document.getElementById('val-pinch-l');
+const pinchRDisp = document.getElementById('val-pinch-r');
+const spanLDisp = document.getElementById('val-span-l');
+const spanRDisp = document.getElementById('val-span-r');
+
+const fingertipLDisps = [
+  document.getElementById('val-fingertip-l-0'),
+  document.getElementById('val-fingertip-l-1'),
+  document.getElementById('val-fingertip-l-2'),
+  document.getElementById('val-fingertip-l-3'),
+  document.getElementById('val-fingertip-l-4')
+];
+
+const fingertipRDisps = [
+  document.getElementById('val-fingertip-r-0'),
+  document.getElementById('val-fingertip-r-1'),
+  document.getElementById('val-fingertip-r-2'),
+  document.getElementById('val-fingertip-r-3'),
+  document.getElementById('val-fingertip-r-4')
+];
+
 canvasElement.width = 640;
 canvasElement.height = 480;
 
@@ -198,6 +222,8 @@ let calLocked = false;
 let lastVerticalHeightPx = 0; // Updated in pose loop
 let lastSkeletalHeightPx = 0; // Posture-independent skeletal stature
 let latestArucoMarker = null;
+let latestHandResults = null;
+let frozenHandResults = null;
 
 slider.addEventListener('input', (e) => {
   calBoxSize = parseInt(e.target.value);
@@ -555,6 +581,29 @@ pose.setOptions({
   enableSegmentation: true,
   minDetectionConfidence: 0.5,
   minTrackingConfidence: 0.5
+});
+
+// MediaPipe Hands Setup
+const hands = new Hands({
+  locateFile: (file) => {
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+  }
+});
+
+hands.setOptions({
+  maxNumHands: 2,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5
+});
+
+hands.onResults((results) => {
+  latestHandResults = results;
+  updateHandTracking(results);
+  
+  if (!isSnapshotFrozen) {
+    drawHandMesh(results.multiHandLandmarks, results.multiHandedness);
+  }
 });
 
 // YOLO-style background isolation click handler
@@ -941,6 +990,223 @@ pose.onResults((results) => {
 });
 
 // ==========================================
+// HAND TRACKING & BIOMETRICS HELPER FUNCTIONS
+// ==========================================
+const FINGER_COLORS = {
+  thumb: '#ec4899',   // Pink
+  index: '#06b6d4',   // Cyan
+  middle: '#a855f7',  // Purple
+  ring: '#10b981',    // Emerald
+  pinky: '#f59e0b'    // Amber
+};
+
+function resetHandUI(side) {
+  if (side === 'Left' || side === 'all') {
+    if (handStatusLDisp) {
+      handStatusLDisp.textContent = "Left Hand: Offline";
+      handStatusLDisp.style.color = "#64748b";
+    }
+    if (pinchLDisp) pinchLDisp.textContent = "--.- cm";
+    if (spanLDisp) spanLDisp.textContent = "--.- cm";
+    fingertipLDisps.forEach((disp, idx) => {
+      if (disp) {
+        disp.textContent = "Offline";
+        disp.style.color = "#64748b";
+      }
+    });
+  }
+  if (side === 'Right' || side === 'all') {
+    if (handStatusRDisp) {
+      handStatusRDisp.textContent = "Right Hand: Offline";
+      handStatusRDisp.style.color = "#64748b";
+    }
+    if (pinchRDisp) pinchRDisp.textContent = "--.- cm";
+    if (spanRDisp) spanRDisp.textContent = "--.- cm";
+    fingertipRDisps.forEach((disp, idx) => {
+      if (disp) {
+        disp.textContent = "Offline";
+        disp.style.color = "#64748b";
+      }
+    });
+  }
+}
+
+function updateHandTracking(results) {
+  if (isSnapshotFrozen) return;
+
+  const multiLandmarks = results.multiHandLandmarks;
+  const multiHandedness = results.multiHandedness;
+
+  let leftDetected = false;
+  let rightDetected = false;
+
+  if (multiLandmarks && multiHandedness) {
+    multiLandmarks.forEach((landmarks, index) => {
+      const handedness = multiHandedness[index];
+      const side = handedness.label; // 'Left' or 'Right'
+      
+      if (side === 'Left') leftDetected = true;
+      if (side === 'Right') rightDetected = true;
+
+      const wrist = { x: landmarks[0].x * 640, y: landmarks[0].y * 480 };
+      const thumbTip = { x: landmarks[4].x * 640, y: landmarks[4].y * 480 };
+      const indexTip = { x: landmarks[8].x * 640, y: landmarks[8].y * 480 };
+      const middleTip = { x: landmarks[12].x * 640, y: landmarks[12].y * 480 };
+      const ringTip = { x: landmarks[16].x * 640, y: landmarks[16].y * 480 };
+      const pinkyTip = { x: landmarks[20].x * 640, y: landmarks[20].y * 480 };
+
+      let pinchSpanStr = "--.- cm";
+      let handSpanStr = "--.- cm";
+
+      if (pixelsPerCm) {
+        const pinchPx = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+        const pinchCm = pinchPx / pixelsPerCm;
+        pinchSpanStr = formatLength(smooth(side + '_pinch', pinchCm));
+
+        const spanPx = Math.hypot(wrist.x - middleTip.x, wrist.y - middleTip.y);
+        const spanCm = spanPx / pixelsPerCm;
+        handSpanStr = formatLength(smooth(side + '_span', spanCm));
+      }
+
+      const tips = [thumbTip, indexTip, middleTip, ringTip, pinkyTip];
+
+      if (side === 'Left') {
+        if (handStatusLDisp) {
+          handStatusLDisp.textContent = `Left Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
+          handStatusLDisp.style.color = "#10b981";
+        }
+        if (pinchLDisp) pinchLDisp.textContent = pinchSpanStr;
+        if (spanLDisp) spanLDisp.textContent = handSpanStr;
+
+        fingertipLDisps.forEach((disp, idx) => {
+          if (disp) {
+            const pt = tips[idx];
+            disp.textContent = `(${pt.x.toFixed(0)}, ${pt.y.toFixed(0)})`;
+            disp.style.color = "#10b981";
+          }
+        });
+      } else if (side === 'Right') {
+        if (handStatusRDisp) {
+          handStatusRDisp.textContent = `Right Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
+          handStatusRDisp.style.color = "#10b981";
+        }
+        if (pinchRDisp) pinchRDisp.textContent = pinchSpanStr;
+        if (spanRDisp) spanRDisp.textContent = handSpanStr;
+
+        fingertipRDisps.forEach((disp, idx) => {
+          if (disp) {
+            const pt = tips[idx];
+            disp.textContent = `(${pt.x.toFixed(0)}, ${pt.y.toFixed(0)})`;
+            disp.style.color = "#10b981";
+          }
+        });
+      }
+    });
+  }
+
+  if (!leftDetected) resetHandUI('Left');
+  if (!rightDetected) resetHandUI('Right');
+}
+
+function drawHandMesh(multiHandLandmarks, multiHandedness) {
+  if (!multiHandLandmarks) return;
+
+  multiHandLandmarks.forEach((landmarks, handIdx) => {
+    const handedness = multiHandedness ? multiHandedness[handIdx] : null;
+    const isLeft = handedness ? handedness.label === 'Left' : true;
+    const sidePrefix = isLeft ? 'L' : 'R';
+
+    const pts = landmarks.map(lm => ({ x: lm.x * 640, y: lm.y * 480 }));
+
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(pts[0].x, pts[0].y);
+    canvasCtx.lineTo(pts[1].x, pts[1].y);
+    canvasCtx.lineTo(pts[5].x, pts[5].y);
+    canvasCtx.lineTo(pts[9].x, pts[9].y);
+    canvasCtx.lineTo(pts[13].x, pts[13].y);
+    canvasCtx.lineTo(pts[17].x, pts[17].y);
+    canvasCtx.closePath();
+    canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.45)';
+    canvasCtx.lineWidth = 1.5;
+    canvasCtx.stroke();
+    canvasCtx.fillStyle = 'rgba(99, 102, 241, 0.05)';
+    canvasCtx.fill();
+
+    const drawFingerBones = (indices, color) => {
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(pts[indices[0]].x, pts[indices[0]].y);
+      for (let i = 1; i < indices.length; i++) {
+        canvasCtx.lineTo(pts[indices[i]].x, pts[indices[i]].y);
+      }
+      canvasCtx.strokeStyle = color + '80';
+      canvasCtx.lineWidth = 2.0;
+      canvasCtx.stroke();
+    };
+
+    drawFingerBones([1, 2, 3, 4], FINGER_COLORS.thumb);
+    drawFingerBones([5, 6, 7, 8], FINGER_COLORS.index);
+    drawFingerBones([9, 10, 11, 12], FINGER_COLORS.middle);
+    drawFingerBones([13, 14, 15, 16], FINGER_COLORS.ring);
+    drawFingerBones([17, 18, 19, 20], FINGER_COLORS.pinky);
+
+    pts.forEach((pt, idx) => {
+      if ([4, 8, 12, 16, 20].includes(idx)) return;
+      if (idx === 0) {
+        canvasCtx.beginPath();
+        canvasCtx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
+        canvasCtx.fillStyle = '#6366f1';
+        canvasCtx.fill();
+        canvasCtx.strokeStyle = '#ffffff';
+        canvasCtx.lineWidth = 1.0;
+        canvasCtx.stroke();
+        return;
+      }
+
+      let color = '#6366f1';
+      if (idx >= 1 && idx <= 3) color = FINGER_COLORS.thumb;
+      else if (idx >= 5 && idx <= 7) color = FINGER_COLORS.index;
+      else if (idx >= 9 && idx <= 11) color = FINGER_COLORS.middle;
+      else if (idx >= 13 && idx <= 15) color = FINGER_COLORS.ring;
+      else if (idx >= 17 && idx <= 19) color = FINGER_COLORS.pinky;
+
+      canvasCtx.beginPath();
+      canvasCtx.arc(pt.x, pt.y, 2.5, 0, 2 * Math.PI);
+      canvasCtx.fillStyle = color;
+      canvasCtx.fill();
+    });
+
+    const tips = [
+      { idx: 4, color: FINGER_COLORS.thumb, label: sidePrefix + ' Thumb' },
+      { idx: 8, color: FINGER_COLORS.index, label: sidePrefix + ' Index' },
+      { idx: 12, color: FINGER_COLORS.middle, label: sidePrefix + ' Middle' },
+      { idx: 16, color: FINGER_COLORS.ring, label: sidePrefix + ' Ring' },
+      { idx: 20, color: FINGER_COLORS.pinky, label: sidePrefix + ' Pinky' }
+    ];
+
+    tips.forEach(tip => {
+      const pt = pts[tip.idx];
+      
+      canvasCtx.beginPath();
+      canvasCtx.arc(pt.x, pt.y, 7, 0, 2 * Math.PI);
+      canvasCtx.fillStyle = tip.color + '40';
+      canvasCtx.fill();
+
+      canvasCtx.beginPath();
+      canvasCtx.arc(pt.x, pt.y, 3.5, 0, 2 * Math.PI);
+      canvasCtx.fillStyle = tip.color;
+      canvasCtx.fill();
+      canvasCtx.strokeStyle = '#ffffff';
+      canvasCtx.lineWidth = 1.0;
+      canvasCtx.stroke();
+
+      canvasCtx.fillStyle = tip.color;
+      canvasCtx.font = 'bold 9px sans-serif';
+      canvasCtx.fillText(tip.label, pt.x + 8, pt.y - 2);
+    });
+  });
+}
+
+// ==========================================
 // CAPTURE TIMER & SNAPSHOT HELPER FUNCTIONS
 // ==========================================
 const POSE_CONNECTIONS = [
@@ -1101,6 +1367,7 @@ function captureSnapshot(joints, metrics) {
   // Save deep copies of the joints coordinates and dashboard metrics
   frozenJoints = JSON.parse(JSON.stringify(joints));
   frozenMetrics = JSON.parse(JSON.stringify(metrics));
+  frozenHandResults = latestHandResults ? JSON.parse(JSON.stringify(latestHandResults)) : null;
   
   // Save current frame image from canvas (if YOLO background isolated) or webcam
   frozenFrameCtx.clearRect(0, 0, 640, 480);
@@ -1224,6 +1491,11 @@ function drawFrozenSnapshot() {
     canvasCtx.setLineDash([]);
   }
 
+  // Draw frozen hand skeletons if available
+  if (frozenHandResults) {
+    drawHandMesh(frozenHandResults.multiHandLandmarks, frozenHandResults.multiHandedness);
+  }
+
   // 3. Draw pulsing SNAPSHOT FROZEN badge
   const pulse = 1 + 0.05 * Math.sin(Date.now() / 200);
   canvasCtx.save();
@@ -1274,6 +1546,7 @@ captureBtn.addEventListener('click', () => {
     isSnapshotFrozen = false;
     frozenJoints = null;
     frozenMetrics = null;
+    frozenHandResults = null;
     
     // Restore standard video feed visibility
     if (yoloModeActive) {
@@ -1415,6 +1688,9 @@ async function startCamera() {
 
         // Sync with MediaPipe Pose Models
         await pose.send({ image: videoElement });
+
+        // Sync with MediaPipe Hands Models
+        await hands.send({ image: videoElement });
       } catch (poseErr) {
         console.error("Frame processing error:", poseErr);
       }

@@ -518,7 +518,6 @@ const offscreenCtx = offscreenCanvas.getContext('2d');
 // 3-WAY CALIBRATION SWITCHER & UI CONTROL
 // ==========================================
 const tabArucoBtn = document.getElementById('tab-aruco-btn');
-const tabCardBtn = document.getElementById('tab-card-btn');
 const tabHeightBtn = document.getElementById('tab-height-btn');
 
 const panelAruco = document.getElementById('panel-aruco');

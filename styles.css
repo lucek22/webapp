@@ -83,6 +83,7 @@ video {
   width: 640px;
   height: 480px;
   transform: scaleX(-1); /* Mirror view */
+  object-fit: fill;
 }
 canvas {
   position: absolute;

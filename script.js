@@ -712,15 +712,24 @@ pose.onResults((results) => {
 
   // YOLO-style Background Masking
   if (results.segmentationMask && yoloModeActive) {
+    canvasCtx.save();
+    if (currentFacingMode === "user") {
+      canvasCtx.translate(canvasElement.width, 0);
+      canvasCtx.scale(-1, 1);
+    }
     canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.globalCompositeOperation = 'source-in';
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.globalCompositeOperation = 'source-over';
+    canvasCtx.restore();
   }
 
   // Draw ArUco box overlay if detected and active tab is 'aruco'
   if (latestArucoMarker && activeCalMethod === 'aruco') {
-    const corners = latestArucoMarker.corners.map(c => ({ x: 640 - c.x, y: c.y }));
+    const corners = latestArucoMarker.corners.map(c => ({
+      x: currentFacingMode === "user" ? 640 - c.x : c.x,
+      y: c.y
+    }));
     canvasCtx.beginPath();
     canvasCtx.moveTo(corners[0].x, corners[0].y);
     canvasCtx.lineTo(corners[1].x, corners[1].y);
@@ -1452,8 +1461,14 @@ function captureSnapshot(joints, metrics) {
     // Main canvas currently holds the isolated composite frame (before overlays were drawn)
     frozenFrameCtx.drawImage(canvasElement, 0, 0);
   } else {
-    // Grab direct webcam stream
+    // Grab direct webcam stream and mirror it in memory if in user-facing mode
+    frozenFrameCtx.save();
+    if (currentFacingMode === "user") {
+      frozenFrameCtx.translate(640, 0);
+      frozenFrameCtx.scale(-1, 1);
+    }
     frozenFrameCtx.drawImage(videoElement, 0, 0);
+    frozenFrameCtx.restore();
   }
 
   isSnapshotFrozen = true;

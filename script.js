@@ -210,6 +210,7 @@ const forearmRDisp = document.getElementById('val-forearm-r');
 // Widths & Other
 const shoulderWDisp = document.getElementById('val-shoulder-w');
 const hipWDisp = document.getElementById('val-hip-w');
+const wingspanDisp = document.getElementById('val-wingspan');
 const heightCmDisp = document.getElementById('val-height-cm');
 const heightFtDisp = document.getElementById('val-height-ft');
 
@@ -931,6 +932,22 @@ pose.onResults((results) => {
       const skeletal_height_cm = skeletal_height_px / pixelsPerCm;
       const live_height_cm = vertical_height_px / pixelsPerCm;
 
+      // Calculate Wingspan (using Middle Fingertips if detected, or Pose Indexes 19 & 20 as fallback)
+      let wingspan_cm = 0;
+      if (latestLeftMiddleTip && latestRightMiddleTip) {
+        const dist_px = Math.hypot(latestLeftMiddleTip.x - latestRightMiddleTip.x, latestLeftMiddleTip.y - latestRightMiddleTip.y);
+        wingspan_cm = dist_px / pixelsPerCm;
+      } else {
+        // Fallback: Use Pose indexes 19 and 20 (L Index and R Index)
+        console.log("Wingspan fallback: innaccurate measurement");
+        const leftIdx = all_landmarks[19];
+        const rightIdx = all_landmarks[20];
+        if (leftIdx && rightIdx) {
+          const dist_px = Math.hypot(leftIdx.x - rightIdx.x, leftIdx.y - rightIdx.y);
+          wingspan_cm = dist_px / pixelsPerCm;
+        }
+      }
+
       // Convert to direct physical units and apply smoothing
       const liveMetrics = {
         thigh_l: smooth('thigh_l', thigh_l_px / pixelsPerCm),
@@ -949,6 +966,7 @@ pose.onResults((results) => {
 
         shoulderW: smooth('shoulderW', shoulderW_px / pixelsPerCm),
         hipW: smooth('hipW', hipW_px / pixelsPerCm),
+        wingspan: smooth('wingspan_distance', wingspan_cm),
 
         skeletal_height: smooth('body_height_skeletal', skeletal_height_cm),
         live_height: smooth('body_height_live', live_height_cm),
@@ -1054,6 +1072,8 @@ const FINGER_COLORS = {
 };
 
 let currentFacingMode = "user";
+let latestLeftMiddleTip = null;
+let latestRightMiddleTip = null;
 function getCanvasX(normX) {
   return currentFacingMode === "user" ? (1.0 - normX) * 640 : normX * 640;
 }
@@ -1098,6 +1118,7 @@ function updateHandTracking(results) {
       const tips = [thumbTip, indexTip, middleTip, ringTip, pinkyTip];
 
       if (side === 'Left') {
+        latestLeftMiddleTip = middleTip;
         if (handStatusLDisp) {
           handStatusLDisp.textContent = `Left Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
           handStatusLDisp.style.color = "#10b981";
@@ -1113,6 +1134,7 @@ function updateHandTracking(results) {
           }
         });
       } else if (side === 'Right') {
+        latestRightMiddleTip = middleTip;
         if (handStatusRDisp) {
           handStatusRDisp.textContent = `Right Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
           handStatusRDisp.style.color = "#10b981";
@@ -1133,6 +1155,7 @@ function updateHandTracking(results) {
 
   // If left/right hands are not detected, reset their fingertip displays to Offline
   if (!leftDetected) {
+    latestLeftMiddleTip = null;
     if (handStatusLDisp) {
       handStatusLDisp.textContent = "Left Hand: Offline";
       handStatusLDisp.style.color = "#64748b";
@@ -1147,6 +1170,7 @@ function updateHandTracking(results) {
     });
   }
   if (!rightDetected) {
+    latestRightMiddleTip = null;
     if (handStatusRDisp) {
       handStatusRDisp.textContent = "Right Hand: Offline";
       handStatusRDisp.style.color = "#64748b";
@@ -1341,6 +1365,9 @@ function renderDashboard(metrics) {
 
   shoulderWDisp.textContent = formatLength(metrics.shoulderW);
   hipWDisp.textContent = formatLength(metrics.hipW);
+  if (wingspanDisp) {
+    wingspanDisp.textContent = metrics.wingspan ? formatLength(metrics.wingspan) : "--.- cm";
+  }
 
   // Render height
   const skeletal_inches = metrics.skeletal_height / 2.54;

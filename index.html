@@ -235,89 +235,23 @@
         </div>
       </div>
 
-      <!-- Hand Tracking & Biometrics -->
-      <div class="panel-section">
-        <div class="section-title" style="color: #10b981; display: flex; align-items: center; gap: 0.4rem;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #10b981;">
-            <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5"></path>
-            <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6"></path>
-            <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8.5"></path>
-            <path d="M6 14v1.5a5.5 5.5 0 0 0 11 0V11"></path>
-          </svg>
-        </div>
-
-        <!-- 5-Fingertip Directory for Left Hand -->
-        <details style="background-color: #0f1626; border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 0.5rem; cursor: pointer; margin-top: 0.5rem;">
-          <summary style="font-size: 0.75rem; font-weight: 600; color: #10b981; outline: none; user-select: none;">Left Hand: 5 Fingertips</summary>
-          <div style="max-height: 150px; overflow-y: auto; margin-top: 0.5rem; display: grid; grid-template-columns: 1fr; gap: 0.3rem; padding-right: 2px;">
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #ec4899;">
-              <span style="color: #ec4899; font-weight: 600;">Thumb Tip</span>
-              <span id="val-fingertip-l-0" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #06b6d4;">
-              <span style="color: #06b6d4; font-weight: 600;">Index Tip</span>
-              <span id="val-fingertip-l-1" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #a855f7;">
-              <span style="color: #a855f7; font-weight: 600;">Middle Tip</span>
-              <span id="val-fingertip-l-2" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #10b981;">
-              <span style="color: #10b981; font-weight: 600;">Ring Tip</span>
-              <span id="val-fingertip-l-3" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #f59e0b;">
-              <span style="color: #f59e0b; font-weight: 600;">Pinky Tip</span>
-              <span id="val-fingertip-l-4" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-          </div>
-        </details>
-
-        <!-- 5-Fingertip Directory for Right Hand -->
-        <details style="background-color: #0f1626; border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 8px; padding: 0.5rem; cursor: pointer; margin-top: 0.4rem;">
-          <summary style="font-size: 0.75rem; font-weight: 600; color: #10b981; outline: none; user-select: none;">Right Hand: 5 Fingertips</summary>
-          <div style="max-height: 150px; overflow-y: auto; margin-top: 0.5rem; display: grid; grid-template-columns: 1fr; gap: 0.3rem; padding-right: 2px;">
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #ec4899;">
-              <span style="color: #ec4899; font-weight: 600;">Thumb Tip</span>
-              <span id="val-fingertip-r-0" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #06b6d4;">
-              <span style="color: #06b6d4; font-weight: 600;">Index Tip</span>
-              <span id="val-fingertip-r-1" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #a855f7;">
-              <span style="color: #a855f7; font-weight: 600;">Middle Tip</span>
-              <span id="val-fingertip-r-2" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #10b981;">
-              <span style="color: #10b981; font-weight: 600;">Ring Tip</span>
-              <span id="val-fingertip-r-3" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-            <div class="fingertip-row" style="display: flex; justify-content: space-between; font-size: 0.68rem; padding: 0.2rem 0.4rem; background-color: rgba(255,255,255,0.02); border-radius: 4px; border-left: 2.5px solid #f59e0b;">
-              <span style="color: #f59e0b; font-weight: 600;">Pinky Tip</span>
-              <span id="val-fingertip-r-4" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
-            </div>
-          </div>
-        </details>
-      </div>
-
       <!-- Pose Landmarks Overlay Section -->
       <div class="panel-section" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1rem;">
         <div class="section-title" style="color: #c084fc; display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.5rem;">
           <span style="display: flex; align-items: center; gap: 0.4rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
-            Landmark Labels
+            Landmark Points
           </span>
         </div>
         
         <div style="font-size: 0.72rem; color: #9ca3af; margin-bottom: 0.75rem; line-height: 1.3;">
-          List of all 33 landmark points tracked by MediaPipe Pose on your body.
+          List of all 43 landmark and fingertip points tracked on your body.
         </div>
         
         <!-- Expandable directory -->
         <details style="background-color: #0f1626; border: 1px solid rgba(192, 132, 252, 0.15); border-radius: 8px; padding: 0.5rem; cursor: pointer;">
-          <summary style="font-size: 0.75rem; font-weight: 600; color: #c084fc; outline: none; user-select: none;">Show 33 Landmark Directory</summary>
-          <div id="landmark-directory" style="max-height: 180px; overflow-y: auto; margin-top: 0.5rem; display: grid; grid-template-columns: 1fr; gap: 0.3rem; padding-right: 2px;">
+          <summary style="font-size: 0.75rem; font-weight: 600; color: #c084fc; outline: none; user-select: none;">Show 43 Landmark Directory</summary>
+          <div id="landmark-directory" style="max-height: 250px; overflow-y: auto; margin-top: 0.5rem; display: grid; grid-template-columns: 1fr; gap: 0.3rem; padding-right: 2px;">
             <!-- Populated dynamically via JS -->
           </div>
         </details>

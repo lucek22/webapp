@@ -98,7 +98,7 @@ const sliderValDisplay = document.getElementById('slider-val');
 const lockCalButton = document.getElementById('lock-cal-btn');
 const landmarkDirectory = document.getElementById('landmark-directory');
 
-// Initialize 33 Landmark Directory on load
+// Initialize Landmark Directory (33 Pose Landmarks + 10 Hand Fingertips) on load
 if (landmarkDirectory) {
   LANDMARK_NAMES.forEach((name, idx) => {
     const item = document.createElement('div');
@@ -132,6 +132,60 @@ if (landmarkDirectory) {
     item.innerHTML = `
       <span style="color: ${sideColor}; font-weight: 600;">#${idx} ${name}</span>
       <span id="lm-status-${idx}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+    `;
+    landmarkDirectory.appendChild(item);
+  });
+
+  // Append Left Hand Fingertips
+  const handFingersL = [
+    { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-l-0' },
+    { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-l-1' },
+    { name: 'Middle Tip', color: '#a855f7', id: 'val-fingertip-l-2' },
+    { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-l-3' },
+    { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-l-4' }
+  ];
+
+  handFingersL.forEach(f => {
+    const item = document.createElement('div');
+    item.style.display = 'flex';
+    item.style.justify = 'space-between';
+    item.style.alignItems = 'center';
+    item.style.fontSize = '0.68rem';
+    item.style.padding = '0.2rem 0.4rem';
+    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+    item.style.borderRadius = '4px';
+    item.style.borderLeft = `2.5px solid ${f.color}`;
+    
+    item.innerHTML = `
+      <span style="color: ${f.color}; font-weight: 600;">Left ${f.name}</span>
+      <span id="${f.id}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+    `;
+    landmarkDirectory.appendChild(item);
+  });
+
+  // Append Right Hand Fingertips
+  const handFingersR = [
+    { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-r-0' },
+    { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-r-1' },
+    { name: 'Middle Tip', color: '#a855f7', id: 'val-fingertip-r-2' },
+    { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-r-3' },
+    { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-r-4' }
+  ];
+
+  handFingersR.forEach(f => {
+    const item = document.createElement('div');
+    item.style.display = 'flex';
+    item.style.justify = 'space-between';
+    item.style.alignItems = 'center';
+    item.style.fontSize = '0.68rem';
+    item.style.padding = '0.2rem 0.4rem';
+    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+    item.style.borderRadius = '4px';
+    item.style.borderLeft = `2.5px solid ${f.color}`;
+    
+    item.innerHTML = `
+      <span style="color: ${f.color}; font-weight: 600;">Right ${f.name}</span>
+      <span id="${f.id}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
     `;
     landmarkDirectory.appendChild(item);
   });
@@ -1072,6 +1126,36 @@ function updateHandTracking(results) {
             disp.style.color = "#10b981";
           }
         });
+      }
+    });
+  }
+
+  // If left/right hands are not detected, reset their fingertip displays to Offline
+  if (!leftDetected) {
+    if (handStatusLDisp) {
+      handStatusLDisp.textContent = "Left Hand: Offline";
+      handStatusLDisp.style.color = "#64748b";
+    }
+    if (pinchLDisp) pinchLDisp.textContent = "--.- cm";
+    if (spanLDisp) spanLDisp.textContent = "--.- cm";
+    fingertipLDisps.forEach(disp => {
+      if (disp) {
+        disp.textContent = "Offline";
+        disp.style.color = "#64748b";
+      }
+    });
+  }
+  if (!rightDetected) {
+    if (handStatusRDisp) {
+      handStatusRDisp.textContent = "Right Hand: Offline";
+      handStatusRDisp.style.color = "#64748b";
+    }
+    if (pinchRDisp) pinchRDisp.textContent = "--.- cm";
+    if (spanRDisp) spanRDisp.textContent = "--.- cm";
+    fingertipRDisps.forEach(disp => {
+      if (disp) {
+        disp.textContent = "Offline";
+        disp.style.color = "#64748b";
       }
     });
   }

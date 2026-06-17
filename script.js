@@ -1251,10 +1251,6 @@ function drawHandMesh(multiHandLandmarks, multiHandedness) {
       canvasCtx.strokeStyle = '#ffffff';
       canvasCtx.lineWidth = 1.0;
       canvasCtx.stroke();
-
-      canvasCtx.fillStyle = tip.color;
-      canvasCtx.font = 'bold 9px sans-serif';
-      canvasCtx.fillText(tip.label, pt.x + 8, pt.y - 2);
     });
   });
 }

@@ -1,6 +1,3 @@
-// ==========================================
-// GLOBAL DIAGNOSTIC ERROR BOUNDARY BANNER
-// ==========================================
 window.onerror = function(message, source, lineno, colno, error) {
   showDiagnosticError(`JS Error: ${message} (Line ${lineno}:${colno})`);
   return false;

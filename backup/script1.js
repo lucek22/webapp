@@ -3,46 +3,7 @@ import {
   FilesetResolver,
   DrawingUtils
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-
-/* ============================================================================
- * CHANGES IN THIS VERSION (see chat for full explanations):
- *
- * 1. Card/Letter calibration now accounts for CSS `object-fit` (cover/contain
- *    /fill) when converting the overlay's on-screen pixel size into a
- *    fraction of the actual video frame -- fixes the systematic scale error
- *    that occurs when the displayed video is cropped relative to its native
- *    resolution.
- * 2. A4 mode's fallback (when Roboflow doesn't detect paper) uses the
- *    index-finger distance, assuming the person is holding the 21.0cm A4 paper
- *    sheet between their fingers.
- * 3. Height now measures to the lowest of the heel/toe landmarks per foot,
- *    not the ankle midpoint (ankles sit several cm above the ground).
- * 4. "Top of head" is now anchored to the ear landmarks (more stable under
- *    head tilt/nodding than the nose) plus a height-proportional crown
- *    offset.
- * 5. Added a camera-roll correction: the shoulder line is used to detect a
- *    tilted phone/camera and the head/foot points are rotated before the
- *    vertical distance is computed.
- * 6. Wingspan now uses the index-finger-knuckle landmarks (closer to the
- *    fingertips than the wrists), adds a small fingertip-extension
- *    allowance per side, and includes the z-axis so arms angled toward/away
- *    from the camera aren't foreshortened.
- * 7. Removed the dead `dxBody = (x - x) * aspect` line; vertical distance is
- *    now computed via the roll-correction step above.
- * 8. Removed the blind "if height > 280cm, divide by 2" emergency brake.
- *    Out-of-range results now surface a warning banner explaining likely
- *    causes instead of silently rescaling the numbers.
- * 9. Landmark `visibility` is now carried through the smoothing buffer, and
- *    a warning banner fires if key landmarks (feet, ears, hands, etc.) are
- *    low-confidence.
- *
- * Remaining known limitations (documented, not "fixable" in code):
- * - Any single-camera setup requires the calibration reference to be at
- *   roughly the same distance from the camera as the body. Holding a card
- *   closer to the camera than your torso will still skew results.
- * - The crown offset and IPD constants are population averages and will be
- *   off for any individual by some margin.
- * ==========================================================================*/
+import * as ort from 'onnxruntime-web/webgpu'
 
 let poseLandmarker = undefined;
 let roboflowProject = undefined; 

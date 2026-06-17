@@ -76,7 +76,7 @@ h1 {
   background-color: #020617;
   border: 1px solid #1e293b;
 }
-video, canvas {
+video {
   position: absolute;
   top: 0;
   left: 0;
@@ -85,6 +85,11 @@ video, canvas {
   transform: scaleX(-1); /* Mirror view */
 }
 canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 640px;
+  height: 480px;
   z-index: 2;
   pointer-events: auto; /* Allow clicking and dragging the calibration box */
 }

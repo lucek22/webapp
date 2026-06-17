@@ -282,8 +282,8 @@ canvasElement.addEventListener('mousedown', (e) => {
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
   
-  // Mirror-flip coordinate X because of CSS scaleX(-1) on canvas
-  const canvasMouseX = 640 - ((mouseX / rect.width) * 640);
+  // Directly map coordinates (canvas is no longer mirrored in CSS)
+  const canvasMouseX = (mouseX / rect.width) * 640;
   const canvasMouseY = (mouseY / rect.height) * 480;
   
   const x1 = calBoxX - calBoxSize / 2;
@@ -303,7 +303,7 @@ canvasElement.addEventListener('mousemove', (e) => {
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
   
-  const canvasMouseX = 640 - ((mouseX / rect.width) * 640);
+  const canvasMouseX = (mouseX / rect.width) * 640;
   const canvasMouseY = (mouseY / rect.height) * 480;
   
   const x1 = calBoxX - calBoxSize / 2;
@@ -337,7 +337,7 @@ canvasElement.addEventListener('touchstart', (e) => {
     const mouseX = touch.clientX - rect.left;
     const mouseY = touch.clientY - rect.top;
     
-    const canvasMouseX = 640 - ((mouseX / rect.width) * 640);
+    const canvasMouseX = (mouseX / rect.width) * 640;
     const canvasMouseY = (mouseY / rect.height) * 480;
     
     const x1 = calBoxX - calBoxSize / 2;
@@ -361,7 +361,7 @@ canvasElement.addEventListener('touchmove', (e) => {
     const mouseX = touch.clientX - rect.left;
     const mouseY = touch.clientY - rect.top;
     
-    const canvasMouseX = 640 - ((mouseX / rect.width) * 640);
+    const canvasMouseX = (mouseX / rect.width) * 640;
     const canvasMouseY = (mouseY / rect.height) * 480;
     
     calBoxX = Math.max(calBoxSize/2, Math.min(640 - calBoxSize/2, canvasMouseX - dragStartX));
@@ -669,7 +669,7 @@ pose.onResults((results) => {
 
   // Draw ArUco box overlay if detected and active tab is 'aruco'
   if (latestArucoMarker && activeCalMethod === 'aruco') {
-    const corners = latestArucoMarker.corners;
+    const corners = latestArucoMarker.corners.map(c => ({ x: 640 - c.x, y: c.y }));
     canvasCtx.beginPath();
     canvasCtx.moveTo(corners[0].x, corners[0].y);
     canvasCtx.lineTo(corners[1].x, corners[1].y);
@@ -732,25 +732,28 @@ pose.onResults((results) => {
       });
     }
 
+    // Helper to mirror X coordinate for canvas drawing
+    const mirrorX = (normX) => (1.0 - normX) * 640;
+
     // Resolve normalized coordinates to pixels (LEFT)
-    const shoulder_l = { x: lm[LEFT_SHOULDER].x * 640, y: lm[LEFT_SHOULDER].y * 480 };
-    const elbow_l = { x: lm[LEFT_ELBOW].x * 640, y: lm[LEFT_ELBOW].y * 480 };
-    const wrist_l = { x: lm[LEFT_WRIST].x * 640, y: lm[LEFT_WRIST].y * 480 };
-    const hip_l = { x: lm[LEFT_HIP].x * 640, y: lm[LEFT_HIP].y * 480 };
-    const knee_l = { x: lm[LEFT_KNEE].x * 640, y: lm[LEFT_KNEE].y * 480 };
-    const ankle_l = { x: lm[LEFT_ANKLE].x * 640, y: lm[LEFT_ANKLE].y * 480 };
-    const heel_l = { x: lm[LEFT_HEEL].x * 640, y: lm[LEFT_HEEL].y * 480 };
-    const toe_l = { x: lm[LEFT_FOOT_INDEX].x * 640, y: lm[LEFT_FOOT_INDEX].y * 480 };
+    const shoulder_l = { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * 480 };
+    const elbow_l = { x: mirrorX(lm[LEFT_ELBOW].x), y: lm[LEFT_ELBOW].y * 480 };
+    const wrist_l = { x: mirrorX(lm[LEFT_WRIST].x), y: lm[LEFT_WRIST].y * 480 };
+    const hip_l = { x: mirrorX(lm[LEFT_HIP].x), y: lm[LEFT_HIP].y * 480 };
+    const knee_l = { x: mirrorX(lm[LEFT_KNEE].x), y: lm[LEFT_KNEE].y * 480 };
+    const ankle_l = { x: mirrorX(lm[LEFT_ANKLE].x), y: lm[LEFT_ANKLE].y * 480 };
+    const heel_l = { x: mirrorX(lm[LEFT_HEEL].x), y: lm[LEFT_HEEL].y * 480 };
+    const toe_l = { x: mirrorX(lm[LEFT_FOOT_INDEX].x), y: lm[LEFT_FOOT_INDEX].y * 480 };
 
     // Resolve normalized coordinates to pixels (RIGHT)
-    const shoulder_r = { x: lm[RIGHT_SHOULDER].x * 640, y: lm[RIGHT_SHOULDER].y * 480 };
-    const elbow_r = { x: lm[RIGHT_ELBOW].x * 640, y: lm[RIGHT_ELBOW].y * 480 };
-    const wrist_r = { x: lm[RIGHT_WRIST].x * 640, y: lm[RIGHT_WRIST].y * 480 };
-    const hip_r = { x: lm[RIGHT_HIP].x * 640, y: lm[RIGHT_HIP].y * 480 };
-    const knee_r = { x: lm[RIGHT_KNEE].x * 640, y: lm[RIGHT_KNEE].y * 480 };
-    const ankle_r = { x: lm[RIGHT_ANKLE].x * 640, y: lm[RIGHT_ANKLE].y * 480 };
-    const heel_r = { x: lm[RIGHT_HEEL].x * 640, y: lm[RIGHT_HEEL].y * 480 };
-    const toe_r = { x: lm[RIGHT_FOOT_INDEX].x * 640, y: lm[RIGHT_FOOT_INDEX].y * 480 };
+    const shoulder_r = { x: mirrorX(lm[RIGHT_SHOULDER].x), y: lm[RIGHT_SHOULDER].y * 480 };
+    const elbow_r = { x: mirrorX(lm[RIGHT_ELBOW].x), y: lm[RIGHT_ELBOW].y * 480 };
+    const wrist_r = { x: mirrorX(lm[RIGHT_WRIST].x), y: lm[RIGHT_WRIST].y * 480 };
+    const hip_r = { x: mirrorX(lm[RIGHT_HIP].x), y: lm[RIGHT_HIP].y * 480 };
+    const knee_r = { x: mirrorX(lm[RIGHT_KNEE].x), y: lm[RIGHT_KNEE].y * 480 };
+    const ankle_r = { x: mirrorX(lm[RIGHT_ANKLE].x), y: lm[RIGHT_ANKLE].y * 480 };
+    const heel_r = { x: mirrorX(lm[RIGHT_HEEL].x), y: lm[RIGHT_HEEL].y * 480 };
+    const toe_r = { x: mirrorX(lm[RIGHT_FOOT_INDEX].x), y: lm[RIGHT_FOOT_INDEX].y * 480 };
 
     // --- CALCULATE HEAD TOP ---
     const shoulder_mid = {
@@ -758,7 +761,7 @@ pose.onResults((results) => {
       y: (shoulder_l.y + shoulder_r.y) / 2
     };
     const ear_mid = {
-      x: (lm[7].x * 640 + lm[8].x * 640) / 2,
+      x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
       y: (lm[7].y * 480 + lm[8].y * 480) / 2
     };
     // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height above the ear level
@@ -768,7 +771,7 @@ pose.onResults((results) => {
       y: ear_mid.y - (shoulder_to_ear_px * 0.65)
     };
 
-    const all_landmarks = lm.map(l => ({ x: l.x * 640, y: l.y * 480 }));
+    const all_landmarks = lm.map(l => ({ x: mirrorX(l.x), y: l.y * 480 }));
 
     // Draw the full 33 MediaPipe pose landmarks skeletal mesh
     drawFullSkeletalMesh(all_landmarks);
@@ -1000,37 +1003,6 @@ const FINGER_COLORS = {
   pinky: '#f59e0b'    // Amber
 };
 
-function resetHandUI(side) {
-  if (side === 'Left' || side === 'all') {
-    if (handStatusLDisp) {
-      handStatusLDisp.textContent = "Left Hand: Offline";
-      handStatusLDisp.style.color = "#64748b";
-    }
-    if (pinchLDisp) pinchLDisp.textContent = "--.- cm";
-    if (spanLDisp) spanLDisp.textContent = "--.- cm";
-    fingertipLDisps.forEach((disp, idx) => {
-      if (disp) {
-        disp.textContent = "Offline";
-        disp.style.color = "#64748b";
-      }
-    });
-  }
-  if (side === 'Right' || side === 'all') {
-    if (handStatusRDisp) {
-      handStatusRDisp.textContent = "Right Hand: Offline";
-      handStatusRDisp.style.color = "#64748b";
-    }
-    if (pinchRDisp) pinchRDisp.textContent = "--.- cm";
-    if (spanRDisp) spanRDisp.textContent = "--.- cm";
-    fingertipRDisps.forEach((disp, idx) => {
-      if (disp) {
-        disp.textContent = "Offline";
-        disp.style.color = "#64748b";
-      }
-    });
-  }
-}
-
 function updateHandTracking(results) {
   if (isSnapshotFrozen) return;
 
@@ -1048,12 +1020,12 @@ function updateHandTracking(results) {
       if (side === 'Left') leftDetected = true;
       if (side === 'Right') rightDetected = true;
 
-      const wrist = { x: landmarks[0].x * 640, y: landmarks[0].y * 480 };
-      const thumbTip = { x: landmarks[4].x * 640, y: landmarks[4].y * 480 };
-      const indexTip = { x: landmarks[8].x * 640, y: landmarks[8].y * 480 };
-      const middleTip = { x: landmarks[12].x * 640, y: landmarks[12].y * 480 };
-      const ringTip = { x: landmarks[16].x * 640, y: landmarks[16].y * 480 };
-      const pinkyTip = { x: landmarks[20].x * 640, y: landmarks[20].y * 480 };
+      const wrist = { x: (1.0 - landmarks[0].x) * 640, y: landmarks[0].y * 480 };
+      const thumbTip = { x: (1.0 - landmarks[4].x) * 640, y: landmarks[4].y * 480 };
+      const indexTip = { x: (1.0 - landmarks[8].x) * 640, y: landmarks[8].y * 480 };
+      const middleTip = { x: (1.0 - landmarks[12].x) * 640, y: landmarks[12].y * 480 };
+      const ringTip = { x: (1.0 - landmarks[16].x) * 640, y: landmarks[16].y * 480 };
+      const pinkyTip = { x: (1.0 - landmarks[20].x) * 640, y: landmarks[20].y * 480 };
 
       let pinchSpanStr = "--.- cm";
       let handSpanStr = "--.- cm";
@@ -1103,9 +1075,6 @@ function updateHandTracking(results) {
       }
     });
   }
-
-  if (!leftDetected) resetHandUI('Left');
-  if (!rightDetected) resetHandUI('Right');
 }
 
 function drawHandMesh(multiHandLandmarks, multiHandedness) {
@@ -1116,7 +1085,7 @@ function drawHandMesh(multiHandLandmarks, multiHandedness) {
     const isLeft = handedness ? handedness.label === 'Left' : true;
     const sidePrefix = isLeft ? 'L' : 'R';
 
-    const pts = landmarks.map(lm => ({ x: lm.x * 640, y: lm.y * 480 }));
+    const pts = landmarks.map(lm => ({ x: (1.0 - lm.x) * 640, y: lm.y * 480 }));
 
     canvasCtx.beginPath();
     canvasCtx.moveTo(pts[0].x, pts[0].y);

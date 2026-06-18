@@ -97,8 +97,54 @@
       
       <button id="start-btn" class="btn">Start Biomechanical Tracking</button>
       <button id="yolo-toggle-btn" class="btn" style="margin-top: 0.5rem; background-color: #0f1626; border: 1px solid rgba(6, 182, 212, 0.4); color: #06b6d4; display: none; transition: all 0.2s;">Enable YOLO Background Isolation</button>
+      
+      <!-- Active Subject Input -->
+      <div id="subject-profile-panel" style="margin-top: 0.5rem; margin-bottom: 0.25rem; background-color: rgba(15, 22, 38, 0.4); border: 1px solid rgba(6, 182, 212, 0.15); border-radius: 8px; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.35rem;">
+        <label for="subject-name-input" style="font-size: 0.72rem; font-weight: 700; color: #a5b4fc; display: flex; align-items: center; gap: 0.25rem;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #a5b4fc;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Active Subject / Patient Name
+        </label>
+        <input type="text" id="subject-name-input" placeholder="e.g. John Doe" style="background-color: #0f1626; color: white; border: 1px solid rgba(6,182,212,0.3); padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 0.8rem; outline: none; transition: all 0.2s; font-weight: 500;">
+      </div>
+
       <button id="capture-btn" class="btn btn-capture" style="margin-top: 0.5rem; display: none; transition: all 0.2s;">Start 5s Capture Snapshot</button>
+      
+      <!-- Snapshot Saving Controls (shown when snapshot is frozen) -->
+      <div id="save-controls-panel" class="save-panel" style="display: none;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: #c084fc; margin-bottom: 0.1rem; display: flex; align-items: center; gap: 0.35rem;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          Snapshot Action Suite
+        </div>
+        <div class="save-row">
+          <input type="text" id="snapshot-name-input" class="save-input" placeholder="Snapshot Label">
+        </div>
+        <div class="save-row">
+          <button id="btn-save-gallery" class="btn btn-save-store" style="width: 50%;">Save to Gallery</button>
+          <button id="btn-dl-png" class="btn btn-download-png" style="width: 50%;">Download PNG</button>
+        </div>
+      </div>
+
       <div id="status">Awaiting camera start...</div>
+    </div>
+
+    <!-- Gallery Section (stands out as its own container below the camera view) -->
+    <div class="gallery-section container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
+        <h2 style="font-size: 1.1rem; margin: 0; background: linear-gradient(90deg, #c084fc, #3b82f6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          Saved Biomechanical Gallery
+        </h2>
+        <button id="btn-export-json" class="btn" style="margin-top: 0; padding: 0.35rem 0.75rem; font-size: 0.72rem; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: 1px solid rgba(168, 85, 247, 0.4); width: auto; font-weight: 700; border-radius: 6px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.2); transition: all 0.2s;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export Gallery JSON
+        </button>
+      </div>
+      <div class="subtitle" style="margin-bottom: 1rem;">View, compare, and export previously captured posture and alignment snapshots.</div>
+      <div id="gallery-grid" class="gallery-grid">
+        <div class="gallery-empty">
+          📸 No snapshots saved yet. Capture a snapshot above to save to your local offline library!
+        </div>
+      </div>
     </div>
 
     <!-- Right Column: Scientific Biometrics Dashboard -->
@@ -273,6 +319,201 @@
 
     </aside>
 
+  </div>
+
+  <!-- High-Fidelity Snapshot Analytics Modal -->
+  <div id="snapshot-modal" class="modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span id="modal-title" class="modal-title">Snapshot Analytics</span>
+          <span id="modal-date" class="modal-date">Captured on June 18, 2026</span>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-dl-btn" class="btn-modal-action btn-modal-dl">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Download PNG
+          </button>
+          <button id="modal-del-btn" class="btn-modal-action btn-modal-del">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            Delete
+          </button>
+          <button id="modal-close-btn" class="btn-modal-close">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-preview-pane">
+          <img id="modal-img" class="modal-preview-img" src="" alt="Biomechanical Snapshot">
+        </div>
+        <div class="modal-stats-pane">
+          
+          <!-- Stature Metrics -->
+          <div class="modal-stats-section">
+            <div class="modal-stats-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-1-1.73l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              Full-Body Stature
+            </div>
+            <div class="modal-stats-grid">
+              <div class="modal-metric-box">
+                <span class="modal-metric-lbl">Total Stature Height</span>
+                <span id="modal-val-height" class="modal-metric-val" style="color: #06b6d4; font-weight: bold;">--.-</span>
+              </div>
+              <div class="modal-metric-box">
+                <span class="modal-metric-lbl">Wingspan (Middle Fingers)</span>
+                <span id="modal-val-wingspan" class="modal-metric-val" style="color: #c084fc; font-weight: bold;">--.-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Joint Angles -->
+          <div class="modal-stats-section">
+            <div class="modal-stats-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              Joint Flexion Angles
+            </div>
+            <div class="modal-stats-grid">
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Knee Angle (L)</span>
+                <span id="modal-angle-knee-l" class="modal-metric-val left-color">--°</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Knee Angle (R)</span>
+                <span id="modal-angle-knee-r" class="modal-metric-val right-color">--°</span>
+              </div>
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Hip Angle (L)</span>
+                <span id="modal-angle-hip-l" class="modal-metric-val left-color">--°</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Hip Angle (R)</span>
+                <span id="modal-angle-hip-r" class="modal-metric-val right-color">--°</span>
+              </div>
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Elbow Angle (L)</span>
+                <span id="modal-angle-elbow-l" class="modal-metric-val left-color">--°</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Elbow Angle (R)</span>
+                <span id="modal-angle-elbow-r" class="modal-metric-val right-color">--°</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lower Body Segments -->
+          <div class="modal-stats-section">
+            <div class="modal-stats-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><polyline points="18 15 12 9 6 15"></polyline></svg>
+              Lower Body Segments
+            </div>
+            <div class="modal-stats-grid">
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Thigh (L)</span>
+                <span id="modal-val-thigh-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Thigh (R)</span>
+                <span id="modal-val-thigh-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Shank (L)</span>
+                <span id="modal-val-shin-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Shank (R)</span>
+                <span id="modal-val-shin-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Foot (L)</span>
+                <span id="modal-val-foot-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Foot (R)</span>
+                <span id="modal-val-foot-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upper Body Segments -->
+          <div class="modal-stats-section">
+            <div class="modal-stats-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              Upper Body Segments
+            </div>
+            <div class="modal-stats-grid">
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Torso (L)</span>
+                <span id="modal-val-torso-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Torso (R)</span>
+                <span id="modal-val-torso-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Upper Arm (L)</span>
+                <span id="modal-val-upperarm-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Upper Arm (R)</span>
+                <span id="modal-val-upperarm-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Forearm (L)</span>
+                <span id="modal-val-forearm-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Forearm (R)</span>
+                <span id="modal-val-forearm-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Anatomical Widths -->
+          <div class="modal-stats-section">
+            <div class="modal-stats-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M4 12h16M4 12l4-4m-4 4l4 4m12-4l-4-4m4 4l-4 4"></path></svg>
+              Anatomical Widths
+            </div>
+            <div class="modal-stats-grid">
+              <div class="modal-metric-box">
+                <span class="modal-metric-lbl">Shoulder Width</span>
+                <span id="modal-val-shoulder-w" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
+              </div>
+              <div class="modal-metric-box">
+                <span class="modal-metric-lbl">Pelvic (Hip) Width</span>
+                <span id="modal-val-hip-w" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hand Metrics (Pinch & Span) -->
+          <div class="modal-stats-section">
+            <div class="modal-stats-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
+              Hand Tracking
+            </div>
+            <div class="modal-stats-grid">
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Pinch (L)</span>
+                <span id="modal-val-pinch-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Pinch (R)</span>
+                <span id="modal-val-pinch-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+              <div class="modal-metric-box left-border">
+                <span class="modal-metric-lbl">Hand Span (L)</span>
+                <span id="modal-val-span-l" class="modal-metric-val left-color">--.-</span>
+              </div>
+              <div class="modal-metric-box right-border">
+                <span class="modal-metric-lbl">Hand Span (R)</span>
+                <span id="modal-val-span-r" class="modal-metric-val right-color">--.-</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>

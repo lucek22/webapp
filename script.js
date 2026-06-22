@@ -56,6 +56,118 @@ function showDiagnosticError(text) {
   }
 }
 
+// ==========================================
+// PERSISTENT OFFLINE STORAGE (INDEXEDDB)
+// ==========================================
+class SnapshotStore {
+  constructor() {
+    this.dbName = "ScarletBiomechanics";
+    this.dbVersion = 1;
+    this.db = null;
+  }
+
+  init() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        console.warn("IndexedDB is not supported in this browser. Persistent saving will be disabled.");
+        reject(new Error("IndexedDB not supported"));
+        return;
+      }
+      const request = indexedDB.open(this.dbName, this.dbVersion);
+
+      request.onerror = (event) => {
+        console.error("IndexedDB open error:", event.target.error);
+        reject(event.target.error);
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        resolve(this.db);
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains("snapshots")) {
+          db.createObjectStore("snapshots", { keyPath: "id", autoIncrement: true });
+        }
+      };
+    });
+  }
+
+  save(snapshot) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["snapshots"], "readwrite");
+      const store = transaction.objectStore("snapshots");
+      const request = store.add(snapshot);
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  getAll() {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["snapshots"], "readonly");
+      const store = transaction.objectStore("snapshots");
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  get(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["snapshots"], "readonly");
+      const store = transaction.objectStore("snapshots");
+      const request = store.get(Number(id));
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  delete(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["snapshots"], "readwrite");
+      const store = transaction.objectStore("snapshots");
+      const request = store.delete(Number(id));
+
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+}
+
+const snapshotStore = new SnapshotStore();
+let dbInitialized = false;
+
+// Initialize Store and render the Gallery on page load
+snapshotStore.init()
+  .then(() => {
+    dbInitialized = true;
+    renderGallery();
+  })
+  .catch(err => {
+    console.error("IndexedDB store init failed:", err);
+  });
+
 const videoElement = document.getElementById('webcam');
 const canvasElement = document.getElementById('overlay');
 const canvasCtx = canvasElement.getContext('2d');
@@ -476,6 +588,9 @@ unitInchBtn.addEventListener('click', () => {
   if (isSnapshotFrozen && frozenMetrics) {
     renderDashboard(frozenMetrics);
   }
+  if (dbInitialized) {
+    renderGallery();
+  }
 });
 
 unitCmBtn.addEventListener('click', () => {
@@ -487,6 +602,9 @@ unitCmBtn.addEventListener('click', () => {
   updateHeightInputUnit();
   if (isSnapshotFrozen && frozenMetrics) {
     renderDashboard(frozenMetrics);
+  }
+  if (dbInitialized) {
+    renderGallery();
   }
 });
 
@@ -1480,6 +1598,29 @@ function captureSnapshot(joints, metrics) {
   
   statusElement.textContent = "📸 SNAPSHOT CAPTURED! Biomechanical statistics frozen on screen.";
   
+  // Set default label in input
+  const nameInput = document.getElementById('snapshot-name-input');
+  if (nameInput) {
+    const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    const dateStr = new Date().toLocaleDateString('en-US', options);
+    
+    // Retrieve active subject name if typed
+    const subjectInput = document.getElementById('subject-name-input');
+    const subjectName = subjectInput ? subjectInput.value.trim() : '';
+    
+    if (subjectName) {
+      nameInput.value = `${subjectName} - Posture Scan - ${dateStr}`;
+    } else {
+      nameInput.value = `Posture Scan - ${dateStr}`;
+    }
+  }
+
+  // Show save panel
+  const savePanel = document.getElementById('save-controls-panel');
+  if (savePanel) {
+    savePanel.style.display = 'flex';
+  }
+
   // Trigger visual flash
   triggerFlashEffect();
 }
@@ -1631,27 +1772,36 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
+function resetAndResume() {
+  isSnapshotFrozen = false;
+  frozenJoints = null;
+  frozenMetrics = null;
+  frozenHandResults = null;
+  
+  // Restore standard video feed visibility
+  if (yoloModeActive) {
+    videoElement.style.opacity = '0.05';
+  } else {
+    videoElement.style.opacity = '1.0';
+  }
+  
+  // Restore capture button styling
+  captureBtn.textContent = "Start 5s Capture Snapshot";
+  captureBtn.classList.remove('btn-capture-reset');
+  captureBtn.classList.add('btn-capture');
+  
+  statusElement.textContent = "Live biomechanical tracking resumed.";
+
+  // Hide save panel
+  const savePanel = document.getElementById('save-controls-panel');
+  if (savePanel) {
+    savePanel.style.display = 'none';
+  }
+}
+
 captureBtn.addEventListener('click', () => {
   if (isSnapshotFrozen) {
-    // Reset and Resume live tracking
-    isSnapshotFrozen = false;
-    frozenJoints = null;
-    frozenMetrics = null;
-    frozenHandResults = null;
-    
-    // Restore standard video feed visibility
-    if (yoloModeActive) {
-      videoElement.style.opacity = '0.05';
-    } else {
-      videoElement.style.opacity = '1.0';
-    }
-    
-    // Restore capture button styling
-    captureBtn.textContent = "Start 5s Capture Snapshot";
-    captureBtn.classList.remove('btn-capture-reset');
-    captureBtn.classList.add('btn-capture');
-    
-    statusElement.textContent = "Live biomechanical tracking resumed.";
+    resetAndResume();
     return;
   }
   
@@ -1708,6 +1858,11 @@ async function startCamera() {
   startButton.style.display = 'none';
   yoloToggleBtn.style.display = 'block';
   captureBtn.style.display = 'block';
+
+  const subjectPanel = document.getElementById('subject-profile-panel');
+  if (subjectPanel) {
+    subjectPanel.style.display = 'flex';
+  }
 
   const cameraSwitchBtn = document.getElementById('camera-switch-btn');
   if (cameraSwitchBtn) {
@@ -1831,5 +1986,357 @@ if (cameraSwitchBtn) {
     
     // Restart camera with new facing mode
     await startCamera();
+  });
+}
+
+// ==========================================
+// SNAPSHOT PERSISTENCE & GALLERY INTEGRATION
+// ==========================================
+
+function formatSkeletalHeight(heightCm) {
+  const skeletal_inches = heightCm / 2.54;
+  const skeletal_feet = Math.floor(skeletal_inches / 12);
+  const skeletal_inches_left = skeletal_inches % 12;
+  if (useInches) {
+    return `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
+  } else {
+    return `${heightCm.toFixed(1)} cm`;
+  }
+}
+
+function getDomMeasurementCm(elementId) {
+  const elem = document.getElementById(elementId);
+  if (!elem) return null;
+  const text = elem.textContent.trim();
+  if (text.includes('--.-') || text === 'Offline' || text === '') return null;
+  
+  const num = parseFloat(text);
+  if (isNaN(num)) return null;
+  
+  if (text.endsWith('in')) {
+    return num * 2.54;
+  }
+  return num;
+}
+
+function renderGallery() {
+  const galleryGrid = document.getElementById('gallery-grid');
+  if (!galleryGrid) return;
+
+  snapshotStore.getAll()
+    .then(snapshots => {
+      galleryGrid.innerHTML = '';
+
+      if (!snapshots || snapshots.length === 0) {
+        galleryGrid.innerHTML = `
+          <div class="gallery-empty">
+            📸 No snapshots saved yet. Capture a snapshot above to save to your local offline library!
+          </div>
+        `;
+        return;
+      }
+
+      // Sort chronologically (newest first)
+      snapshots.sort((a, b) => b.timestamp - a.timestamp);
+
+      snapshots.forEach(snapshot => {
+        const card = document.createElement('div');
+        card.className = 'snapshot-card';
+        card.setAttribute('data-id', snapshot.id);
+
+        let formattedHeight = '--.-';
+        if (snapshot.metrics && snapshot.metrics.skeletal_height) {
+          formattedHeight = formatSkeletalHeight(snapshot.metrics.skeletal_height);
+        }
+
+        const dateOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        const formattedDate = new Date(snapshot.timestamp).toLocaleDateString(undefined, dateOptions);
+
+        card.innerHTML = `
+          <button class="snapshot-card-delete" title="Delete Snapshot" data-id="${snapshot.id}">
+            &times;
+          </button>
+          <div class="snapshot-card-img-wrapper">
+            <img class="snapshot-card-img" src="${snapshot.image}" alt="${snapshot.name || 'Biomechanical Snapshot'}">
+            <div class="snapshot-card-overlay">
+              <span>View Details</span>
+            </div>
+          </div>
+          <div class="snapshot-card-info">
+            <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Snapshot'}">${snapshot.name || 'Biomechanical Snapshot'}</div>
+            <div class="snapshot-card-meta">
+              <span class="snapshot-card-height">${formattedHeight}</span>
+              <span>${formattedDate}</span>
+            </div>
+          </div>
+        `;
+
+        // Card click handler opens modal
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.snapshot-card-delete')) return;
+          openSnapshotModal(snapshot.id);
+        });
+
+        // Delete badge click handler
+        const deleteBtn = card.querySelector('.snapshot-card-delete');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm(`Are you sure you want to delete "${snapshot.name || 'this snapshot'}"?`)) {
+              deleteSnapshotHandler(snapshot.id);
+            }
+          });
+        }
+
+        galleryGrid.appendChild(card);
+      });
+    })
+    .catch(err => {
+      console.error("Failed to render snapshot gallery:", err);
+    });
+}
+
+function openSnapshotModal(id) {
+  snapshotStore.get(id)
+    .then(snapshot => {
+      if (!snapshot) {
+        alert("Snapshot not found!");
+        return;
+      }
+
+      const modal = document.getElementById('snapshot-modal');
+      const modalImg = document.getElementById('modal-img');
+      const modalTitle = document.getElementById('modal-title');
+      const modalDate = document.getElementById('modal-date');
+
+      if (modalImg) modalImg.src = snapshot.image;
+      if (modalTitle) modalTitle.textContent = snapshot.name || "Snapshot Analytics";
+      
+      const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      const dateStr = new Date(snapshot.timestamp).toLocaleDateString(undefined, dateOptions);
+      if (modalDate) modalDate.textContent = `Captured on ${dateStr}`;
+
+      const m = snapshot.metrics;
+      if (m) {
+        // Full Body
+        setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
+        setModalMetric('modal-val-wingspan', m.wingspan ? formatSkeletalHeight(m.wingspan) : "--.-");
+
+        // Angles
+        setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
+        setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
+        setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
+        setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
+        setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
+        setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+
+        // Lower body
+        setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatSkeletalHeight(m.thigh_l) : "--.-");
+        setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatSkeletalHeight(m.thigh_r) : "--.-");
+        setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatSkeletalHeight(m.shin_l) : "--.-");
+        setModalMetric('modal-val-shin-r', m.shin_r !== undefined ? formatSkeletalHeight(m.shin_r) : "--.-");
+        setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatSkeletalHeight(m.foot_l) : "--.-");
+        setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatSkeletalHeight(m.foot_r) : "--.-");
+
+        // Upper body
+        setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatSkeletalHeight(m.torso_l) : "--.-");
+        setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatSkeletalHeight(m.torso_r) : "--.-");
+        setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatSkeletalHeight(m.upperarm_l) : "--.-");
+        setModalMetric('modal-val-upperarm-r', m.upperarm_r !== undefined ? formatSkeletalHeight(m.upperarm_r) : "--.-");
+        setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatSkeletalHeight(m.forearm_l) : "--.-");
+        setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatSkeletalHeight(m.forearm_r) : "--.-");
+
+        // Widths
+        setModalMetric('modal-val-shoulder-w', m.shoulderW !== undefined ? formatSkeletalHeight(m.shoulderW) : "--.-");
+        setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatSkeletalHeight(m.hipW) : "--.-");
+
+        // Hand Metrics
+        setModalMetric('modal-val-pinch-l', m.pinch_l_cm !== undefined && m.pinch_l_cm !== null ? formatSkeletalHeight(m.pinch_l_cm) : "--.-");
+        setModalMetric('modal-val-pinch-r', m.pinch_r_cm !== undefined && m.pinch_r_cm !== null ? formatSkeletalHeight(m.pinch_r_cm) : "--.-");
+        setModalMetric('modal-val-span-l', m.span_l_cm !== undefined && m.span_l_cm !== null ? formatSkeletalHeight(m.span_l_cm) : "--.-");
+        setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatSkeletalHeight(m.span_r_cm) : "--.-");
+      }
+
+      // Clone buttons to purge old single-use click event listeners
+      const dlBtn = document.getElementById('modal-dl-btn');
+      const delBtn = document.getElementById('modal-del-btn');
+
+      if (dlBtn) {
+        const newDlBtn = dlBtn.cloneNode(true);
+        dlBtn.parentNode.replaceChild(newDlBtn, dlBtn);
+        newDlBtn.addEventListener('click', () => {
+          downloadSnapshotImage(snapshot.image, snapshot.name || 'biomechanical-snapshot');
+        });
+      }
+
+      if (delBtn) {
+        const newDelBtn = delBtn.cloneNode(true);
+        delBtn.parentNode.replaceChild(newDelBtn, delBtn);
+        newDelBtn.addEventListener('click', () => {
+          if (confirm(`Are you sure you want to delete "${snapshot.name || 'this snapshot'}"?`)) {
+            deleteSnapshotHandler(snapshot.id);
+            closeSnapshotModal();
+          }
+        });
+      }
+
+      if (modal) modal.classList.add('active');
+    })
+    .catch(err => {
+      console.error("Failed to load snapshot details for modal:", err);
+    });
+}
+
+function setModalMetric(elementId, text) {
+  const elem = document.getElementById(elementId);
+  if (elem) elem.textContent = text;
+}
+
+function closeSnapshotModal() {
+  const modal = document.getElementById('snapshot-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function deleteSnapshotHandler(id) {
+  snapshotStore.delete(id)
+    .then(() => {
+      renderGallery();
+      statusElement.textContent = "🗑️ Snapshot deleted successfully.";
+    })
+    .catch(err => {
+      console.error("Failed to delete snapshot:", err);
+    });
+}
+
+function sanitizeFilename(name) {
+  return name
+    .replace(/[^a-zA-Z0-9\-_\s]/g, '') // remove characters that aren't letters, numbers, spaces, hyphens, or underscores
+    .trim()
+    .replace(/\s+/g, '-')             // turn multiple spaces/whitespace into a single hyphen
+    .toLowerCase();
+}
+
+function downloadSnapshotImage(dataUrl, filename) {
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  const safeName = sanitizeFilename(filename) || 'biomechanical-snapshot';
+  link.download = `${safeName}-${Date.now()}.png`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ==========================================
+// CORE COMPONENT INTERACTIVE EVENT BINDINGS
+// ==========================================
+
+// Close modal buttons
+const modalCloseBtn = document.getElementById('modal-close-btn');
+if (modalCloseBtn) {
+  modalCloseBtn.addEventListener('click', closeSnapshotModal);
+}
+
+const modalOverlay = document.getElementById('snapshot-modal');
+if (modalOverlay) {
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) {
+      closeSnapshotModal();
+    }
+  });
+}
+
+// Save & Download Action Suite Buttons
+const btnDlPng = document.getElementById('btn-dl-png');
+if (btnDlPng) {
+  btnDlPng.addEventListener('click', () => {
+    if (!isSnapshotFrozen) return;
+    const nameInput = document.getElementById('snapshot-name-input');
+    const label = nameInput ? nameInput.value.trim() : 'biomechanical-snapshot';
+    const dataUrl = canvasElement.toDataURL('image/png');
+    downloadSnapshotImage(dataUrl, label);
+  });
+}
+
+const btnSaveGallery = document.getElementById('btn-save-gallery');
+if (btnSaveGallery) {
+  btnSaveGallery.addEventListener('click', () => {
+    if (!isSnapshotFrozen || !frozenMetrics) return;
+
+    const nameInput = document.getElementById('snapshot-name-input');
+    const label = nameInput ? nameInput.value.trim() : 'Posture Scan';
+
+    // Retrieve active DOM pinch/span measurements in raw cm values
+    const pinch_l_cm = getDomMeasurementCm('val-pinch-l');
+    const pinch_r_cm = getDomMeasurementCm('val-pinch-r');
+    const span_l_cm = getDomMeasurementCm('val-span-l');
+    const span_r_cm = getDomMeasurementCm('val-span-r');
+
+    const metricsToSave = {
+      ...frozenMetrics,
+      pinch_l_cm,
+      pinch_r_cm,
+      span_l_cm,
+      span_r_cm
+    };
+
+    const snapshotRecord = {
+      name: label,
+      timestamp: Date.now(),
+      image: canvasElement.toDataURL('image/png'),
+      metrics: metricsToSave
+    };
+
+    snapshotStore.save(snapshotRecord)
+      .then(() => {
+        statusElement.textContent = `💾 Snapshot "${label}" successfully saved to biomechanical gallery!`;
+        renderGallery();
+        resetAndResume();
+      })
+      .catch(err => {
+        console.error("Failed to save snapshot to IndexedDB:", err);
+        alert("Could not save snapshot. See developer console for errors.");
+      });
+  });
+}
+
+// Bind Export Gallery JSON Button click
+const btnExportJson = document.getElementById('btn-export-json');
+if (btnExportJson) {
+  btnExportJson.addEventListener('click', () => {
+    snapshotStore.getAll()
+      .then(snapshots => {
+        if (!snapshots || snapshots.length === 0) {
+          alert("No snapshots saved in your gallery to export yet! Capture and save a snapshot first.");
+          return;
+        }
+
+        // Stringify snapshot array nicely formatted
+        const jsonStr = JSON.stringify(snapshots, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        
+        // Formulate a clean filename incorporating the subject's name if specified
+        const subjectInput = document.getElementById('subject-name-input');
+        const subjectName = subjectInput ? subjectInput.value.trim() : '';
+        let baseFilename = 'biomechanical-gallery-export';
+        if (subjectName) {
+          baseFilename = `${sanitizeFilename(subjectName)}-gallery-export`;
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${baseFilename}-${Date.now()}.json`;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        statusElement.textContent = "📤 Exported biomechanical gallery database to JSON file successfully!";
+      })
+      .catch(err => {
+        console.error("JSON Database Export failed:", err);
+        alert("Failed to export database to JSON. Check the browser console.");
+      });
   });
 }

@@ -15,12 +15,13 @@ import {
   updateHeightInputUnit,
   formatSkeletalHeight,
   triggerFlashEffect,
-  drawRoundedRect
+  drawRoundedRect,
+  getDomMeasurementCm
 } from './helpers.js';
 
 import { detectArucoMarker } from './arucoDetector.js';
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
-import { downloadSnapshotImage } from './reportCompiler.js';
+import { downloadSnapshotImage, compileAndDownloadCombinedSession } from './reportCompiler.js';
 
 export const videoElement = document.getElementById('webcam');
 export const canvasElement = document.getElementById('overlay');
@@ -494,6 +495,54 @@ export function onPoseResults(results) {
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+  const now = Date.now();
+  const dt = now - state.lastFrameTime;
+  state.lastFrameTime = now;
+
+  if (state.autoActive && state.lockoutTimerMs > 0) {
+    state.lockoutTimerMs -= dt;
+    if (state.lockoutTimerMs < 0) state.lockoutTimerMs = 0;
+    
+    // Draw the frozen snapshot
+    const tempJoints = state.frozenJoints;
+    const tempMetrics = state.frozenMetrics;
+    state.frozenJoints = state.frozenAutoJoints;
+    state.frozenMetrics = state.frozenAutoMetrics;
+    drawFrozenSnapshot();
+    state.frozenJoints = tempJoints; // restore
+    state.frozenMetrics = tempMetrics;
+    
+    // Draw transition instruction text & progress bar
+    drawLockoutTransitionOverlay();
+    
+    canvasCtx.restore();
+    
+    // Transition state once lockout ends
+    if (state.lockoutTimerMs === 0) {
+      if (state.autoState === 'WAITING_A') {
+        state.autoState = 'WAITING_T';
+        state.holdTimerMs = 0;
+        statusElement.textContent = "A-Pose captured! Please stand in T-Pose (arms extended horizontally at shoulder level).";
+      } else if (state.autoState === 'WAITING_T') {
+        state.autoState = 'WAITING_OVERHEAD';
+        state.holdTimerMs = 0;
+        statusElement.textContent = "T-Pose captured! Please stand in Overhead Reach (arms extended straight up above your head).";
+      } else if (state.autoState === 'WAITING_OVERHEAD') {
+        state.autoState = 'COMPLETE';
+        statusElement.textContent = "All poses captured! Compiling session report...";
+        
+        // Compile and download consolidated session report
+        compileAndDownloadCombinedSession();
+        
+        // End flow after 3 seconds
+        setTimeout(() => {
+          cancelAutoSequence();
+        }, 3000);
+      }
+    }
+    return;
+  }
+
   // YOLO-style Background Masking
   if (results.segmentationMask && state.yoloModeActive) {
     canvasCtx.save();
@@ -664,6 +713,105 @@ export function onPoseResults(results) {
           drawPoseBadge(liveMetrics.pose);
         }
 
+        // Active Sequential Pose hold tracking
+        if (state.autoActive && state.lockoutTimerMs === 0) {
+          const detectedPose = liveMetrics.pose;
+          let isPoseMatched = false;
+          if (state.autoState === 'WAITING_A' && detectedPose === 'A-Pose') {
+            isPoseMatched = true;
+          } else if (state.autoState === 'WAITING_T' && detectedPose === 'T-Pose') {
+            isPoseMatched = true;
+          } else if (state.autoState === 'WAITING_OVERHEAD' && detectedPose === 'Overhead Reach') {
+            isPoseMatched = true;
+          }
+
+          if (isPoseMatched) {
+            state.holdTimerMs += dt;
+            const progress = Math.min(state.holdTimerMs / state.REQ_HOLD_MS, 1.0);
+            
+            // Draw glassmorphic holding progress bar
+            canvasCtx.save();
+            const barWidth = 320;
+            const barHeight = 16;
+            const barX = (canvasElement.width - barWidth) / 2;
+            const barY = canvasElement.height - 75;
+            
+            // Glassmorphic styling
+            canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.7)';
+            canvasCtx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+            canvasCtx.lineWidth = 1.5;
+            drawRoundedRect(canvasCtx, barX, barY, barWidth, barHeight, 8);
+            canvasCtx.fill();
+            canvasCtx.stroke();
+            
+            if (progress > 0) {
+              canvasCtx.save();
+              const fillWidth = barWidth * progress;
+              const grad = canvasCtx.createLinearGradient(barX, 0, barX + barWidth, 0);
+              grad.addColorStop(0, '#a855f7');
+              grad.addColorStop(1, '#6366f1');
+              canvasCtx.fillStyle = grad;
+              canvasCtx.beginPath();
+              drawRoundedRect(canvasCtx, barX, barY, fillWidth, barHeight, 8);
+              canvasCtx.clip();
+              canvasCtx.fillRect(barX, barY, fillWidth, barHeight);
+              canvasCtx.restore();
+            }
+            
+            // Hold Progress Text with pulsing glow
+            const pulse = 1 + 0.02 * Math.sin(Date.now() / 150);
+            canvasCtx.save();
+            canvasCtx.translate(canvasElement.width / 2, barY - 15);
+            canvasCtx.scale(pulse, pulse);
+            canvasCtx.fillStyle = '#ffffff';
+            canvasCtx.font = 'bold 12px sans-serif';
+            canvasCtx.textAlign = 'center';
+            canvasCtx.shadowColor = '#a855f7';
+            canvasCtx.shadowBlur = 6;
+            const percentage = Math.floor(progress * 100);
+            canvasCtx.fillText(`HOLDING ${detectedPose.toUpperCase()}: ${percentage}%`, 0, 0);
+            canvasCtx.restore();
+            
+            canvasCtx.restore();
+
+            if (state.holdTimerMs >= state.REQ_HOLD_MS) {
+              triggerFlashEffect();
+              
+              // Cache current frame image on frozenFrameCanvas
+              frozenFrameCtx.clearRect(0, 0, 640, 480);
+              frozenFrameCtx.drawImage(canvasElement, 0, 0);
+              
+              // Cache joints & metrics for lockout screen and consolidation
+              state.frozenAutoJoints = JSON.parse(JSON.stringify({
+                shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+                shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+                head_top, ground_y, ruler_x, live_feet_inches_str,
+                smoothed_live_height: liveMetrics.live_height,
+                kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+                all_landmarks: all_landmarks
+              }));
+              state.frozenAutoMetrics = JSON.parse(JSON.stringify(liveMetrics));
+              
+              // Save automatic snapshot to database in the background
+              saveAutoSeqSnapshot(detectedPose, liveMetrics);
+
+              // Trigger visual feedback lockout period
+              state.lockoutTimerMs = state.LOCKOUT_MS;
+              
+              // Store specific pose metrics for combined export
+              if (state.autoState === 'WAITING_A') {
+                state.metricsA = JSON.parse(JSON.stringify(liveMetrics));
+              } else if (state.autoState === 'WAITING_T') {
+                state.metricsT = JSON.parse(JSON.stringify(liveMetrics));
+              } else if (state.autoState === 'WAITING_OVERHEAD') {
+                state.metricsOverhead = JSON.parse(JSON.stringify(liveMetrics));
+              }
+            }
+          } else {
+            state.holdTimerMs = 0;
+          }
+        }
+
         // Capture freeze frame hook
         if (state.isCaptureCountingDown && state.captureCountdownValue === 0) {
           captureSnapshot({
@@ -790,6 +938,158 @@ function captureSnapshot(joints, metrics) {
 
   // Trigger visual flash
   triggerFlashEffect();
+}
+
+export function cancelAutoSequence() {
+  state.autoActive = false;
+  state.autoState = 'IDLE';
+  state.holdTimerMs = 0;
+  state.lockoutTimerMs = 0;
+  state.currentGroupId = null;
+  state.frozenAutoJoints = null;
+  state.frozenAutoMetrics = null;
+  state.metricsA = null;
+  state.metricsT = null;
+  state.metricsOverhead = null;
+  
+  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
+  if (autoSequenceBtn) {
+    autoSequenceBtn.textContent = "Hands-Free Auto Capture";
+    autoSequenceBtn.style.background = "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)";
+    autoSequenceBtn.style.border = "1px solid rgba(168, 85, 247, 0.4)";
+    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(168, 85, 247, 0.2)";
+  }
+  
+  statusElement.textContent = "Hands-free capture cancelled.";
+}
+
+export function drawLockoutTransitionOverlay() {
+  canvasCtx.save();
+  
+  const panelW = 460;
+  const panelH = 110;
+  const panelX = (canvasElement.width - panelW) / 2;
+  const panelY = (canvasElement.height - panelH) / 2;
+  
+  canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.85)';
+  canvasCtx.strokeStyle = 'rgba(139, 92, 246, 0.6)';
+  canvasCtx.lineWidth = 2;
+  canvasCtx.shadowColor = 'rgba(139, 92, 246, 0.4)';
+  canvasCtx.shadowBlur = 12;
+  
+  drawRoundedRect(canvasCtx, panelX, panelY, panelW, panelH, 12);
+  canvasCtx.fill();
+  canvasCtx.stroke();
+  canvasCtx.shadowBlur = 0;
+  
+  canvasCtx.fillStyle = '#f43f5e';
+  canvasCtx.font = 'bold 15px sans-serif';
+  canvasCtx.textAlign = 'center';
+  canvasCtx.textBaseline = 'top';
+  
+  let currentCap = "";
+  let nextPose = "";
+  if (state.autoState === 'WAITING_A') {
+    currentCap = "A-POSE";
+    nextPose = "T-Pose (Arms horizontal)";
+  } else if (state.autoState === 'WAITING_T') {
+    currentCap = "T-POSE";
+    nextPose = "Overhead Reach (Arms straight up)";
+  } else if (state.autoState === 'WAITING_OVERHEAD') {
+    currentCap = "OVERHEAD REACH";
+    nextPose = "Generating consolidated report...";
+  }
+  
+  canvasCtx.fillText(`✅ ${currentCap} CAPTURED!`, canvasElement.width / 2, panelY + 18);
+  
+  canvasCtx.fillStyle = '#e2e8f0';
+  canvasCtx.font = '500 12px sans-serif';
+  if (state.autoState !== 'WAITING_OVERHEAD') {
+    canvasCtx.fillText(`Prepare next: ${nextPose}`, canvasElement.width / 2, panelY + 42);
+  } else {
+    canvasCtx.fillText(nextPose, canvasElement.width / 2, panelY + 42);
+  }
+
+  const progress = Math.max(state.lockoutTimerMs / state.LOCKOUT_MS, 0);
+  const barW = 380;
+  const barH = 8;
+  const barX = (canvasElement.width - barW) / 2;
+  const barY = panelY + panelH - 28;
+  
+  canvasCtx.fillStyle = 'rgba(30, 41, 59, 0.8)';
+  drawRoundedRect(canvasCtx, barX, barY, barW, barH, 4);
+  canvasCtx.fill();
+  
+  if (progress > 0) {
+    canvasCtx.save();
+    const fillW = barW * progress;
+    const grad = canvasCtx.createLinearGradient(barX, 0, barX + barW, 0);
+    grad.addColorStop(0, '#f43f5e');
+    grad.addColorStop(1, '#ec4899');
+    canvasCtx.fillStyle = grad;
+    canvasCtx.beginPath();
+    drawRoundedRect(canvasCtx, barX, barY, fillW, barH, 4);
+    canvasCtx.clip();
+    canvasCtx.fillRect(barX, barY, fillW, barH);
+    canvasCtx.restore();
+  }
+  
+  canvasCtx.fillStyle = '#94a3b8';
+  canvasCtx.font = 'normal 9px sans-serif';
+  const secLeft = (state.lockoutTimerMs / 1000).toFixed(1);
+  if (state.autoState !== 'WAITING_OVERHEAD') {
+    canvasCtx.fillText(`Lockout active: ${secLeft}s remaining`, canvasElement.width / 2, panelY + panelH - 12);
+  } else {
+    canvasCtx.fillText(`Consolidating in ${secLeft}s`, canvasElement.width / 2, panelY + panelH - 12);
+  }
+
+  canvasCtx.restore();
+}
+
+export function saveAutoSeqSnapshot(poseName, metrics) {
+  const subjectInput = document.getElementById('subject-name-input');
+  const subjectName = subjectInput ? subjectInput.value.trim() : '';
+  const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  const dateStr = new Date().toLocaleDateString('en-US', options);
+  
+  let label = "";
+  if (subjectName) {
+    label = `${subjectName} - ${poseName} - ${dateStr} (Auto)`;
+  } else {
+    label = `${poseName} - ${dateStr} (Auto)`;
+  }
+
+  // Retrieve active DOM pinch/span measurements in raw cm values
+  const pinch_l_cm = getDomMeasurementCm('val-pinch-l');
+  const pinch_r_cm = getDomMeasurementCm('val-pinch-r');
+  const span_l_cm = getDomMeasurementCm('val-span-l');
+  const span_r_cm = getDomMeasurementCm('val-span-r');
+
+  const metricsToSave = {
+    ...metrics,
+    pinch_l_cm,
+    pinch_r_cm,
+    span_l_cm,
+    span_r_cm
+  };
+
+  const snapshotRecord = {
+    name: label,
+    timestamp: Date.now(),
+    image: frozenFrameCanvas.toDataURL('image/png'),
+    metrics: metricsToSave
+  };
+
+  if (state.dbInitialized) {
+    snapshotStore.save(snapshotRecord)
+      .then(() => {
+        console.log(`[AutoCapture] Saved "${label}" snapshot to IndexedDB gallery.`);
+        renderGallery();
+      })
+      .catch(err => {
+        console.error("[AutoCapture] Failed to save automatic snapshot to IndexedDB:", err);
+      });
+  }
 }
 
 function drawFrozenSnapshot() {
@@ -931,6 +1231,9 @@ function drawFrozenSnapshot() {
 }
 
 export function resetAndResume() {
+  if (state.autoActive) {
+    cancelAutoSequence();
+  }
   state.isSnapshotFrozen = false;
   state.frozenJoints = null;
   state.frozenMetrics = null;
@@ -966,6 +1269,11 @@ export async function startCamera() {
   startButton.style.display = 'none';
   yoloToggleBtn.style.display = 'block';
   captureBtn.style.display = 'block';
+
+  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
+  if (autoSequenceBtn) {
+    autoSequenceBtn.style.display = 'block';
+  }
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
@@ -1621,6 +1929,51 @@ captureBtn.addEventListener('click', () => {
     }
   }, 1000);
 });
+
+// Start automated sequential capture click listener
+const autoSequenceBtn = document.getElementById('auto-sequence-btn');
+if (autoSequenceBtn) {
+  autoSequenceBtn.addEventListener('click', () => {
+    if (state.autoActive) {
+      cancelAutoSequence();
+      statusElement.textContent = "Automated sequential capture sequence cancelled.";
+      return;
+    }
+
+    if (state.isSnapshotFrozen) {
+      resetAndResume();
+    }
+
+    if (state.isCaptureCountingDown || state.isCountingDown) return; // Prevent double trigger
+
+    // Check if calibrated
+    if (!state.pixelsPerCm || state.pixelsPerCm <= 0) {
+      alert("Please lock your 20cm Calibration (ArUco or Direct Card) first before starting Hands-Free Auto Capture!");
+      return;
+    }
+
+    // Initialize state
+    state.autoActive = true;
+    state.autoState = 'WAITING_A';
+    state.holdTimerMs = 0;
+    state.lockoutTimerMs = 0;
+    state.lastFrameTime = Date.now();
+    state.currentGroupId = Date.now();
+    
+    state.frozenAutoJoints = null;
+    state.frozenAutoMetrics = null;
+    state.metricsA = null;
+    state.metricsT = null;
+    state.metricsOverhead = null;
+
+    autoSequenceBtn.textContent = "Cancel Auto Sequence";
+    autoSequenceBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+    autoSequenceBtn.style.border = "1px solid rgba(239, 68, 68, 0.4)";
+    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(239, 68, 68, 0.2)";
+
+    statusElement.textContent = "🚀 Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
+  });
+}
 
 // Close modal buttons
 const modalCloseBtn = document.getElementById('modal-close-btn');

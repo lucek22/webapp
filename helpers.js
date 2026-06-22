@@ -244,7 +244,20 @@ export const state = {
   latestRightMiddleTip: null,
   activeStream: null,
   activeCalMethod: 'aruco',
-  dbInitialized: false
+  dbInitialized: false,
+  autoActive: false,
+  autoState: 'IDLE',
+  holdTimerMs: 0,
+  lockoutTimerMs: 0,
+  lastFrameTime: Date.now(),
+  currentGroupId: null,
+  frozenAutoJoints: null,
+  frozenAutoMetrics: null,
+  metricsA: null,
+  metricsT: null,
+  metricsOverhead: null,
+  REQ_HOLD_MS: 2500,
+  LOCKOUT_MS: 3500
 };
 
 const smoothBuffers = {};

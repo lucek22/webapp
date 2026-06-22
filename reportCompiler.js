@@ -39,7 +39,7 @@ export function downloadSnapshotImage(dataUrl, filename) {
 // BIND SAVE & EXPORT ACTION CONTROLS
 // ==========================================
 
-export function setupReportCompiler({ canvasElement, statusElement, renderGallery, resetAndResume }) {
+export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusElement, renderGallery, resetAndResume }) {
   // 1. Download Current Frozen Snapshot as PNG
   const btnDlPng = document.getElementById('btn-dl-png');
   if (btnDlPng) {
@@ -47,7 +47,7 @@ export function setupReportCompiler({ canvasElement, statusElement, renderGaller
       if (!state.isSnapshotFrozen) return;
       const nameInput = document.getElementById('snapshot-name-input');
       const label = nameInput ? nameInput.value.trim() : 'biomechanical-snapshot';
-      const dataUrl = canvasElement.toDataURL('image/png');
+      const dataUrl = frozenFrameCanvas.toDataURL('image/png');
       downloadSnapshotImage(dataUrl, label);
     });
   }
@@ -78,7 +78,7 @@ export function setupReportCompiler({ canvasElement, statusElement, renderGaller
       const snapshotRecord = {
         name: label,
         timestamp: Date.now(),
-        image: canvasElement.toDataURL('image/png'),
+        image: frozenFrameCanvas.toDataURL('image/png'),
         metrics: metricsToSave
       };
 

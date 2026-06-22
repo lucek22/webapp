@@ -32,7 +32,7 @@ const captureBtn = document.getElementById('capture-btn');
 export const statusElement = document.getElementById('status');
 
 // Helper canvas for caching frozen frames
-const frozenFrameCanvas = document.createElement('canvas');
+export const frozenFrameCanvas = document.createElement('canvas');
 frozenFrameCanvas.width = 640;
 frozenFrameCanvas.height = 480;
 const frozenFrameCtx = frozenFrameCanvas.getContext('2d');
@@ -780,9 +780,21 @@ export function onPoseResults(results) {
             if (state.holdTimerMs >= state.REQ_HOLD_MS) {
               triggerFlashEffect();
               
-              // Cache current frame image on frozenFrameCanvas
+              // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
               frozenFrameCtx.clearRect(0, 0, 640, 480);
-              frozenFrameCtx.drawImage(canvasElement, 0, 0);
+              frozenFrameCtx.save();
+              if (state.currentFacingMode === "user") {
+                frozenFrameCtx.translate(640, 0);
+                frozenFrameCtx.scale(-1, 1);
+              }
+              if (results.segmentationMask && state.yoloModeActive) {
+                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+                frozenFrameCtx.globalCompositeOperation = 'source-in';
+                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+              } else {
+                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+              }
+              frozenFrameCtx.restore();
               
               // Cache joints & metrics for lockout screen and consolidation
               state.frozenAutoJoints = JSON.parse(JSON.stringify({
@@ -825,7 +837,7 @@ export function onPoseResults(results) {
             smoothed_live_height: liveMetrics.live_height,
             kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
             all_landmarks: all_landmarks
-          }, liveMetrics);
+          }, liveMetrics, results);
         }
 
         statusElement.textContent = `✅ Calibrated Tracking active. Real-time biometrics rendering.`;
@@ -881,7 +893,7 @@ export function onPoseResults(results) {
 // CAPTURE TIMER & SNAPSHOT PROCESSING
 // ==========================================
 
-function captureSnapshot(joints, metrics) {
+function captureSnapshot(joints, metrics, results) {
   state.isCaptureCountingDown = false;
   
   // Save deep copies of the joints coordinates and dashboard metrics
@@ -889,21 +901,23 @@ function captureSnapshot(joints, metrics) {
   state.frozenMetrics = JSON.parse(JSON.stringify(metrics));
   state.frozenHandResults = state.latestHandResults ? JSON.parse(JSON.stringify(state.latestHandResults)) : null;
   
-  // Save current frame image from canvas (if YOLO background isolated) or webcam
+  // Save current frame image from results (or fallback to videoElement if results are not available)
   frozenFrameCtx.clearRect(0, 0, 640, 480);
-  if (state.yoloModeActive) {
-    // Main canvas currently holds the isolated composite frame (before overlays were drawn)
-    frozenFrameCtx.drawImage(canvasElement, 0, 0);
-  } else {
-    // Grab direct webcam stream and mirror it in memory if in user-facing mode
-    frozenFrameCtx.save();
-    if (state.currentFacingMode === "user") {
-      frozenFrameCtx.translate(640, 0);
-      frozenFrameCtx.scale(-1, 1);
-    }
-    frozenFrameCtx.drawImage(videoElement, 0, 0);
-    frozenFrameCtx.restore();
+  frozenFrameCtx.save();
+  if (state.currentFacingMode === "user") {
+    frozenFrameCtx.translate(640, 0);
+    frozenFrameCtx.scale(-1, 1);
   }
+  if (results && results.segmentationMask && state.yoloModeActive) {
+    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+    frozenFrameCtx.globalCompositeOperation = 'source-in';
+    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+  } else if (results && results.image) {
+    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+  } else {
+    frozenFrameCtx.drawImage(videoElement, 0, 0);
+  }
+  frozenFrameCtx.restore();
 
   state.isSnapshotFrozen = true;
   videoElement.style.opacity = '0'; // Completely hide live video feed under the canvas

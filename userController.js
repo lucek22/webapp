@@ -154,7 +154,7 @@ const upperarmRDisp = document.getElementById('val-upperarm-r');
 const forearmRDisp = document.getElementById('val-forearm-r');
 
 // Widths & Other
-const shoulderWDisp = document.getElementById('val-shoulder-w');
+const fingerToToeDisp = document.getElementById('val-finger-to-toe');
 const hipWDisp = document.getElementById('val-hip-w');
 const wingspanDisp = document.getElementById('val-wingspan');
 const heightCmDisp = document.getElementById('val-height-cm');
@@ -385,6 +385,45 @@ function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_i
   canvasCtx.setLineDash([]);
 }
 
+function drawPoseBadge(poseName) {
+  canvasCtx.save();
+  canvasCtx.translate(20, 20);
+  canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.75)';
+  let accentColor = '#818cf8'; // Default A-Pose: Violet
+  if (poseName === "T-Pose") accentColor = '#06b6d4'; // Cyan
+  if (poseName === "Overhead Reach") accentColor = '#10b981'; // Emerald
+  
+  canvasCtx.strokeStyle = accentColor;
+  canvasCtx.lineWidth = 1.5;
+  drawRoundedRect(canvasCtx, 0, 0, 160, 38, 6);
+  canvasCtx.fill();
+  canvasCtx.stroke();
+
+  // Pulsating status dot
+  const radius = 3.5;
+  const pulse = radius + 1.0 * Math.sin(Date.now() / 250);
+  canvasCtx.beginPath();
+  canvasCtx.arc(18, 19, pulse, 0, 2 * Math.PI);
+  canvasCtx.fillStyle = accentColor + '40';
+  canvasCtx.fill();
+
+  canvasCtx.beginPath();
+  canvasCtx.arc(18, 19, 2.5, 0, 2 * Math.PI);
+  canvasCtx.fillStyle = accentColor;
+  canvasCtx.fill();
+
+  canvasCtx.fillStyle = '#ffffff';
+  canvasCtx.font = 'bold 9px sans-serif';
+  canvasCtx.textAlign = 'left';
+  canvasCtx.textBaseline = 'middle';
+  canvasCtx.fillText("DETECTED POSE:", 32, 13);
+
+  canvasCtx.fillStyle = accentColor;
+  canvasCtx.font = 'bold 11px sans-serif';
+  canvasCtx.fillText(poseName.toUpperCase(), 32, 25);
+  canvasCtx.restore();
+}
+
 export function renderDashboard(metrics) {
   if (!metrics) return;
 
@@ -403,10 +442,25 @@ export function renderDashboard(metrics) {
   forearmLDisp.textContent = formatLength(metrics.forearm_l);
   forearmRDisp.textContent = formatLength(metrics.forearm_r);
 
-  shoulderWDisp.textContent = formatLength(metrics.shoulderW);
+  if (fingerToToeDisp) {
+    fingerToToeDisp.textContent = `L: ${formatLength(metrics.fingerToToeL)} / R: ${formatLength(metrics.fingerToToeR)}`;
+  }
   hipWDisp.textContent = formatLength(metrics.hipW);
   if (wingspanDisp) {
     wingspanDisp.textContent = metrics.wingspan ? formatLength(metrics.wingspan) : "--.- cm";
+  }
+
+  // Render active pose
+  const activePoseDisp = document.getElementById('val-active-pose');
+  if (activePoseDisp) {
+    activePoseDisp.textContent = metrics.pose || "A-Pose";
+    if (metrics.pose === "T-Pose") {
+      activePoseDisp.style.color = "#06b6d4"; // Cyan
+    } else if (metrics.pose === "Overhead Reach") {
+      activePoseDisp.style.color = "#10b981"; // Emerald
+    } else {
+      activePoseDisp.style.color = "#818cf8"; // Violet
+    }
   }
 
   // Render height
@@ -605,6 +659,11 @@ export function onPoseResults(results) {
         // Draw the live ruler graphics
         drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
 
+        // Draw active pose badge
+        if (liveMetrics.pose) {
+          drawPoseBadge(liveMetrics.pose);
+        }
+
         // Capture freeze frame hook
         if (state.isCaptureCountingDown && state.captureCountdownValue === 0) {
           captureSnapshot({
@@ -714,10 +773,12 @@ function captureSnapshot(joints, metrics) {
     const subjectInput = document.getElementById('subject-name-input');
     const subjectName = subjectInput ? subjectInput.value.trim() : '';
     
+    const poseName = (metrics && metrics.pose) ? metrics.pose : "Posture Scan";
+    
     if (subjectName) {
-      nameInput.value = `${subjectName} - Posture Scan - ${dateStr}`;
+      nameInput.value = `${subjectName} - ${poseName} - ${dateStr}`;
     } else {
-      nameInput.value = `Posture Scan - ${dateStr}`;
+      nameInput.value = `${poseName} - ${dateStr}`;
     }
   }
 
@@ -832,6 +893,11 @@ function drawFrozenSnapshot() {
   // Draw frozen hand skeletons if available
   if (state.frozenHandResults) {
     drawHandMesh(state.frozenHandResults.multiHandLandmarks, state.frozenHandResults.multiHandedness);
+  }
+
+  // Draw frozen pose badge if available
+  if (state.frozenMetrics && state.frozenMetrics.pose) {
+    drawPoseBadge(state.frozenMetrics.pose);
   }
 
   // 3. Draw pulsing SNAPSHOT FROZEN badge
@@ -1131,6 +1197,19 @@ function openSnapshotModal(id) {
         setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
         setModalMetric('modal-val-wingspan', m.wingspan ? formatSkeletalHeight(m.wingspan) : "--.-");
 
+        // Render captured pose in snapshot modal
+        setModalMetric('modal-val-pose', m.pose || "A-Pose");
+        const modalPoseElem = document.getElementById('modal-val-pose');
+        if (modalPoseElem) {
+          if (m.pose === "T-Pose") {
+            modalPoseElem.style.color = "#06b6d4"; // Cyan
+          } else if (m.pose === "Overhead Reach") {
+            modalPoseElem.style.color = "#10b981"; // Emerald
+          } else {
+            modalPoseElem.style.color = "#818cf8"; // Violet
+          }
+        }
+
         // Angles
         setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
         setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
@@ -1156,7 +1235,11 @@ function openSnapshotModal(id) {
         setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatSkeletalHeight(m.forearm_r) : "--.-");
 
         // Widths
-        setModalMetric('modal-val-shoulder-w', m.shoulderW !== undefined ? formatSkeletalHeight(m.shoulderW) : "--.-");
+        if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
+          setModalMetric('modal-val-finger-to-toe', `L: ${formatSkeletalHeight(m.fingerToToeL)} / R: ${formatSkeletalHeight(m.fingerToToeR)}`);
+        } else {
+          setModalMetric('modal-val-finger-to-toe', "--.-");
+        }
         setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatSkeletalHeight(m.hipW) : "--.-");
 
         // Hand Metrics

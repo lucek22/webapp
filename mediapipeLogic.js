@@ -170,6 +170,14 @@ export function calculatePoseMetrics(results) {
     const shoulderW_px = Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y);
     const hipW_px = Math.hypot(hip_l.x - hip_r.x, hip_l.y - hip_r.y);
 
+    // Left Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
+    const finger_l = state.latestLeftMiddleTip || all_landmarks[19] || wrist_l;
+    const fingerToToeL_px = Math.hypot(finger_l.x - toe_l.x, finger_l.y - toe_l.y);
+
+    // Right Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
+    const finger_r = state.latestRightMiddleTip || all_landmarks[20] || wrist_r;
+    const fingerToToeR_px = Math.hypot(finger_r.x - toe_r.x, finger_r.y - toe_r.y);
+
     // Vertical height using lowest foot contacts (heels/toes) as the ground plane
     const vertical_height_px = Math.abs(ground_y - head_top.y);
     state.lastVerticalHeightPx = vertical_height_px; // Save for input-based calibration
@@ -226,6 +234,8 @@ export function calculatePoseMetrics(results) {
       forearm_l: smooth('forearm_l', forearm_l_px / state.pixelsPerCm),
       forearm_r: smooth('forearm_r', forearm_r_px / state.pixelsPerCm),
 
+      fingerToToeL: smooth('finger_to_toe_l', fingerToToeL_px / state.pixelsPerCm),
+      fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_px / state.pixelsPerCm),
       shoulderW: smooth('shoulderW', shoulderW_px / state.pixelsPerCm),
       hipW: smooth('hipW', hipW_px / state.pixelsPerCm),
       wingspan: smooth('wingspan_distance', wingspan_cm),
@@ -235,6 +245,23 @@ export function calculatePoseMetrics(results) {
 
       kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR
     };
+
+    // Real-time Pose Detection Logic
+    let detectedPose = "A-Pose";
+    if (liveMetrics.skeletal_height > 0) {
+      const wingspanRatio = liveMetrics.wingspan / liveMetrics.skeletal_height;
+      const avgFingerToToe = (liveMetrics.fingerToToeL + liveMetrics.fingerToToeR) / 2;
+      const fingerToToeRatio = avgFingerToToe / liveMetrics.skeletal_height;
+
+      if (wingspanRatio > 0.83) {
+        detectedPose = "T-Pose";
+      } else if (fingerToToeRatio > 1.20) {
+        detectedPose = "Overhead Reach";
+      } else {
+        detectedPose = "A-Pose";
+      }
+    }
+    liveMetrics.pose = detectedPose;
   }
 
   return {

@@ -174,6 +174,7 @@ const canvasCtx = canvasElement.getContext('2d');
 const startButton = document.getElementById('start-btn');
 const yoloToggleBtn = document.getElementById('yolo-toggle-btn');
 const captureBtn = document.getElementById('capture-btn');
+const autoSequenceBtn = document.getElementById('auto-sequence-btn');
 const statusElement = document.getElementById('status');
 let yoloModeActive = false;
 let frameCount = 0;
@@ -198,6 +199,21 @@ let captureCountdownValue = 0;
 let isSnapshotFrozen = false;
 let frozenJoints = null;
 let frozenMetrics = null;
+
+// Hands-free automated sequential pose capture state variables
+let autoActive = false;
+let autoState = 'IDLE'; // 'IDLE', 'WAITING_A', 'WAITING_T', 'WAITING_OVERHEAD', 'COMPLETE'
+let holdTimerMs = 0;
+let lockoutTimerMs = 0;
+let lastFrameTime = Date.now();
+let currentGroupId = null;
+let frozenAutoJoints = null;
+let frozenAutoMetrics = null;
+let metricsA = null;
+let metricsT = null;
+let metricsOverhead = null;
+const REQ_HOLD_MS = 2500; // 2.5s stable hold required (slightly longer)
+const LOCKOUT_MS = 3500;  // 3.5s visual feedback transition (slightly longer)
 
 // Helper canvas for caching frozen frames
 const frozenFrameCanvas = document.createElement('canvas');
@@ -827,6 +843,54 @@ pose.onResults((results) => {
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
+  const now = Date.now();
+  const dt = now - lastFrameTime;
+  lastFrameTime = now;
+
+  if (autoActive && lockoutTimerMs > 0) {
+    lockoutTimerMs -= dt;
+    if (lockoutTimerMs < 0) lockoutTimerMs = 0;
+    
+    // Draw the frozen snapshot
+    const tempJoints = frozenJoints;
+    const tempMetrics = frozenMetrics;
+    frozenJoints = frozenAutoJoints;
+    frozenMetrics = frozenAutoMetrics;
+    drawFrozenSnapshot();
+    frozenJoints = tempJoints; // restore
+    frozenMetrics = tempMetrics;
+    
+    // Draw transition instruction text & progress bar
+    drawLockoutTransitionOverlay();
+    
+    canvasCtx.restore();
+    
+    // Transition state once lockout ends
+    if (lockoutTimerMs === 0) {
+      if (autoState === 'WAITING_A') {
+        autoState = 'WAITING_T';
+        holdTimerMs = 0;
+        statusElement.textContent = "A-Pose captured! Please stand in T-Pose (arms extended horizontally at shoulder level).";
+      } else if (autoState === 'WAITING_T') {
+        autoState = 'WAITING_OVERHEAD';
+        holdTimerMs = 0;
+        statusElement.textContent = "T-Pose captured! Please stand in Overhead Reach (arms extended straight up above your head).";
+      } else if (autoState === 'WAITING_OVERHEAD') {
+        autoState = 'COMPLETE';
+        statusElement.textContent = "All poses captured! Compiling session report...";
+        
+        // Compile and download consolidated session report
+        compileAndDownloadCombinedSession();
+        
+        // End flow after 3 seconds
+        setTimeout(() => {
+          cancelAutoSequence();
+        }, 3000);
+      }
+    }
+    return;
+  }
+
   // YOLO-style Background Masking
   if (results.segmentationMask && yoloModeActive) {
     canvasCtx.save();
@@ -1081,6 +1145,41 @@ pose.onResults((results) => {
         }
       }
 
+      // 1. Determine temporary raw/unstabilized ratios to detect the active pose
+      let currentBaseHeight = skeletal_height_cm;
+      const bufSkeletal = smoothBuffers['body_height_skeletal'];
+      if (bufSkeletal && bufSkeletal.length > 0) {
+        currentBaseHeight = bufSkeletal[bufSkeletal.length - 1];
+      }
+      
+      let detectedPose = "A-Pose";
+      if (currentBaseHeight > 0) {
+        const wingspanRatio = wingspan_cm / currentBaseHeight;
+        const avgFingerToToe = (fingerToToeL_px / pixelsPerCm + fingerToToeR_px / pixelsPerCm) / 2;
+        const fingerToToeRatio = avgFingerToToe / currentBaseHeight;
+
+        if (wingspanRatio > 0.83) {
+          detectedPose = "T-Pose";
+        } else if (fingerToToeRatio > 1.20) {
+          detectedPose = "Overhead Reach";
+        } else {
+          detectedPose = "A-Pose";
+        }
+      }
+
+      // 2. Only track and smooth skeletal/live heights when in A-Pose
+      let skeletalHeightMetric = 0;
+      let liveHeightMetric = 0;
+      if (detectedPose === "A-Pose") {
+        skeletalHeightMetric = smooth('body_height_skeletal', skeletal_height_cm);
+        liveHeightMetric = smooth('body_height_live', live_height_cm);
+      } else {
+        // Retrieve the last smoothed heights
+        skeletalHeightMetric = (bufSkeletal && bufSkeletal.length > 0) ? bufSkeletal[bufSkeletal.length - 1] : skeletal_height_cm;
+        const bufLive = smoothBuffers['body_height_live'];
+        liveHeightMetric = (bufLive && bufLive.length > 0) ? bufLive[bufLive.length - 1] : live_height_cm;
+      }
+
       // Convert to direct physical units and apply smoothing
       const liveMetrics = {
         thigh_l: smooth('thigh_l', thigh_l_px / pixelsPerCm),
@@ -1102,33 +1201,17 @@ pose.onResults((results) => {
         hipW: smooth('hipW', hipW_px / pixelsPerCm),
         wingspan: smooth('wingspan_distance', wingspan_cm),
 
-        skeletal_height: smooth('body_height_skeletal', skeletal_height_cm),
-        live_height: smooth('body_height_live', live_height_cm),
+        skeletal_height: skeletalHeightMetric,
+        live_height: liveHeightMetric,
 
         kneeAngleL: kneeAngleL,
         kneeAngleR: kneeAngleR,
         hipAngleL: hipAngleL,
         hipAngleR: hipAngleR,
         elbowAngleL: elbowAngleL,
-        elbowAngleR: elbowAngleR
+        elbowAngleR: elbowAngleR,
+        pose: detectedPose
       };
-
-      // Real-time Pose Detection Logic
-      let detectedPose = "A-Pose";
-      if (liveMetrics.skeletal_height > 0) {
-        const wingspanRatio = liveMetrics.wingspan / liveMetrics.skeletal_height;
-        const avgFingerToToe = (liveMetrics.fingerToToeL + liveMetrics.fingerToToeR) / 2;
-        const fingerToToeRatio = avgFingerToToe / liveMetrics.skeletal_height;
-
-        if (wingspanRatio > 0.83) {
-          detectedPose = "T-Pose";
-        } else if (fingerToToeRatio > 1.20) {
-          detectedPose = "Overhead Reach";
-        } else {
-          detectedPose = "A-Pose";
-        }
-      }
-      liveMetrics.pose = detectedPose;
 
       // Render live biometrics to dashboard
       renderDashboard(liveMetrics);
@@ -1153,6 +1236,104 @@ pose.onResults((results) => {
 
       // Draw active pose badge
       drawPoseBadge(detectedPose);
+
+      // Active Sequential Pose hold tracking
+      if (autoActive && lockoutTimerMs === 0) {
+        let isPoseMatched = false;
+        if (autoState === 'WAITING_A' && detectedPose === 'A-Pose') {
+          isPoseMatched = true;
+        } else if (autoState === 'WAITING_T' && detectedPose === 'T-Pose') {
+          isPoseMatched = true;
+        } else if (autoState === 'WAITING_OVERHEAD' && detectedPose === 'Overhead Reach') {
+          isPoseMatched = true;
+        }
+
+        if (isPoseMatched) {
+          holdTimerMs += dt;
+          const progress = Math.min(holdTimerMs / REQ_HOLD_MS, 1.0);
+          
+          // Draw glassmorphic holding progress bar
+          canvasCtx.save();
+          const barWidth = 320;
+          const barHeight = 16;
+          const barX = (canvasElement.width - barWidth) / 2;
+          const barY = canvasElement.height - 75;
+          
+          // Glassmorphic styling
+          canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.7)';
+          canvasCtx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+          canvasCtx.lineWidth = 1.5;
+          drawRoundedRect(canvasCtx, barX, barY, barWidth, barHeight, 8);
+          canvasCtx.fill();
+          canvasCtx.stroke();
+          
+          if (progress > 0) {
+            canvasCtx.save();
+            const fillWidth = barWidth * progress;
+            const grad = canvasCtx.createLinearGradient(barX, 0, barX + barWidth, 0);
+            grad.addColorStop(0, '#a855f7');
+            grad.addColorStop(1, '#6366f1');
+            canvasCtx.fillStyle = grad;
+            canvasCtx.beginPath();
+            drawRoundedRect(canvasCtx, barX, barY, fillWidth, barHeight, 8);
+            canvasCtx.clip();
+            canvasCtx.fillRect(barX, barY, fillWidth, barHeight);
+            canvasCtx.restore();
+          }
+          
+          // Hold Progress Text with pulsing glow
+          const pulse = 1 + 0.02 * Math.sin(Date.now() / 150);
+          canvasCtx.save();
+          canvasCtx.translate(canvasElement.width / 2, barY - 15);
+          canvasCtx.scale(pulse, pulse);
+          canvasCtx.fillStyle = '#ffffff';
+          canvasCtx.font = 'bold 12px sans-serif';
+          canvasCtx.textAlign = 'center';
+          canvasCtx.shadowColor = '#a855f7';
+          canvasCtx.shadowBlur = 6;
+          const percentage = Math.floor(progress * 100);
+          canvasCtx.fillText(`HOLDING ${detectedPose.toUpperCase()}: ${percentage}%`, 0, 0);
+          canvasCtx.restore();
+          
+          canvasCtx.restore();
+
+          if (holdTimerMs >= REQ_HOLD_MS) {
+            triggerFlashEffect();
+            
+            // Cache current frame image on frozenFrameCanvas
+            frozenFrameCtx.clearRect(0, 0, 640, 480);
+            frozenFrameCtx.drawImage(canvasElement, 0, 0);
+            
+            // Cache joints & metrics for lockout screen and consolidation
+            frozenAutoJoints = JSON.parse(JSON.stringify({
+              shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+              shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+              head_top, ground_y, ruler_x, live_feet_inches_str,
+              smoothed_live_height: liveMetrics.live_height,
+              kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+              all_landmarks: all_landmarks
+            }));
+            frozenAutoMetrics = JSON.parse(JSON.stringify(liveMetrics));
+            
+            // Save automatic snapshot to database in the background
+            saveAutoSeqSnapshot(detectedPose, liveMetrics);
+
+            // Trigger visual feedback lockout period
+            lockoutTimerMs = LOCKOUT_MS;
+            
+            // Store specific pose metrics for combined export
+            if (autoState === 'WAITING_A') {
+              metricsA = JSON.parse(JSON.stringify(liveMetrics));
+            } else if (autoState === 'WAITING_T') {
+              metricsT = JSON.parse(JSON.stringify(liveMetrics));
+            } else if (autoState === 'WAITING_OVERHEAD') {
+              metricsOverhead = JSON.parse(JSON.stringify(liveMetrics));
+            }
+          }
+        } else {
+          holdTimerMs = 0;
+        }
+      }
 
       // Capture freeze frame hook
       if (isCaptureCountingDown && captureCountdownValue === 0) {
@@ -1708,6 +1889,245 @@ function captureSnapshot(joints, metrics) {
   triggerFlashEffect();
 }
 
+function saveAutoSeqSnapshot(poseName, metrics) {
+  const subjectInput = document.getElementById('subject-name-input');
+  const subjectName = subjectInput ? subjectInput.value.trim() : '';
+  const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  const dateStr = new Date().toLocaleDateString('en-US', options);
+  
+  let label = "";
+  if (subjectName) {
+    label = `${subjectName} - ${poseName} - ${dateStr} (Auto)`;
+  } else {
+    label = `${poseName} - ${dateStr} (Auto)`;
+  }
+
+  // Retrieve active DOM pinch/span measurements in raw cm values
+  const pinch_l_cm = getDomMeasurementCm('val-pinch-l');
+  const pinch_r_cm = getDomMeasurementCm('val-pinch-r');
+  const span_l_cm = getDomMeasurementCm('val-span-l');
+  const span_r_cm = getDomMeasurementCm('val-span-r');
+
+  const metricsToSave = {
+    ...metrics,
+    pinch_l_cm,
+    pinch_r_cm,
+    span_l_cm,
+    span_r_cm
+  };
+
+  const snapshotRecord = {
+    name: label,
+    timestamp: Date.now(),
+    image: frozenFrameCanvas.toDataURL('image/png'),
+    metrics: metricsToSave
+  };
+
+  if (dbInitialized) {
+    snapshotStore.save(snapshotRecord)
+      .then(() => {
+        console.log(`[AutoCapture] Saved "${label}" snapshot to IndexedDB gallery.`);
+        renderGallery();
+      })
+      .catch(err => {
+        console.error("[AutoCapture] Failed to save automatic snapshot to IndexedDB:", err);
+      });
+  }
+}
+
+function compileAndDownloadCombinedSession() {
+  const subjectInput = document.getElementById('subject-name-input');
+  const subjectName = subjectInput ? subjectInput.value.trim() : 'Anonymous Subject';
+  const sessionId = `session-${currentGroupId || Date.now()}`;
+  const timestamp = Date.now();
+  
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  const formattedDate = new Date().toLocaleDateString('en-US', options);
+
+  const mA = metricsA || {};
+  const mT = metricsT || {};
+  const mO = metricsOverhead || {};
+
+  const report = {
+    subjectName: subjectName,
+    sessionId: sessionId,
+    timestamp: timestamp,
+    formattedDate: formattedDate,
+    summary: {
+      skeletal_height_cm: mA.skeletal_height ? Number(mA.skeletal_height.toFixed(1)) : null,
+      wingspan_cm: mT.wingspan ? Number(mT.wingspan.toFixed(1)) : null,
+      fingerToToeL_cm: mO.fingerToToeL ? Number(mO.fingerToToeL.toFixed(1)) : null,
+      fingerToToeR_cm: mO.fingerToToeR ? Number(mO.fingerToToeR.toFixed(1)) : null,
+      hip_width_cm: mA.hipW ? Number(mA.hipW.toFixed(1)) : null
+    },
+    segments: {
+      thigh_l: mA.thigh_l ? Number(mA.thigh_l.toFixed(1)) : null,
+      thigh_r: mA.thigh_r ? Number(mA.thigh_r.toFixed(1)) : null,
+      shin_l: mA.shin_l ? Number(mA.shin_l.toFixed(1)) : null,
+      shin_r: mA.shin_r ? Number(mA.shin_r.toFixed(1)) : null,
+      foot_l: mA.foot_l ? Number(mA.foot_l.toFixed(1)) : null,
+      foot_r: mA.foot_r ? Number(mA.foot_r.toFixed(1)) : null,
+      torso_l: mA.torso_l ? Number(mA.torso_l.toFixed(1)) : null,
+      torso_r: mA.torso_r ? Number(mA.torso_r.toFixed(1)) : null,
+      upperarm_l: mA.upperarm_l ? Number(mA.upperarm_l.toFixed(1)) : null,
+      upperarm_r: mA.upperarm_r ? Number(mA.upperarm_r.toFixed(1)) : null,
+      forearm_l: mA.forearm_l ? Number(mA.forearm_l.toFixed(1)) : null,
+      forearm_r: mA.forearm_r ? Number(mA.forearm_r.toFixed(1)) : null
+    },
+    posturalFlexionProfiles: {
+      aPose: {
+        kneeL: mA.kneeAngleL ? Math.round(mA.kneeAngleL) : null,
+        kneeR: mA.kneeAngleR ? Math.round(mA.kneeAngleR) : null,
+        hipL: mA.hipAngleL ? Math.round(mA.hipAngleL) : null,
+        hipR: mA.hipAngleR ? Math.round(mA.hipAngleR) : null,
+        elbowL: mA.elbowAngleL ? Math.round(mA.elbowAngleL) : null,
+        elbowR: mA.elbowAngleR ? Math.round(mA.elbowAngleR) : null
+      },
+      tPose: {
+        kneeL: mT.kneeAngleL ? Math.round(mT.kneeAngleL) : null,
+        kneeR: mT.kneeAngleR ? Math.round(mT.kneeAngleR) : null,
+        hipL: mT.hipAngleL ? Math.round(mT.hipAngleL) : null,
+        hipR: mT.hipAngleR ? Math.round(mT.hipAngleR) : null,
+        elbowL: mT.elbowAngleL ? Math.round(mT.elbowAngleL) : null,
+        elbowR: mT.elbowAngleR ? Math.round(mT.elbowAngleR) : null
+      },
+      overhead: {
+        kneeL: mO.kneeAngleL ? Math.round(mO.kneeAngleL) : null,
+        kneeR: mO.kneeAngleR ? Math.round(mO.kneeAngleR) : null,
+        hipL: mO.hipAngleL ? Math.round(mO.hipAngleL) : null,
+        hipR: mO.hipAngleR ? Math.round(mO.hipAngleR) : null,
+        elbowL: mO.elbowAngleL ? Math.round(mO.elbowAngleL) : null,
+        elbowR: mO.elbowAngleR ? Math.round(mO.elbowAngleR) : null
+      }
+    }
+  };
+
+  const jsonString = JSON.stringify(report, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  let baseFilename = 'biomechanical-session-report';
+  if (subjectName) {
+    baseFilename = `${sanitizeFilename(subjectName)}-session-report`;
+  }
+  const filename = `${baseFilename}-${timestamp}.json`;
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  
+  console.log(`[AutoCapture] Downloaded consolidated report: ${filename}`);
+}
+
+function drawLockoutTransitionOverlay() {
+  canvasCtx.save();
+  
+  const panelW = 460;
+  const panelH = 110;
+  const panelX = (canvasElement.width - panelW) / 2;
+  const panelY = (canvasElement.height - panelH) / 2;
+  
+  canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.85)';
+  canvasCtx.strokeStyle = 'rgba(139, 92, 246, 0.6)';
+  canvasCtx.lineWidth = 2;
+  canvasCtx.shadowColor = 'rgba(139, 92, 246, 0.4)';
+  canvasCtx.shadowBlur = 12;
+  
+  drawRoundedRect(canvasCtx, panelX, panelY, panelW, panelH, 12);
+  canvasCtx.fill();
+  canvasCtx.stroke();
+  canvasCtx.shadowBlur = 0;
+  
+  canvasCtx.fillStyle = '#f43f5e';
+  canvasCtx.font = 'bold 15px sans-serif';
+  canvasCtx.textAlign = 'center';
+  canvasCtx.textBaseline = 'top';
+  
+  let currentCap = "";
+  let nextPose = "";
+  if (autoState === 'WAITING_A') {
+    currentCap = "A-POSE";
+    nextPose = "T-Pose (Arms horizontal)";
+  } else if (autoState === 'WAITING_T') {
+    currentCap = "T-POSE";
+    nextPose = "Overhead Reach (Arms straight up)";
+  } else if (autoState === 'WAITING_OVERHEAD') {
+    currentCap = "OVERHEAD REACH";
+    nextPose = "Generating consolidated report...";
+  }
+  
+  canvasCtx.fillText(`✅ ${currentCap} CAPTURED!`, canvasElement.width / 2, panelY + 18);
+  
+  canvasCtx.fillStyle = '#e2e8f0';
+  canvasCtx.font = '500 12px sans-serif';
+  if (autoState !== 'WAITING_OVERHEAD') {
+    canvasCtx.fillText(`Prepare next: ${nextPose}`, canvasElement.width / 2, panelY + 42);
+  } else {
+    canvasCtx.fillText(nextPose, canvasElement.width / 2, panelY + 42);
+  }
+
+  const progress = Math.max(lockoutTimerMs / LOCKOUT_MS, 0);
+  const barW = 380;
+  const barH = 8;
+  const barX = (canvasElement.width - barW) / 2;
+  const barY = panelY + panelH - 28;
+  
+  canvasCtx.fillStyle = 'rgba(30, 41, 59, 0.8)';
+  drawRoundedRect(canvasCtx, barX, barY, barW, barH, 4);
+  canvasCtx.fill();
+  
+  if (progress > 0) {
+    canvasCtx.save();
+    const fillW = barW * progress;
+    const grad = canvasCtx.createLinearGradient(barX, 0, barX + barW, 0);
+    grad.addColorStop(0, '#f43f5e');
+    grad.addColorStop(1, '#ec4899');
+    canvasCtx.fillStyle = grad;
+    canvasCtx.beginPath();
+    drawRoundedRect(canvasCtx, barX, barY, fillW, barH, 4);
+    canvasCtx.clip();
+    canvasCtx.fillRect(barX, barY, fillW, barH);
+    canvasCtx.restore();
+  }
+  
+  canvasCtx.fillStyle = '#94a3b8';
+  canvasCtx.font = 'normal 9px sans-serif';
+  const secLeft = (lockoutTimerMs / 1000).toFixed(1);
+  if (autoState !== 'WAITING_OVERHEAD') {
+    canvasCtx.fillText(`Lockout active: ${secLeft}s remaining`, canvasElement.width / 2, panelY + panelH - 12);
+  } else {
+    canvasCtx.fillText(`Consolidating in ${secLeft}s`, canvasElement.width / 2, panelY + panelH - 12);
+  }
+
+  canvasCtx.restore();
+}
+
+function cancelAutoSequence() {
+  autoActive = false;
+  autoState = 'IDLE';
+  holdTimerMs = 0;
+  lockoutTimerMs = 0;
+  currentGroupId = null;
+  frozenAutoJoints = null;
+  frozenAutoMetrics = null;
+  metricsA = null;
+  metricsT = null;
+  metricsOverhead = null;
+  
+  if (autoSequenceBtn) {
+    autoSequenceBtn.textContent = "Hands-Free Auto Capture";
+    autoSequenceBtn.style.background = "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)";
+    autoSequenceBtn.style.border = "1px solid rgba(168, 85, 247, 0.4)";
+    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(168, 85, 247, 0.2)";
+  }
+  
+  statusElement.textContent = "Hands-free capture cancelled.";
+}
+
 function drawFrozenSnapshot() {
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -1861,6 +2281,9 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 }
 
 function resetAndResume() {
+  if (autoActive) {
+    cancelAutoSequence();
+  }
   isSnapshotFrozen = false;
   frozenJoints = null;
   frozenMetrics = null;
@@ -1920,6 +2343,49 @@ captureBtn.addEventListener('click', () => {
   }, 1000);
 });
 
+if (autoSequenceBtn) {
+  autoSequenceBtn.addEventListener('click', () => {
+    if (autoActive) {
+      cancelAutoSequence();
+      statusElement.textContent = "Automated sequential capture sequence cancelled.";
+      return;
+    }
+
+    if (isSnapshotFrozen) {
+      resetAndResume();
+    }
+
+    if (isCaptureCountingDown || isCountingDown) return; // Prevent double trigger
+
+    // Check if calibrated
+    if (pixelsPerCm <= 0) {
+      alert("Please lock your 200mm marker calibration first before starting Hands-Free Auto Capture!");
+      return;
+    }
+
+    // Initialize state
+    autoActive = true;
+    autoState = 'WAITING_A';
+    holdTimerMs = 0;
+    lockoutTimerMs = 0;
+    lastFrameTime = Date.now();
+    currentGroupId = Date.now();
+    
+    frozenAutoJoints = null;
+    frozenAutoMetrics = null;
+    metricsA = null;
+    metricsT = null;
+    metricsOverhead = null;
+
+    autoSequenceBtn.textContent = "Cancel Auto Sequence";
+    autoSequenceBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+    autoSequenceBtn.style.border = "1px solid rgba(239, 68, 68, 0.4)";
+    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(239, 68, 68, 0.2)";
+
+    statusElement.textContent = "🚀 Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
+  });
+}
+
 function drawJoint(point, color) {
   canvasCtx.beginPath();
   canvasCtx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
@@ -1946,6 +2412,9 @@ async function startCamera() {
   startButton.style.display = 'none';
   yoloToggleBtn.style.display = 'block';
   captureBtn.style.display = 'block';
+  if (autoSequenceBtn) {
+    autoSequenceBtn.style.display = 'block';
+  }
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {

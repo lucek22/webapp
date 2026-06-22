@@ -2,13 +2,33 @@
 // USER CONTROLLER: CANVAS DRAWS & EVENT LISTENERS
 // ==========================================
 
-const videoElement = document.getElementById('webcam');
-const canvasElement = document.getElementById('overlay');
+import {
+  state,
+  snapshotStore,
+  LANDMARK_NAMES,
+  POSE_CONNECTIONS,
+  FINGER_COLORS,
+  MARKER_PHYSICAL_SIZE_CM,
+  smooth,
+  getCanvasX,
+  formatLength,
+  updateHeightInputUnit,
+  formatSkeletalHeight,
+  triggerFlashEffect,
+  drawRoundedRect
+} from './helpers.js';
+
+import { detectArucoMarker } from './arucoDetector.js';
+import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
+import { downloadSnapshotImage } from './reportCompiler.js';
+
+export const videoElement = document.getElementById('webcam');
+export const canvasElement = document.getElementById('overlay');
 const canvasCtx = canvasElement.getContext('2d');
 const startButton = document.getElementById('start-btn');
 const yoloToggleBtn = document.getElementById('yolo-toggle-btn');
 const captureBtn = document.getElementById('capture-btn');
-const statusElement = document.getElementById('status');
+export const statusElement = document.getElementById('status');
 
 // Helper canvas for caching frozen frames
 const frozenFrameCanvas = document.createElement('canvas');
@@ -157,16 +177,6 @@ const panelCard = document.getElementById('panel-card');
 const panelHeight = document.getElementById('panel-height');
 const arucoStatusText = document.getElementById('aruco-status-text');
 
-// Initialize Store and render the Gallery on page load
-snapshotStore.init()
-  .then(() => {
-    dbInitialized = true;
-    renderGallery();
-  })
-  .catch(err => {
-    console.error("IndexedDB store init failed:", err);
-  });
-
 // ==========================================
 // CANVAS DRAWING COMPONENT UTILITIES
 // ==========================================
@@ -190,7 +200,7 @@ function drawBone(p1, p2, color) {
   canvasCtx.stroke();
 }
 
-function drawFullSkeletalMesh(landmarks) {
+export function drawFullSkeletalMesh(landmarks) {
   if (!landmarks || landmarks.length < 33) return;
 
   // 1. Draw thin, semi-transparent skeletal mesh connections
@@ -235,7 +245,7 @@ function drawFullSkeletalMesh(landmarks) {
   });
 }
 
-function drawHandMesh(multiHandLandmarks, multiHandedness) {
+export function drawHandMesh(multiHandLandmarks, multiHandedness) {
   if (!multiHandLandmarks) return;
 
   multiHandLandmarks.forEach((landmarks, handIdx) => {
@@ -353,8 +363,8 @@ function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_i
   // Text labels along ruler
   canvasCtx.fillStyle = '#06b6d4';
   canvasCtx.font = 'bold 11px sans-serif';
-  const rulerLabel = useInches ? live_feet_inches_str : `${live_height.toFixed(1)} cm`;
-  canvasCtx.fillText(`Live: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (useInches ? 95 : 80), (head_top.y + ground_y) / 2);
+  const rulerLabel = state.useInches ? live_feet_inches_str : `${live_height.toFixed(1)} cm`;
+  canvasCtx.fillText(`Live: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (state.useInches ? 95 : 80), (head_top.y + ground_y) / 2);
 
   // Connecting indicator line from head to ruler
   canvasCtx.beginPath();
@@ -375,7 +385,7 @@ function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_i
   canvasCtx.setLineDash([]);
 }
 
-function renderDashboard(metrics) {
+export function renderDashboard(metrics) {
   if (!metrics) return;
 
   // Render Left/Right segment lengths
@@ -405,7 +415,7 @@ function renderDashboard(metrics) {
   const skeletal_inches_left = skeletal_inches % 12;
   const skeletal_feet_inches_str = `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
 
-  if (useInches) {
+  if (state.useInches) {
     heightCmDisp.textContent = skeletal_feet_inches_str;
     heightFtDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm (Stature)`;
   } else {
@@ -426,14 +436,14 @@ function renderDashboard(metrics) {
 // POSE EVENT DISPATCH COORDINATOR
 // ==========================================
 
-function onPoseResults(results) {
+export function onPoseResults(results) {
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   // YOLO-style Background Masking
-  if (results.segmentationMask && yoloModeActive) {
+  if (results.segmentationMask && state.yoloModeActive) {
     canvasCtx.save();
-    if (currentFacingMode === "user") {
+    if (state.currentFacingMode === "user") {
       canvasCtx.translate(canvasElement.width, 0);
       canvasCtx.scale(-1, 1);
     }
@@ -445,9 +455,9 @@ function onPoseResults(results) {
   }
 
   // Draw ArUco box overlay if detected and active tab is 'aruco'
-  if (latestArucoMarker && activeCalMethod === 'aruco') {
-    const corners = latestArucoMarker.corners.map(c => ({
-      x: currentFacingMode === "user" ? 640 - c.x : c.x,
+  if (state.latestArucoMarker && state.activeCalMethod === 'aruco') {
+    const corners = state.latestArucoMarker.corners.map(c => ({
+      x: state.currentFacingMode === "user" ? 640 - c.x : c.x,
       y: c.y
     }));
     canvasCtx.beginPath();
@@ -468,23 +478,23 @@ function onPoseResults(results) {
     canvasCtx.fillText(`ARUCO ID 0 DETECTED (${formatLength(20.0)})`, corners[0].x, corners[0].y - 8);
   }
 
-  // 1. Draw Direct Card Calibration Guide Box (only if activeCalMethod is 'card')
-  if (activeCalMethod === 'card') {
-    const x1 = calBoxX - calBoxSize / 2;
-    const y1 = calBoxY - calBoxSize / 2;
+  // 1. Draw Direct Card Calibration Guide Box (only if state.activeCalMethod is 'card')
+  if (state.activeCalMethod === 'card') {
+    const x1 = state.calBoxX - state.calBoxSize / 2;
+    const y1 = state.calBoxY - state.calBoxSize / 2;
     
     canvasCtx.beginPath();
-    canvasCtx.rect(x1, y1, calBoxSize, calBoxSize);
-    canvasCtx.strokeStyle = calLocked ? '#10b981' : '#ec4899'; 
+    canvasCtx.rect(x1, y1, state.calBoxSize, state.calBoxSize);
+    canvasCtx.strokeStyle = state.calLocked ? '#10b981' : '#ec4899'; 
     canvasCtx.lineWidth = 3;
-    if (!calLocked) canvasCtx.setLineDash([6, 4]);
+    if (!state.calLocked) canvasCtx.setLineDash([6, 4]);
     canvasCtx.stroke();
     canvasCtx.setLineDash([]); 
 
     // Calibration box label
-    canvasCtx.fillStyle = calLocked ? '#10b981' : '#ec4899';
+    canvasCtx.fillStyle = state.calLocked ? '#10b981' : '#ec4899';
     canvasCtx.font = 'bold 11px sans-serif';
-    canvasCtx.fillText(calLocked ? "SCARLET CALIBRATION LOCKED" : "ALIGN PRINTED 200mm SQUARE IN BOX", x1 + 5, y1 - 8);
+    canvasCtx.fillText(state.calLocked ? "SCARLET CALIBRATION LOCKED" : "ALIGN PRINTED 200mm SQUARE IN BOX", x1 + 5, y1 - 8);
   }
 
   // 2. Perform Biomechanical mathematical updates
@@ -501,8 +511,8 @@ function onPoseResults(results) {
       } = calculated;
 
       // Update Landmark Directory status in a throttled way
-      frameCount++;
-      if (frameCount % 10 === 0) {
+      state.frameCount++;
+      if (state.frameCount % 10 === 0) {
         LANDMARK_NAMES.forEach((name, idx) => {
           const statusSpan = document.getElementById(`lm-status-${idx}`);
           if (statusSpan) {
@@ -574,7 +584,7 @@ function onPoseResults(results) {
       elbowAngleRDisp.textContent = `${elbowAngleR}°`;
 
       // Draw real-time biometrics to dashboard and ruler if calibrated
-      if (pixelsPerCm && liveMetrics) {
+      if (state.pixelsPerCm && liveMetrics) {
         renderDashboard(liveMetrics);
 
         // Position ruler on whichever side has more margin
@@ -596,7 +606,7 @@ function onPoseResults(results) {
         drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
 
         // Capture freeze frame hook
-        if (isCaptureCountingDown && captureCountdownValue === 0) {
+        if (state.isCaptureCountingDown && state.captureCountdownValue === 0) {
           captureSnapshot({
             shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
             shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
@@ -617,7 +627,7 @@ function onPoseResults(results) {
   }
 
   // --- 5-SECOND CAPTURE COUNTDOWN OVERLAY ---
-  if (isCaptureCountingDown && captureCountdownValue > 0) {
+  if (state.isCaptureCountingDown && state.captureCountdownValue > 0) {
     canvasCtx.fillStyle = 'rgba(9, 13, 22, 0.75)';
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
@@ -634,8 +644,8 @@ function onPoseResults(results) {
     
     // Large countdown number
     canvasCtx.font = 'bold 105px sans-serif';
-    canvasCtx.fillText(captureCountdownValue, canvasElement.width / 2, canvasElement.height / 2 - 30);
-    canvasCtx.strokeText(captureCountdownValue, canvasElement.width / 2, canvasElement.height / 2 - 30);
+    canvasCtx.fillText(state.captureCountdownValue, canvasElement.width / 2, canvasElement.height / 2 - 30);
+    canvasCtx.strokeText(state.captureCountdownValue, canvasElement.width / 2, canvasElement.height / 2 - 30);
 
     // Instruction text
     canvasCtx.font = 'bold 20px sans-serif';
@@ -648,8 +658,8 @@ function onPoseResults(results) {
   }
 
   // --- CAMERA SNAPSHOT FLASH EFFECT ---
-  if (flashOpacity > 0) {
-    canvasCtx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+  if (state.flashOpacity > 0) {
+    canvasCtx.fillStyle = `rgba(255, 255, 255, ${state.flashOpacity})`;
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
   }
 
@@ -661,22 +671,22 @@ function onPoseResults(results) {
 // ==========================================
 
 function captureSnapshot(joints, metrics) {
-  isCaptureCountingDown = false;
+  state.isCaptureCountingDown = false;
   
   // Save deep copies of the joints coordinates and dashboard metrics
-  frozenJoints = JSON.parse(JSON.stringify(joints));
-  frozenMetrics = JSON.parse(JSON.stringify(metrics));
-  frozenHandResults = latestHandResults ? JSON.parse(JSON.stringify(latestHandResults)) : null;
+  state.frozenJoints = JSON.parse(JSON.stringify(joints));
+  state.frozenMetrics = JSON.parse(JSON.stringify(metrics));
+  state.frozenHandResults = state.latestHandResults ? JSON.parse(JSON.stringify(state.latestHandResults)) : null;
   
   // Save current frame image from canvas (if YOLO background isolated) or webcam
   frozenFrameCtx.clearRect(0, 0, 640, 480);
-  if (yoloModeActive) {
+  if (state.yoloModeActive) {
     // Main canvas currently holds the isolated composite frame (before overlays were drawn)
     frozenFrameCtx.drawImage(canvasElement, 0, 0);
   } else {
     // Grab direct webcam stream and mirror it in memory if in user-facing mode
     frozenFrameCtx.save();
-    if (currentFacingMode === "user") {
+    if (state.currentFacingMode === "user") {
       frozenFrameCtx.translate(640, 0);
       frozenFrameCtx.scale(-1, 1);
     }
@@ -684,7 +694,7 @@ function captureSnapshot(joints, metrics) {
     frozenFrameCtx.restore();
   }
 
-  isSnapshotFrozen = true;
+  state.isSnapshotFrozen = true;
   videoElement.style.opacity = '0'; // Completely hide live video feed under the canvas
   
   // Set capture button to reset mode
@@ -729,14 +739,14 @@ function drawFrozenSnapshot() {
   canvasCtx.drawImage(frozenFrameCanvas, 0, 0, canvasElement.width, canvasElement.height);
 
   // 2. Draw the frozen skeleton
-  if (frozenJoints) {
+  if (state.frozenJoints) {
     const {
       shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
       shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
       head_top, ground_y, ruler_x, live_feet_inches_str, smoothed_live_height,
       kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
       all_landmarks
-    } = frozenJoints;
+    } = state.frozenJoints;
 
     // Draw the full skeletal mesh
     drawFullSkeletalMesh(all_landmarks);
@@ -798,8 +808,8 @@ function drawFrozenSnapshot() {
 
     canvasCtx.fillStyle = '#06b6d4';
     canvasCtx.font = 'bold 11px sans-serif';
-    const rulerLabel = useInches ? live_feet_inches_str : `${smoothed_live_height.toFixed(1)} cm`;
-    canvasCtx.fillText(`Captured: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (useInches ? 115 : 100), (head_top.y + ground_y) / 2);
+    const rulerLabel = state.useInches ? live_feet_inches_str : `${smoothed_live_height.toFixed(1)} cm`;
+    canvasCtx.fillText(`Captured: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (state.useInches ? 115 : 100), (head_top.y + ground_y) / 2);
 
     // Connecting lines
     canvasCtx.beginPath();
@@ -820,8 +830,8 @@ function drawFrozenSnapshot() {
   }
 
   // Draw frozen hand skeletons if available
-  if (frozenHandResults) {
-    drawHandMesh(frozenHandResults.multiHandLandmarks, frozenHandResults.multiHandedness);
+  if (state.frozenHandResults) {
+    drawHandMesh(state.frozenHandResults.multiHandLandmarks, state.frozenHandResults.multiHandedness);
   }
 
   // 3. Draw pulsing SNAPSHOT FROZEN badge
@@ -846,22 +856,22 @@ function drawFrozenSnapshot() {
   canvasCtx.restore();
 
   // 4. Draw camera flash if still active
-  if (flashOpacity > 0) {
-    canvasCtx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+  if (state.flashOpacity > 0) {
+    canvasCtx.fillStyle = `rgba(255, 255, 255, ${state.flashOpacity})`;
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
   }
 
   canvasCtx.restore();
 }
 
-function resetAndResume() {
-  isSnapshotFrozen = false;
-  frozenJoints = null;
-  frozenMetrics = null;
-  frozenHandResults = null;
+export function resetAndResume() {
+  state.isSnapshotFrozen = false;
+  state.frozenJoints = null;
+  state.frozenMetrics = null;
+  state.frozenHandResults = null;
   
   // Restore standard video feed visibility
-  if (yoloModeActive) {
+  if (state.yoloModeActive) {
     videoElement.style.opacity = '0.05';
   } else {
     videoElement.style.opacity = '1.0';
@@ -885,7 +895,7 @@ function resetAndResume() {
 // CAMERA STREAM MANAGEMENT
 // ==========================================
 
-async function startCamera() {
+export async function startCamera() {
   statusElement.textContent = "Requesting webcam access...";
   startButton.style.display = 'none';
   yoloToggleBtn.style.display = 'block';
@@ -902,18 +912,18 @@ async function startCamera() {
   }
 
   try {
-    activeStream = await navigator.mediaDevices.getUserMedia({
+    state.activeStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
         width: { ideal: 640 },
         height: { ideal: 480 },
-        facingMode: currentFacingMode
+        facingMode: state.currentFacingMode
       }
     });
     
-    videoElement.srcObject = activeStream;
+    videoElement.srcObject = state.activeStream;
     // Mirror the view only for front/user camera
-    videoElement.style.transform = currentFacingMode === "user" ? "scaleX(-1)" : "none";
+    videoElement.style.transform = state.currentFacingMode === "user" ? "scaleX(-1)" : "none";
     
     // Wait for video metadata to load and then start playing
     videoElement.onloadedmetadata = () => {
@@ -923,9 +933,9 @@ async function startCamera() {
 
     // Frame loop processor
     async function processFrame() {
-      if (!activeStream || videoElement.paused || videoElement.ended) return;
+      if (!state.activeStream || videoElement.paused || videoElement.ended) return;
       try {
-        if (isSnapshotFrozen) {
+        if (state.isSnapshotFrozen) {
           // Direct high-fidelity manual rendering loop when frozen to save CPU resources
           drawFrozenSnapshot();
           requestAnimationFrame(processFrame);
@@ -935,7 +945,7 @@ async function startCamera() {
         // Call modular ArUco Marker Scanner helper (from arucoDetector.js)
         if (typeof detectArucoMarker === 'function') {
           const found = detectArucoMarker(videoElement);
-          latestArucoMarker = found;
+          state.latestArucoMarker = found;
 
           if (found) {
             const corners = found.corners;
@@ -947,16 +957,16 @@ async function startCamera() {
 
             // Smooth calibration scale to avoid webcam noise
             const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
-            pixelsPerCm = smoothedScale;
-            calLocked = true;
+            state.pixelsPerCm = smoothedScale;
+            state.calLocked = true;
 
-            if (activeCalMethod === 'aruco') {
-              arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong style="color: #06b6d4;">${pixelsPerCm.toFixed(1)} px/cm</strong>`;
+            if (state.activeCalMethod === 'aruco') {
+              arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong style="color: #06b6d4;">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
             }
           } else {
-            if (activeCalMethod === 'aruco') {
-              if (pixelsPerCm) {
-                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong style="color: #06b6d4;">${pixelsPerCm.toFixed(1)} px/cm</strong>`;
+            if (state.activeCalMethod === 'aruco') {
+              if (state.pixelsPerCm) {
+                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong style="color: #06b6d4;">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               } else {
                 arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
               }
@@ -1000,14 +1010,14 @@ startButton.addEventListener('click', startCamera);
 const cameraSwitchBtn = document.getElementById('camera-switch-btn');
 if (cameraSwitchBtn) {
   cameraSwitchBtn.addEventListener('click', async () => {
-    if (!activeStream) return;
+    if (!state.activeStream) return;
     
     // Stop the active stream tracks first
-    activeStream.getTracks().forEach(track => track.stop());
-    activeStream = null;
+    state.activeStream.getTracks().forEach(track => track.stop());
+    state.activeStream = null;
     
     // Toggle facing mode between user and environment
-    currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+    state.currentFacingMode = (state.currentFacingMode === "user") ? "environment" : "user";
     
     // Restart camera with new facing mode
     await startCamera();
@@ -1018,7 +1028,7 @@ if (cameraSwitchBtn) {
 // SNAPSHOT PERSISTENCE & GALLERY INTEGRATION
 // ==========================================
 
-function renderGallery() {
+export function renderGallery() {
   const galleryGrid = document.getElementById('gallery-grid');
   if (!galleryGrid) return;
 
@@ -1213,21 +1223,21 @@ function deleteSnapshotHandler(id) {
 
 // Calibration box size slider listeners
 slider.addEventListener('input', (e) => {
-  calBoxSize = parseInt(e.target.value);
-  sliderValDisplay.textContent = `${calBoxSize} px`;
-  if (calLocked) {
-    calLocked = false;
+  state.calBoxSize = parseInt(e.target.value);
+  sliderValDisplay.textContent = `${state.calBoxSize} px`;
+  if (state.calLocked) {
+    state.calLocked = false;
     lockCalButton.textContent = "Lock 20cm Calibration";
     lockCalButton.style.backgroundColor = '#10b981';
   }
 });
 
 lockCalButton.addEventListener('click', () => {
-  pixelsPerCm = calBoxSize / MARKER_PHYSICAL_SIZE_CM;
-  calLocked = true;
+  state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
+  state.calLocked = true;
   lockCalButton.textContent = "✅ Scale Locked!";
   lockCalButton.style.backgroundColor = '#059669';
-  statusElement.textContent = `Scale calibrated: ${pixelsPerCm.toFixed(2)} px/cm.`;
+  statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
 });
 
 // Preset Position buttons
@@ -1242,20 +1252,20 @@ function updatePosBtnStyles(activeBtn) {
 }
 
 posLeftBtn.addEventListener('click', () => {
-  calBoxX = 100;
-  calBoxY = 240;
+  state.calBoxX = 100;
+  state.calBoxY = 240;
   updatePosBtnStyles(posLeftBtn);
 });
 
 posCenterBtn.addEventListener('click', () => {
-  calBoxX = 320;
-  calBoxY = 240;
+  state.calBoxX = 320;
+  state.calBoxY = 240;
   updatePosBtnStyles(posCenterBtn);
 });
 
 posRightBtn.addEventListener('click', () => {
-  calBoxX = 540;
-  calBoxY = 240;
+  state.calBoxX = 540;
+  state.calBoxY = 240;
   updatePosBtnStyles(posRightBtn);
 });
 
@@ -1272,15 +1282,15 @@ canvasElement.addEventListener('mousedown', (e) => {
   const canvasMouseX = (mouseX / rect.width) * 640;
   const canvasMouseY = (mouseY / rect.height) * 480;
   
-  const x1 = calBoxX - calBoxSize / 2;
-  const y1 = calBoxY - calBoxSize / 2;
-  const x2 = calBoxX + calBoxSize / 2;
-  const y2 = calBoxY + calBoxSize / 2;
+  const x1 = state.calBoxX - state.calBoxSize / 2;
+  const y1 = state.calBoxY - state.calBoxSize / 2;
+  const x2 = state.calBoxX + state.calBoxSize / 2;
+  const y2 = state.calBoxY + state.calBoxSize / 2;
   
   if (canvasMouseX >= x1 - 15 && canvasMouseX <= x2 + 15 && canvasMouseY >= y1 - 15 && canvasMouseY <= y2 + 15) {
     isDragging = true;
-    dragStartX = canvasMouseX - calBoxX;
-    dragStartY = canvasMouseY - calBoxY;
+    dragStartX = canvasMouseX - state.calBoxX;
+    dragStartY = canvasMouseY - state.calBoxY;
   }
 });
 
@@ -1292,10 +1302,10 @@ canvasElement.addEventListener('mousemove', (e) => {
   const canvasMouseX = (mouseX / rect.width) * 640;
   const canvasMouseY = (mouseY / rect.height) * 480;
   
-  const x1 = calBoxX - calBoxSize / 2;
-  const y1 = calBoxY - calBoxSize / 2;
-  const x2 = calBoxX + calBoxSize / 2;
-  const y2 = calBoxY + calBoxSize / 2;
+  const x1 = state.calBoxX - state.calBoxSize / 2;
+  const y1 = state.calBoxY - state.calBoxSize / 2;
+  const x2 = state.calBoxX + state.calBoxSize / 2;
+  const y2 = state.calBoxY + state.calBoxSize / 2;
   
   if (canvasMouseX >= x1 - 15 && canvasMouseX <= x2 + 15 && canvasMouseY >= y1 - 15 && canvasMouseY <= y2 + 15) {
     canvasElement.style.cursor = 'move';
@@ -1306,8 +1316,8 @@ canvasElement.addEventListener('mousemove', (e) => {
   }
   
   if (isDragging) {
-    calBoxX = Math.max(calBoxSize/2, Math.min(640 - calBoxSize/2, canvasMouseX - dragStartX));
-    calBoxY = Math.max(calBoxSize/2, Math.min(480 - calBoxSize/2, canvasMouseY - dragStartY));
+    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(640 - state.calBoxSize/2, canvasMouseX - dragStartX));
+    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(480 - state.calBoxSize/2, canvasMouseY - dragStartY));
   }
 });
 
@@ -1326,15 +1336,15 @@ canvasElement.addEventListener('touchstart', (e) => {
     const canvasMouseX = (mouseX / rect.width) * 640;
     const canvasMouseY = (mouseY / rect.height) * 480;
     
-    const x1 = calBoxX - calBoxSize / 2;
-    const y1 = calBoxY - calBoxSize / 2;
-    const x2 = calBoxX + calBoxSize / 2;
-    const y2 = calBoxY + calBoxSize / 2;
+    const x1 = state.calBoxX - state.calBoxSize / 2;
+    const y1 = state.calBoxY - state.calBoxSize / 2;
+    const x2 = state.calBoxX + state.calBoxSize / 2;
+    const y2 = state.calBoxY + state.calBoxSize / 2;
     
     if (canvasMouseX >= x1 - 15 && canvasMouseX <= x2 + 15 && canvasMouseY >= y1 - 15 && canvasMouseY <= y2 + 15) {
       isDragging = true;
-      dragStartX = canvasMouseX - calBoxX;
-      dragStartY = canvasMouseY - calBoxY;
+      dragStartX = canvasMouseX - state.calBoxX;
+      dragStartY = canvasMouseY - state.calBoxY;
       e.preventDefault();
     }
   }
@@ -1350,8 +1360,8 @@ canvasElement.addEventListener('touchmove', (e) => {
     const canvasMouseX = (mouseX / rect.width) * 640;
     const canvasMouseY = (mouseY / rect.height) * 480;
     
-    calBoxX = Math.max(calBoxSize/2, Math.min(640 - calBoxSize/2, canvasMouseX - dragStartX));
-    calBoxY = Math.max(calBoxSize/2, Math.min(480 - calBoxSize/2, canvasMouseY - dragStartY));
+    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(640 - state.calBoxSize/2, canvasMouseX - dragStartX));
+    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(480 - state.calBoxSize/2, canvasMouseY - dragStartY));
     e.preventDefault();
   }
 });
@@ -1365,38 +1375,38 @@ const unitInchBtn = document.getElementById('unit-inch-btn');
 const unitCmBtn = document.getElementById('unit-cm-btn');
 
 unitInchBtn.addEventListener('click', () => {
-  useInches = true;
+  state.useInches = true;
   unitInchBtn.style.backgroundColor = '#3b82f6';
   unitInchBtn.style.color = 'white';
   unitCmBtn.style.backgroundColor = 'transparent';
   unitCmBtn.style.color = '#9ca3af';
   updateHeightInputUnit();
-  if (isSnapshotFrozen && frozenMetrics) {
-    renderDashboard(frozenMetrics);
+  if (state.isSnapshotFrozen && state.frozenMetrics) {
+    renderDashboard(state.frozenMetrics);
   }
-  if (dbInitialized) {
+  if (state.dbInitialized) {
     renderGallery();
   }
 });
 
 unitCmBtn.addEventListener('click', () => {
-  useInches = false;
+  state.useInches = false;
   unitCmBtn.style.backgroundColor = '#3b82f6';
   unitCmBtn.style.color = 'white';
   unitInchBtn.style.backgroundColor = 'transparent';
   unitInchBtn.style.color = '#9ca3af';
   updateHeightInputUnit();
-  if (isSnapshotFrozen && frozenMetrics) {
-    renderDashboard(frozenMetrics);
+  if (state.isSnapshotFrozen && state.frozenMetrics) {
+    renderDashboard(state.frozenMetrics);
   }
-  if (dbInitialized) {
+  if (state.dbInitialized) {
     renderGallery();
   }
 });
 
 // Switch calibration tabs
 function switchCalibrationTab(method, activeBtn, activePanel) {
-  activeCalMethod = method;
+  state.activeCalMethod = method;
   
   [tabArucoBtn, tabHeightBtn].forEach(btn => {
     btn.style.backgroundColor = (btn === activeBtn) ? '#3b82f6' : '#1e293b';
@@ -1409,11 +1419,11 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   });
 
   // Clear lock on switch if transitioning away from manual/height
-  if (method !== 'aruco' && calLocked) {
+  if (method !== 'aruco' && state.calLocked) {
     if (method === 'card') {
       lockCalButton.textContent = "Lock 20cm Calibration";
       lockCalButton.style.backgroundColor = '#10b981';
-      calLocked = false;
+      state.calLocked = false;
     }
   }
 }
@@ -1430,39 +1440,39 @@ const heightCalBtn = document.getElementById('height-cal-btn');
 const inputUserHeight = document.getElementById('input-user-height');
 
 heightCalBtn.addEventListener('click', () => {
-  if (isCountingDown || isCaptureCountingDown) return; // Prevent clicks during active countdowns
+  if (state.isCountingDown || state.isCaptureCountingDown) return; // Prevent clicks during active countdowns
 
-  const activeHeightPx = lastSkeletalHeightPx > 10 ? lastSkeletalHeightPx : lastVerticalHeightPx;
+  const activeHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
   if (activeHeightPx > 10) {
     // Start 3-second countdown
-    isCountingDown = true;
-    countdownValue = 3;
+    state.isCountingDown = true;
+    state.countdownValue = 3;
     heightCalBtn.textContent = "Get in Position (3s)...";
     heightCalBtn.style.backgroundColor = '#d97706'; // warning orange
     statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
 
     const intervalId = setInterval(() => {
-      countdownValue--;
-      if (countdownValue > 0) {
-        heightCalBtn.textContent = `Get in Position (${countdownValue}s)...`;
-        statusElement.textContent = `Stand straight and face the camera. Calibrating in ${countdownValue} seconds...`;
+      state.countdownValue--;
+      if (state.countdownValue > 0) {
+        heightCalBtn.textContent = `Get in Position (${state.countdownValue}s)...`;
+        statusElement.textContent = `Stand straight and face the camera. Calibrating in ${state.countdownValue} seconds...`;
       } else {
         clearInterval(intervalId);
-        isCountingDown = false;
+        state.isCountingDown = false;
 
         // Recalculate pixel height at the exact end of countdown
-        const captureHeightPx = lastSkeletalHeightPx > 10 ? lastSkeletalHeightPx : lastVerticalHeightPx;
-        const inputVal = parseFloat(inputUserHeight.value) || (useInches ? 68.9 : 175.0);
+        const captureHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
+        const inputVal = parseFloat(inputUserHeight.value) || (state.useInches ? 68.9 : 175.0);
         let actualHeightCm = inputVal;
-        if (useInches) {
+        if (state.useInches) {
           actualHeightCm = inputVal * 2.54; // Convert to cm for calibration scale factor
         }
 
-        pixelsPerCm = captureHeightPx / actualHeightCm;
-        calLocked = true;
+        state.pixelsPerCm = captureHeightPx / actualHeightCm;
+        state.calLocked = true;
         heightCalBtn.textContent = "✅ Calibrated!";
         heightCalBtn.style.backgroundColor = '#059669';
-        statusElement.textContent = `Skeletal-calibrated scale locked: ${pixelsPerCm.toFixed(2)} px/cm.`;
+        statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
         
         // Trigger camera snapshot visual flash!
         triggerFlashEffect();
@@ -1475,8 +1485,8 @@ heightCalBtn.addEventListener('click', () => {
 
 // YOLO-style background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {
-  yoloModeActive = !yoloModeActive;
-  if (yoloModeActive) {
+  state.yoloModeActive = !state.yoloModeActive;
+  if (state.yoloModeActive) {
     yoloToggleBtn.textContent = "Disable YOLO Background Isolation";
     yoloToggleBtn.style.backgroundColor = 'rgba(6, 182, 212, 0.15)';
     yoloToggleBtn.style.borderColor = '#06b6d4';
@@ -1497,30 +1507,30 @@ yoloToggleBtn.addEventListener('click', () => {
 
 // Start capture button listener
 captureBtn.addEventListener('click', () => {
-  if (isSnapshotFrozen) {
+  if (state.isSnapshotFrozen) {
     resetAndResume();
     return;
   }
   
-  if (isCaptureCountingDown || isCountingDown) return; // Prevent double trigger
+  if (state.isCaptureCountingDown || state.isCountingDown) return; // Prevent double trigger
   
   // Ensure tracking has actually found landmarks at least once (i.e. scale calibration or skeletal tracking active)
-  if (lastVerticalHeightPx === 0) {
+  if (state.lastVerticalHeightPx === 0) {
     alert("Please stand in view of the camera and let the system track your body before capturing a snapshot!");
     return;
   }
   
   // Start 5-second countdown
-  isCaptureCountingDown = true;
-  captureCountdownValue = 5;
+  state.isCaptureCountingDown = true;
+  state.captureCountdownValue = 5;
   captureBtn.textContent = "Get in Position (5s)...";
   statusElement.textContent = "Preparing snapshot. Step back and stand straight in view of the camera...";
   
   const captureInterval = setInterval(() => {
-    captureCountdownValue--;
-    if (captureCountdownValue > 0) {
-      captureBtn.textContent = `Get in Position (${captureCountdownValue}s)...`;
-      statusElement.textContent = `Preparing snapshot. Calibrating posture in ${captureCountdownValue} seconds...`;
+    state.captureCountdownValue--;
+    if (state.captureCountdownValue > 0) {
+      captureBtn.textContent = `Get in Position (${state.captureCountdownValue}s)...`;
+      statusElement.textContent = `Preparing snapshot. Calibrating posture in ${state.captureCountdownValue} seconds...`;
     } else {
       clearInterval(captureInterval);
       // Zero state trigger. The main frame processor loop will detect this inside 'onResults'
@@ -1543,5 +1553,3 @@ if (modalOverlay) {
     }
   });
 }
-
-

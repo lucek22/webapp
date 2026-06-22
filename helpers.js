@@ -6,7 +6,7 @@ window.onunhandledrejection = function(event) {
   showDiagnosticError(`Unhandled Promise Rejection: ${event.reason}`);
 };
 
-function showDiagnosticError(text) {
+export function showDiagnosticError(text) {
   let banner = document.getElementById('error-diagnostic-banner');
   if (!banner) {
     banner = document.createElement('div');
@@ -59,7 +59,7 @@ function showDiagnosticError(text) {
 // ==========================================
 // PERSISTENT OFFLINE STORAGE (INDEXEDDB)
 // ==========================================
-class SnapshotStore {
+export class SnapshotStore {
   constructor() {
     this.dbName = "ScarletBiomechanics";
     this.dbVersion = 1;
@@ -155,13 +155,12 @@ class SnapshotStore {
   }
 }
 
-const snapshotStore = new SnapshotStore();
-let dbInitialized = false;
+export const snapshotStore = new SnapshotStore();
 
 // ==========================================
 // CONSTANTS & CONFIGURATION
 // ==========================================
-const LANDMARK_NAMES = [
+export const LANDMARK_NAMES = [
   "Nose", "L Eye Inner", "L Eye", "L Eye Outer", "R Eye Inner", "R Eye", "R Eye Outer",
   "L Ear", "R Ear", "Mouth Left", "Mouth Right", "L Shoulder", "R Shoulder",
   "L Elbow", "R Elbow", "L Wrist", "R Wrist", "L Pinky", "R Pinky",
@@ -170,7 +169,7 @@ const LANDMARK_NAMES = [
   "L Foot Index", "R Foot Index"
 ];
 
-const POSE_CONNECTIONS = [
+export const POSE_CONNECTIONS = [
   [0, 1], [1, 2], [2, 3], [3, 7],
   [0, 4], [4, 5], [5, 6], [6, 8],
   [9, 10],
@@ -187,7 +186,7 @@ const POSE_CONNECTIONS = [
   [28, 30], [30, 32], [28, 32]
 ];
 
-const FINGER_COLORS = {
+export const FINGER_COLORS = {
   thumb: '#ec4899',   // Pink
   index: '#06b6d4',   // Cyan
   middle: '#a855f7',  // Purple
@@ -196,70 +195,64 @@ const FINGER_COLORS = {
 };
 
 // Joint indices mapping
-const LEFT_SHOULDER = 11;
-const RIGHT_SHOULDER = 12;
-const LEFT_ELBOW = 13;
-const RIGHT_ELBOW = 14;
-const LEFT_WRIST = 15;
-const RIGHT_WRIST = 16;
-const LEFT_HIP = 23;
-const RIGHT_HIP = 24;
-const LEFT_KNEE = 25;
-const RIGHT_KNEE = 26;
-const LEFT_ANKLE = 27;
-const RIGHT_ANKLE = 28;
-const LEFT_HEEL = 29;
-const RIGHT_HEEL = 30;
-const LEFT_FOOT_INDEX = 31; // Toe index
-const RIGHT_FOOT_INDEX = 32;
+export const LEFT_SHOULDER = 11;
+export const RIGHT_SHOULDER = 12;
+export const LEFT_ELBOW = 13;
+export const RIGHT_ELBOW = 14;
+export const LEFT_WRIST = 15;
+export const RIGHT_WRIST = 16;
+export const LEFT_HIP = 23;
+export const RIGHT_HIP = 24;
+export const LEFT_KNEE = 25;
+export const RIGHT_KNEE = 26;
+export const LEFT_ANKLE = 27;
+export const RIGHT_ANKLE = 28;
+export const LEFT_HEEL = 29;
+export const RIGHT_HEEL = 30;
+export const LEFT_FOOT_INDEX = 31; // Toe index
+export const RIGHT_FOOT_INDEX = 32;
 
-const MARKER_PHYSICAL_SIZE_CM = 20.0;
+export const MARKER_PHYSICAL_SIZE_CM = 20.0;
 
 // ==========================================
 // GLOBAL STATE VARIABLES (SHARED)
 // ==========================================
-let pixelsPerCm = null; // Set to null by default so everything relies strictly on calculations!
-let calLocked = false;
-let useInches = true;
-let currentFacingMode = "user";
-
-let calBoxSize = 150;
-let calBoxX = 320; // Center X (640 / 2)
-let calBoxY = 240; // Center Y (480 / 2)
-
-let lastVerticalHeightPx = 0; // Updated in pose loop
-let lastSkeletalHeightPx = 0; // Posture-independent skeletal stature
-let latestArucoMarker = null;
-let latestHandResults = null;
-let frozenHandResults = null;
-
-// 3-second Countdown & Capture visual states
-let countdownValue = 0;
-let isCountingDown = false;
-let flashOpacity = 0;
-
-// 5-second Capture Snapshot & Freeze frame states
-let isCaptureCountingDown = false;
-let captureCountdownValue = 0;
-let isSnapshotFrozen = false;
-let frozenJoints = null;
-let frozenMetrics = null;
-
-let yoloModeActive = false;
-let frameCount = 0;
-
-let latestLeftMiddleTip = null;
-let latestRightMiddleTip = null;
-
-let activeStream = null;
-let activeCalMethod = 'aruco'; // 'aruco' or 'height'
+export const state = {
+  pixelsPerCm: null,
+  calLocked: false,
+  useInches: true,
+  currentFacingMode: "user",
+  calBoxSize: 150,
+  calBoxX: 320,
+  calBoxY: 240,
+  lastVerticalHeightPx: 0,
+  lastSkeletalHeightPx: 0,
+  latestArucoMarker: null,
+  latestHandResults: null,
+  frozenHandResults: null,
+  countdownValue: 0,
+  isCountingDown: false,
+  flashOpacity: 0,
+  isCaptureCountingDown: false,
+  captureCountdownValue: 0,
+  isSnapshotFrozen: false,
+  frozenJoints: null,
+  frozenMetrics: null,
+  yoloModeActive: false,
+  frameCount: 0,
+  latestLeftMiddleTip: null,
+  latestRightMiddleTip: null,
+  activeStream: null,
+  activeCalMethod: 'aruco',
+  dbInitialized: false
+};
 
 const smoothBuffers = {};
 
 // ==========================================
 // MATH & STRING FORMATTING HELPER FUNCTIONS
 // ==========================================
-function smooth(key, val) {
+export function smooth(key, val) {
   if (!smoothBuffers[key]) smoothBuffers[key] = [];
   const buf = smoothBuffers[key];
   buf.push(val);
@@ -267,8 +260,7 @@ function smooth(key, val) {
   return buf.reduce((a, b) => a + b, 0) / buf.length;
 }
 
-// Mathematical Angle Calculator (in degrees)
-function calculateAngle(p_vertex, p_arm1, p_arm2) {
+export function calculateAngle(p_vertex, p_arm1, p_arm2) {
   const v1 = { x: p_arm1.x - p_vertex.x, y: p_arm1.y - p_vertex.y };
   const v2 = { x: p_arm2.x - p_vertex.x, y: p_arm2.y - p_vertex.y };
   
@@ -279,29 +271,28 @@ function calculateAngle(p_vertex, p_arm1, p_arm2) {
   if (mag1 === 0 || mag2 === 0) return 0;
   
   const cosTheta = dotProduct / (mag1 * mag2);
-  // Clamp to prevent floating point domain errors
   const clampedCos = Math.max(-1, Math.min(1, cosTheta));
   return Math.round(Math.acos(clampedCos) * (180 / Math.PI));
 }
 
-function getCanvasX(normX) {
-  return currentFacingMode === "user" ? (1.0 - normX) * 640 : normX * 640;
+export function getCanvasX(normX) {
+  return state.currentFacingMode === "user" ? (1.0 - normX) * 640 : normX * 640;
 }
 
-function formatLength(cmVal) {
-  if (useInches) {
+export function formatLength(cmVal) {
+  if (state.useInches) {
     return `${(cmVal / 2.54).toFixed(1)} in`;
   } else {
     return `${cmVal.toFixed(1)} cm`;
   }
 }
 
-function updateHeightInputUnit() {
+export function updateHeightInputUnit() {
   const heightInputLabel = document.querySelector('label[for="input-user-height"]');
   const inputUserHeight = document.getElementById('input-user-height');
   if (!heightInputLabel || !inputUserHeight) return;
 
-  if (useInches) {
+  if (state.useInches) {
     heightInputLabel.textContent = "Your Height (inches):";
     const val = parseFloat(inputUserHeight.value);
     if (val > 100) { // If it was in cm, convert to inches
@@ -320,18 +311,18 @@ function updateHeightInputUnit() {
   }
 }
 
-function formatSkeletalHeight(heightCm) {
+export function formatSkeletalHeight(heightCm) {
   const skeletal_inches = heightCm / 2.54;
   const skeletal_feet = Math.floor(skeletal_inches / 12);
   const skeletal_inches_left = skeletal_inches % 12;
-  if (useInches) {
+  if (state.useInches) {
     return `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
   } else {
     return `${heightCm.toFixed(1)} cm`;
   }
 }
 
-function getDomMeasurementCm(elementId) {
+export function getDomMeasurementCm(elementId) {
   const elem = document.getElementById(elementId);
   if (!elem) return null;
   const text = elem.textContent.trim();
@@ -346,20 +337,18 @@ function getDomMeasurementCm(elementId) {
   return num;
 }
 
-
-// Camera Flash animation trigger
-function triggerFlashEffect() {
-  flashOpacity = 0.85;
+export function triggerFlashEffect() {
+  state.flashOpacity = 0.85;
   const fadeInterval = setInterval(() => {
-    flashOpacity -= 0.08;
-    if (flashOpacity <= 0) {
-      flashOpacity = 0;
+    state.flashOpacity -= 0.08;
+    if (state.flashOpacity <= 0) {
+      state.flashOpacity = 0;
       clearInterval(fadeInterval);
     }
   }, 30);
 }
 
-function drawRoundedRect(ctx, x, y, width, height, radius) {
+export function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
   ctx.lineTo(x + width - radius, y);

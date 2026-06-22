@@ -1,9 +1,33 @@
 // ==========================================
 // MEDIAPIPE CORE CV MODELS SETUP & CALCULATIONS
 // ==========================================
+import {
+  state,
+  smooth,
+  calculateAngle,
+  getCanvasX,
+  formatLength,
+  LEFT_SHOULDER,
+  RIGHT_SHOULDER,
+  LEFT_ELBOW,
+  RIGHT_ELBOW,
+  LEFT_WRIST,
+  RIGHT_WRIST,
+  LEFT_HIP,
+  RIGHT_HIP,
+  LEFT_KNEE,
+  RIGHT_KNEE,
+  LEFT_ANKLE,
+  RIGHT_ANKLE,
+  LEFT_HEEL,
+  RIGHT_HEEL,
+  LEFT_FOOT_INDEX,
+  RIGHT_FOOT_INDEX,
+  FINGER_COLORS
+} from './helpers.js';
 
 // MediaPipe Pose Setup
-const pose = new Pose({
+export const pose = new Pose({
   locateFile: (file) => {
     return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
   }
@@ -19,7 +43,7 @@ pose.setOptions({
 });
 
 // MediaPipe Hands Setup
-const hands = new Hands({
+export const hands = new Hands({
   locateFile: (file) => {
     return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
   }
@@ -32,18 +56,27 @@ hands.setOptions({
   minTrackingConfidence: 0.5
 });
 
+// Callbacks registered dynamically
+let onPoseResults = null;
+let drawHandMesh = null;
+
+export function setupMediaPipeCallbacks(onPoseResultsCb, drawHandMeshCb) {
+  onPoseResults = onPoseResultsCb;
+  drawHandMesh = drawHandMeshCb;
+}
+
 // Register model callbacks
 hands.onResults((results) => {
-  latestHandResults = results;
+  state.latestHandResults = results;
   updateHandTracking(results);
   
-  if (!isSnapshotFrozen && typeof drawHandMesh === 'function') {
+  if (!state.isSnapshotFrozen && drawHandMesh) {
     drawHandMesh(results.multiHandLandmarks, results.multiHandedness);
   }
 });
 
 pose.onResults((results) => {
-  if (typeof onPoseResults === 'function') {
+  if (onPoseResults) {
     onPoseResults(results);
   }
 });
@@ -57,7 +90,7 @@ pose.onResults((results) => {
  * @param {Object} results MediaPipe pose results 
  * @returns {Object|null} Calculations record or null.
  */
-function calculatePoseMetrics(results) {
+export function calculatePoseMetrics(results) {
   if (!results.poseLandmarks) return null;
 
   const lm = results.poseLandmarks;
@@ -117,7 +150,7 @@ function calculatePoseMetrics(results) {
   let liveMetrics = null;
 
   // --- CALCULATE PHYSICAL LENGTHS (IF SCALE LOCKED) ---
-  if (pixelsPerCm) {
+  if (state.pixelsPerCm) {
     // Left segment calculations
     const thigh_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y);
     const shin_l_px = Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y);
@@ -139,7 +172,7 @@ function calculatePoseMetrics(results) {
 
     // Vertical height using lowest foot contacts (heels/toes) as the ground plane
     const vertical_height_px = Math.abs(ground_y - head_top.y);
-    lastVerticalHeightPx = vertical_height_px; // Save for input-based calibration
+    state.lastVerticalHeightPx = vertical_height_px; // Save for input-based calibration
 
     // Anatomical (Skeletal) posture-independent stature calculation
     const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
@@ -157,44 +190,44 @@ function calculatePoseMetrics(results) {
                      
     const average_leg_px = (leg_l_px + leg_r_px) / 2;
     const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
-    lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
+    state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
-    const skeletal_height_cm = skeletal_height_px / pixelsPerCm;
-    const live_height_cm = vertical_height_px / pixelsPerCm;
+    const skeletal_height_cm = skeletal_height_px / state.pixelsPerCm;
+    const live_height_cm = vertical_height_px / state.pixelsPerCm;
 
     // Calculate Wingspan (using Middle Fingertips if detected, or Pose Indexes 19 & 20 as fallback)
     let wingspan_cm = 0;
-    if (latestLeftMiddleTip && latestRightMiddleTip) {
-      const dist_px = Math.hypot(latestLeftMiddleTip.x - latestRightMiddleTip.x, latestLeftMiddleTip.y - latestRightMiddleTip.y);
-      wingspan_cm = dist_px / pixelsPerCm;
+    if (state.latestLeftMiddleTip && state.latestRightMiddleTip) {
+      const dist_px = Math.hypot(state.latestLeftMiddleTip.x - state.latestRightMiddleTip.x, state.latestLeftMiddleTip.y - state.latestRightMiddleTip.y);
+      wingspan_cm = dist_px / state.pixelsPerCm;
     } else {
       // Fallback: Use Pose indexes 19 and 20 (L Index and R Index)
       const leftIdx = all_landmarks[19];
       const rightIdx = all_landmarks[20];
       if (leftIdx && rightIdx) {
         const dist_px = Math.hypot(leftIdx.x - rightIdx.x, leftIdx.y - rightIdx.y);
-        wingspan_cm = dist_px / pixelsPerCm;
+        wingspan_cm = dist_px / state.pixelsPerCm;
       }
     }
 
     // Convert to direct physical units and apply smoothing
     liveMetrics = {
-      thigh_l: smooth('thigh_l', thigh_l_px / pixelsPerCm),
-      thigh_r: smooth('thigh_r', thigh_r_px / pixelsPerCm),
-      shin_l: smooth('shin_l', shin_l_px / pixelsPerCm),
-      shin_r: smooth('shin_r', shin_r_px / pixelsPerCm),
-      foot_l: smooth('foot_l', foot_l_px / pixelsPerCm),
-      foot_r: smooth('foot_r', foot_r_px / pixelsPerCm),
+      thigh_l: smooth('thigh_l', thigh_l_px / state.pixelsPerCm),
+      thigh_r: smooth('thigh_r', thigh_r_px / state.pixelsPerCm),
+      shin_l: smooth('shin_l', shin_l_px / state.pixelsPerCm),
+      shin_r: smooth('shin_r', shin_r_px / state.pixelsPerCm),
+      foot_l: smooth('foot_l', foot_l_px / state.pixelsPerCm),
+      foot_r: smooth('foot_r', foot_r_px / state.pixelsPerCm),
       
-      torso_l: smooth('torso_l', torso_l_px / pixelsPerCm),
-      torso_r: smooth('torso_r', torso_r_px / pixelsPerCm),
-      upperarm_l: smooth('upperarm_l', upperarm_l_px / pixelsPerCm),
-      upperarm_r: smooth('upperarm_r', upperarm_r_px / pixelsPerCm),
-      forearm_l: smooth('forearm_l', forearm_l_px / pixelsPerCm),
-      forearm_r: smooth('forearm_r', forearm_r_px / pixelsPerCm),
+      torso_l: smooth('torso_l', torso_l_px / state.pixelsPerCm),
+      torso_r: smooth('torso_r', torso_r_px / state.pixelsPerCm),
+      upperarm_l: smooth('upperarm_l', upperarm_l_px / state.pixelsPerCm),
+      upperarm_r: smooth('upperarm_r', upperarm_r_px / state.pixelsPerCm),
+      forearm_l: smooth('forearm_l', forearm_l_px / state.pixelsPerCm),
+      forearm_r: smooth('forearm_r', forearm_r_px / state.pixelsPerCm),
 
-      shoulderW: smooth('shoulderW', shoulderW_px / pixelsPerCm),
-      hipW: smooth('hipW', hipW_px / pixelsPerCm),
+      shoulderW: smooth('shoulderW', shoulderW_px / state.pixelsPerCm),
+      hipW: smooth('hipW', hipW_px / state.pixelsPerCm),
       wingspan: smooth('wingspan_distance', wingspan_cm),
 
       skeletal_height: smooth('body_height_skeletal', skeletal_height_cm),
@@ -217,8 +250,8 @@ function calculatePoseMetrics(results) {
  * Handle Hand Tracking metrics updates on the UI.
  * @param {Object} results MediaPipe hands results 
  */
-function updateHandTracking(results) {
-  if (isSnapshotFrozen) return;
+export function updateHandTracking(results) {
+  if (state.isSnapshotFrozen) return;
 
   const multiLandmarks = results.multiHandLandmarks;
   const multiHandedness = results.multiHandedness;
@@ -267,20 +300,20 @@ function updateHandTracking(results) {
       let pinchSpanStr = "--.- cm";
       let handSpanStr = "--.- cm";
 
-      if (pixelsPerCm) {
+      if (state.pixelsPerCm) {
         const pinchPx = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
-        const pinchCm = pinchPx / pixelsPerCm;
+        const pinchCm = pinchPx / state.pixelsPerCm;
         pinchSpanStr = formatLength(smooth(side + '_pinch', pinchCm));
 
         const spanPx = Math.hypot(wrist.x - middleTip.x, wrist.y - middleTip.y);
-        const spanCm = spanPx / pixelsPerCm;
+        const spanCm = spanPx / state.pixelsPerCm;
         handSpanStr = formatLength(smooth(side + '_span', spanCm));
       }
 
       const tips = [thumbTip, indexTip, middleTip, ringTip, pinkyTip];
 
       if (side === 'Left') {
-        latestLeftMiddleTip = middleTip;
+        state.latestLeftMiddleTip = middleTip;
         if (handStatusLDisp) {
           handStatusLDisp.textContent = `Left Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
           handStatusLDisp.style.color = "#10b981";
@@ -296,7 +329,7 @@ function updateHandTracking(results) {
           }
         });
       } else if (side === 'Right') {
-        latestRightMiddleTip = middleTip;
+        state.latestRightMiddleTip = middleTip;
         if (handStatusRDisp) {
           handStatusRDisp.textContent = `Right Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
           handStatusRDisp.style.color = "#10b981";
@@ -317,7 +350,7 @@ function updateHandTracking(results) {
 
   // If left/right hands are not detected, reset their fingertip displays to Offline
   if (!leftDetected) {
-    latestLeftMiddleTip = null;
+    state.latestLeftMiddleTip = null;
     if (handStatusLDisp) {
       handStatusLDisp.textContent = "Left Hand: Offline";
       handStatusLDisp.style.color = "#64748b";
@@ -332,7 +365,7 @@ function updateHandTracking(results) {
     });
   }
   if (!rightDetected) {
-    latestRightMiddleTip = null;
+    state.latestRightMiddleTip = null;
     if (handStatusRDisp) {
       handStatusRDisp.textContent = "Right Hand: Offline";
       handStatusRDisp.style.color = "#64748b";

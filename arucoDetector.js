@@ -29,7 +29,7 @@ const offscreenCtx = offscreenCanvas.getContext('2d');
  * @param {HTMLVideoElement} videoElem 
  * @returns {Object|null} The detected marker or null.
  */
-function detectArucoMarker(videoElem) {
+export function detectArucoMarker(videoElem) {
   if (!arucoDetector) return null;
   
   try {

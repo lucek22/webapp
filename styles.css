@@ -961,3 +961,36 @@ details {
 div[style*="color: #10b981"] {
   color: #BA0C2F !important;
 }
+/* ==========================================================================
+   SIDEBAR HEIGHT EXPANSION (DASHBOARD PANEL FIX)
+   ========================================================================== */
+
+/* Target the exact parent grid layout */
+.app-grid {
+  align-items: stretch !important;
+  min-height: 100vh !important; /* Forces the entire grid to fill the screen */
+}
+
+/* Target your exact sidebar panel from your HTML */
+.dashboard-panel {
+  height: calc(100vh - 40px) !important; /* Stretches the panel down to the bottom of the viewport */
+  max-height: none !important;
+  overflow-y: visible !important; /* Disables the scrolling inside the panel */
+}
+
+/* Condense vertical padding on the sections slightly so everything fits neatly */
+.panel-section {
+  padding: 0.5rem 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.angle-box-grid {
+  gap: 0.35rem !important;
+}
+/* Target your exact sidebar panel from your HTML */
+.dashboard-panel {
+  min-height: calc(100vh - 40px) !important; /* Force the gray background to drop down to the bottom */
+  height: auto !important;                     /* Allows the gray card background to stretch dynamically */
+  max-height: none !important;
+  overflow-y: visible !important;              /* Keeps scrolling disabled */
+}

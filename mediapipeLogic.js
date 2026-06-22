@@ -200,44 +200,49 @@ export function calculatePoseMetrics(results) {
     const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
     state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
-    const skeletal_height_cm = skeletal_height_px / state.pixelsPerCm;
-    const live_height_cm = vertical_height_px / state.pixelsPerCm;
+    let activePixelsPerCm = state.pixelsPerCm;
+    if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
+      activePixelsPerCm = skeletal_height_px / state.metricsA.skeletal_height;
+    }
+
+    const skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
+    const live_height_cm = vertical_height_px / activePixelsPerCm;
 
     // Calculate Wingspan (using Middle Fingertips if detected, or Pose Indexes 19 & 20 as fallback)
     let wingspan_cm = 0;
     if (state.latestLeftMiddleTip && state.latestRightMiddleTip) {
       const dist_px = Math.hypot(state.latestLeftMiddleTip.x - state.latestRightMiddleTip.x, state.latestLeftMiddleTip.y - state.latestRightMiddleTip.y);
-      wingspan_cm = dist_px / state.pixelsPerCm;
+      wingspan_cm = dist_px / activePixelsPerCm;
     } else {
       // Fallback: Use Pose indexes 19 and 20 (L Index and R Index)
       const leftIdx = all_landmarks[19];
       const rightIdx = all_landmarks[20];
       if (leftIdx && rightIdx) {
         const dist_px = Math.hypot(leftIdx.x - rightIdx.x, leftIdx.y - rightIdx.y);
-        wingspan_cm = dist_px / state.pixelsPerCm;
+        wingspan_cm = dist_px / activePixelsPerCm;
       }
     }
 
     // Convert to direct physical units and apply smoothing
     liveMetrics = {
-      thigh_l: smooth('thigh_l', thigh_l_px / state.pixelsPerCm),
-      thigh_r: smooth('thigh_r', thigh_r_px / state.pixelsPerCm),
-      shin_l: smooth('shin_l', shin_l_px / state.pixelsPerCm),
-      shin_r: smooth('shin_r', shin_r_px / state.pixelsPerCm),
-      foot_l: smooth('foot_l', foot_l_px / state.pixelsPerCm),
-      foot_r: smooth('foot_r', foot_r_px / state.pixelsPerCm),
+      thigh_l: smooth('thigh_l', thigh_l_px / activePixelsPerCm),
+      thigh_r: smooth('thigh_r', thigh_r_px / activePixelsPerCm),
+      shin_l: smooth('shin_l', shin_l_px / activePixelsPerCm),
+      shin_r: smooth('shin_r', shin_r_px / activePixelsPerCm),
+      foot_l: smooth('foot_l', foot_l_px / activePixelsPerCm),
+      foot_r: smooth('foot_r', foot_r_px / activePixelsPerCm),
       
-      torso_l: smooth('torso_l', torso_l_px / state.pixelsPerCm),
-      torso_r: smooth('torso_r', torso_r_px / state.pixelsPerCm),
-      upperarm_l: smooth('upperarm_l', upperarm_l_px / state.pixelsPerCm),
-      upperarm_r: smooth('upperarm_r', upperarm_r_px / state.pixelsPerCm),
-      forearm_l: smooth('forearm_l', forearm_l_px / state.pixelsPerCm),
-      forearm_r: smooth('forearm_r', forearm_r_px / state.pixelsPerCm),
+      torso_l: smooth('torso_l', torso_l_px / activePixelsPerCm),
+      torso_r: smooth('torso_r', torso_r_px / activePixelsPerCm),
+      upperarm_l: smooth('upperarm_l', upperarm_l_px / activePixelsPerCm),
+      upperarm_r: smooth('upperarm_r', upperarm_r_px / activePixelsPerCm),
+      forearm_l: smooth('forearm_l', forearm_l_px / activePixelsPerCm),
+      forearm_r: smooth('forearm_r', forearm_r_px / activePixelsPerCm),
 
-      fingerToToeL: smooth('finger_to_toe_l', fingerToToeL_px / state.pixelsPerCm),
-      fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_px / state.pixelsPerCm),
-      shoulderW: smooth('shoulderW', shoulderW_px / state.pixelsPerCm),
-      hipW: smooth('hipW', hipW_px / state.pixelsPerCm),
+      fingerToToeL: smooth('finger_to_toe_l', fingerToToeL_px / activePixelsPerCm),
+      fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_px / activePixelsPerCm),
+      shoulderW: smooth('shoulderW', shoulderW_px / activePixelsPerCm),
+      hipW: smooth('hipW', hipW_px / activePixelsPerCm),
       wingspan: smooth('wingspan_distance', wingspan_cm),
 
       skeletal_height: smooth('body_height_skeletal', skeletal_height_cm),

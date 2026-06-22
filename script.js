@@ -11,7 +11,8 @@ import {
   renderGallery,
   resetAndResume,
   onPoseResults,
-  drawHandMesh
+  drawHandMesh,
+  frozenFrameCanvas
 } from './userController.js';
 
 // 1. Initialize persistent offline database store
@@ -30,6 +31,7 @@ setupMediaPipeCallbacks(onPoseResults, drawHandMesh);
 // 3. Connect report compiler dependencies (Save / Export features)
 setupReportCompiler({
   canvasElement,
+  frozenFrameCanvas,
   statusElement,
   renderGallery,
   resetAndResume

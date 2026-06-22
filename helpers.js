@@ -256,6 +256,9 @@ export const state = {
   metricsA: null,
   metricsT: null,
   metricsOverhead: null,
+  imageA: null,
+  imageT: null,
+  imageOverhead: null,
   REQ_HOLD_MS: 2500,
   LOCKOUT_MS: 3500
 };

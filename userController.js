@@ -32,7 +32,7 @@ const captureBtn = document.getElementById('capture-btn');
 export const statusElement = document.getElementById('status');
 
 // Helper canvas for caching frozen frames
-const frozenFrameCanvas = document.createElement('canvas');
+export const frozenFrameCanvas = document.createElement('canvas');
 frozenFrameCanvas.width = 640;
 frozenFrameCanvas.height = 480;
 const frozenFrameCtx = frozenFrameCanvas.getContext('2d');
@@ -531,8 +531,11 @@ export function onPoseResults(results) {
         state.autoState = 'COMPLETE';
         statusElement.textContent = "All poses captured! Compiling session report...";
         
-        // Compile and download consolidated session report
+        // Compile and download consolidated session report JSON
         compileAndDownloadCombinedSession();
+        
+        // Save the consolidated report to local IndexedDB gallery
+        saveCombinedSessionSnapshot();
         
         // End flow after 3 seconds
         setTimeout(() => {
@@ -777,9 +780,21 @@ export function onPoseResults(results) {
             if (state.holdTimerMs >= state.REQ_HOLD_MS) {
               triggerFlashEffect();
               
-              // Cache current frame image on frozenFrameCanvas
+              // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
               frozenFrameCtx.clearRect(0, 0, 640, 480);
-              frozenFrameCtx.drawImage(canvasElement, 0, 0);
+              frozenFrameCtx.save();
+              if (state.currentFacingMode === "user") {
+                frozenFrameCtx.translate(640, 0);
+                frozenFrameCtx.scale(-1, 1);
+              }
+              if (results.segmentationMask && state.yoloModeActive) {
+                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+                frozenFrameCtx.globalCompositeOperation = 'source-in';
+                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+              } else {
+                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+              }
+              frozenFrameCtx.restore();
               
               // Cache joints & metrics for lockout screen and consolidation
               state.frozenAutoJoints = JSON.parse(JSON.stringify({
@@ -792,20 +807,21 @@ export function onPoseResults(results) {
               }));
               state.frozenAutoMetrics = JSON.parse(JSON.stringify(liveMetrics));
               
-              // Save automatic snapshot to database in the background
-              saveAutoSeqSnapshot(detectedPose, liveMetrics);
+              // Capture and store specific frame image and metrics for combined report
+              const capturedImage = frozenFrameCanvas.toDataURL('image/png');
+              if (state.autoState === 'WAITING_A') {
+                state.imageA = capturedImage;
+                state.metricsA = JSON.parse(JSON.stringify(liveMetrics));
+              } else if (state.autoState === 'WAITING_T') {
+                state.imageT = capturedImage;
+                state.metricsT = JSON.parse(JSON.stringify(liveMetrics));
+              } else if (state.autoState === 'WAITING_OVERHEAD') {
+                state.imageOverhead = capturedImage;
+                state.metricsOverhead = JSON.parse(JSON.stringify(liveMetrics));
+              }
 
               // Trigger visual feedback lockout period
               state.lockoutTimerMs = state.LOCKOUT_MS;
-              
-              // Store specific pose metrics for combined export
-              if (state.autoState === 'WAITING_A') {
-                state.metricsA = JSON.parse(JSON.stringify(liveMetrics));
-              } else if (state.autoState === 'WAITING_T') {
-                state.metricsT = JSON.parse(JSON.stringify(liveMetrics));
-              } else if (state.autoState === 'WAITING_OVERHEAD') {
-                state.metricsOverhead = JSON.parse(JSON.stringify(liveMetrics));
-              }
             }
           } else {
             state.holdTimerMs = 0;
@@ -821,7 +837,7 @@ export function onPoseResults(results) {
             smoothed_live_height: liveMetrics.live_height,
             kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
             all_landmarks: all_landmarks
-          }, liveMetrics);
+          }, liveMetrics, results);
         }
 
         statusElement.textContent = `✅ Calibrated Tracking active. Real-time biometrics rendering.`;
@@ -877,7 +893,7 @@ export function onPoseResults(results) {
 // CAPTURE TIMER & SNAPSHOT PROCESSING
 // ==========================================
 
-function captureSnapshot(joints, metrics) {
+function captureSnapshot(joints, metrics, results) {
   state.isCaptureCountingDown = false;
   
   // Save deep copies of the joints coordinates and dashboard metrics
@@ -885,21 +901,23 @@ function captureSnapshot(joints, metrics) {
   state.frozenMetrics = JSON.parse(JSON.stringify(metrics));
   state.frozenHandResults = state.latestHandResults ? JSON.parse(JSON.stringify(state.latestHandResults)) : null;
   
-  // Save current frame image from canvas (if YOLO background isolated) or webcam
+  // Save current frame image from results (or fallback to videoElement if results are not available)
   frozenFrameCtx.clearRect(0, 0, 640, 480);
-  if (state.yoloModeActive) {
-    // Main canvas currently holds the isolated composite frame (before overlays were drawn)
-    frozenFrameCtx.drawImage(canvasElement, 0, 0);
-  } else {
-    // Grab direct webcam stream and mirror it in memory if in user-facing mode
-    frozenFrameCtx.save();
-    if (state.currentFacingMode === "user") {
-      frozenFrameCtx.translate(640, 0);
-      frozenFrameCtx.scale(-1, 1);
-    }
-    frozenFrameCtx.drawImage(videoElement, 0, 0);
-    frozenFrameCtx.restore();
+  frozenFrameCtx.save();
+  if (state.currentFacingMode === "user") {
+    frozenFrameCtx.translate(640, 0);
+    frozenFrameCtx.scale(-1, 1);
   }
+  if (results && results.segmentationMask && state.yoloModeActive) {
+    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+    frozenFrameCtx.globalCompositeOperation = 'source-in';
+    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+  } else if (results && results.image) {
+    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+  } else {
+    frozenFrameCtx.drawImage(videoElement, 0, 0);
+  }
+  frozenFrameCtx.restore();
 
   state.isSnapshotFrozen = true;
   videoElement.style.opacity = '0'; // Completely hide live video feed under the canvas
@@ -951,6 +969,9 @@ export function cancelAutoSequence() {
   state.metricsA = null;
   state.metricsT = null;
   state.metricsOverhead = null;
+  state.imageA = null;
+  state.imageT = null;
+  state.imageOverhead = null;
   
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
@@ -1046,7 +1067,7 @@ export function drawLockoutTransitionOverlay() {
   canvasCtx.restore();
 }
 
-export function saveAutoSeqSnapshot(poseName, metrics) {
+export function saveCombinedSessionSnapshot() {
   const subjectInput = document.getElementById('subject-name-input');
   const subjectName = subjectInput ? subjectInput.value.trim() : '';
   const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -1054,9 +1075,9 @@ export function saveAutoSeqSnapshot(poseName, metrics) {
   
   let label = "";
   if (subjectName) {
-    label = `${subjectName} - ${poseName} - ${dateStr} (Auto)`;
+    label = `${subjectName} - Combined Report - ${dateStr}`;
   } else {
-    label = `${poseName} - ${dateStr} (Auto)`;
+    label = `Combined Report - ${dateStr}`;
   }
 
   // Retrieve active DOM pinch/span measurements in raw cm values
@@ -1065,8 +1086,59 @@ export function saveAutoSeqSnapshot(poseName, metrics) {
   const span_l_cm = getDomMeasurementCm('val-span-l');
   const span_r_cm = getDomMeasurementCm('val-span-r');
 
-  const metricsToSave = {
-    ...metrics,
+  const mA = state.metricsA || {};
+  const mT = state.metricsT || {};
+  const mO = state.metricsOverhead || {};
+
+  const consolidatedMetrics = {
+    pose: "Combined",
+    isCombinedSession: true,
+    skeletal_height: mA.skeletal_height,
+    wingspan: mT.wingspan,
+    fingerToToeL: mO.fingerToToeL,
+    fingerToToeR: mO.fingerToToeR,
+    hipW: mA.hipW,
+    
+    // Segment lengths from optimal pose (A-Pose)
+    thigh_l: mA.thigh_l,
+    thigh_r: mA.thigh_r,
+    shin_l: mA.shin_l,
+    shin_r: mA.shin_r,
+    foot_l: mA.foot_l,
+    foot_r: mA.foot_r,
+    torso_l: mA.torso_l,
+    torso_r: mA.torso_r,
+    upperarm_l: mA.upperarm_l,
+    upperarm_r: mA.upperarm_r,
+    forearm_l: mA.forearm_l,
+    forearm_r: mA.forearm_r,
+
+    // Store joint angles for switcher display in modal
+    anglesA: {
+      kneeAngleL: mA.kneeAngleL,
+      kneeAngleR: mA.kneeAngleR,
+      hipAngleL: mA.hipAngleL,
+      hipAngleR: mA.hipAngleR,
+      elbowAngleL: mA.elbowAngleL,
+      elbowAngleR: mA.elbowAngleR
+    },
+    anglesT: {
+      kneeAngleL: mT.kneeAngleL,
+      kneeAngleR: mT.kneeAngleR,
+      hipAngleL: mT.hipAngleL,
+      hipAngleR: mT.hipAngleR,
+      elbowAngleL: mT.elbowAngleL,
+      elbowAngleR: mT.elbowAngleR
+    },
+    anglesOverhead: {
+      kneeAngleL: mO.kneeAngleL,
+      kneeAngleR: mO.kneeAngleR,
+      hipAngleL: mO.hipAngleL,
+      hipAngleR: mO.hipAngleR,
+      elbowAngleL: mO.elbowAngleL,
+      elbowAngleR: mO.elbowAngleR
+    },
+
     pinch_l_cm,
     pinch_r_cm,
     span_l_cm,
@@ -1076,18 +1148,22 @@ export function saveAutoSeqSnapshot(poseName, metrics) {
   const snapshotRecord = {
     name: label,
     timestamp: Date.now(),
-    image: frozenFrameCanvas.toDataURL('image/png'),
-    metrics: metricsToSave
+    isCombinedSession: true,
+    imageA: state.imageA,
+    imageT: state.imageT,
+    imageOverhead: state.imageOverhead,
+    image: state.imageA, // Fallback/Thumbnail image is the A-pose image
+    metrics: consolidatedMetrics
   };
 
   if (state.dbInitialized) {
     snapshotStore.save(snapshotRecord)
       .then(() => {
-        console.log(`[AutoCapture] Saved "${label}" snapshot to IndexedDB gallery.`);
+        console.log(`[AutoCapture] Saved combined "${label}" session snapshot to IndexedDB gallery.`);
         renderGallery();
       })
       .catch(err => {
-        console.error("[AutoCapture] Failed to save automatic snapshot to IndexedDB:", err);
+        console.error("[AutoCapture] Failed to save combined snapshot to IndexedDB:", err);
       });
   }
 }
@@ -1435,24 +1511,51 @@ export function renderGallery() {
         const dateOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
         const formattedDate = new Date(snapshot.timestamp).toLocaleDateString(undefined, dateOptions);
 
-        card.innerHTML = `
-          <button class="snapshot-card-delete" title="Delete Snapshot" data-id="${snapshot.id}">
-            &times;
-          </button>
-          <div class="snapshot-card-img-wrapper">
-            <img class="snapshot-card-img" src="${snapshot.image}" alt="${snapshot.name || 'Biomechanical Snapshot'}">
-            <div class="snapshot-card-overlay">
-              <span>View Details</span>
+        const isCombined = snapshot.isCombinedSession || (snapshot.metrics && snapshot.metrics.isCombinedSession);
+
+        if (isCombined) {
+          card.classList.add('combined');
+          card.innerHTML = `
+            <button class="snapshot-card-delete" title="Delete Snapshot" data-id="${snapshot.id}">
+              &times;
+            </button>
+            <div class="snapshot-card-img-wrapper combined-collage">
+              <div class="collage-item"><img src="${snapshot.imageA || snapshot.image}" alt="A-Pose"></div>
+              <div class="collage-item"><img src="${snapshot.imageT || snapshot.image}" alt="T-Pose"></div>
+              <div class="collage-item"><img src="${snapshot.imageOverhead || snapshot.image}" alt="Overhead"></div>
+              <div class="snapshot-card-overlay">
+                <span>View Combined Report</span>
+              </div>
+              <span class="combined-tag">3-Pose Session</span>
             </div>
-          </div>
-          <div class="snapshot-card-info">
-            <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Snapshot'}">${snapshot.name || 'Biomechanical Snapshot'}</div>
-            <div class="snapshot-card-meta">
-              <span class="snapshot-card-height">${formattedHeight}</span>
-              <span>${formattedDate}</span>
+            <div class="snapshot-card-info">
+              <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Session'}">${snapshot.name || 'Biomechanical Session'}</div>
+              <div class="snapshot-card-meta">
+                <span class="snapshot-card-height" style="color: #c084fc;">Height: ${formattedHeight}</span>
+                <span>${formattedDate}</span>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          card.innerHTML = `
+            <button class="snapshot-card-delete" title="Delete Snapshot" data-id="${snapshot.id}">
+              &times;
+            </button>
+            <div class="snapshot-card-img-wrapper">
+              <img class="snapshot-card-img" src="${snapshot.image}" alt="${snapshot.name || 'Biomechanical Snapshot'}">
+              <div class="snapshot-card-overlay">
+                <span>View Details</span>
+              </div>
+            </div>
+            <div class="snapshot-card-info">
+              <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Snapshot'}">${snapshot.name || 'Biomechanical Snapshot'}</div>
+              <div class="snapshot-card-meta">
+                <span class="snapshot-card-height">${formattedHeight}</span>
+                <span>${formattedDate}</span>
+              </div>
+            </div>
+          `;
+        }
 
         // Card click handler opens modal
         card.addEventListener('click', (e) => {
@@ -1491,8 +1594,9 @@ function openSnapshotModal(id) {
       const modalImg = document.getElementById('modal-img');
       const modalTitle = document.getElementById('modal-title');
       const modalDate = document.getElementById('modal-date');
+      const poseSwitcher = document.getElementById('modal-pose-switcher');
+      const thumbnailsContainer = document.getElementById('modal-thumbnails-container');
 
-      if (modalImg) modalImg.src = snapshot.image;
       if (modalTitle) modalTitle.textContent = snapshot.name || "Snapshot Analytics";
       
       const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -1500,33 +1604,147 @@ function openSnapshotModal(id) {
       if (modalDate) modalDate.textContent = `Captured on ${dateStr}`;
 
       const m = snapshot.metrics;
+      const isCombined = snapshot.isCombinedSession || (m && m.isCombinedSession);
+      const modalSectionWidths = document.getElementById('modal-section-widths');
+      const modalSectionHandTracking = document.getElementById('modal-section-hand-tracking');
+
+      if (isCombined) {
+        // Show switcher and thumbnails containers
+        if (poseSwitcher) poseSwitcher.style.display = 'flex';
+        if (thumbnailsContainer) thumbnailsContainer.style.display = 'flex';
+        if (modalSectionWidths) modalSectionWidths.style.display = 'none';
+        if (modalSectionHandTracking) modalSectionHandTracking.style.display = 'none';
+
+        // Set thumbnail sources
+        const thumbA = document.getElementById('modal-thumb-a');
+        const thumbT = document.getElementById('modal-thumb-t');
+        const thumbOverhead = document.getElementById('modal-thumb-overhead');
+        if (thumbA) thumbA.src = snapshot.imageA || snapshot.image;
+        if (thumbT) thumbT.src = snapshot.imageT || snapshot.image;
+        if (thumbOverhead) thumbOverhead.src = snapshot.imageOverhead || snapshot.image;
+
+        // Reset active states for switcher buttons & thumbnail wrappers
+        const btnSwitchA = document.getElementById('btn-switch-a');
+        const btnSwitchT = document.getElementById('btn-switch-t');
+        const btnSwitchOverhead = document.getElementById('btn-switch-overhead');
+        
+        let wrapperA = null, wrapperT = null, wrapperOverhead = null;
+        if (thumbnailsContainer) {
+          wrapperA = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="A"]');
+          wrapperT = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="T"]');
+          wrapperOverhead = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="Overhead"]');
+        }
+
+        const setActivePoseInModal = (poseKey) => {
+          // Clear all active classes
+          [btnSwitchA, btnSwitchT, btnSwitchOverhead].forEach(btn => btn?.classList.remove('active'));
+          [wrapperA, wrapperT, wrapperOverhead].forEach(wr => wr?.classList.remove('active'));
+
+          let activeImg = snapshot.image;
+          let poseLabel = "A-Pose";
+          let poseColor = "#818cf8"; // Violet
+
+          if (poseKey === 'A') {
+            btnSwitchA?.classList.add('active');
+            wrapperA?.classList.add('active');
+            activeImg = snapshot.imageA || snapshot.image;
+            poseLabel = "A-Pose";
+            poseColor = "#818cf8";
+          } else if (poseKey === 'T') {
+            btnSwitchT?.classList.add('active');
+            wrapperT?.classList.add('active');
+            activeImg = snapshot.imageT || snapshot.image;
+            poseLabel = "T-Pose";
+            poseColor = "#06b6d4"; // Cyan
+          } else if (poseKey === 'Overhead') {
+            btnSwitchOverhead?.classList.add('active');
+            wrapperOverhead?.classList.add('active');
+            activeImg = snapshot.imageOverhead || snapshot.image;
+            poseLabel = "Overhead Reach";
+            poseColor = "#10b981"; // Emerald
+          }
+
+          if (modalImg) modalImg.src = activeImg;
+          setModalMetric('modal-val-pose', poseLabel);
+          const modalPoseElem = document.getElementById('modal-val-pose');
+          if (modalPoseElem) modalPoseElem.style.color = poseColor;
+
+          // Update joint angles for this specific pose
+          let angles = null;
+          if (poseKey === 'A') angles = m.anglesA;
+          else if (poseKey === 'T') angles = m.anglesT;
+          else if (poseKey === 'Overhead') angles = m.anglesOverhead;
+
+          if (angles) {
+            setModalMetric('modal-angle-knee-l', angles.kneeAngleL !== undefined && angles.kneeAngleL !== null ? `${Math.round(angles.kneeAngleL)}°` : "--°");
+            setModalMetric('modal-angle-knee-r', angles.kneeAngleR !== undefined && angles.kneeAngleR !== null ? `${Math.round(angles.kneeAngleR)}°` : "--°");
+            setModalMetric('modal-angle-hip-l', angles.hipAngleL !== undefined && angles.hipAngleL !== null ? `${Math.round(angles.hipAngleL)}°` : "--°");
+            setModalMetric('modal-angle-hip-r', angles.hipAngleR !== undefined && angles.hipAngleR !== null ? `${Math.round(angles.hipAngleR)}°` : "--°");
+            setModalMetric('modal-angle-elbow-l', angles.elbowAngleL !== undefined && angles.elbowAngleL !== null ? `${Math.round(angles.elbowAngleL)}°` : "--°");
+            setModalMetric('modal-angle-elbow-r', angles.elbowAngleR !== undefined && angles.elbowAngleR !== null ? `${Math.round(angles.elbowAngleR)}°` : "--°");
+          } else {
+            // Fallback to global metrics if angles object is missing
+            setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
+            setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
+            setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
+            setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
+            setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
+            setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+          }
+        };
+
+        // Default to A-Pose on open
+        setActivePoseInModal('A');
+
+        // Bind click handlers for switching
+        const removeOldListenersAndAdd = (elem, handler) => {
+          if (!elem) return;
+          const clone = elem.cloneNode(true);
+          elem.parentNode.replaceChild(clone, elem);
+          clone.addEventListener('click', handler);
+          return clone;
+        };
+
+        removeOldListenersAndAdd(btnSwitchA, () => setActivePoseInModal('A'));
+        removeOldListenersAndAdd(btnSwitchT, () => setActivePoseInModal('T'));
+        removeOldListenersAndAdd(btnSwitchOverhead, () => setActivePoseInModal('Overhead'));
+
+        removeOldListenersAndAdd(wrapperA, () => setActivePoseInModal('A'));
+        removeOldListenersAndAdd(wrapperT, () => setActivePoseInModal('T'));
+        removeOldListenersAndAdd(wrapperOverhead, () => setActivePoseInModal('Overhead'));
+
+      } else {
+        // Normal snapshot: hide switcher and thumbnails
+        if (poseSwitcher) poseSwitcher.style.display = 'none';
+        if (thumbnailsContainer) thumbnailsContainer.style.display = 'none';
+        if (modalSectionWidths) modalSectionWidths.style.display = 'block';
+        if (modalSectionHandTracking) modalSectionHandTracking.style.display = 'block';
+        if (modalImg) modalImg.src = snapshot.image;
+
+        if (m) {
+          setModalMetric('modal-val-pose', m.pose || "A-Pose");
+          const modalPoseElem = document.getElementById('modal-val-pose');
+          if (modalPoseElem) {
+            if (m.pose === "T-Pose") modalPoseElem.style.color = "#06b6d4";
+            else if (m.pose === "Overhead Reach") modalPoseElem.style.color = "#10b981";
+            else modalPoseElem.style.color = "#818cf8";
+          }
+
+          setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
+          setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
+          setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
+          setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
+          setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
+          setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+        }
+      }
+
       if (m) {
-        // Full Body
+        // Global and anatomical segments are populated from optimal poses
+        // (Limb lengths, height, and widths come from optimal poses stored in metrics)
         setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
         setModalMetric('modal-val-wingspan', m.wingspan ? formatSkeletalHeight(m.wingspan) : "--.-");
 
-        // Render captured pose in snapshot modal
-        setModalMetric('modal-val-pose', m.pose || "A-Pose");
-        const modalPoseElem = document.getElementById('modal-val-pose');
-        if (modalPoseElem) {
-          if (m.pose === "T-Pose") {
-            modalPoseElem.style.color = "#06b6d4"; // Cyan
-          } else if (m.pose === "Overhead Reach") {
-            modalPoseElem.style.color = "#10b981"; // Emerald
-          } else {
-            modalPoseElem.style.color = "#818cf8"; // Violet
-          }
-        }
-
-        // Angles
-        setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-        setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-        setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-        setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-        setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-        setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
-
-        // Lower body
         setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatSkeletalHeight(m.thigh_l) : "--.-");
         setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatSkeletalHeight(m.thigh_r) : "--.-");
         setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatSkeletalHeight(m.shin_l) : "--.-");
@@ -1534,7 +1752,6 @@ function openSnapshotModal(id) {
         setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatSkeletalHeight(m.foot_l) : "--.-");
         setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatSkeletalHeight(m.foot_r) : "--.-");
 
-        // Upper body
         setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatSkeletalHeight(m.torso_l) : "--.-");
         setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatSkeletalHeight(m.torso_r) : "--.-");
         setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatSkeletalHeight(m.upperarm_l) : "--.-");
@@ -1542,22 +1759,20 @@ function openSnapshotModal(id) {
         setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatSkeletalHeight(m.forearm_l) : "--.-");
         setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatSkeletalHeight(m.forearm_r) : "--.-");
 
-        // Widths
         if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
-          setModalMetric('modal-val-finger-to-toe', `L: ${formatSkeletalHeight(m.fingerToToeL)} / R: ${formatSkeletalHeight(m.fingerToToeR)}`);
+          setModalMetric('modal-val-overhead-reach', `L: ${formatSkeletalHeight(m.fingerToToeL)} / R: ${formatSkeletalHeight(m.fingerToToeR)}`);
         } else {
-          setModalMetric('modal-val-finger-to-toe', "--.-");
+          setModalMetric('modal-val-overhead-reach', "--.-");
         }
         setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatSkeletalHeight(m.hipW) : "--.-");
 
-        // Hand Metrics
         setModalMetric('modal-val-pinch-l', m.pinch_l_cm !== undefined && m.pinch_l_cm !== null ? formatSkeletalHeight(m.pinch_l_cm) : "--.-");
         setModalMetric('modal-val-pinch-r', m.pinch_r_cm !== undefined && m.pinch_r_cm !== null ? formatSkeletalHeight(m.pinch_r_cm) : "--.-");
         setModalMetric('modal-val-span-l', m.span_l_cm !== undefined && m.span_l_cm !== null ? formatSkeletalHeight(m.span_l_cm) : "--.-");
         setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatSkeletalHeight(m.span_r_cm) : "--.-");
       }
 
-      // Clone buttons to purge old single-use click event listeners
+      // Clone download & delete buttons to purge old listeners
       const dlBtn = document.getElementById('modal-dl-btn');
       const delBtn = document.getElementById('modal-del-btn');
 
@@ -1565,7 +1780,8 @@ function openSnapshotModal(id) {
         const newDlBtn = dlBtn.cloneNode(true);
         dlBtn.parentNode.replaceChild(newDlBtn, dlBtn);
         newDlBtn.addEventListener('click', () => {
-          downloadSnapshotImage(snapshot.image, snapshot.name || 'biomechanical-snapshot');
+          const activeImageSrc = modalImg ? modalImg.src : snapshot.image;
+          downloadSnapshotImage(activeImageSrc, snapshot.name || 'biomechanical-snapshot');
         });
       }
 

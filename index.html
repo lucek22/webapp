@@ -173,6 +173,12 @@
               <span id="val-height-ft" style="font-size: 0.85rem; color: #9ca3af; font-weight: 500;">--'--''</span>
             </div>
           </div>
+          <div class="metric-row" style="background-color: rgba(15,22,38,0.5); border: 1px solid rgba(255,255,255,0.03); padding: 0.6rem 0.85rem;">
+            <span class="metric-lbl" style="font-weight: 600; color: #e5e7eb;">Active Pose</span>
+            <div style="text-align: right;">
+              <span id="val-active-pose" class="metric-val" style="font-size: 1.1rem; font-weight: 800; color: #818cf8; display: block; line-height: 1.2;">A-Pose</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -275,11 +281,11 @@
 
       <!-- Body Widths -->
       <div class="panel-section">
-        <div class="section-title">Anatomical Widths</div>
+        <div class="section-title">Full Body Widths</div>
         <div class="metrics-list">
           <div class="metric-row">
-            <span class="metric-lbl">Shoulder Width</span>
-            <span id="val-shoulder-w" class="metric-val" style="color: #818cf8; font-weight: bold;">--.- cm</span>
+            <span class="metric-lbl">Finger to Toe</span>
+            <span id="val-finger-to-toe" class="metric-val" style="color: #818cf8; font-weight: bold;">--.- cm</span>
           </div>
           <div class="metric-row">
             <span class="metric-lbl">Pelvic (Hip) Width</span>
@@ -361,6 +367,10 @@
               <div class="modal-metric-box">
                 <span class="modal-metric-lbl">Wingspan (Middle Fingers)</span>
                 <span id="modal-val-wingspan" class="modal-metric-val" style="color: #c084fc; font-weight: bold;">--.-</span>
+              </div>
+              <div class="modal-metric-box" style="grid-column: span 2;">
+                <span class="modal-metric-lbl">Captured Pose</span>
+                <span id="modal-val-pose" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">A-Pose</span>
               </div>
             </div>
           </div>
@@ -467,16 +477,16 @@
             </div>
           </div>
 
-          <!-- Anatomical Widths -->
+          <!-- Full Body Widths -->
           <div class="modal-stats-section">
             <div class="modal-stats-title">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M4 12h16M4 12l4-4m-4 4l4 4m12-4l-4-4m4 4l-4 4"></path></svg>
-              Anatomical Widths
+              Full Body Widths
             </div>
             <div class="modal-stats-grid">
               <div class="modal-metric-box">
-                <span class="modal-metric-lbl">Shoulder Width</span>
-                <span id="modal-val-shoulder-w" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
+                <span class="modal-metric-lbl">Finger to Toe</span>
+                <span id="modal-val-finger-to-toe" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
               </div>
               <div class="modal-metric-box">
                 <span class="modal-metric-lbl">Pelvic (Hip) Width</span>

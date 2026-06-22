@@ -1,56 +1,78 @@
+/* ==========================================================================
+   OHIO STATE UNIVERSITY - BIOMECHANICS DASHBOARD CORE STYLES
+   Official Brand Palette: Scarlet (#BA0C2F) & Gray (#666666 / #A7B1B7)
+   ========================================================================== */
+
 body {
-  background-color: #090d16;
+  /* 1. Direct link to your new Block O stadium image */
+  background-image: url('https://th.bing.com/th/id/OIP.xynVB7b_DFxy9ZT3M2xJmQHaEK?w=284&h=165&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3'); 
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-color: #111111; /* Fallback color while image loads */
+
+  /* 2. Kept from your original setup */
   color: #f3f4f6;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Proxima Nova", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  
+  /* 3. Streamlined layout structure */
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   min-height: 100vh;
   margin: 0;
   padding: 1rem;
 }
+
 .app-grid {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 500px 750px 350px;
   gap: 1.5rem;
-  max-width: 1100px;
+  max-width: 1800px;
   width: 100%;
+  margin: 0 auto;
 }
+
 .container {
-  background-color: #121929;
+  background-color: #1e1e1e; /* Dark slate gray container background */
   padding: 1.5rem;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(186, 12, 47, 0.2); /* Subtle Scarlet tint border */
 }
+
 h1 {
   font-size: 1.4rem;
   margin: 0 0 0.25rem 0;
-  background: linear-gradient(90deg, #6366f1, #06b6d4);
+  /* Official OSU Scarlet to Crimson Gradient */
+  background: linear-gradient(90deg, #BA0C2F, #8A061A);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  font-weight: 700;
+  font-weight: 800;
   text-align: left;
+  letter-spacing: -0.5px;
 }
+
 .subtitle {
-  color: #9ca3af;
+  color: #a7b1b7; /* OSU Light Gray */
   font-size: 0.85rem;
   margin-bottom: 1.25rem;
   text-align: left;
 }
+
 .calibration-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1.25rem;
-  background-color: #0f1626;
+  background-color: #161616;
   padding: 1rem;
   border-radius: 10px;
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(102, 102, 102, 0.3); /* OSU Mid-Gray border */
 }
+
 .calibration-row {
   display: flex;
   align-items: center;
@@ -59,14 +81,18 @@ h1 {
   justify-content: center;
   font-size: 0.85rem;
 }
+
 .calibration-panel label {
   font-weight: 500;
-  color: #06b6d4;
+  color: #a7b1b7;
 }
+
 .slider {
   width: 200px;
   cursor: pointer;
+  accent-color: #BA0C2F; /* Native slider handles pull Scarlet */
 }
+
 .viewport {
   position: relative;
   width: 640px;
@@ -74,9 +100,10 @@ h1 {
   margin: 0 auto;
   border-radius: 8px;
   overflow: hidden;
-  background-color: #020617;
-  border: 1px solid #1e293b;
+  background-color: #0b0b0b;
+  border: 1px solid #2d2d2d;
 }
+
 video {
   position: absolute;
   top: 0;
@@ -86,6 +113,7 @@ video {
   transform: scaleX(-1); /* Mirror view */
   object-fit: fill;
 }
+
 canvas {
   position: absolute;
   top: 0;
@@ -93,34 +121,41 @@ canvas {
   width: 640px;
   height: 480px;
   z-index: 2;
-  pointer-events: auto; /* Allow clicking and dragging the calibration box */
+  pointer-events: auto;
 }
 
-/* Biomechanics Sidebar Dashboard */
+/* ==========================================================================
+   BIOMECHANICS SIDEBAR DASHBOARD (OSU LAB STYLING)
+   ========================================================================== */
 .dashboard-panel {
-  background-color: #121929;
+  background-color: #1e1e1e;
   padding: 1.5rem;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(186, 12, 47, 0.2);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
   max-height: 700px;
+  width: 100%;
+  max-width: none;
   overflow-y: auto;
 }
+
 .panel-section {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   padding-bottom: 1rem;
 }
+
 .panel-section:last-child {
   border: none;
   padding-bottom: 0;
 }
+
 .section-title {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #818cf8;
+  color: #BA0C2F; /* Scarlet Primary Headers */
   text-transform: uppercase;
   letter-spacing: 0.75px;
   margin-bottom: 0.75rem;
@@ -128,52 +163,61 @@ canvas {
   align-items: center;
   gap: 0.5rem;
 }
+
 .metrics-list {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
+
 .metric-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #0f1626;
+  background-color: #161616;
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.02);
 }
+
 .metric-lbl {
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: #a7b1b7;
 }
+
 .metric-val {
   font-size: 0.95rem;
   font-weight: 700;
   color: #f3f4f6;
 }
+
 .angle-box-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
 }
+
 .angle-box {
-  background-color: #0f1626;
-  border: 1px solid rgba(6, 182, 212, 0.15);
+  background-color: #161616;
+  border: 1px solid rgba(102, 102, 102, 0.25);
   padding: 0.5rem;
   border-radius: 8px;
   text-align: center;
 }
+
 .angle-lbl {
   font-size: 0.62rem;
-  color: #9ca3af;
+  color: #a7b1b7;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
+
 .angle-val {
   font-size: 1.15rem;
   font-weight: 800;
   margin-top: 2px;
 }
+
 .angle-header-row {
   display: flex;
   justify-content: flex-end;
@@ -185,23 +229,27 @@ canvas {
   letter-spacing: 0.5px;
   padding-right: 0.5rem;
 }
+
+/* Symmetry Trackers (Scarlet vs. Gray) */
 .left-border {
-  border-left: 3px solid #06b6d4 !important;
+  border-left: 3px solid #BA0C2F !important; /* OSU Scarlet */
 }
 .right-border {
-  border-left: 3px solid #a855f7 !important;
+  border-left: 3px solid #666666 !important; /* OSU Dark Gray */
 }
 .left-color {
-  color: #06b6d4 !important;
+  color: #BA0C2F !important;
 }
 .right-color {
-  color: #a855f7 !important;
+  color: #a7b1b7 !important; /* Lighter gray accent for readability */
 }
+
 .side-values {
   display: flex;
   gap: 0.75rem;
   align-items: center;
 }
+
 .side-val-item {
   font-size: 0.9rem;
   font-weight: 700;
@@ -209,8 +257,11 @@ canvas {
   text-align: right;
 }
 
+/* ==========================================================================
+   BUTTONS & CONTROLS
+   ========================================================================== */
 .btn {
-  background-color: #3b82f6;
+  background-color: #666666;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -222,25 +273,31 @@ canvas {
   transition: background-color 0.2s;
   width: 100%;
 }
+
 .btn:hover {
-  background-color: #2563eb;
+  background-color: #444444;
 }
+
 .btn.success {
   background-color: #10b981;
 }
 .btn.success:hover {
   background-color: #059669;
 }
+
+/* Main Premium Action Button (OSU Scarlet Branded) */
 .btn-capture {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
-  border: 1px solid #8b5cf6 !important;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  background: linear-gradient(135deg, #BA0C2F 0%, #A10A28 100%) !important;
+  border: 1px solid #D00E35 !important;
+  box-shadow: 0 4px 12px rgba(186, 12, 47, 0.35);
   color: white;
 }
+
 .btn-capture:hover {
-  background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%) !important;
-  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5);
+  background: linear-gradient(135deg, #A10A28 0%, #83051D 100%) !important;
+  box-shadow: 0 6px 16px rgba(186, 12, 47, 0.5);
 }
+
 .btn-capture-reset {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
   border: 1px solid #f87171 !important;
@@ -251,10 +308,11 @@ canvas {
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
   box-shadow: 0 6px 16px rgba(239, 68, 68, 0.5) !important;
 }
+
 #status {
   margin-top: 1rem;
   font-size: 0.8rem;
-  color: #38bdf8;
+  color: #a7b1b7;
   font-family: monospace;
   text-align: center;
 }
@@ -266,11 +324,13 @@ canvas {
   width: 40px;
   height: 20px;
 }
+
 .switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
+
 .slider-round {
   position: absolute;
   cursor: pointer;
@@ -278,11 +338,12 @@ canvas {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #1e293b;
+  background-color: #2d2d2d;
   transition: .3s;
   border-radius: 20px;
-  border: 1px solid rgba(192, 132, 252, 0.3);
+  border: 1px solid rgba(186, 12, 47, 0.2);
 }
+
 .slider-round:before {
   position: absolute;
   content: "";
@@ -294,14 +355,16 @@ canvas {
   transition: .3s;
   border-radius: 50%;
 }
+
 .switch input:checked + .slider-round {
-  background-color: #c084fc;
+  background-color: #BA0C2F; /* Scarlet when checked */
 }
+
 .switch input:checked + .slider-round:before {
   transform: translateX(18px);
 }
 
-/* Scrollbar for landmark directory */
+/* Scrollbars */
 #landmark-directory::-webkit-scrollbar {
   width: 4px;
 }
@@ -309,11 +372,11 @@ canvas {
   background: rgba(255, 255, 255, 0.02);
 }
 #landmark-directory::-webkit-scrollbar-thumb {
-  background: rgba(192, 132, 252, 0.3);
+  background: rgba(186, 12, 47, 0.4);
   border-radius: 2px;
 }
 
-/* Premium Camera Switch Floating Button */
+/* Camera Switch Floating Button */
 .camera-switch {
   position: absolute;
   top: 12px;
@@ -322,7 +385,7 @@ canvas {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(17, 17, 17, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -338,25 +401,25 @@ canvas {
 }
 
 .camera-switch:hover {
-  background: rgba(30, 41, 59, 0.8);
-  border-color: rgba(6, 182, 212, 0.5);
-  color: #06b6d4;
+  background: #1e1e1e;
+  border-color: #BA0C2F;
+  color: #BA0C2F;
   transform: scale(1.08) rotate(15deg);
-  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.25);
+  box-shadow: 0 4px 16px rgba(186, 12, 47, 0.35);
 }
 
 .camera-switch:active {
   transform: scale(0.95);
 }
 
-/* ==========================================
+/* ==========================================================================
    SNAPSHOT SAVE PANEL STYLES
-   ========================================== */
+   ========================================================================== */
 .save-panel {
-  background-color: rgba(15, 22, 38, 0.7);
+  background-color: rgba(30, 30, 30, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  border: 1px solid rgba(186, 12, 47, 0.4);
   padding: 1rem;
   border-radius: 12px;
   margin-top: 0.75rem;
@@ -364,18 +427,12 @@ canvas {
   flex-direction: column;
   gap: 0.75rem;
   animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 8px 32px rgba(186, 12, 47, 0.15);
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .save-row {
@@ -387,9 +444,9 @@ canvas {
 
 .save-input {
   flex: 1;
-  background-color: #0f1626;
+  background-color: #161616;
   color: white;
-  border: 1px solid rgba(139, 92, 246, 0.4);
+  border: 1px solid rgba(102, 102, 102, 0.5);
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -399,8 +456,8 @@ canvas {
 }
 
 .save-input:focus {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+  border-color: #BA0C2F;
+  box-shadow: 0 0 0 2px rgba(186, 12, 47, 0.2);
 }
 
 .btn-save-store {
@@ -411,27 +468,22 @@ canvas {
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
 }
-.btn-save-store:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-  box-shadow: 0 6px 14px rgba(16, 185, 129, 0.4);
-}
 
 .btn-download-png {
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%) !important;
-  border: 1px solid #22d3ee !important;
-  box-shadow: 0 4px 10px rgba(6, 182, 212, 0.25);
+  background: linear-gradient(135deg, #555555 0%, #333333 100%) !important;
+  border: 1px solid #666666 !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
   margin-top: 0;
   padding: 0.5rem 1rem;
   font-size: 0.85rem;
 }
 .btn-download-png:hover {
-  background: linear-gradient(135deg, #0891b2 0%, #0369a1 100%) !important;
-  box-shadow: 0 6px 14px rgba(6, 182, 212, 0.4);
+  background: linear-gradient(135deg, #444444 0%, #222222 100%) !important;
 }
 
-/* ==========================================
+/* ==========================================================================
    SNAPSHOT GALLERY STYLES
-   ========================================== */
+   ========================================================================== */
 .gallery-section {
   margin-top: 1.5rem;
   width: 100%;
@@ -450,19 +502,8 @@ canvas {
   margin-top: 1rem;
 }
 
-.gallery-empty {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 2.5rem 1rem;
-  color: #64748b;
-  font-size: 0.85rem;
-  border: 1px dashed rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  background-color: rgba(15, 22, 38, 0.2);
-}
-
 .snapshot-card {
-  background-color: #0f1626;
+  background-color: #161616;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 10px;
   overflow: hidden;
@@ -475,15 +516,15 @@ canvas {
 
 .snapshot-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(139, 92, 246, 0.4);
+  border-color: #BA0C2F;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 }
 
 .snapshot-card-img-wrapper {
   position: relative;
   width: 100%;
-  padding-top: 75%; /* 4:3 Aspect Ratio */
-  background-color: #020617;
+  padding-top: 75%;
+  background-color: #0b0b0b;
   overflow: hidden;
 }
 
@@ -507,7 +548,7 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(15, 22, 38, 0.7);
+  background: rgba(17, 17, 17, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -521,13 +562,13 @@ canvas {
 }
 
 .snapshot-card-overlay span {
-  background-color: #3b82f6;
+  background-color: #BA0C2F;
   color: white;
   padding: 0.35rem 0.75rem;
   border-radius: 20px;
   font-size: 0.7rem;
   font-weight: 600;
-  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 10px rgba(186, 12, 47, 0.4);
 }
 
 .snapshot-card-info {
@@ -548,14 +589,14 @@ canvas {
 
 .snapshot-card-meta {
   font-size: 0.65rem;
-  color: #9ca3af;
+  color: #a7b1b7;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .snapshot-card-height {
-  color: #06b6d4;
+  color: #BA0C2F;
   font-weight: 600;
 }
 
@@ -576,31 +617,23 @@ canvas {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  opacity: 0; /* Only show on card hover or touch */
+  opacity: 0;
 }
 
 .snapshot-card:hover .snapshot-card-delete {
   opacity: 1;
 }
 
-.snapshot-card-delete:hover {
-  background: rgba(239, 68, 68, 0.8);
-  color: white;
-  border-color: #ef4444;
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-}
-
-/* ==========================================
+/* ==========================================================================
    ANALYTICS DETAIL MODAL
-   ========================================== */
+   ========================================================================== */
 .modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(9, 13, 22, 0.85);
+  background-color: rgba(17, 17, 17, 0.9);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   z-index: 999;
@@ -621,9 +654,9 @@ canvas {
   width: 92%;
   max-width: 1000px;
   height: 85vh;
-  background-color: #121929;
+  background-color: #1e1e1e;
   border-radius: 16px;
-  border: 1px solid rgba(139, 92, 246, 0.25);
+  border: 1px solid rgba(186, 12, 47, 0.4);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
@@ -638,7 +671,7 @@ canvas {
 
 .modal-header {
   padding: 0.85rem 1.25rem;
-  background-color: rgba(15, 22, 38, 0.5);
+  background-color: rgba(22, 22, 22, 0.5);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   justify-content: space-between;
@@ -654,7 +687,7 @@ canvas {
 .modal-title {
   font-size: 1.1rem;
   font-weight: 700;
-  background: linear-gradient(90deg, #c084fc, #06b6d4);
+  background: linear-gradient(90deg, #BA0C2F, #a7b1b7);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -662,7 +695,7 @@ canvas {
 
 .modal-date {
   font-size: 0.68rem;
-  color: #9ca3af;
+  color: #a7b1b7;
 }
 
 .modal-actions {
@@ -685,11 +718,11 @@ canvas {
 }
 
 .btn-modal-dl {
-  background-color: #3b82f6;
+  background-color: #666666;
   color: white;
 }
 .btn-modal-dl:hover {
-  background-color: #2563eb;
+  background-color: #444444;
 }
 
 .btn-modal-del {
@@ -697,44 +730,24 @@ canvas {
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
-.btn-modal-del:hover {
-  background-color: #ef4444;
-  color: white;
-  border-color: #ef4444;
-}
-
-.btn-modal-close {
-  background: none;
-  border: none;
-  color: #9ca3af;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.25rem;
-  line-height: 1;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn-modal-close:hover {
-  color: white;
-}
 
 .modal-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  /* Swapped: Stats (left) gets 1fr, Preview (right) gets 1.2fr */
+  grid-template-columns: 1fr 1.2fr; 
   overflow: hidden;
 }
 
 .modal-preview-pane {
-  background-color: #020617;
+  grid-column: 2; /* STRICT PLACEMENT: Forces this to the right side */
+  background-color: #0b0b0b;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
   position: relative;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 1px solid rgba(255, 255, 255, 0.05); /* Border moved to the left */
 }
 
 .modal-preview-img {
@@ -743,20 +756,20 @@ canvas {
   object-fit: contain;
   border-radius: 6px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .modal-stats-pane {
+  grid-column: 1; /* STRICT PLACEMENT: Forces this to the left side */
   padding: 1.25rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  background-color: #121929;
+  background-color: #1e1e1e;
 }
 
 .modal-stats-section {
-  background-color: #0f1626;
+  background-color: #161616;
   border-radius: 10px;
   padding: 0.85rem;
   border: 1px solid rgba(255, 255, 255, 0.02);
@@ -767,11 +780,8 @@ canvas {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #818cf8;
+  color: #BA0C2F;
   margin-bottom: 0.6rem;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   padding-bottom: 0.35rem;
 }
@@ -794,7 +804,7 @@ canvas {
 
 .modal-metric-lbl {
   font-size: 0.62rem;
-  color: #9ca3af;
+  color: #a7b1b7;
 }
 
 .modal-metric-val {
@@ -803,32 +813,55 @@ canvas {
   color: #e2e8f0;
 }
 
-/* Custom scrollbars for modal stats sidebar */
 .modal-stats-pane::-webkit-scrollbar {
   width: 5px;
 }
-.modal-stats-pane::-webkit-scrollbar-track {
-  background: rgba(15, 22, 38, 0.3);
-}
 .modal-stats-pane::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.2);
+  background: rgba(186, 12, 47, 0.3);
   border-radius: 3px;
-}
-.modal-stats-pane::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.4);
 }
 
 @media (max-width: 768px) {
   .modal-body {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: auto 1fr;
     overflow-y: auto;
   }
   .modal-preview-pane {
-    border-right: none;
+    grid-column: 1; /* Reset to single column on mobile */
+    grid-row: 1;    /* Force camera preview to stay on top */
+    border-left: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .modal-stats-pane {
+    grid-column: 1; 
+    grid-row: 2;    /* Force stats to go underneath camera on mobile */
   }
   .modal-container {
     height: 95vh;
   }
+}
+/* ==========================================================================
+   SCARLET THEME - ALL ACTIVE/SELECTED BUTTONS
+   ========================================================================== */
+
+/* Handles Inches, cm, ArUco (Auto), and Input Height when clicked/selected */
+#unit-inch-btn[style*="background-color: rgb(59, 130, 246)"],
+#unit-inch-btn[style*="background-color: #3b82f6"],
+#unit-cm-btn[style*="background-color: rgb(59, 130, 246)"],
+#unit-cm-btn[style*="background-color: #3b82f6"],
+#tab-aruco-btn[style*="background-color: rgb(59, 130, 246)"],
+#tab-aruco-btn[style*="background-color: #3b82f6"],
+#tab-height-btn[style*="background-color: rgb(59, 130, 246)"],
+#tab-height-btn[style*="background-color: #3b82f6"] {
+  background-color: #BA0C2F !important;
+  color: #ffffff !important;
+}
+
+/* Optional: Gives all of them a nice subtle dark shift on hover when active */
+#unit-inch-btn[style*="background-color"]:hover,
+#unit-cm-btn[style*="background-color"]:hover,
+#tab-aruco-btn[style*="background-color"]:hover,
+#tab-height-btn[style*="background-color"]:hover {
+  filter: brightness(0.85);
 }

@@ -49,90 +49,65 @@ canvasElement.height = 480;
 if (landmarkDirectory) {
   LANDMARK_NAMES.forEach((name, idx) => {
     const item = document.createElement('div');
-    item.style.display = 'flex';
-    item.style.justifyContent = 'space-between';
-    item.style.alignItems = 'center';
-    item.style.fontSize = '0.68rem';
-    item.style.padding = '0.2rem 0.4rem';
-    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-    item.style.borderRadius = '4px';
-    item.style.borderLeft = '2.5px solid #1e293b';
+    item.className = 'landmark-directory-item';
     
-    let sideColor = '#9ca3af'; // default face/neutral
+    let colorClass = 'gray'; // default face/neutral
     if (idx <= 10) {
-      sideColor = '#ec4899'; // face
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'pink'; // face
     } else if (idx === 11 || idx === 13 || idx === 15 || idx === 17 || idx === 19 || idx === 21) {
-      sideColor = '#06b6d4'; // left arm
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'cyan'; // left arm
     } else if (idx === 12 || idx === 14 || idx === 16 || idx === 18 || idx === 20 || idx === 22) {
-      sideColor = '#d4a017'; // right arm
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'gold'; // right arm
     } else if (idx === 23 || idx === 25 || idx === 27 || idx === 29 || idx === 31) {
-      sideColor = '#10b981'; // left leg
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'emerald'; // left leg
     } else if (idx === 24 || idx === 26 || idx === 28 || idx === 30 || idx === 32) {
-      sideColor = '#f59e0b'; // right leg
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'amber'; // right leg
     }
+    item.classList.add(colorClass);
 
     item.innerHTML = `
-      <span style="color: ${sideColor}; font-weight: 600;">#${idx} ${name}</span>
-      <span id="lm-status-${idx}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+      <span class="landmark-name">#${idx} ${name}</span>
+      <span id="lm-status-${idx}" class="landmark-status-offline">Offline</span>
     `;
     landmarkDirectory.appendChild(item);
   });
 
   // Append Left Hand Fingertips
   const handFingersL = [
-    { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-l-0' },
-    { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-l-1' },
-    { name: 'Middle Tip', color: '#d4a017', id: 'val-fingertip-l-2' },
-    { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-l-3' },
-    { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-l-4' }
+    { name: 'Thumb Tip', colorClass: 'pink', id: 'val-fingertip-l-0' },
+    { name: 'Index Tip', colorClass: 'cyan', id: 'val-fingertip-l-1' },
+    { name: 'Middle Tip', colorClass: 'gold', id: 'val-fingertip-l-2' },
+    { name: 'Ring Tip', colorClass: 'emerald', id: 'val-fingertip-l-3' },
+    { name: 'Pinky Tip', colorClass: 'amber', id: 'val-fingertip-l-4' }
   ];
 
   handFingersL.forEach(f => {
     const item = document.createElement('div');
-    item.style.display = 'flex';
-    item.style.justifyContent = 'space-between';
-    item.style.alignItems = 'center';
-    item.style.fontSize = '0.68rem';
-    item.style.padding = '0.2rem 0.4rem';
-    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-    item.style.borderRadius = '4px';
-    item.style.borderLeft = `2.5px solid ${f.color}`;
+    item.className = `landmark-directory-item ${f.colorClass}`;
     
     item.innerHTML = `
-      <span style="color: ${f.color}; font-weight: 600;">Left ${f.name}</span>
-      <span id="${f.id}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+      <span class="landmark-name">Left ${f.name}</span>
+      <span id="${f.id}" class="landmark-status-offline">Offline</span>
     `;
     landmarkDirectory.appendChild(item);
   });
 
   // Append Right Hand Fingertips
   const handFingersR = [
-    { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-r-0' },
-    { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-r-1' },
-    { name: 'Middle Tip', color: '#d4a017', id: 'val-fingertip-r-2' },
-    { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-r-3' },
-    { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-r-4' }
+    { name: 'Thumb Tip', colorClass: 'pink', id: 'val-fingertip-r-0' },
+    { name: 'Index Tip', colorClass: 'cyan', id: 'val-fingertip-r-1' },
+    { name: 'Middle Tip', colorClass: 'gold', id: 'val-fingertip-r-2' },
+    { name: 'Ring Tip', colorClass: 'emerald', id: 'val-fingertip-r-3' },
+    { name: 'Pinky Tip', colorClass: 'amber', id: 'val-fingertip-r-4' }
   ];
 
   handFingersR.forEach(f => {
     const item = document.createElement('div');
-    item.style.display = 'flex';
-    item.style.justifyContent = 'space-between';
-    item.style.alignItems = 'center';
-    item.style.fontSize = '0.68rem';
-    item.style.padding = '0.2rem 0.4rem';
-    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-    item.style.borderRadius = '4px';
-    item.style.borderLeft = `2.5px solid ${f.color}`;
+    item.className = `landmark-directory-item ${f.colorClass}`;
     
     item.innerHTML = `
-      <span style="color: ${f.color}; font-weight: 600;">Right ${f.name}</span>
-      <span id="${f.id}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+      <span class="landmark-name">Right ${f.name}</span>
+      <span id="${f.id}" class="landmark-status-offline">Offline</span>
     `;
     landmarkDirectory.appendChild(item);
   });
@@ -455,12 +430,13 @@ export function renderDashboard(metrics) {
   const activePoseDisp = document.getElementById('val-active-pose');
   if (activePoseDisp) {
     activePoseDisp.textContent = metrics.pose || "A-Pose";
+    activePoseDisp.classList.remove('text-cyan', 'text-emerald', 'text-violet');
     if (metrics.pose === "T-Pose") {
-      activePoseDisp.style.color = "#06b6d4"; // Cyan
+      activePoseDisp.classList.add('text-cyan');
     } else if (metrics.pose === "Overhead Reach") {
-      activePoseDisp.style.color = "#10b981"; // Emerald
+      activePoseDisp.classList.add('text-emerald');
     } else {
-      activePoseDisp.style.color = "#818cf8"; // Violet
+      activePoseDisp.classList.add('text-violet');
     }
   }
 
@@ -623,15 +599,16 @@ export function onPoseResults(results) {
           const statusSpan = document.getElementById(`lm-status-${idx}`);
           if (statusSpan) {
             const landmark = results.poseLandmarks[idx];
+            statusSpan.classList.remove('text-emerald', 'text-amber', 'text-slate');
             if (landmark && landmark.visibility > 0.5) {
               statusSpan.textContent = "Online";
-              statusSpan.style.color = "#10b981";
+              statusSpan.classList.add('text-emerald');
             } else if (landmark) {
               statusSpan.textContent = "Low Vis";
-              statusSpan.style.color = "#f59e0b";
+              statusSpan.classList.add('text-amber');
             } else {
               statusSpan.textContent = "Offline";
-              statusSpan.style.color = "#64748b";
+              statusSpan.classList.add('text-slate');
             }
           }
         });
@@ -920,7 +897,8 @@ function captureSnapshot(joints, metrics, results) {
   frozenFrameCtx.restore();
 
   state.isSnapshotFrozen = true;
-  videoElement.style.opacity = '0'; // Completely hide live video feed under the canvas
+  videoElement.classList.add('video-hidden');
+  videoElement.classList.remove('video-visible', 'video-dimmed'); // Completely hide live video feed under the canvas
   
   // Set capture button to reset mode
   captureBtn.textContent = "Reset & Resume Live Tracking";
@@ -951,7 +929,8 @@ function captureSnapshot(joints, metrics, results) {
   // Show save panel
   const savePanel = document.getElementById('save-controls-panel');
   if (savePanel) {
-    savePanel.style.display = 'flex';
+    savePanel.classList.remove('hidden');
+    savePanel.classList.add('visible-flex');
   }
 
   // Trigger visual flash
@@ -976,9 +955,7 @@ export function cancelAutoSequence() {
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
     autoSequenceBtn.textContent = "Hands-Free Auto Capture";
-    autoSequenceBtn.style.background = "linear-gradient(135deg, #d4a017 0%, #d4a017 100%)";
-    autoSequenceBtn.style.border = "1px solid rgba(212, 160, 23, 0.4)";
-    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(212, 160, 23, 0.2)";
+    autoSequenceBtn.classList.remove('active-cancel');
   }
   
   statusElement.textContent = "Hands-free capture cancelled.";
@@ -1316,10 +1293,13 @@ export function resetAndResume() {
   state.frozenHandResults = null;
   
   // Restore standard video feed visibility
+  videoElement.classList.remove('video-hidden');
   if (state.yoloModeActive) {
-    videoElement.style.opacity = '0.05';
+    videoElement.classList.add('video-dimmed');
+    videoElement.classList.remove('video-visible');
   } else {
-    videoElement.style.opacity = '1.0';
+    videoElement.classList.add('video-visible');
+    videoElement.classList.remove('video-dimmed');
   }
   
   // Restore capture button styling
@@ -1332,7 +1312,8 @@ export function resetAndResume() {
   // Hide save panel
   const savePanel = document.getElementById('save-controls-panel');
   if (savePanel) {
-    savePanel.style.display = 'none';
+    savePanel.classList.add('hidden');
+    savePanel.classList.remove('visible-flex');
   }
 }
 
@@ -1342,23 +1323,28 @@ export function resetAndResume() {
 
 export async function startCamera() {
   statusElement.textContent = "Requesting webcam access...";
-  startButton.style.display = 'none';
-  yoloToggleBtn.style.display = 'block';
-  captureBtn.style.display = 'block';
+  startButton.classList.add('hidden');
+  yoloToggleBtn.classList.remove('hidden');
+  yoloToggleBtn.classList.add('visible-block');
+  captureBtn.classList.remove('hidden');
+  captureBtn.classList.add('visible-block');
 
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
-    autoSequenceBtn.style.display = 'block';
+    autoSequenceBtn.classList.remove('hidden');
+    autoSequenceBtn.classList.add('visible-block');
   }
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
-    subjectPanel.style.display = 'flex';
+    subjectPanel.classList.remove('hidden');
+    subjectPanel.classList.add('visible-flex');
   }
 
   const cameraSwitchBtn = document.getElementById('camera-switch-btn');
   if (cameraSwitchBtn) {
-    cameraSwitchBtn.style.display = 'flex';
+    cameraSwitchBtn.classList.remove('hidden');
+    cameraSwitchBtn.classList.add('visible-flex');
   }
 
   try {
@@ -1373,7 +1359,7 @@ export async function startCamera() {
     
     videoElement.srcObject = state.activeStream;
     // Mirror the view only for front/user camera
-    videoElement.style.transform = state.currentFacingMode === "user" ? "scaleX(-1)" : "none";
+    videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
     
     // Wait for video metadata to load and then start playing
     videoElement.onloadedmetadata = () => {
@@ -1411,12 +1397,12 @@ export async function startCamera() {
             state.calLocked = true;
 
             if (state.activeCalMethod === 'aruco') {
-              arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong style="color: #06b6d4;">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+              arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
             }
           } else {
             if (state.activeCalMethod === 'aruco') {
               if (state.pixelsPerCm) {
-                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong style="color: #06b6d4;">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               } else {
                 arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
               }
@@ -1443,13 +1429,13 @@ export async function startCamera() {
 
   } catch (err) {
     console.error("Camera access failed:", err);
-    startButton.style.display = 'block';
+    startButton.classList.remove('hidden');
     if (err.name === 'NotAllowedError') {
-      statusElement.innerHTML = `<span style="color: #f87171; font-weight: bold;">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
     } else if (err.name === 'NotReadableError') {
-      statusElement.innerHTML = `<span style="color: #f87171; font-weight: bold;">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
     } else {
-      statusElement.innerHTML = `<span style="color: #f87171; font-weight: bold;">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
     }
   }
 }
@@ -1531,7 +1517,7 @@ export function renderGallery() {
             <div class="snapshot-card-info">
               <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Session'}">${snapshot.name || 'Biomechanical Session'}</div>
               <div class="snapshot-card-meta">
-                <span class="snapshot-card-height" style="color: #d4a017;">Height: ${formattedHeight}</span>
+                <span class="snapshot-card-height">Height: ${formattedHeight}</span>
                 <span>${formattedDate}</span>
               </div>
             </div>
@@ -1610,10 +1596,22 @@ function openSnapshotModal(id) {
 
       if (isCombined) {
         // Show switcher and thumbnails containers
-        if (poseSwitcher) poseSwitcher.style.display = 'flex';
-        if (thumbnailsContainer) thumbnailsContainer.style.display = 'flex';
-        if (modalSectionWidths) modalSectionWidths.style.display = 'none';
-        if (modalSectionHandTracking) modalSectionHandTracking.style.display = 'none';
+        if (poseSwitcher) {
+          poseSwitcher.classList.remove('hidden');
+          poseSwitcher.classList.add('visible-flex');
+        }
+        if (thumbnailsContainer) {
+          thumbnailsContainer.classList.remove('hidden');
+          thumbnailsContainer.classList.add('visible-flex');
+        }
+        if (modalSectionWidths) {
+          modalSectionWidths.classList.add('hidden');
+          modalSectionWidths.classList.remove('visible-flex', 'visible-block');
+        }
+        if (modalSectionHandTracking) {
+          modalSectionHandTracking.classList.add('hidden');
+          modalSectionHandTracking.classList.remove('visible-flex', 'visible-block');
+        }
 
         // Set thumbnail sources
         const thumbA = document.getElementById('modal-thumb-a');
@@ -1667,7 +1665,16 @@ function openSnapshotModal(id) {
           if (modalImg) modalImg.src = activeImg;
           setModalMetric('modal-val-pose', poseLabel);
           const modalPoseElem = document.getElementById('modal-val-pose');
-          if (modalPoseElem) modalPoseElem.style.color = poseColor;
+          if (modalPoseElem) {
+            modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
+            if (poseKey === 'T') {
+              modalPoseElem.classList.add('pose-color-t');
+            } else if (poseKey === 'Overhead') {
+              modalPoseElem.classList.add('pose-color-overhead');
+            } else {
+              modalPoseElem.classList.add('pose-color-default');
+            }
+          }
 
           // Update joint angles for this specific pose
           let angles = null;
@@ -1715,19 +1722,32 @@ function openSnapshotModal(id) {
 
       } else {
         // Normal snapshot: hide switcher and thumbnails
-        if (poseSwitcher) poseSwitcher.style.display = 'none';
-        if (thumbnailsContainer) thumbnailsContainer.style.display = 'none';
-        if (modalSectionWidths) modalSectionWidths.style.display = 'block';
-        if (modalSectionHandTracking) modalSectionHandTracking.style.display = 'block';
+        if (poseSwitcher) {
+          poseSwitcher.classList.add('hidden');
+          poseSwitcher.classList.remove('visible-flex');
+        }
+        if (thumbnailsContainer) {
+          thumbnailsContainer.classList.add('hidden');
+          thumbnailsContainer.classList.remove('visible-flex');
+        }
+        if (modalSectionWidths) {
+          modalSectionWidths.classList.remove('hidden');
+          modalSectionWidths.classList.add('visible-block');
+        }
+        if (modalSectionHandTracking) {
+          modalSectionHandTracking.classList.remove('hidden');
+          modalSectionHandTracking.classList.add('visible-block');
+        }
         if (modalImg) modalImg.src = snapshot.image;
 
         if (m) {
           setModalMetric('modal-val-pose', m.pose || "A-Pose");
           const modalPoseElem = document.getElementById('modal-val-pose');
           if (modalPoseElem) {
-            if (m.pose === "T-Pose") modalPoseElem.style.color = "#06b6d4";
-            else if (m.pose === "Overhead Reach") modalPoseElem.style.color = "#10b981";
-            else modalPoseElem.style.color = "#818cf8";
+            modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
+            if (m.pose === "T-Pose") modalPoseElem.classList.add('pose-color-t');
+            else if (m.pose === "Overhead Reach") modalPoseElem.classList.add('pose-color-overhead');
+            else modalPoseElem.classList.add('pose-color-default');
           }
 
           setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
@@ -1835,7 +1855,8 @@ slider.addEventListener('input', (e) => {
   if (state.calLocked) {
     state.calLocked = false;
     lockCalButton.textContent = "Lock 20cm Calibration";
-    lockCalButton.style.backgroundColor = '#10b981';
+    lockCalButton.classList.add('cal-btn-unlocked');
+    lockCalButton.classList.remove('cal-btn-locked');
   }
 });
 
@@ -1843,7 +1864,8 @@ lockCalButton.addEventListener('click', () => {
   state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
   state.calLocked = true;
   lockCalButton.textContent = "✅ Scale Locked!";
-  lockCalButton.style.backgroundColor = '#059669';
+  lockCalButton.classList.add('cal-btn-locked');
+  lockCalButton.classList.remove('cal-btn-unlocked');
   statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
 });
 
@@ -1854,7 +1876,8 @@ const posRightBtn = document.getElementById('pos-right-btn');
 
 function updatePosBtnStyles(activeBtn) {
   [posLeftBtn, posCenterBtn, posRightBtn].forEach(btn => {
-    btn.style.backgroundColor = (btn === activeBtn) ? '#3b82f6' : '#1e293b';
+    btn.classList.toggle('btn-tab-active', btn === activeBtn);
+    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
   });
 }
 
@@ -1915,10 +1938,12 @@ canvasElement.addEventListener('mousemove', (e) => {
   const y2 = state.calBoxY + state.calBoxSize / 2;
   
   if (canvasMouseX >= x1 - 15 && canvasMouseX <= x2 + 15 && canvasMouseY >= y1 - 15 && canvasMouseY <= y2 + 15) {
-    canvasElement.style.cursor = 'move';
+    canvasElement.classList.add('cursor-move');
+    canvasElement.classList.remove('cursor-default');
   } else {
     if (!isDragging) {
-      canvasElement.style.cursor = 'default';
+      canvasElement.classList.add('cursor-default');
+      canvasElement.classList.remove('cursor-move');
     }
   }
   
@@ -1983,10 +2008,8 @@ const unitCmBtn = document.getElementById('unit-cm-btn');
 
 unitInchBtn.addEventListener('click', () => {
   state.useInches = true;
-  unitInchBtn.style.backgroundColor = '#3b82f6';
-  unitInchBtn.style.color = 'white';
-  unitCmBtn.style.backgroundColor = 'transparent';
-  unitCmBtn.style.color = '#9ca3af';
+  unitInchBtn.classList.add('active');
+  unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -1998,10 +2021,8 @@ unitInchBtn.addEventListener('click', () => {
 
 unitCmBtn.addEventListener('click', () => {
   state.useInches = false;
-  unitCmBtn.style.backgroundColor = '#3b82f6';
-  unitCmBtn.style.color = 'white';
-  unitInchBtn.style.backgroundColor = 'transparent';
-  unitInchBtn.style.color = '#9ca3af';
+  unitCmBtn.classList.add('active');
+  unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -2016,12 +2037,19 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   state.activeCalMethod = method;
   
   [tabArucoBtn, tabHeightBtn].forEach(btn => {
-    btn.style.backgroundColor = (btn === activeBtn) ? '#3b82f6' : '#1e293b';
+    btn.classList.toggle('btn-tab-active', btn === activeBtn);
+    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
   });
 
   [panelAruco, panelCard, panelHeight].forEach(panel => {
     if (panel) {
-      panel.style.display = (panel === activePanel) ? 'flex' : 'none';
+      if (panel === activePanel) {
+        panel.classList.remove('hidden');
+        panel.classList.add('visible-flex');
+      } else {
+        panel.classList.add('hidden');
+        panel.classList.remove('visible-flex');
+      }
     }
   });
 
@@ -2029,7 +2057,8 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   if (method !== 'aruco' && state.calLocked) {
     if (method === 'card') {
       lockCalButton.textContent = "Lock 20cm Calibration";
-      lockCalButton.style.backgroundColor = '#10b981';
+      lockCalButton.classList.add('cal-btn-unlocked');
+      lockCalButton.classList.remove('cal-btn-locked');
       state.calLocked = false;
     }
   }
@@ -2055,7 +2084,8 @@ heightCalBtn.addEventListener('click', () => {
     state.isCountingDown = true;
     state.countdownValue = 3;
     heightCalBtn.textContent = "Get in Position (3s)...";
-    heightCalBtn.style.backgroundColor = '#d97706'; // warning orange
+    heightCalBtn.classList.add('btn-warning');
+    heightCalBtn.classList.remove('btn-success-green');
     statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
 
     const intervalId = setInterval(() => {
@@ -2078,7 +2108,8 @@ heightCalBtn.addEventListener('click', () => {
         state.pixelsPerCm = captureHeightPx / actualHeightCm;
         state.calLocked = true;
         heightCalBtn.textContent = "✅ Calibrated!";
-        heightCalBtn.style.backgroundColor = '#059669';
+        heightCalBtn.classList.add('btn-success-green');
+        heightCalBtn.classList.remove('btn-warning');
         statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
         
         // Trigger camera snapshot visual flash!
@@ -2095,20 +2126,18 @@ yoloToggleBtn.addEventListener('click', () => {
   state.yoloModeActive = !state.yoloModeActive;
   if (state.yoloModeActive) {
     yoloToggleBtn.textContent = "Disable YOLO Background Isolation";
-    yoloToggleBtn.style.backgroundColor = 'rgba(6, 182, 212, 0.15)';
-    yoloToggleBtn.style.borderColor = '#06b6d4';
-    yoloToggleBtn.style.color = '#06b6d4';
+    yoloToggleBtn.classList.add('active');
     
     // Hide standard video underneath so canvas can show the background cutout
-    videoElement.style.opacity = '0.05'; 
+    videoElement.classList.add('video-dimmed');
+    videoElement.classList.remove('video-visible');
   } else {
     yoloToggleBtn.textContent = "Enable YOLO Background Isolation";
-    yoloToggleBtn.style.backgroundColor = '#0f1626';
-    yoloToggleBtn.style.borderColor = 'rgba(6, 182, 212, 0.4)';
-    yoloToggleBtn.style.color = '#06b6d4';
+    yoloToggleBtn.classList.remove('active');
     
     // Restore standard video opacity
-    videoElement.style.opacity = '1';
+    videoElement.classList.add('video-visible');
+    videoElement.classList.remove('video-dimmed');
   }
 });
 
@@ -2183,9 +2212,7 @@ if (autoSequenceBtn) {
     state.metricsOverhead = null;
 
     autoSequenceBtn.textContent = "Cancel Auto Sequence";
-    autoSequenceBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
-    autoSequenceBtn.style.border = "1px solid rgba(239, 68, 68, 0.4)";
-    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(239, 68, 68, 0.2)";
+    autoSequenceBtn.classList.add('active-cancel');
 
     statusElement.textContent = "🚀 Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
   });

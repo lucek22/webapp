@@ -865,3 +865,99 @@ canvas {
 #tab-height-btn[style*="background-color"]:hover {
   filter: brightness(0.85);
 }
+/* ==========================================================================
+   UNIFY LEFT AND RIGHT SIDE TO SCARLET RED
+   ========================================================================== */
+
+/* 1. Force headers ("LEFT SIDE", "RIGHT SIDE", "LEFT", "RIGHT") to match */
+.side-header-left,
+.side-header-right,
+.angle-header-row span {
+  color: #BA0C2F !important;
+  font-weight: 700;
+}
+
+/* 2. Update the numerical angle indicators and measurements (--°) to Scarlet */
+.angle-val,
+.side-val-item,
+.left-color,
+.right-color {
+  color: #BA0C2F !important;
+}
+
+/* 3. Update the left/right decorative borders on the joint boxes to Scarlet */
+.angle-box.left-border,
+.angle-box.right-border {
+  border-left: 3px solid #BA0C2F !important;
+}
+/* ==========================================================================
+   FULL-BODY STATURE PANEL - SCARLET THEME
+   ========================================================================== */
+
+/* 1. Change the cyan card title text ("Full-Body Stature") and its SVG cube icon */
+.panel-section[style*="background: linear-gradient"] .section-title,
+.panel-section[style*="background: linear-gradient"] svg {
+  color: #BA0C2F !important;
+}
+
+/* 2. Change the massive cyan numerical value text ("--.- cm") */
+#val-height-cm {
+  color: #BA0C2F !important;
+}
+
+/* 3. Re-tint the card's background gradient and outer cyan border to a subtle scarlet glow */
+.panel-section[style*="background: linear-gradient"] {
+  background: linear-gradient(135deg, rgba(186, 12, 47, 0.1) 0%, rgba(30, 30, 30, 0.2) 100%) !important;
+  border: 1px solid rgba(186, 12, 47, 0.25) !important;
+}
+/* ==========================================================================
+   ANATOMICAL WIDTHS & LANDMARKS - SCARLET THEME
+   ========================================================================== */
+
+/* 1. Turn the indigo/blue width numbers ("--.- cm") to Scarlet */
+#val-shoulder-w,
+#val-hip-w,
+#val-wingspan {
+  color: #BA0C2F !important;
+}
+
+/* 2. Turn the purple "LANDMARK POINTS" section header and its icon to Scarlet */
+.panel-section style + .section-title,
+.panel-section div[style*="color: #c084fc"] span,
+.panel-section div[style*="color: #c084fc"] svg {
+  color: #BA0C2F !important;
+}
+
+/* 3. Turn the purple "Show 43 Landmark Directory" expandable button text to Scarlet */
+#landmark-directory - summary, 
+details summary {
+  color: #BA0C2F !important;
+}
+
+/* 4. Optional: Change the dark purple directory background box border to match */
+details {
+  border-color: rgba(186, 12, 47, 0.25) !important;
+}
+/* ==========================================================================
+   CALIBRATION ACTION SUITE - SCARLET THEME
+   ========================================================================== */
+
+/* 1. Turn the action button from image_906e5f.png ("Calibrate with My Height") to Scarlet */
+#height-cal-btn,
+.btn.success {
+  background-color: #BA0C2F !important;
+  border-color: #BA0C2F !important;
+  color: #ffffff !important;
+}
+
+/* Subtle dark-red hover shade for the calibration action button */
+#height-cal-btn:hover,
+.btn.success:hover {
+  background-color: #900A24 !important;
+}
+
+/* 2. Turn the green scanning text indicator from image_90710c.png to Scarlet */
+#aruco-status-text,
+div[style*="color: #10b981"] {
+  color: #BA0C2F !important;
+}

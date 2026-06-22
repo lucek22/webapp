@@ -348,7 +348,8 @@ export function updateHandTracking(results) {
         state.latestLeftMiddleTip = middleTip;
         if (handStatusLDisp) {
           handStatusLDisp.textContent = `Left Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
-          handStatusLDisp.style.color = "#10b981";
+          handStatusLDisp.classList.add('text-emerald');
+          handStatusLDisp.classList.remove('text-slate');
         }
         if (pinchLDisp) pinchLDisp.textContent = pinchSpanStr;
         if (spanLDisp) spanLDisp.textContent = handSpanStr;
@@ -357,14 +358,16 @@ export function updateHandTracking(results) {
           if (disp) {
             const pt = tips[idx];
             disp.textContent = `(${pt.x.toFixed(0)}, ${pt.y.toFixed(0)})`;
-            disp.style.color = "#10b981";
+            disp.classList.add('text-emerald');
+            disp.classList.remove('text-slate');
           }
         });
       } else if (side === 'Right') {
         state.latestRightMiddleTip = middleTip;
         if (handStatusRDisp) {
           handStatusRDisp.textContent = `Right Hand: Tracked (${(handedness.score * 100).toFixed(0)}%)`;
-          handStatusRDisp.style.color = "#10b981";
+          handStatusRDisp.classList.add('text-emerald');
+          handStatusRDisp.classList.remove('text-slate');
         }
         if (pinchRDisp) pinchRDisp.textContent = pinchSpanStr;
         if (spanRDisp) spanRDisp.textContent = handSpanStr;
@@ -373,7 +376,8 @@ export function updateHandTracking(results) {
           if (disp) {
             const pt = tips[idx];
             disp.textContent = `(${pt.x.toFixed(0)}, ${pt.y.toFixed(0)})`;
-            disp.style.color = "#10b981";
+            disp.classList.add('text-emerald');
+            disp.classList.remove('text-slate');
           }
         });
       }
@@ -385,14 +389,16 @@ export function updateHandTracking(results) {
     state.latestLeftMiddleTip = null;
     if (handStatusLDisp) {
       handStatusLDisp.textContent = "Left Hand: Offline";
-      handStatusLDisp.style.color = "#64748b";
+      handStatusLDisp.classList.add('text-slate');
+      handStatusLDisp.classList.remove('text-emerald');
     }
     if (pinchLDisp) pinchLDisp.textContent = "--.- cm";
     if (spanLDisp) spanLDisp.textContent = "--.- cm";
     fingertipLDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";
-        disp.style.color = "#64748b";
+        disp.classList.add('text-slate');
+        disp.classList.remove('text-emerald');
       }
     });
   }
@@ -400,14 +406,16 @@ export function updateHandTracking(results) {
     state.latestRightMiddleTip = null;
     if (handStatusRDisp) {
       handStatusRDisp.textContent = "Right Hand: Offline";
-      handStatusRDisp.style.color = "#64748b";
+      handStatusRDisp.classList.add('text-slate');
+      handStatusRDisp.classList.remove('text-emerald');
     }
     if (pinchRDisp) pinchRDisp.textContent = "--.- cm";
     if (spanRDisp) spanRDisp.textContent = "--.- cm";
     fingertipRDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";
-        disp.style.color = "#64748b";
+        disp.classList.add('text-slate');
+        disp.classList.remove('text-emerald');
       }
     });
   }

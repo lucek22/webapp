@@ -25,13 +25,11 @@
       
       <!-- Custom OSU Text Logo Block -->
       <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin-bottom: 1.5rem; border-left: 4px solid #ba0c2f; padding-left: 12px; line-height: 1.1;">
-        <img src="https://th.bing.com/th/id/OIP.YeE708ARN4_FXPQZmN9pCgHaEz?w=267&h=173&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3" alt="Ohio State Block O" style="height: 45px; width: auto; display: block; margin-bottom: 6px;">
+        <img src="./OSU.webp" alt="Ohio State Block O" style="height: 45px; width: auto; display: block; margin-bottom: 6px;">
         
-        <div style="font-size: 0.85rem; font-weight: 800; color: #ba0c2f; letter-spacing: 1px; margin-top: 2px;">SCARLET + GRAY</div>
+        <div style="font-size: 0.85rem; font-weight: 800; color: #ba0c2f; letter-spacing: 1px; margin-top: 2px;">SCARLET Biomechanics</div>
         <div style="font-size: 0.75rem; font-weight: 600; color: #666666; letter-spacing: 0.5px; margin-top: 1px;">BUCKEYE PERFORMANCE PLATFORM</div>
       </div>
-
-      <h1>Scarlet Biomechanics</h1>
       <div class="subtitle">Complete biomechanical movement segment analysis & joint angle tracking.</div>
       
       <!-- Calibration Panel -->
@@ -118,12 +116,12 @@
 
       <div class="capture-buttons-row" style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
         <button id="capture-btn" class="btn btn-capture" style="display: none; transition: all 0.2s; flex: 1; margin-top: 0;">Start 5s Capture Snapshot</button>
-        <button id="auto-sequence-btn" class="btn" style="display: none; transition: all 0.2s; flex: 1; margin-top: 0; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: 1px solid rgba(168, 85, 247, 0.4); box-shadow: 0 4px 10px rgba(168, 85, 247, 0.2); font-weight: 700; border-radius: 6px; color: white;">Hands-Free Auto Capture</button>
+        <button id="auto-sequence-btn" class="btn" style="display: none; transition: all 0.2s; flex: 1; margin-top: 0; background: linear-gradient(135deg, #d4a017 0%, #a3720c 100%); border: 1px solid rgba(212, 160, 23, 0.4); box-shadow: 0 4px 10px rgba(212, 160, 23, 0.2); font-weight: 700; border-radius: 6px; color: white;">Hands-Free Auto Capture</button>
       </div>
       
       <!-- Snapshot Saving Controls (shown when snapshot is frozen) -->
       <div id="save-controls-panel" class="save-panel" style="display: none;">
-        <div style="font-size: 0.8rem; font-weight: 700; color: #c084fc; margin-bottom: 0.1rem; display: flex; align-items: center; gap: 0.35rem;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: #d4a017; margin-bottom: 0.1rem; display: flex; align-items: center; gap: 0.35rem;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
           Snapshot Action Suite
         </div>
@@ -142,13 +140,13 @@
     <!-- Gallery Section (stands out as its own container below the camera view) -->
     <div class="gallery-section container">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
-        <h2 style="font-size: 1.1rem; margin: 0; background: linear-gradient(90deg, #c084fc, #BA0C2F); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <h2 style="font-size: 1.1rem; margin: 0; background: linear-gradient(90deg, #d4a017, #BA0C2F); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #d4a017;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
           Saved Biomechanical Gallery
         </h2>
-        <button id="btn-export-json" class="btn" style="margin-top: 0; padding: 0.35rem 0.75rem; font-size: 0.72rem; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: 1px solid rgba(168, 85, 247, 0.4); width: auto; font-weight: 700; border-radius: 6px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.2); transition: all 0.2s;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Export Gallery JSON
+        <button id="btn-export-json" class="btn" style="margin-top: 0; padding: 0.35rem 0.9rem; font-size: 0.72rem; background-color: #161616; border: 1px solid rgba(186, 12, 47, 0.4); color: #BA0C2F; width: auto; font-weight: 700; border-radius: 6px; box-shadow: 0 2px 8px rgba(186, 12, 47, 0.1); transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.35rem;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export JSON
         </button>
       </div>
       <div class="subtitle" style="margin-bottom: 1rem;">View, compare, and export previously captured posture and alignment snapshots.</div>
@@ -236,7 +234,7 @@
         <div class="section-title">Lower Body Segments</div>
         <div class="angle-header-row">
           <span style="color: #06b6d4;">Left</span>
-          <span style="color: #a855f7;">Right</span>
+          <span style="color: #d4a017;">Right</span>
         </div>
         <div class="metrics-list">
           <div class="metric-row">
@@ -311,9 +309,9 @@
 
       <!-- Pose Landmarks Overlay Section -->
       <div class="panel-section" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1rem;">
-        <div class="section-title" style="color: #c084fc; display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.5rem;">
+        <div class="section-title" style="color: #d4a017; display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.5rem;">
           <span style="display: flex; align-items: center; gap: 0.4rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #d4a017;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
             Landmark Points
           </span>
         </div>
@@ -323,8 +321,8 @@
         </div>
         
         <!-- Expandable directory -->
-        <details style="background-color: #0f1626; border: 1px solid rgba(192, 132, 252, 0.15); border-radius: 8px; padding: 0.5rem; cursor: pointer;">
-          <summary style="font-size: 0.75rem; font-weight: 600; color: #c084fc; outline: none; user-select: none;">Show 43 Landmark Directory</summary>
+        <details style="background-color: #0f1626; border: 1px solid rgba(212, 160, 23, 0.15); border-radius: 8px; padding: 0.5rem; cursor: pointer;">
+          <summary style="font-size: 0.75rem; font-weight: 600; color: #d4a017; outline: none; user-select: none;">Show 43 Landmark Directory</summary>
           <div id="landmark-directory" style="max-height: 250px; overflow-y: auto; margin-top: 0.5rem; display: grid; grid-template-columns: 1fr; gap: 0.3rem; padding-right: 2px;">
             <!-- Populated dynamically via JS -->
           </div>
@@ -387,7 +385,7 @@
               </div>
               <div class="modal-metric-box">
                 <span class="modal-metric-lbl">Wingspan (Middle Fingers)</span>
-                <span id="modal-val-wingspan" class="modal-metric-val" style="color: #c084fc; font-weight: bold;">--.-</span>
+                <span id="modal-val-wingspan" class="modal-metric-val" style="color: #d4a017; font-weight: bold;">--.-</span>
               </div>
               <div id="modal-box-overhead-reach" class="modal-metric-box" style="grid-column: span 2;">
                 <span class="modal-metric-lbl">Overhead Reach (Toe to Finger)</span>

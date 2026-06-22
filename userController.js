@@ -66,7 +66,7 @@ if (landmarkDirectory) {
       sideColor = '#06b6d4'; // left arm
       item.style.borderLeftColor = sideColor;
     } else if (idx === 12 || idx === 14 || idx === 16 || idx === 18 || idx === 20 || idx === 22) {
-      sideColor = '#a855f7'; // right arm
+      sideColor = '#d4a017'; // right arm
       item.style.borderLeftColor = sideColor;
     } else if (idx === 23 || idx === 25 || idx === 27 || idx === 29 || idx === 31) {
       sideColor = '#10b981'; // left leg
@@ -87,7 +87,7 @@ if (landmarkDirectory) {
   const handFingersL = [
     { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-l-0' },
     { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-l-1' },
-    { name: 'Middle Tip', color: '#a855f7', id: 'val-fingertip-l-2' },
+    { name: 'Middle Tip', color: '#d4a017', id: 'val-fingertip-l-2' },
     { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-l-3' },
     { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-l-4' }
   ];
@@ -114,7 +114,7 @@ if (landmarkDirectory) {
   const handFingersR = [
     { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-r-0' },
     { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-r-1' },
-    { name: 'Middle Tip', color: '#a855f7', id: 'val-fingertip-r-2' },
+    { name: 'Middle Tip', color: '#d4a017', id: 'val-fingertip-r-2' },
     { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-r-3' },
     { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-r-4' }
   ];
@@ -228,7 +228,7 @@ export function drawFullSkeletalMesh(landmarks) {
     } else if (idx === 11 || idx === 13 || idx === 15 || idx === 17 || idx === 19 || idx === 21) {
       color = '#06b6d4'; // Left Arm: Neon Cyan
     } else if (idx === 12 || idx === 14 || idx === 16 || idx === 18 || idx === 20 || idx === 22) {
-      color = '#a855f7'; // Right Arm: Neon Purple
+      color = '#d4a017'; // Right Arm: Neon Warm Gold
     } else if (idx === 23 || idx === 25 || idx === 27 || idx === 29 || idx === 31) {
       color = '#10b981'; // Left Leg/Foot: Neon Emerald
     } else if (idx === 24 || idx === 26 || idx === 28 || idx === 30 || idx === 32) {
@@ -642,8 +642,8 @@ export function onPoseResults(results) {
 
       // --- DRAW NEON SKELETAL MARKERS ---
       // Shoulder and Hip spans
-      drawBone(shoulder_l, shoulder_r, '#6366f1'); 
-      drawBone(hip_l, hip_r, '#6366f1'); 
+      drawBone(shoulder_l, shoulder_r, '#d4a017'); 
+      drawBone(hip_l, hip_r, '#d4a017'); 
       
       // Torso Lines
       drawBone(shoulder_l, hip_l, '#38bdf8'); 
@@ -652,7 +652,7 @@ export function onPoseResults(results) {
       // Left Arm & Leg
       drawBone(shoulder_l, elbow_l, '#ec4899'); 
       drawBone(elbow_l, wrist_l, '#f43f5e'); 
-      drawBone(hip_l, knee_l, '#a855f7'); 
+      drawBone(hip_l, knee_l, '#d4a017'); 
       drawBone(knee_l, ankle_l, '#06b6d4'); 
       drawBone(ankle_l, heel_l, '#10b981'); 
       drawBone(heel_l, toe_l, '#10b981'); 
@@ -660,20 +660,20 @@ export function onPoseResults(results) {
       // Right Arm & Leg
       drawBone(shoulder_r, elbow_r, '#ec4899'); 
       drawBone(elbow_r, wrist_r, '#f43f5e'); 
-      drawBone(hip_r, knee_r, '#a855f7'); 
+      drawBone(hip_r, knee_r, '#d4a017'); 
       drawBone(knee_r, ankle_r, '#06b6d4'); 
       drawBone(ankle_r, heel_r, '#10b981'); 
       drawBone(heel_r, toe_r, '#10b981'); 
 
       // Joint Nodes
-      drawJoint(shoulder_l, '#6366f1');
-      drawJoint(shoulder_r, '#6366f1');
+      drawJoint(shoulder_l, '#d4a017');
+      drawJoint(shoulder_r, '#d4a017');
       drawJoint(elbow_l, '#d946ef');
       drawJoint(elbow_r, '#d946ef');
       drawJoint(wrist_l, '#f43f5e');
       drawJoint(wrist_r, '#f43f5e');
-      drawJoint(hip_l, '#a855f7');
-      drawJoint(hip_r, '#a855f7');
+      drawJoint(hip_l, '#d4a017');
+      drawJoint(hip_r, '#d4a017');
       drawJoint(knee_l, '#10b981');
       drawJoint(knee_r, '#10b981');
       drawJoint(ankle_l, '#06b6d4');
@@ -741,7 +741,7 @@ export function onPoseResults(results) {
             
             // Glassmorphic styling
             canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.7)';
-            canvasCtx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+            canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.4)';
             canvasCtx.lineWidth = 1.5;
             drawRoundedRect(canvasCtx, barX, barY, barWidth, barHeight, 8);
             canvasCtx.fill();
@@ -751,8 +751,8 @@ export function onPoseResults(results) {
               canvasCtx.save();
               const fillWidth = barWidth * progress;
               const grad = canvasCtx.createLinearGradient(barX, 0, barX + barWidth, 0);
-              grad.addColorStop(0, '#a855f7');
-              grad.addColorStop(1, '#6366f1');
+              grad.addColorStop(0, '#d4a017');
+              grad.addColorStop(1, '#d4a017');
               canvasCtx.fillStyle = grad;
               canvasCtx.beginPath();
               drawRoundedRect(canvasCtx, barX, barY, fillWidth, barHeight, 8);
@@ -769,7 +769,7 @@ export function onPoseResults(results) {
             canvasCtx.fillStyle = '#ffffff';
             canvasCtx.font = 'bold 12px sans-serif';
             canvasCtx.textAlign = 'center';
-            canvasCtx.shadowColor = '#a855f7';
+            canvasCtx.shadowColor = '#d4a017';
             canvasCtx.shadowBlur = 6;
             const percentage = Math.floor(progress * 100);
             canvasCtx.fillText(`HOLDING ${detectedPose.toUpperCase()}: ${percentage}%`, 0, 0);
@@ -855,12 +855,12 @@ export function onPoseResults(results) {
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
     // Tech borders
-    canvasCtx.strokeStyle = 'rgba(124, 58, 237, 0.3)';
+    canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.3)';
     canvasCtx.lineWidth = 2;
     canvasCtx.strokeRect(20, 20, canvasElement.width - 40, canvasElement.height - 40);
 
-    canvasCtx.fillStyle = '#a78bfa'; // violet
-    canvasCtx.strokeStyle = 'rgba(124, 58, 237, 0.5)';
+    canvasCtx.fillStyle = '#d4a017'; // gold
+    canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.5)';
     canvasCtx.lineWidth = 4;
     canvasCtx.textAlign = 'center';
     canvasCtx.textBaseline = 'middle';
@@ -976,9 +976,9 @@ export function cancelAutoSequence() {
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
     autoSequenceBtn.textContent = "Hands-Free Auto Capture";
-    autoSequenceBtn.style.background = "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)";
-    autoSequenceBtn.style.border = "1px solid rgba(168, 85, 247, 0.4)";
-    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(168, 85, 247, 0.2)";
+    autoSequenceBtn.style.background = "linear-gradient(135deg, #d4a017 0%, #d4a017 100%)";
+    autoSequenceBtn.style.border = "1px solid rgba(212, 160, 23, 0.4)";
+    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(212, 160, 23, 0.2)";
   }
   
   statusElement.textContent = "Hands-free capture cancelled.";
@@ -993,9 +993,9 @@ export function drawLockoutTransitionOverlay() {
   const panelY = (canvasElement.height - panelH) / 2;
   
   canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.85)';
-  canvasCtx.strokeStyle = 'rgba(139, 92, 246, 0.6)';
+  canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.6)';
   canvasCtx.lineWidth = 2;
-  canvasCtx.shadowColor = 'rgba(139, 92, 246, 0.4)';
+  canvasCtx.shadowColor = 'rgba(212, 160, 23, 0.4)';
   canvasCtx.shadowBlur = 12;
   
   drawRoundedRect(canvasCtx, panelX, panelY, panelW, panelH, 12);
@@ -1003,7 +1003,7 @@ export function drawLockoutTransitionOverlay() {
   canvasCtx.stroke();
   canvasCtx.shadowBlur = 0;
   
-  canvasCtx.fillStyle = '#f43f5e';
+  canvasCtx.fillStyle = '#d4a017';
   canvasCtx.font = 'bold 15px sans-serif';
   canvasCtx.textAlign = 'center';
   canvasCtx.textBaseline = 'top';
@@ -1045,8 +1045,8 @@ export function drawLockoutTransitionOverlay() {
     canvasCtx.save();
     const fillW = barW * progress;
     const grad = canvasCtx.createLinearGradient(barX, 0, barX + barW, 0);
-    grad.addColorStop(0, '#f43f5e');
-    grad.addColorStop(1, '#ec4899');
+    grad.addColorStop(0, '#d4a017');
+    grad.addColorStop(1, '#d4a017');
     canvasCtx.fillStyle = grad;
     canvasCtx.beginPath();
     drawRoundedRect(canvasCtx, barX, barY, fillW, barH, 4);
@@ -1189,21 +1189,21 @@ function drawFrozenSnapshot() {
     drawFullSkeletalMesh(all_landmarks);
 
     // Draw bones
-    drawBone(shoulder_l, shoulder_r, '#6366f1'); 
-    drawBone(hip_l, hip_r, '#6366f1'); 
+    drawBone(shoulder_l, shoulder_r, '#d4a017'); 
+    drawBone(hip_l, hip_r, '#d4a017'); 
     drawBone(shoulder_l, hip_l, '#38bdf8'); 
     drawBone(shoulder_r, hip_r, '#38bdf8'); 
 
     drawBone(shoulder_l, elbow_l, '#ec4899'); 
     drawBone(elbow_l, wrist_l, '#f43f5e'); 
-    drawBone(hip_l, knee_l, '#a855f7'); 
+    drawBone(hip_l, knee_l, '#d4a017'); 
     drawBone(knee_l, ankle_l, '#06b6d4'); 
     drawBone(ankle_l, heel_l, '#10b981'); 
     drawBone(heel_l, toe_l, '#10b981'); 
 
     drawBone(shoulder_r, elbow_r, '#ec4899'); 
     drawBone(elbow_r, wrist_r, '#f43f5e'); 
-    drawBone(hip_r, knee_r, '#a855f7'); 
+    drawBone(hip_r, knee_r, '#d4a017'); 
     drawBone(knee_r, ankle_r, '#06b6d4'); 
     drawBone(ankle_r, heel_r, '#10b981'); 
     drawBone(heel_r, toe_r, '#10b981'); 
@@ -1215,8 +1215,8 @@ function drawFrozenSnapshot() {
     drawJoint(elbow_r, '#d946ef');
     drawJoint(wrist_l, '#f43f5e');
     drawJoint(wrist_r, '#f43f5e');
-    drawJoint(hip_l, '#a855f7');
-    drawJoint(hip_r, '#a855f7');
+    drawJoint(hip_l, '#d4a017');
+    drawJoint(hip_r, '#d4a017');
     drawJoint(knee_l, '#10b981');
     drawJoint(knee_r, '#10b981');
     drawJoint(ankle_l, '#06b6d4');
@@ -1531,7 +1531,7 @@ export function renderGallery() {
             <div class="snapshot-card-info">
               <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Session'}">${snapshot.name || 'Biomechanical Session'}</div>
               <div class="snapshot-card-meta">
-                <span class="snapshot-card-height" style="color: #c084fc;">Height: ${formattedHeight}</span>
+                <span class="snapshot-card-height" style="color: #d4a017;">Height: ${formattedHeight}</span>
                 <span>${formattedDate}</span>
               </div>
             </div>

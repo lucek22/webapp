@@ -189,7 +189,7 @@ export const POSE_CONNECTIONS = [
 export const FINGER_COLORS = {
   thumb: '#ec4899',   // Pink
   index: '#06b6d4',   // Cyan
-  middle: '#a855f7',  // Purple
+  middle: '#d4a017',  // Warm Gold
   ring: '#10b981',    // Emerald
   pinky: '#f59e0b'    // Amber
 };

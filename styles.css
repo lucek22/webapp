@@ -85,12 +85,12 @@ h1 {
   position: relative;
   width: 100%;
   max-width: 640px;
-  aspect-ratio: 4/3;
   margin: 0 auto;
   border-radius: 8px;
   overflow: hidden;
   background-color: #020617;
   border: 1px solid #1e293b;
+  aspect-ratio: 4/3; /* Default placeholder, overridden dynamically by camera stream dimensions */
 }
 video {
   position: absolute;
@@ -99,7 +99,7 @@ video {
   width: 100%;
   height: 100%;
   transform: scaleX(-1); /* Mirror view */
-  object-fit: fill;
+  object-fit: contain;
 }
 canvas {
   position: absolute;

@@ -287,10 +287,6 @@
         <div class="section-title">Full Body Widths</div>
         <div class="metrics-list">
           <div class="metric-row">
-            <span class="metric-lbl">Finger to Toe</span>
-            <span id="val-finger-to-toe" class="metric-val" style="color: #818cf8; font-weight: bold;">--.- cm</span>
-          </div>
-          <div class="metric-row">
             <span class="metric-lbl">Pelvic (Hip) Width</span>
             <span id="val-hip-w" class="metric-val" style="color: #818cf8; font-weight: bold;">--.- cm</span>
           </div>
@@ -352,7 +348,21 @@
       </div>
       <div class="modal-body">
         <div class="modal-preview-pane">
+          <!-- Switcher tabs (only shown for combined sessions) -->
+          <div id="modal-pose-switcher" class="modal-pose-switcher" style="display: none;">
+            <button id="btn-switch-a" class="switcher-btn active">A-Pose</button>
+            <button id="btn-switch-t" class="switcher-btn">T-Pose</button>
+            <button id="btn-switch-overhead" class="switcher-btn">Overhead</button>
+          </div>
+          
           <img id="modal-img" class="modal-preview-img" src="" alt="Biomechanical Snapshot">
+          
+          <!-- Small thumbnails at bottom of preview pane (only shown for combined sessions) -->
+          <div id="modal-thumbnails-container" class="modal-thumbnails-container" style="display: none;">
+            <div class="thumb-wrapper active" data-pose="A"><img id="modal-thumb-a" src="" alt="A-Pose Thumbnail"></div>
+            <div class="thumb-wrapper" data-pose="T"><img id="modal-thumb-t" src="" alt="T-Pose Thumbnail"></div>
+            <div class="thumb-wrapper" data-pose="Overhead"><img id="modal-thumb-overhead" src="" alt="Overhead Thumbnail"></div>
+          </div>
         </div>
         <div class="modal-stats-pane">
           
@@ -370,6 +380,10 @@
               <div class="modal-metric-box">
                 <span class="modal-metric-lbl">Wingspan (Middle Fingers)</span>
                 <span id="modal-val-wingspan" class="modal-metric-val" style="color: #c084fc; font-weight: bold;">--.-</span>
+              </div>
+              <div id="modal-box-overhead-reach" class="modal-metric-box" style="grid-column: span 2;">
+                <span class="modal-metric-lbl">Overhead Reach (Toe to Finger)</span>
+                <span id="modal-val-overhead-reach" class="modal-metric-val" style="color: #10b981; font-weight: bold;">--.-</span>
               </div>
               <div class="modal-metric-box" style="grid-column: span 2;">
                 <span class="modal-metric-lbl">Captured Pose</span>
@@ -481,17 +495,13 @@
           </div>
 
           <!-- Full Body Widths -->
-          <div class="modal-stats-section">
+          <div id="modal-section-widths" class="modal-stats-section">
             <div class="modal-stats-title">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M4 12h16M4 12l4-4m-4 4l4 4m12-4l-4-4m4 4l-4 4"></path></svg>
               Full Body Widths
             </div>
             <div class="modal-stats-grid">
-              <div class="modal-metric-box">
-                <span class="modal-metric-lbl">Finger to Toe</span>
-                <span id="modal-val-finger-to-toe" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
-              </div>
-              <div class="modal-metric-box">
+              <div class="modal-metric-box" style="grid-column: span 2;">
                 <span class="modal-metric-lbl">Pelvic (Hip) Width</span>
                 <span id="modal-val-hip-w" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
               </div>
@@ -499,7 +509,7 @@
           </div>
 
           <!-- Hand Metrics (Pinch & Span) -->
-          <div class="modal-stats-section">
+          <div id="modal-section-hand-tracking" class="modal-stats-section">
             <div class="modal-stats-title">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
               Hand Tracking

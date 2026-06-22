@@ -163,9 +163,8 @@ export function compileAndDownloadCombinedSession() {
     summary: {
       skeletal_height_cm: mA.skeletal_height ? Number(mA.skeletal_height.toFixed(1)) : null,
       wingspan_cm: mT.wingspan ? Number(mT.wingspan.toFixed(1)) : null,
-      fingerToToeL_cm: mO.fingerToToeL ? Number(mO.fingerToToeL.toFixed(1)) : null,
-      fingerToToeR_cm: mO.fingerToToeR ? Number(mO.fingerToToeR.toFixed(1)) : null,
-      hip_width_cm: mA.hipW ? Number(mA.hipW.toFixed(1)) : null
+      overhead_reach_toe_to_finger_l_cm: mO.fingerToToeL ? Number(mO.fingerToToeL.toFixed(1)) : null,
+      overhead_reach_toe_to_finger_r_cm: mO.fingerToToeR ? Number(mO.fingerToToeR.toFixed(1)) : null
     },
     segments: {
       thigh_l: mA.thigh_l ? Number(mA.thigh_l.toFixed(1)) : null,

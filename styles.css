@@ -973,3 +973,126 @@ canvas {
     width: 55px;
   }
 }
+
+/* ==========================================
+   COMBINED SESSION GALLERY CARDS & MODAL
+   ========================================== */
+.snapshot-card-img-wrapper.combined-collage {
+  display: flex;
+  padding-top: 0;
+  height: 120px; /* fixed height for collage so aspect ratio is nice */
+}
+
+.combined-collage .collage-item {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.combined-collage .collage-item:last-child {
+  border-right: none;
+}
+
+.combined-collage .collage-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.snapshot-card:hover .combined-collage .collage-item img {
+  transform: scale(1.08);
+}
+
+.combined-tag {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  color: white;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 6px rgba(168, 85, 247, 0.4);
+}
+
+/* Combined Session Modal Switcher & Thumbnails */
+.modal-pose-switcher {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  background-color: rgba(15, 22, 38, 0.8);
+  backdrop-filter: blur(8px);
+  border-radius: 20px;
+  padding: 3px;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  z-index: 10;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.switcher-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  padding: 5px 15px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 17px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.switcher-btn.active {
+  background-color: #3b82f6;
+  color: white;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.modal-thumbnails-container {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  background-color: rgba(15, 22, 38, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  z-index: 10;
+}
+
+.thumb-wrapper {
+  width: 48px;
+  height: 36px;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  background-color: #020617;
+}
+
+.thumb-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb-wrapper:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.thumb-wrapper.active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+

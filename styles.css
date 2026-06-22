@@ -32,7 +32,20 @@ body {
   width: 100%;
   margin: 0 auto;
 }
-
+.app-grid > .container {
+  grid-column: 1;
+  grid-row: 1;
+}
+.app-grid > .gallery-section {
+  grid-column: 1;
+  grid-row: 2;
+}
+.app-grid > .dashboard-panel {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  position: sticky;
+  top: 1rem;
+}
 .container {
   background-color: #1e1e1e; /* Dark slate gray container background */
   padding: 1.5rem;
@@ -95,8 +108,9 @@ h1 {
 
 .viewport {
   position: relative;
-  width: 640px;
-  height: 480px;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 4/3;
   margin: 0 auto;
   border-radius: 8px;
   overflow: hidden;
@@ -108,8 +122,8 @@ video {
   position: absolute;
   top: 0;
   left: 0;
-  width: 640px;
-  height: 480px;
+  width: 100%;
+  height: 100%;
   transform: scaleX(-1); /* Mirror view */
   object-fit: fill;
 }
@@ -118,10 +132,11 @@ canvas {
   position: absolute;
   top: 0;
   left: 0;
-  width: 640px;
-  height: 480px;
+  width: 100%;
+  height: 100%;
   z-index: 2;
-  pointer-events: auto;
+  pointer-events: auto; /* Allow clicking and dragging the calibration box */
+  touch-action: none; /* Prevent scrolling the page while dragging on the canvas on touchscreens */
 }
 
 /* ==========================================================================
@@ -310,11 +325,18 @@ canvas {
 }
 
 #status {
-  margin-top: 1rem;
+  margin-top: 1.25rem;
   font-size: 0.8rem;
   color: #a7b1b7;
   font-family: monospace;
   text-align: center;
+  background: rgba(56, 189, 248, 0.05);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.05);
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 /* Toggle Switch Style */
@@ -821,26 +843,266 @@ canvas {
   border-radius: 3px;
 }
 
-@media (max-width: 768px) {
-  .modal-body {
+/* ==========================================
+   MOBILE & TABLET RESPONSIVENESS
+   ========================================== */
+@media (max-width: 992px) {
+  .app-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    gap: 1.25rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .container {
+    order: 1;
+  }
+  .dashboard-panel {
+    order: 2;
+    max-height: none; /* Allow full height when stacked below */
+    position: static; /* Disable sticky on tablet/mobile */
+  }
+  .gallery-section {
+    order: 3;
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 0.5rem;
+  }
+  .container {
+    padding: 1rem;
+  }
+  .calibration-panel {
+    padding: 0.75rem;
+  }
+  h1 {
+    font-size: 1.25rem;
+  }
+  .subtitle {
+    font-size: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  /* Prevent iOS automatic zoom on text/number input focus by enforcing 16px */
+  .save-input,
+  #subject-name-input,
+  #input-user-height {
+    font-size: 16px !important;
+  }
+
+  /* Snapshot Cards Touchscreen Optimization: Force delete button always visible */
+  .snapshot-card-delete {
+    opacity: 0.95 !important;
+    background: rgba(239, 68, 68, 0.85) !important;
+    color: white !important;
+    border-color: #ef4444 !important;
+  }
+
+  /* High-Fidelity Snapshot Analytics Modal Touch Scroll Optimization */
+  .modal-container {
+    height: auto;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-body {
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Butter-smooth momentum scrolling on iOS */
+    grid-template-columns: none;
+    grid-template-rows: none;
   }
   .modal-preview-pane {
+    flex-shrink: 0;
+    height: 280px; /* Perfect height to show image clearly while keeping stats accessible */
     grid-column: 1; /* Reset to single column on mobile */
     grid-row: 1;    /* Force camera preview to stay on top */
     border-left: none;
+    border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
   .modal-stats-pane {
     grid-column: 1; 
     grid-row: 2;    /* Force stats to go underneath camera on mobile */
+    overflow-y: visible; /* Prevent nested double scrollbars entirely! */
+    padding: 1rem;
   }
-  .modal-container {
-    height: 95vh;
+  .modal-stats-section {
+    padding: 0.75rem;
   }
 }
+
+@media (max-width: 500px) {
+  /* Elegant 2-column layout for Gallery Grid on smaller screens */
+  .gallery-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .snapshot-card-info {
+    padding: 0.5rem;
+  }
+  .snapshot-card-title {
+    font-size: 0.72rem;
+  }
+  .snapshot-card-meta {
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Action buttons stack beautifully on extremely narrow screens to prevent text wrap collisions */
+  .capture-buttons-row,
+  .save-row {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  .capture-buttons-row button,
+  .save-row button {
+    width: 100% !important;
+    margin-top: 0 !important;
+  }
+  
+  /* Compact telemetry details for small screens */
+  .angle-box-grid {
+    gap: 0.35rem;
+  }
+  .angle-val {
+    font-size: 1rem;
+  }
+  .metric-row {
+    padding: 0.4rem 0.6rem;
+  }
+  .side-val-item {
+    font-size: 0.8rem;
+    width: 55px;
+  }
+}
+
+/* ==========================================
+   COMBINED SESSION GALLERY CARDS & MODAL
+   ========================================== */
+.snapshot-card-img-wrapper.combined-collage {
+  display: flex;
+  padding-top: 0;
+  height: 120px; /* fixed height for collage so aspect ratio is nice */
+}
+
+.combined-collage .collage-item {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.combined-collage .collage-item:last-child {
+  border-right: none;
+}
+
+.combined-collage .collage-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.snapshot-card:hover .combined-collage .collage-item img {
+  transform: scale(1.08);
+}
+
+.combined-tag {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  color: white;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 6px rgba(168, 85, 247, 0.4);
+}
+
+/* Combined Session Modal Switcher & Thumbnails */
+.modal-pose-switcher {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  background-color: rgba(15, 22, 38, 0.8);
+  backdrop-filter: blur(8px);
+  border-radius: 20px;
+  padding: 3px;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  z-index: 10;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.switcher-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  padding: 5px 15px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 17px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.switcher-btn.active {
+  background-color: #BA0C2F; /* Scarlet Red instead of #3b82f6 */
+  color: white;
+  box-shadow: 0 2px 8px rgba(186, 12, 47, 0.4);
+}
+
+.modal-thumbnails-container {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  background-color: rgba(15, 22, 38, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  z-index: 10;
+}
+
+.thumb-wrapper {
+  width: 48px;
+  height: 36px;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  background-color: #020617;
+}
+
+.thumb-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb-wrapper:hover {
+  border-color: rgba(186, 12, 47, 0.5); /* Scarlet red hover glow */
+}
+
+.thumb-wrapper.active {
+  border-color: #BA0C2F; /* Scarlet red active border */
+  box-shadow: 0 0 10px rgba(186, 12, 47, 0.5);
+}
+
 /* ==========================================================================
    SCARLET THEME - ALL ACTIVE/SELECTED BUTTONS
    ========================================================================== */
@@ -865,6 +1127,7 @@ canvas {
 #tab-height-btn[style*="background-color"]:hover {
   filter: brightness(0.85);
 }
+
 /* ==========================================================================
    UNIFY LEFT AND RIGHT SIDE TO SCARLET RED
    ========================================================================== */
@@ -890,6 +1153,7 @@ canvas {
 .angle-box.right-border {
   border-left: 3px solid #BA0C2F !important;
 }
+
 /* ==========================================================================
    FULL-BODY STATURE PANEL - SCARLET THEME
    ========================================================================== */
@@ -910,6 +1174,7 @@ canvas {
   background: linear-gradient(135deg, rgba(186, 12, 47, 0.1) 0%, rgba(30, 30, 30, 0.2) 100%) !important;
   border: 1px solid rgba(186, 12, 47, 0.25) !important;
 }
+
 /* ==========================================================================
    ANATOMICAL WIDTHS & LANDMARKS - SCARLET THEME
    ========================================================================== */
@@ -938,6 +1203,7 @@ details summary {
 details {
   border-color: rgba(186, 12, 47, 0.25) !important;
 }
+
 /* ==========================================================================
    CALIBRATION ACTION SUITE - SCARLET THEME
    ========================================================================== */
@@ -961,6 +1227,7 @@ details {
 div[style*="color: #10b981"] {
   color: #BA0C2F !important;
 }
+
 /* ==========================================================================
    SIDEBAR HEIGHT EXPANSION (DASHBOARD PANEL FIX)
    ========================================================================== */
@@ -973,9 +1240,10 @@ div[style*="color: #10b981"] {
 
 /* Target your exact sidebar panel from your HTML */
 .dashboard-panel {
-  height: calc(100vh - 40px) !important; /* Stretches the panel down to the bottom of the viewport */
+  min-height: calc(100vh - 40px) !important; /* Force the gray background to drop down to the bottom */
+  height: auto !important;                     /* Allows the gray card background to stretch dynamically */
   max-height: none !important;
-  overflow-y: visible !important; /* Disables the scrolling inside the panel */
+  overflow-y: visible !important;              /* Keeps scrolling disabled */
 }
 
 /* Condense vertical padding on the sections slightly so everything fits neatly */
@@ -986,11 +1254,4 @@ div[style*="color: #10b981"] {
 
 .angle-box-grid {
   gap: 0.35rem !important;
-}
-/* Target your exact sidebar panel from your HTML */
-.dashboard-panel {
-  min-height: calc(100vh - 40px) !important; /* Force the gray background to drop down to the bottom */
-  height: auto !important;                     /* Allows the gray card background to stretch dynamically */
-  max-height: none !important;
-  overflow-y: visible !important;              /* Keeps scrolling disabled */
 }

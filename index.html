@@ -19,6 +19,147 @@
 <body>
 
   <div class="app-grid">
+    
+    <!-- Left Column: Video and Calibration Controls -->
+    <div class="container">
+      
+      <!-- Custom OSU Text Logo Block -->
+      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin-bottom: 1.5rem; border-left: 4px solid #ba0c2f; padding-left: 12px; line-height: 1.1;">
+        <img src="https://th.bing.com/th/id/OIP.YeE708ARN4_FXPQZmN9pCgHaEz?w=267&h=173&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3" alt="Ohio State Block O" style="height: 45px; width: auto; display: block; margin-bottom: 6px;">
+        
+        <div style="font-size: 0.85rem; font-weight: 800; color: #ba0c2f; letter-spacing: 1px; margin-top: 2px;">SCARLET + GRAY</div>
+        <div style="font-size: 0.75rem; font-weight: 600; color: #666666; letter-spacing: 0.5px; margin-top: 1px;">BUCKEYE PERFORMANCE PLATFORM</div>
+      </div>
+
+      <h1>Scarlet Biomechanics</h1>
+      <div class="subtitle">Complete biomechanical movement segment analysis & joint angle tracking.</div>
+      
+      <!-- Calibration Panel -->
+      <div class="calibration-panel" style="gap: 0.5rem;">
+        <div class="calibration-row" style="margin-bottom: 0.25rem;">
+          <span style="font-size: 0.85rem; text-align: center;"><strong>Choose Calibration Method:</strong></span>
+        </div>
+        
+        <!-- Tab buttons -->
+        <div style="display: flex; gap: 0.35rem; margin-bottom: 0.5rem; width: 100%;">
+          <button id="tab-aruco-btn" class="btn" style="margin-top: 0; padding: 0.4rem; font-size: 0.72rem; background-color: #BA0C2F; width: 50%;">ArUco (Auto)</button>
+          <button id="tab-height-btn" class="btn" style="margin-top: 0; padding: 0.4rem; font-size: 0.72rem; background-color: #1e293b; width: 50%;">Input Height</button>
+        </div>
+
+        <!-- Panel 1: ArUco Calibration (Auto) -->
+        <div id="panel-aruco" style="width: 100%; display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
+          <div class="calibration-row" style="font-size: 0.8rem; text-align: center; color: #10b981; font-weight: 500;">
+            <span id="aruco-status-text">🔍 Scanning for Reference ArUco (200mm)...</span>
+          </div>
+          <div class="calibration-row" style="font-size: 0.75rem; text-align: center; color: #9ca3af; margin-top: -0.25rem;">
+            Place the printed square card in view to calibrate scale automatically.
+          </div>
+          <div class="calibration-row" style="background-color: rgba(99, 102, 241, 0.08); padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px dashed rgba(99, 102, 241, 0.25); font-size: 0.7rem; color: #a5b4fc; text-align: center; line-height: 1.35; max-width: 90%;">
+            💡 <strong>Depth Tip:</strong> Place the card at your feet or on the wall next to you. Calibrating up-close and then stepping back causes incorrect heights due to depth perspective.
+          </div>
+        </div>
+
+        <!-- Panel 2: Card Calibration (Manual) -->
+        <div id="panel-card" style="width: 100%; display: none; flex-direction: column; gap: 0.5rem; align-items: center;">
+          <div class="calibration-row" style="font-size: 0.8rem; text-align: center;">Hold a 200mm card inside the alignment box below.</div>
+          <div class="calibration-row" style="gap: 0.5rem; justify-content: center;">
+            <span style="font-size: 0.8rem; color: #9ca3af;">Move Box:</span>
+            <button id="pos-left-btn" class="btn" style="margin-top: 0; padding: 0.25rem 0.5rem; font-size: 0.72rem; background-color: #1e293b; width: auto;">Left</button>
+            <button id="pos-center-btn" class="btn" style="margin-top: 0; padding: 0.25rem 0.5rem; font-size: 0.72rem; background-color: #BA0C2F; width: auto;">Center</button>
+            <button id="pos-right-btn" class="btn" style="margin-top: 0; padding: 0.25rem 0.5rem; font-size: 0.72rem; background-color: #1e293b; width: auto;">Right</button>
+          </div>
+          <div class="calibration-row">
+            <label for="box-slider">Box Width:</label>
+            <input type="range" id="box-slider" class="slider" min="50" max="400" value="150" style="width: 130px;">
+            <span id="slider-val">150 px</span>
+          </div>
+          <div class="calibration-row">
+            <button id="lock-cal-btn" class="btn success" style="margin-top: 0; padding: 0.4rem 1rem; font-size: 0.8rem; width: auto;">Lock 20cm Calibration</button>
+          </div>
+        </div>
+
+        <!-- Panel 3: Height Calibration -->
+        <div id="panel-height" style="width: 100%; display: none; flex-direction: column; gap: 0.5rem; align-items: center;">
+          <div class="calibration-row" style="font-size: 0.8rem; text-align: center;">Stand straight, enter your height, and click calibrate.</div>
+          <div class="calibration-row" style="justify-content: center; gap: 0.5rem;">
+            <label for="input-user-height">Your Height (inches):</label>
+            <input type="number" id="input-user-height" value="68.9" step="0.1" style="width: 60px; background-color: #0f1626; color: white; border: 1px solid rgba(6,182,212,0.4); padding: 0.25rem; border-radius: 4px; text-align: center;">
+          </div>
+          <div class="calibration-row">
+            <button id="height-cal-btn" class="btn success" style="margin-top: 0; padding: 0.4rem 1rem; font-size: 0.8rem; width: auto;">Calibrate with My Height</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="viewport">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="overlay"></canvas>
+        <button id="camera-switch-btn" class="camera-switch" style="display: none;" title="Switch Camera">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+            <path d="M16 16h5v5"></path>
+          </svg>
+        </button>
+      </div>
+      
+      <button id="start-btn" class="btn">Start Biomechanical Tracking</button>
+      <button id="yolo-toggle-btn" class="btn" style="margin-top: 0.5rem; background-color: #0f1626; border: 1px solid rgba(6, 182, 212, 0.4); color: #06b6d4; display: none; transition: all 0.2s;">Enable YOLO Background Isolation</button>
+      
+      <!-- Active Subject Input -->
+      <div id="subject-profile-panel" style="margin-top: 0.5rem; margin-bottom: 0.25rem; background-color: rgba(15, 22, 38, 0.4); border: 1px solid rgba(6, 182, 212, 0.15); border-radius: 8px; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.35rem;">
+        <label for="subject-name-input" style="font-size: 0.72rem; font-weight: 700; color: #a5b4fc; display: flex; align-items: center; gap: 0.25rem;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #a5b4fc;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Active Subject / Patient Name
+        </label>
+        <input type="text" id="subject-name-input" placeholder="e.g. John Doe" style="background-color: #0f1626; color: white; border: 1px solid rgba(6,182,212,0.3); padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 0.8rem; outline: none; transition: all 0.2s; font-weight: 500;">
+      </div>
+
+      <div class="capture-buttons-row" style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
+        <button id="capture-btn" class="btn btn-capture" style="display: none; transition: all 0.2s; flex: 1; margin-top: 0;">Start 5s Capture Snapshot</button>
+        <button id="auto-sequence-btn" class="btn" style="display: none; transition: all 0.2s; flex: 1; margin-top: 0; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: 1px solid rgba(168, 85, 247, 0.4); box-shadow: 0 4px 10px rgba(168, 85, 247, 0.2); font-weight: 700; border-radius: 6px; color: white;">Hands-Free Auto Capture</button>
+      </div>
+      
+      <!-- Snapshot Saving Controls (shown when snapshot is frozen) -->
+      <div id="save-controls-panel" class="save-panel" style="display: none;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: #c084fc; margin-bottom: 0.1rem; display: flex; align-items: center; gap: 0.35rem;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          Snapshot Action Suite
+        </div>
+        <div class="save-row">
+          <input type="text" id="snapshot-name-input" class="save-input" placeholder="Snapshot Label">
+        </div>
+        <div class="save-row">
+          <button id="btn-save-gallery" class="btn btn-save-store" style="width: 50%;">Save to Gallery</button>
+          <button id="btn-dl-png" class="btn btn-download-png" style="width: 50%;">Download PNG</button>
+        </div>
+      </div>
+
+      <div id="status">Awaiting camera start...</div>
+    </div>
+
+    <!-- Gallery Section (stands out as its own container below the camera view) -->
+    <div class="gallery-section container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
+        <h2 style="font-size: 1.1rem; margin: 0; background: linear-gradient(90deg, #c084fc, #BA0C2F); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          Saved Biomechanical Gallery
+        </h2>
+        <button id="btn-export-json" class="btn" style="margin-top: 0; padding: 0.35rem 0.75rem; font-size: 0.72rem; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: 1px solid rgba(168, 85, 247, 0.4); width: auto; font-weight: 700; border-radius: 6px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.2); transition: all 0.2s;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export Gallery JSON
+        </button>
+      </div>
+      <div class="subtitle" style="margin-bottom: 1rem;">View, compare, and export previously captured posture and alignment snapshots.</div>
+      <div id="gallery-grid" class="gallery-grid">
+        <div class="gallery-empty">
+          📸 No snapshots saved yet. Capture a snapshot above to save to your local offline library!
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Scientific Biometrics Dashboard -->
     <aside class="dashboard-panel">
       
       <!-- Unit Selection Toggle -->
@@ -42,6 +183,12 @@
             <div style="text-align: right;">
               <span id="val-height-cm" class="metric-val" style="font-size: 1.35rem; font-weight: 800; color: #06b6d4; display: block; line-height: 1.2;">--.- cm</span>
               <span id="val-height-ft" style="font-size: 0.85rem; color: #9ca3af; font-weight: 500;">--'--''</span>
+            </div>
+          </div>
+          <div class="metric-row" style="background-color: rgba(15,22,38,0.5); border: 1px solid rgba(255,255,255,0.03); padding: 0.6rem 0.85rem;">
+            <span class="metric-lbl" style="font-weight: 600; color: #e5e7eb;">Active Pose</span>
+            <div style="text-align: right;">
+              <span id="val-active-pose" class="metric-val" style="font-size: 1.1rem; font-weight: 800; color: #818cf8; display: block; line-height: 1.2;">A-Pose</span>
             </div>
           </div>
         </div>
@@ -146,12 +293,8 @@
 
       <!-- Body Widths -->
       <div class="panel-section">
-        <div class="section-title">Anatomical Widths</div>
+        <div class="section-title">Full Body Widths</div>
         <div class="metrics-list">
-          <div class="metric-row">
-            <span class="metric-lbl">Shoulder Width</span>
-            <span id="val-shoulder-w" class="metric-val" style="color: #818cf8; font-weight: bold;">--.- cm</span>
-          </div>
           <div class="metric-row">
             <span class="metric-lbl">Pelvic (Hip) Width</span>
             <span id="val-hip-w" class="metric-val" style="color: #818cf8; font-weight: bold;">--.- cm</span>
@@ -189,146 +332,6 @@
       </div>
 
     </aside>
-    
-    <!-- Left Column: Video and Calibration Controls -->
-  <!-- Left Column: Video and Calibration Controls -->
-<div class="container">
-  
-<!-- Custom OSU Text Logo Block -->
-<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin-bottom: 1.5rem; border-left: 4px solid #ba0c2f; padding-left: 12px; line-height: 1.1;">
-  <img src="https://th.bing.com/th/id/OIP.YeE708ARN4_FXPQZmN9pCgHaEz?w=267&h=173&c=7&r=0&o=7&dpr=1.5&pid=1.7&rm=3" alt="Ohio State Block O" style="height: 45px; width: auto; display: block; margin-bottom: 6px;">
-  
-  <div style="font-size: 0.85rem; font-weight: 800; color: #ba0c2f; letter-spacing: 1px; margin-top: 2px;">SCARLET + GRAY</div>
-  <div style="font-size: 0.75rem; font-weight: 600; color: #666666; letter-spacing: 0.5px; margin-top: 1px;">BUCKEYE PERFORMANCE PLATFORM</div>
-</div>
-
-  <h1>Scarlet Biomechanics</h1>
-  <div class="subtitle">Complete biomechanical movement segment analysis & joint angle tracking.</div>
-      <!-- Calibration Panel -->
-      <div class="calibration-panel" style="gap: 0.5rem;">
-        <div class="calibration-row" style="margin-bottom: 0.25rem;">
-          <span style="font-size: 0.85rem; text-align: center;"><strong>Choose Calibration Method:</strong></span>
-        </div>
-        
-        <!-- Tab buttons -->
-        <div style="display: flex; gap: 0.35rem; margin-bottom: 0.5rem; width: 100%;">
-          <button id="tab-aruco-btn" class="btn" style="margin-top: 0; padding: 0.4rem; font-size: 0.72rem; background-color: #BA0C2F; width: 50%;">ArUco (Auto)</button>
-          <button id="tab-height-btn" class="btn" style="margin-top: 0; padding: 0.4rem; font-size: 0.72rem; background-color: #1e293b; width: 50%;">Input Height</button>
-        </div>
-
-        <!-- Panel 1: ArUco Calibration (Auto) -->
-        <div id="panel-aruco" style="width: 100%; display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
-          <div class="calibration-row" style="font-size: 0.8rem; text-align: center; color: #10b981; font-weight: 500;">
-            <span id="aruco-status-text">🔍 Scanning for Reference ArUco (200mm)...</span>
-          </div>
-          <div class="calibration-row" style="font-size: 0.75rem; text-align: center; color: #9ca3af; margin-top: -0.25rem;">
-            Place the printed square card in view to calibrate scale automatically.
-          </div>
-          <div class="calibration-row" style="background-color: rgba(99, 102, 241, 0.08); padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px dashed rgba(99, 102, 241, 0.25); font-size: 0.7rem; color: #a5b4fc; text-align: center; line-height: 1.35; max-width: 90%;">
-            💡 <strong>Depth Tip:</strong> Place the card at your feet or on the wall next to you. Calibrating up-close and then stepping back causes incorrect heights due to depth perspective.
-          </div>
-        </div>
-
-        <!-- Panel 2: Card Calibration (Manual) -->
-        <div id="panel-card" style="width: 100%; display: none; flex-direction: column; gap: 0.5rem; align-items: center;">
-          <div class="calibration-row" style="font-size: 0.8rem; text-align: center;">Hold a 200mm card inside the alignment box below.</div>
-          <div class="calibration-row" style="gap: 0.5rem; justify-content: center;">
-            <span style="font-size: 0.8rem; color: #9ca3af;">Move Box:</span>
-            <button id="pos-left-btn" class="btn" style="margin-top: 0; padding: 0.25rem 0.5rem; font-size: 0.7rem; background-color: #1e293b; width: auto;">Left</button>
-            <button id="pos-center-btn" class="btn" style="margin-top: 0; padding: 0.25rem 0.5rem; font-size: 0.7rem; background-color: #BA0C2F; width: auto;">Center</button>
-            <button id="pos-right-btn" class="btn" style="margin-top: 0; padding: 0.25rem 0.5rem; font-size: 0.7rem; background-color: #1e293b; width: auto;">Right</button>
-          </div>
-          <div class="calibration-row">
-            <label for="box-slider">Box Width:</label>
-            <input type="range" id="box-slider" class="slider" min="50" max="400" value="150" style="width: 130px;">
-            <span id="slider-val">150 px</span>
-          </div>
-          <div class="calibration-row">
-            <button id="lock-cal-btn" class="btn success" style="margin-top: 0; padding: 0.4rem 1rem; font-size: 0.8rem; width: auto;">Lock 20cm Calibration</button>
-          </div>
-        </div>
-
-        <!-- Panel 3: Height Calibration -->
-        <div id="panel-height" style="width: 100%; display: none; flex-direction: column; gap: 0.5rem; align-items: center;">
-          <div class="calibration-row" style="font-size: 0.8rem; text-align: center;">Stand straight, enter your height, and click calibrate.</div>
-          <div class="calibration-row" style="justify-content: center; gap: 0.5rem;">
-            <label for="input-user-height">Your Height (inches):</label>
-            <input type="number" id="input-user-height" value="68.9" step="0.1" style="width: 60px; background-color: #0f1626; color: white; border: 1px solid rgba(6,182,212,0.4); padding: 0.25rem; border-radius: 4px; text-align: center;">
-          </div>
-          <div class="calibration-row">
-            <button id="height-cal-btn" class="btn success" style="margin-top: 0; padding: 0.4rem 1rem; font-size: 0.8rem; width: auto;">Calibrate with My Height</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="viewport">
-        <video id="webcam" autoplay playsinline></video>
-        <canvas id="overlay"></canvas>
-        <button id="camera-switch-btn" class="camera-switch" style="display: none;" title="Switch Camera">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-            <path d="M3 3v5h5"></path>
-            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
-            <path d="M16 16h5v5"></path>
-          </svg>
-        </button>
-      </div>
-      
-      <button id="start-btn" class="btn">Start Biomechanical Tracking</button>
-      <button id="yolo-toggle-btn" class="btn" style="margin-top: 0.5rem; background-color: #0f1626; border: 1px solid rgba(6, 182, 212, 0.4); color: #06b6d4; display: none; transition: all 0.2s;">Enable YOLO Background Isolation</button>
-      
-      <!-- Active Subject Input -->
-      <div id="subject-profile-panel" style="margin-top: 0.5rem; margin-bottom: 0.25rem; background-color: rgba(15, 22, 38, 0.4); border: 1px solid rgba(6, 182, 212, 0.15); border-radius: 8px; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.35rem;">
-        <label for="subject-name-input" style="font-size: 0.72rem; font-weight: 700; color: #a5b4fc; display: flex; align-items: center; gap: 0.25rem;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #a5b4fc;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-          Active Subject / Patient Name
-        </label>
-        <input type="text" id="subject-name-input" placeholder="e.g. John Doe" style="background-color: #0f1626; color: white; border: 1px solid rgba(6,182,212,0.3); padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 0.8rem; outline: none; transition: all 0.2s; font-weight: 500;">
-      </div>
-
-      <button id="capture-btn" class="btn btn-capture" style="margin-top: 0.5rem; display: none; transition: all 0.2s;">Start 5s Capture Snapshot</button>
-      
-      <!-- Snapshot Saving Controls (shown when snapshot is frozen) -->
-      <div id="save-controls-panel" class="save-panel" style="display: none;">
-        <div style="font-size: 0.8rem; font-weight: 700; color: #c084fc; margin-bottom: 0.1rem; display: flex; align-items: center; gap: 0.35rem;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-          Snapshot Action Suite
-        </div>
-        <div class="save-row">
-          <input type="text" id="snapshot-name-input" class="save-input" placeholder="Snapshot Label">
-        </div>
-        <div class="save-row">
-          <button id="btn-save-gallery" class="btn btn-save-store" style="width: 50%;">Save to Gallery</button>
-          <button id="btn-dl-png" class="btn btn-download-png" style="width: 50%;">Download PNG</button>
-        </div>
-      </div>
-
-      <div id="status">Awaiting camera start...</div>
-    </div>
-
-    <!-- Gallery Section (stands out as its own container below the camera view) -->
-    <div class="gallery-section container">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
-        <h2 style="font-size: 1.1rem; margin: 0; background: linear-gradient(90deg, #c084fc, #BA0C2F); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #c084fc;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-          Saved Biomechanical Gallery
-        </h2>
-        <button id="btn-export-json" class="btn" style="margin-top: 0; padding: 0.35rem 0.75rem; font-size: 0.72rem; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: 1px solid rgba(168, 85, 247, 0.4); width: auto; font-weight: 700; border-radius: 6px; box-shadow: 0 4px 10px rgba(168, 85, 247, 0.2); transition: all 0.2s;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 0.25rem;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Export Gallery JSON
-        </button>
-      </div>
-      <div class="subtitle" style="margin-bottom: 1rem;">View, compare, and export previously captured posture and alignment snapshots.</div>
-      <div id="gallery-grid" class="gallery-grid">
-        <div class="gallery-empty">
-          📸 No snapshots saved yet. Capture a snapshot above to save to your local offline library!
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Column: Scientific Biometrics Dashboard -->
-    
-
   </div>
 
   <!-- High-Fidelity Snapshot Analytics Modal -->
@@ -353,7 +356,21 @@
       </div>
       <div class="modal-body">
         <div class="modal-preview-pane">
+          <!-- Switcher tabs (only shown for combined sessions) -->
+          <div id="modal-pose-switcher" class="modal-pose-switcher" style="display: none;">
+            <button id="btn-switch-a" class="switcher-btn active">A-Pose</button>
+            <button id="btn-switch-t" class="switcher-btn">T-Pose</button>
+            <button id="btn-switch-overhead" class="switcher-btn">Overhead</button>
+          </div>
+          
           <img id="modal-img" class="modal-preview-img" src="" alt="Biomechanical Snapshot">
+          
+          <!-- Small thumbnails at bottom of preview pane (only shown for combined sessions) -->
+          <div id="modal-thumbnails-container" class="modal-thumbnails-container" style="display: none;">
+            <div class="thumb-wrapper active" data-pose="A"><img id="modal-thumb-a" src="" alt="A-Pose Thumbnail"></div>
+            <div class="thumb-wrapper" data-pose="T"><img id="modal-thumb-t" src="" alt="T-Pose Thumbnail"></div>
+            <div class="thumb-wrapper" data-pose="Overhead"><img id="modal-thumb-overhead" src="" alt="Overhead Thumbnail"></div>
+          </div>
         </div>
         <div class="modal-stats-pane">
           
@@ -371,6 +388,14 @@
               <div class="modal-metric-box">
                 <span class="modal-metric-lbl">Wingspan (Middle Fingers)</span>
                 <span id="modal-val-wingspan" class="modal-metric-val" style="color: #c084fc; font-weight: bold;">--.-</span>
+              </div>
+              <div id="modal-box-overhead-reach" class="modal-metric-box" style="grid-column: span 2;">
+                <span class="modal-metric-lbl">Overhead Reach (Toe to Finger)</span>
+                <span id="modal-val-overhead-reach" class="modal-metric-val" style="color: #10b981; font-weight: bold;">--.-</span>
+              </div>
+              <div class="modal-metric-box" style="grid-column: span 2;">
+                <span class="modal-metric-lbl">Captured Pose</span>
+                <span id="modal-val-pose" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">A-Pose</span>
               </div>
             </div>
           </div>
@@ -477,18 +502,14 @@
             </div>
           </div>
 
-          <!-- Anatomical Widths -->
-          <div class="modal-stats-section">
+          <!-- Full Body Widths -->
+          <div id="modal-section-widths" class="modal-stats-section">
             <div class="modal-stats-title">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M4 12h16M4 12l4-4m-4 4l4 4m12-4l-4-4m4 4l-4 4"></path></svg>
-              Anatomical Widths
+              Full Body Widths
             </div>
             <div class="modal-stats-grid">
-              <div class="modal-metric-box">
-                <span class="modal-metric-lbl">Shoulder Width</span>
-                <span id="modal-val-shoulder-w" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
-              </div>
-              <div class="modal-metric-box">
+              <div class="modal-metric-box" style="grid-column: span 2;">
                 <span class="modal-metric-lbl">Pelvic (Hip) Width</span>
                 <span id="modal-val-hip-w" class="modal-metric-val" style="color: #818cf8; font-weight: bold;">--.-</span>
               </div>
@@ -496,7 +517,7 @@
           </div>
 
           <!-- Hand Metrics (Pinch & Span) -->
-          <div class="modal-stats-section">
+          <div id="modal-section-hand-tracking" class="modal-stats-section">
             <div class="modal-stats-title">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #818cf8;"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
               Hand Tracking
@@ -526,7 +547,7 @@
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 
 </body>
 </html>

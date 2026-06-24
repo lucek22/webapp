@@ -95,26 +95,27 @@ export function calculatePoseMetrics(results) {
 
   const lm = results.poseLandmarks;
   const mirrorX = getCanvasX;
+  const height = state.canvasHeight || 480;
 
   // Resolve normalized coordinates to pixels (LEFT)
-  const shoulder_l = { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * 480 };
-  const elbow_l = { x: mirrorX(lm[LEFT_ELBOW].x), y: lm[LEFT_ELBOW].y * 480 };
-  const wrist_l = { x: mirrorX(lm[LEFT_WRIST].x), y: lm[LEFT_WRIST].y * 480 };
-  const hip_l = { x: mirrorX(lm[LEFT_HIP].x), y: lm[LEFT_HIP].y * 480 };
-  const knee_l = { x: mirrorX(lm[LEFT_KNEE].x), y: lm[LEFT_KNEE].y * 480 };
-  const ankle_l = { x: mirrorX(lm[LEFT_ANKLE].x), y: lm[LEFT_ANKLE].y * 480 };
-  const heel_l = { x: mirrorX(lm[LEFT_HEEL].x), y: lm[LEFT_HEEL].y * 480 };
-  const toe_l = { x: mirrorX(lm[LEFT_FOOT_INDEX].x), y: lm[LEFT_FOOT_INDEX].y * 480 };
+  const shoulder_l = { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * height };
+  const elbow_l = { x: mirrorX(lm[LEFT_ELBOW].x), y: lm[LEFT_ELBOW].y * height };
+  const wrist_l = { x: mirrorX(lm[LEFT_WRIST].x), y: lm[LEFT_WRIST].y * height };
+  const hip_l = { x: mirrorX(lm[LEFT_HIP].x), y: lm[LEFT_HIP].y * height };
+  const knee_l = { x: mirrorX(lm[LEFT_KNEE].x), y: lm[LEFT_KNEE].y * height };
+  const ankle_l = { x: mirrorX(lm[LEFT_ANKLE].x), y: lm[LEFT_ANKLE].y * height };
+  const heel_l = { x: mirrorX(lm[LEFT_HEEL].x), y: lm[LEFT_HEEL].y * height };
+  const toe_l = { x: mirrorX(lm[LEFT_FOOT_INDEX].x), y: lm[LEFT_FOOT_INDEX].y * height };
 
   // Resolve normalized coordinates to pixels (RIGHT)
-  const shoulder_r = { x: mirrorX(lm[RIGHT_SHOULDER].x), y: lm[RIGHT_SHOULDER].y * 480 };
-  const elbow_r = { x: mirrorX(lm[RIGHT_ELBOW].x), y: lm[RIGHT_ELBOW].y * 480 };
-  const wrist_r = { x: mirrorX(lm[RIGHT_WRIST].x), y: lm[RIGHT_WRIST].y * 480 };
-  const hip_r = { x: mirrorX(lm[RIGHT_HIP].x), y: lm[RIGHT_HIP].y * 480 };
-  const knee_r = { x: mirrorX(lm[RIGHT_KNEE].x), y: lm[RIGHT_KNEE].y * 480 };
-  const ankle_r = { x: mirrorX(lm[RIGHT_ANKLE].x), y: lm[RIGHT_ANKLE].y * 480 };
-  const heel_r = { x: mirrorX(lm[RIGHT_HEEL].x), y: lm[RIGHT_HEEL].y * 480 };
-  const toe_r = { x: mirrorX(lm[RIGHT_FOOT_INDEX].x), y: lm[RIGHT_FOOT_INDEX].y * 480 };
+  const shoulder_r = { x: mirrorX(lm[RIGHT_SHOULDER].x), y: lm[RIGHT_SHOULDER].y * height };
+  const elbow_r = { x: mirrorX(lm[RIGHT_ELBOW].x), y: lm[RIGHT_ELBOW].y * height };
+  const wrist_r = { x: mirrorX(lm[RIGHT_WRIST].x), y: lm[RIGHT_WRIST].y * height };
+  const hip_r = { x: mirrorX(lm[RIGHT_HIP].x), y: lm[RIGHT_HIP].y * height };
+  const knee_r = { x: mirrorX(lm[RIGHT_KNEE].x), y: lm[RIGHT_KNEE].y * height };
+  const ankle_r = { x: mirrorX(lm[RIGHT_ANKLE].x), y: lm[RIGHT_ANKLE].y * height };
+  const heel_r = { x: mirrorX(lm[RIGHT_HEEL].x), y: lm[RIGHT_HEEL].y * height };
+  const toe_r = { x: mirrorX(lm[RIGHT_FOOT_INDEX].x), y: lm[RIGHT_FOOT_INDEX].y * height };
 
   // --- CALCULATE HEAD TOP ---
   const shoulder_mid = {
@@ -123,7 +124,7 @@ export function calculatePoseMetrics(results) {
   };
   const ear_mid = {
     x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
-    y: (lm[7].y * 480 + lm[8].y * 480) / 2
+    y: (lm[7].y * height + lm[8].y * height) / 2
   };
   // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height above the ear level
   const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
@@ -132,7 +133,7 @@ export function calculatePoseMetrics(results) {
     y: ear_mid.y - (shoulder_to_ear_px * 0.65)
   };
 
-  const all_landmarks = lm.map(l => ({ x: mirrorX(l.x), y: l.y * 480 }));
+  const all_landmarks = lm.map(l => ({ x: mirrorX(l.x), y: l.y * height }));
 
   // --- CALCULATE REAL-TIME FLEXION ANGLES ---
   const kneeAngleL = calculateAngle(knee_l, hip_l, ankle_l);
@@ -314,6 +315,8 @@ export function updateHandTracking(results) {
     document.getElementById('val-fingertip-r-4')
   ];
 
+  const height = state.canvasHeight || 480;
+
   if (multiLandmarks && multiHandedness) {
     multiLandmarks.forEach((landmarks, index) => {
       const handedness = multiHandedness[index];
@@ -322,15 +325,15 @@ export function updateHandTracking(results) {
       if (side === 'Left') leftDetected = true;
       if (side === 'Right') rightDetected = true;
 
-      const wrist = { x: getCanvasX(landmarks[0].x), y: landmarks[0].y * 480 };
-      const thumbTip = { x: getCanvasX(landmarks[4].x), y: landmarks[4].y * 480 };
-      const indexTip = { x: getCanvasX(landmarks[8].x), y: landmarks[8].y * 480 };
-      const middleTip = { x: getCanvasX(landmarks[12].x), y: landmarks[12].y * 480 };
-      const ringTip = { x: getCanvasX(landmarks[16].x), y: landmarks[16].y * 480 };
-      const pinkyTip = { x: getCanvasX(landmarks[20].x), y: landmarks[20].y * 480 };
+      const wrist = { x: getCanvasX(landmarks[0].x), y: landmarks[0].y * height };
+      const thumbTip = { x: getCanvasX(landmarks[4].x), y: landmarks[4].y * height };
+      const indexTip = { x: getCanvasX(landmarks[8].x), y: landmarks[8].y * height };
+      const middleTip = { x: getCanvasX(landmarks[12].x), y: landmarks[12].y * height };
+      const ringTip = { x: getCanvasX(landmarks[16].x), y: landmarks[16].y * height };
+      const pinkyTip = { x: getCanvasX(landmarks[20].x), y: landmarks[20].y * height };
 
-      let pinchSpanStr = "--.- cm";
-      let handSpanStr = "--.- cm";
+      let pinchSpanStr = state.useInches ? "--.- inches" : "--.- cm";
+      let handSpanStr = state.useInches ? "--.- inches" : "--.- cm";
 
       if (state.pixelsPerCm) {
         const pinchPx = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
@@ -384,6 +387,8 @@ export function updateHandTracking(results) {
     });
   }
 
+  const resetText = state.useInches ? "--.- inches" : "--.- cm";
+
   // If left/right hands are not detected, reset their fingertip displays to Offline
   if (!leftDetected) {
     state.latestLeftMiddleTip = null;
@@ -392,8 +397,8 @@ export function updateHandTracking(results) {
       handStatusLDisp.classList.add('text-slate');
       handStatusLDisp.classList.remove('text-emerald');
     }
-    if (pinchLDisp) pinchLDisp.textContent = "--.- cm";
-    if (spanLDisp) spanLDisp.textContent = "--.- cm";
+    if (pinchLDisp) pinchLDisp.textContent = resetText;
+    if (spanLDisp) spanLDisp.textContent = resetText;
     fingertipLDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";
@@ -409,8 +414,8 @@ export function updateHandTracking(results) {
       handStatusRDisp.classList.add('text-slate');
       handStatusRDisp.classList.remove('text-emerald');
     }
-    if (pinchRDisp) pinchRDisp.textContent = "--.- cm";
-    if (spanRDisp) spanRDisp.textContent = "--.- cm";
+    if (pinchRDisp) pinchRDisp.textContent = resetText;
+    if (spanRDisp) spanRDisp.textContent = resetText;
     fingertipRDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";

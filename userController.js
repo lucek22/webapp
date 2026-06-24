@@ -31,6 +31,12 @@ const yoloToggleBtn = document.getElementById('yolo-toggle-btn');
 const captureBtn = document.getElementById('capture-btn');
 export const statusElement = document.getElementById('status');
 
+// Uploaded Media Elements
+const uploadedVideo = document.getElementById('uploaded-video');
+const uploadedImage = document.getElementById('uploaded-image');
+const uploadMediaBtn = document.getElementById('upload-media-btn');
+const mediaUploadInput = document.getElementById('media-upload-input');
+
 // Helper canvas for caching frozen frames
 export const frozenFrameCanvas = document.createElement('canvas');
 frozenFrameCanvas.width = 640;
@@ -147,11 +153,19 @@ const elbowAngleRDisp = document.getElementById('angle-elbow-r');
 // UI Calibration Toggles & Panels
 const tabArucoBtn = document.getElementById('tab-aruco-btn');
 const tabHeightBtn = document.getElementById('tab-height-btn');
+const tabPortfolioBtn = document.getElementById('tab-portfolio-btn');
 
 const panelAruco = document.getElementById('panel-aruco');
 const panelCard = document.getElementById('panel-card');
 const panelHeight = document.getElementById('panel-height');
+const panelPortfolio = document.getElementById('panel-portfolio');
 const arucoStatusText = document.getElementById('aruco-status-text');
+
+const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
+const btnApplyScale = document.getElementById('btn-apply-scale');
+const textareaPortfolioJson = document.getElementById('textarea-portfolio-json');
+const btnImportPortfolio = document.getElementById('btn-import-portfolio');
+const btnExportCombined = document.getElementById('btn-export-combined');
 
 // ==========================================
 // CANVAS DRAWING COMPONENT UTILITIES
@@ -229,7 +243,8 @@ export function drawHandMesh(multiHandLandmarks, multiHandedness) {
     const isLeft = handedness ? handedness.label === 'Left' : true;
     const sidePrefix = isLeft ? 'L' : 'R';
 
-    const pts = landmarks.map(lm => ({ x: getCanvasX(lm.x), y: lm.y * 480 }));
+    const height = state.canvasHeight || 480;
+    const pts = landmarks.map(lm => ({ x: getCanvasX(lm.x), y: lm.y * height }));
 
     canvasCtx.beginPath();
     canvasCtx.moveTo(pts[0].x, pts[0].y);
@@ -468,12 +483,92 @@ export function renderDashboard(metrics) {
 // ==========================================
 
 export function onPoseResults(results) {
+  state.latestPoseResults = results;
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   const now = Date.now();
   const dt = now - state.lastFrameTime;
   state.lastFrameTime = now;
+
+  const isStaticImage = state.isUploadedMedia && state.uploadedMediaType === 'image';
+  if (isStaticImage && state.lastProcessedScaleFactor === state.pixelsPerCm && state.lastCalculatedResults) {
+    const calculated = state.lastCalculatedResults;
+    const {
+      shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+      shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+      head_top, ground_y, all_landmarks, liveMetrics
+    } = calculated;
+
+    // Draw standard skeletal mesh elements
+    drawFullSkeletalMesh(all_landmarks);
+
+    // --- DRAW NEON SKELETAL MARKERS ---
+    drawBone(shoulder_l, shoulder_r, '#d4a017'); 
+    drawBone(hip_l, hip_r, '#d4a017'); 
+    drawBone(shoulder_l, hip_l, '#38bdf8'); 
+    drawBone(shoulder_r, hip_r, '#38bdf8'); 
+
+    // Left Arm & Leg
+    drawBone(shoulder_l, elbow_l, '#ec4899'); 
+    drawBone(elbow_l, wrist_l, '#f43f5e'); 
+    drawBone(hip_l, knee_l, '#d4a017'); 
+    drawBone(knee_l, ankle_l, '#06b6d4'); 
+    drawBone(ankle_l, heel_l, '#10b981'); 
+    drawBone(heel_l, toe_l, '#10b981'); 
+
+    // Right Arm & Leg
+    drawBone(shoulder_r, elbow_r, '#ec4899'); 
+    drawBone(elbow_r, wrist_r, '#f43f5e'); 
+    drawBone(hip_r, knee_r, '#d4a017'); 
+    drawBone(knee_r, ankle_r, '#06b6d4'); 
+    drawBone(ankle_r, heel_r, '#10b981'); 
+    drawBone(heel_r, toe_r, '#10b981'); 
+
+    // Joint Nodes
+    drawJoint(shoulder_l, '#d4a017');
+    drawJoint(shoulder_r, '#d4a017');
+    drawJoint(elbow_l, '#d946ef');
+    drawJoint(elbow_r, '#d946ef');
+    drawJoint(wrist_l, '#f43f5e');
+    drawJoint(wrist_r, '#f43f5e');
+    drawJoint(hip_l, '#d4a017');
+    drawJoint(hip_r, '#d4a017');
+    drawJoint(knee_l, '#10b981');
+    drawJoint(knee_r, '#10b981');
+    drawJoint(ankle_l, '#06b6d4');
+    drawJoint(ankle_r, '#06b6d4');
+    drawJoint(toe_l, '#10b981');
+    drawJoint(toe_r, '#10b981');
+
+    if (state.pixelsPerCm && liveMetrics) {
+      // Draw head top indicator node
+      drawJoint(head_top, '#06b6d4');
+
+      // Position ruler
+      const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+      const min_x = Math.min(...body_xs);
+      const max_x = Math.max(...body_xs);
+      const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
+
+      // Compute feet & inches string for ruler label
+      const live_inches = liveMetrics.live_height / 2.54;
+      const live_feet = Math.floor(live_inches / 12);
+      const live_inches_left = live_inches % 12;
+      const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
+
+      // Draw the live ruler graphics
+      drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
+
+      // Draw active pose badge
+      if (liveMetrics.pose) {
+        drawPoseBadge(liveMetrics.pose);
+      }
+    }
+
+    canvasCtx.restore();
+    return;
+  }
 
   if (state.autoActive && state.lockoutTimerMs > 0) {
     state.lockoutTimerMs -= dt;
@@ -525,7 +620,7 @@ export function onPoseResults(results) {
   // YOLO-style Background Masking
   if (results.segmentationMask && state.yoloModeActive) {
     canvasCtx.save();
-    if (state.currentFacingMode === "user") {
+    if (!state.isUploadedMedia && state.currentFacingMode === "user") {
       canvasCtx.translate(canvasElement.width, 0);
       canvasCtx.scale(-1, 1);
     }
@@ -538,8 +633,9 @@ export function onPoseResults(results) {
 
   // Draw ArUco box overlay if detected and active tab is 'aruco'
   if (state.latestArucoMarker && state.activeCalMethod === 'aruco') {
+    const width = state.canvasWidth || 640;
     const corners = state.latestArucoMarker.corners.map(c => ({
-      x: state.currentFacingMode === "user" ? 640 - c.x : c.x,
+      x: (!state.isUploadedMedia && state.currentFacingMode === "user") ? width - c.x : c.x,
       y: c.y
     }));
     canvasCtx.beginPath();
@@ -580,10 +676,97 @@ export function onPoseResults(results) {
   }
 
   // 2. Perform Biomechanical mathematical updates
+  let hasValidPerson = false;
+  if (results.poseLandmarks) {
+    const lm = results.poseLandmarks;
+    const keyIndices = [11, 12, 23, 24, 25, 26, 27, 28]; // shoulders, hips, knees, ankles
+    let totalVisibility = 0;
+    let highVisCount = 0;
+    for (const idx of keyIndices) {
+      if (lm[idx]) {
+        const vis = lm[idx].visibility || 0;
+        totalVisibility += vis;
+        if (vis > 0.55) {
+          highVisCount++;
+        }
+      }
+    }
+    const avgVis = totalVisibility / keyIndices.length;
+    // Real person requires average visibility >= 0.55 and at least 5 key joints with high visibility (0.55+)
+    if (highVisCount >= 5 && avgVis >= 0.55) {
+      hasValidPerson = true;
+    }
+  }
+
+  if (!hasValidPerson) {
+    // Call offline placeholder function to keep the dashboard from showing ceiling measurements!
+    updateDashboardOfflinePlaceholders();
+
+    // Reset cached pixels height indicators to prevent calibrating on empty or false-positive frames
+    state.lastSkeletalHeightPx = 0;
+    state.lastVerticalHeightPx = 0;
+
+    // Reset status elements
+    if (state.autoActive) {
+      statusElement.textContent = "🔍 Waiting for subject to enter and align in view...";
+      state.holdTimerMs = 0; // Reset sequence hold timer
+    } else {
+      statusElement.textContent = "🔍 Scanning for a person... Align yourself in view of the camera.";
+    }
+
+    // Set all sidebar landmarks to Offline
+    if (typeof LANDMARK_NAMES !== 'undefined') {
+      LANDMARK_NAMES.forEach((name, idx) => {
+        const statusSpan = document.getElementById(`lm-status-${idx}`);
+        if (statusSpan) {
+          statusSpan.classList.remove('text-emerald', 'text-amber');
+          statusSpan.classList.add('text-slate');
+          statusSpan.textContent = "Offline";
+        }
+      });
+    }
+
+    // Draw a premium neon-glowing "SUBJECT NOT DETECTED" warning overlay
+    canvasCtx.save();
+    const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 250);
+    const bannerW = 280;
+    const bannerH = 40;
+    const bannerX = (canvasElement.width - bannerW) / 2;
+    const bannerY = 30; // Near the top of the canvas
+    
+    canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.85)';
+    canvasCtx.strokeStyle = `rgba(239, 68, 68, ${0.3 + 0.2 * pulse})`; // Crimson Red glow
+    canvasCtx.lineWidth = 1.5;
+    canvasCtx.shadowColor = 'rgba(239, 68, 68, 0.6)';
+    canvasCtx.shadowBlur = 8;
+    
+    // Draw container box
+    drawRoundedRect(canvasCtx, bannerX, bannerY, bannerW, bannerH, 6);
+    canvasCtx.fill();
+    canvasCtx.stroke();
+    
+    // Draw text (disable shadow blur for sharpness)
+    canvasCtx.shadowBlur = 0;
+    canvasCtx.fillStyle = `rgba(239, 68, 68, ${0.8 + 0.2 * pulse})`;
+    canvasCtx.font = 'bold 11px sans-serif';
+    canvasCtx.textAlign = 'center';
+    canvasCtx.textBaseline = 'middle';
+    canvasCtx.fillText("⚠️  SUBJECT NOT DETECTED IN FRAME", canvasElement.width / 2, bannerY + bannerH / 2);
+    canvasCtx.restore();
+
+    canvasCtx.restore();
+    return;
+  }
+
   if (typeof calculatePoseMetrics === 'function') {
     const calculated = calculatePoseMetrics(results);
 
     if (calculated) {
+      if (isStaticImage) {
+        state.lastProcessedScaleFactor = state.pixelsPerCm;
+        state.lastCalculatedResults = calculated;
+      }
+
       const {
         shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
         shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
@@ -758,18 +941,22 @@ export function onPoseResults(results) {
               triggerFlashEffect();
               
               // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
-              frozenFrameCtx.clearRect(0, 0, 640, 480);
+              const width = state.canvasWidth || 640;
+              const height = state.canvasHeight || 480;
+              frozenFrameCanvas.width = width;
+              frozenFrameCanvas.height = height;
+              frozenFrameCtx.clearRect(0, 0, width, height);
               frozenFrameCtx.save();
-              if (state.currentFacingMode === "user") {
-                frozenFrameCtx.translate(640, 0);
+              if (!state.isUploadedMedia && state.currentFacingMode === "user") {
+                frozenFrameCtx.translate(width, 0);
                 frozenFrameCtx.scale(-1, 1);
               }
               if (results.segmentationMask && state.yoloModeActive) {
-                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, width, height);
                 frozenFrameCtx.globalCompositeOperation = 'source-in';
-                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.image, 0, 0, width, height);
               } else {
-                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.image, 0, 0, width, height);
               }
               frozenFrameCtx.restore();
               
@@ -878,27 +1065,45 @@ function captureSnapshot(joints, metrics, results) {
   state.frozenMetrics = JSON.parse(JSON.stringify(metrics));
   state.frozenHandResults = state.latestHandResults ? JSON.parse(JSON.stringify(state.latestHandResults)) : null;
   
-  // Save current frame image from results (or fallback to videoElement if results are not available)
-  frozenFrameCtx.clearRect(0, 0, 640, 480);
+  const width = state.canvasWidth || 640;
+  const height = state.canvasHeight || 480;
+  frozenFrameCanvas.width = width;
+  frozenFrameCanvas.height = height;
+  
+  // Save current frame image from results (or fallback to videoElement / uploaded media if results are not available)
+  frozenFrameCtx.clearRect(0, 0, width, height);
   frozenFrameCtx.save();
-  if (state.currentFacingMode === "user") {
-    frozenFrameCtx.translate(640, 0);
+  if (!state.isUploadedMedia && state.currentFacingMode === "user") {
+    frozenFrameCtx.translate(width, 0);
     frozenFrameCtx.scale(-1, 1);
   }
   if (results && results.segmentationMask && state.yoloModeActive) {
-    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, width, height);
     frozenFrameCtx.globalCompositeOperation = 'source-in';
-    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.image, 0, 0, width, height);
   } else if (results && results.image) {
-    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.image, 0, 0, width, height);
   } else {
-    frozenFrameCtx.drawImage(videoElement, 0, 0);
+    const srcElement = state.isUploadedMedia 
+      ? (state.uploadedMediaType === 'video' ? uploadedVideo : uploadedImage) 
+      : videoElement;
+    frozenFrameCtx.drawImage(srcElement, 0, 0, width, height);
   }
   frozenFrameCtx.restore();
 
   state.isSnapshotFrozen = true;
   videoElement.classList.add('video-hidden');
   videoElement.classList.remove('video-visible', 'video-dimmed'); // Completely hide live video feed under the canvas
+  if (state.isUploadedMedia) {
+    if (uploadedVideo) {
+      uploadedVideo.classList.add('hidden');
+      uploadedVideo.classList.remove('video-visible');
+    }
+    if (uploadedImage) {
+      uploadedImage.classList.add('hidden');
+      uploadedImage.classList.remove('video-visible');
+    }
+  }
   
   // Set capture button to reset mode
   captureBtn.textContent = "Reset & Resume Live Tracking";
@@ -1283,6 +1488,72 @@ function drawFrozenSnapshot() {
   canvasCtx.restore();
 }
 
+export function startUiRenderLoop() {
+  if (state.uiRenderLoopActive) return;
+  state.uiRenderLoopActive = true;
+
+  function tick() {
+    if (!state.uiRenderLoopActive) return;
+
+    let shouldRender = false;
+    if (state.activeStream && !videoElement.paused && !videoElement.ended) {
+      shouldRender = true;
+    } else if (state.isUploadedMedia) {
+      if (state.uploadedMediaType === 'video' && !uploadedVideo.paused && !uploadedVideo.ended) {
+        shouldRender = true;
+      } else if (state.uploadedMediaType === 'image') {
+        shouldRender = true;
+      }
+    }
+
+    if (shouldRender) {
+      if (state.isSnapshotFrozen) {
+        drawFrozenSnapshot();
+      } else {
+        if (state.latestPoseResults) {
+          onPoseResults(state.latestPoseResults);
+        } else {
+          // If no results yet, clear canvas and draw manual calibration box if active
+          canvasCtx.save();
+          canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+          if (state.activeCalMethod === 'card') {
+            const x1 = state.calBoxX - state.calBoxSize / 2;
+            const y1 = state.calBoxY - state.calBoxSize / 2;
+            canvasCtx.beginPath();
+            canvasCtx.rect(x1, y1, state.calBoxSize, state.calBoxSize);
+            canvasCtx.strokeStyle = state.calLocked ? '#10b981' : '#ec4899'; 
+            canvasCtx.lineWidth = 3;
+            if (!state.calLocked) canvasCtx.setLineDash([6, 4]);
+            canvasCtx.stroke();
+            canvasCtx.setLineDash([]); 
+
+            canvasCtx.fillStyle = state.calLocked ? '#10b981' : '#ec4899';
+            canvasCtx.font = 'bold 11px sans-serif';
+            canvasCtx.fillText(state.calLocked ? "SCARLET CALIBRATION LOCKED" : "ALIGN PRINTED 200mm SQUARE IN BOX", x1 + 5, y1 - 8);
+          }
+          canvasCtx.restore();
+        }
+        
+        if (state.latestHandResults && drawHandMesh) {
+          drawHandMesh(state.latestHandResults.multiHandLandmarks, state.latestHandResults.multiHandedness);
+        }
+      }
+    } else {
+      if (state.isSnapshotFrozen) {
+        drawFrozenSnapshot();
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+}
+
+export function stopUiRenderLoop() {
+  state.uiRenderLoopActive = false;
+}
+
 export function resetAndResume() {
   if (state.autoActive) {
     cancelAutoSequence();
@@ -1293,13 +1564,26 @@ export function resetAndResume() {
   state.frozenHandResults = null;
   
   // Restore standard video feed visibility
-  videoElement.classList.remove('video-hidden');
-  if (state.yoloModeActive) {
-    videoElement.classList.add('video-dimmed');
-    videoElement.classList.remove('video-visible');
+  if (state.isUploadedMedia) {
+    videoElement.classList.add('video-hidden');
+    videoElement.classList.remove('video-visible', 'video-dimmed');
+    
+    if (state.uploadedMediaType === 'video') {
+      uploadedVideo.classList.remove('hidden');
+      uploadedVideo.classList.add('video-visible');
+    } else if (state.uploadedMediaType === 'image') {
+      uploadedImage.classList.remove('hidden');
+      uploadedImage.classList.add('video-visible');
+    }
   } else {
-    videoElement.classList.add('video-visible');
-    videoElement.classList.remove('video-dimmed');
+    videoElement.classList.remove('video-hidden');
+    if (state.yoloModeActive) {
+      videoElement.classList.add('video-dimmed');
+      videoElement.classList.remove('video-visible');
+    } else {
+      videoElement.classList.add('video-visible');
+      videoElement.classList.remove('video-dimmed');
+    }
   }
   
   // Restore capture button styling
@@ -1322,6 +1606,30 @@ export function resetAndResume() {
 // ==========================================
 
 export async function startCamera() {
+  state.isUploadedMedia = false;
+  state.uploadedMediaType = null;
+  state.latestPoseResults = null;
+  state.latestHandResults = null;
+
+  const exportCombinedBtn = document.getElementById('btn-export-combined');
+  if (exportCombinedBtn) {
+    exportCombinedBtn.style.display = 'none';
+  }
+
+  if (uploadedVideo) {
+    uploadedVideo.classList.add('hidden');
+    uploadedVideo.classList.remove('video-visible');
+    try { uploadedVideo.pause(); } catch(e){}
+    uploadedVideo.src = "";
+  }
+  if (uploadedImage) {
+    uploadedImage.classList.add('hidden');
+    uploadedImage.classList.remove('video-visible');
+    uploadedImage.src = "";
+  }
+  videoElement.classList.remove('video-hidden');
+  videoElement.classList.add('video-visible');
+
   statusElement.textContent = "Requesting webcam access...";
   startButton.classList.add('hidden');
   yoloToggleBtn.classList.remove('hidden');
@@ -1367,20 +1675,268 @@ export async function startCamera() {
       statusElement.textContent = "Camera active. Syncing with computer vision models...";
     };
 
-    // Frame loop processor
-    async function processFrame() {
-      if (!state.activeStream || videoElement.paused || videoElement.ended) return;
+    // Throttled concurrent model inference loop (runs in background)
+    async function cameraInferenceLoop() {
+      if (!state.activeStream || videoElement.paused || videoElement.ended) {
+        state.isCameraInferenceLoopRunning = false;
+        return;
+      }
+      state.isCameraInferenceLoopRunning = true;
+
+      const startTime = Date.now();
       try {
-        if (state.isSnapshotFrozen) {
-          // Direct high-fidelity manual rendering loop when frozen to save CPU resources
-          drawFrozenSnapshot();
-          requestAnimationFrame(processFrame);
-          return;
+        if (!state.isSnapshotFrozen) {
+          // Call modular ArUco Marker Scanner helper (from arucoDetector.js)
+          if (typeof detectArucoMarker === 'function') {
+            const found = detectArucoMarker(videoElement);
+            state.latestArucoMarker = found;
+
+            if (found) {
+              const corners = found.corners;
+              const d01 = Math.hypot(corners[0].x - corners[1].x, corners[0].y - corners[1].y);
+              const d12 = Math.hypot(corners[1].x - corners[2].x, corners[1].y - corners[2].y);
+              const d23 = Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y);
+              const d30 = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
+              const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
+
+              const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
+              state.pixelsPerCm = smoothedScale;
+              state.calLocked = true;
+
+              if (state.activeCalMethod === 'aruco') {
+                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+              }
+            } else {
+              if (state.activeCalMethod === 'aruco') {
+                if (state.pixelsPerCm) {
+                  arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                } else {
+                  arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
+                }
+              }
+            }
+          }
+
+          // Concurrent model calls using Promise.all - cuts down latency and doubles frame rates!
+          await Promise.all([
+            pose.send({ image: videoElement }),
+            hands.send({ image: videoElement })
+          ]);
+        }
+      } catch (err) {
+        console.error("Camera inference loop error:", err);
+      }
+
+      const elapsed = Date.now() - startTime;
+      const delay = Math.max(50 - elapsed, 1); // target ~20fps inference to prevent CPU starvation
+      setTimeout(cameraInferenceLoop, delay);
+    }
+
+    // Start processing once stream is playing
+    videoElement.onplay = () => {
+      statusElement.textContent = "Active tracking. Present your printed ArUco marker to calibrate scale!";
+      startUiRenderLoop();
+      cameraInferenceLoop();
+    };
+
+  } catch (err) {
+    console.error("Camera access failed:", err);
+    startButton.classList.remove('hidden');
+    if (err.name === 'NotAllowedError') {
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
+    } else if (err.name === 'NotReadableError') {
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
+    } else {
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
+    }
+  }
+}
+
+startButton.addEventListener('click', startCamera);
+
+// ==========================================
+// UPLOADED MEDIA INTEGRATION
+// ==========================================
+
+export async function handleUploadedFile(file) {
+  if (!file) return;
+
+  const isVideo = file.type.startsWith('video/');
+  state.isUploadedMedia = true;
+  state.uploadedMediaType = isVideo ? 'video' : 'image';
+  state.latestPoseResults = null;
+  state.latestHandResults = null;
+  state.lastProcessedScaleFactor = null;
+  state.lastCalculatedResults = null;
+
+  // Stop camera stream if active
+  if (state.activeStream) {
+    state.activeStream.getTracks().forEach(track => track.stop());
+    state.activeStream = null;
+  }
+
+  // Adjust button visibilities
+  startButton.classList.add('hidden');
+  yoloToggleBtn.classList.remove('hidden');
+  yoloToggleBtn.classList.add('visible-block');
+  captureBtn.classList.remove('hidden');
+  captureBtn.classList.add('visible-block');
+
+  const exportCombinedBtn = document.getElementById('btn-export-combined');
+  if (exportCombinedBtn) {
+    if (isVideo) {
+      exportCombinedBtn.style.display = 'none';
+    } else {
+      exportCombinedBtn.style.display = 'block';
+    }
+  }
+
+  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
+  if (autoSequenceBtn) {
+    autoSequenceBtn.classList.remove('hidden');
+    autoSequenceBtn.classList.add('visible-block');
+  }
+
+  const subjectPanel = document.getElementById('subject-profile-panel');
+  if (subjectPanel) {
+    subjectPanel.classList.remove('hidden');
+    subjectPanel.classList.add('visible-flex');
+  }
+
+  const cameraSwitchBtn = document.getElementById('camera-switch-btn');
+  if (cameraSwitchBtn) {
+    cameraSwitchBtn.classList.add('hidden');
+    cameraSwitchBtn.classList.remove('visible-flex');
+  }
+
+  // Hide live video
+  videoElement.classList.add('video-hidden');
+  videoElement.classList.remove('video-visible', 'video-dimmed');
+  try { videoElement.pause(); } catch(e){}
+  videoElement.srcObject = null;
+
+  const objectURL = URL.createObjectURL(file);
+
+  if (isVideo) {
+    if (uploadedImage) {
+      uploadedImage.classList.add('hidden');
+      uploadedImage.classList.remove('video-visible');
+      uploadedImage.src = "";
+    }
+    if (uploadedVideo) {
+      uploadedVideo.src = objectURL;
+      uploadedVideo.classList.remove('hidden');
+      uploadedVideo.classList.add('video-visible');
+      uploadedVideo.muted = true;
+      uploadedVideo.loop = true;
+      
+      uploadedVideo.onloadedmetadata = () => {
+        uploadedVideo.play();
+        state.canvasWidth = uploadedVideo.videoWidth || 640;
+        state.canvasHeight = uploadedVideo.videoHeight || 480;
+        canvasElement.width = state.canvasWidth;
+        canvasElement.height = state.canvasHeight;
+        
+        const frozenFrameCanvas = document.getElementById('frozen-frame-canvas');
+        if (frozenFrameCanvas) {
+          frozenFrameCanvas.width = state.canvasWidth;
+          frozenFrameCanvas.height = state.canvasHeight;
         }
 
-        // Call modular ArUco Marker Scanner helper (from arucoDetector.js)
+        const viewport = document.querySelector('.viewport');
+        if (viewport) {
+          viewport.style.aspectRatio = `${state.canvasWidth} / ${state.canvasHeight}`;
+        }
+
+        state.calBoxX = state.canvasWidth / 2;
+        state.calBoxY = state.canvasHeight / 2;
+
+        statusElement.textContent = "Uploaded video active. Syncing with computer vision models...";
+      };
+
+      uploadedVideo.onplay = () => {
+        startUploadedMediaLoop();
+      };
+    }
+  } else {
+    // Image
+    if (uploadedVideo) {
+      uploadedVideo.classList.add('hidden');
+      uploadedVideo.classList.remove('video-visible');
+      try { uploadedVideo.pause(); } catch(e){}
+      uploadedVideo.src = "";
+    }
+    if (uploadedImage) {
+      uploadedImage.src = objectURL;
+      uploadedImage.classList.remove('hidden');
+      uploadedImage.classList.add('video-visible');
+      
+      uploadedImage.onload = async () => {
+        const maxLiveDim = 1280;
+        let w = uploadedImage.naturalWidth || 640;
+        let h = uploadedImage.naturalHeight || 480;
+        if (w > maxLiveDim || h > maxLiveDim) {
+          const aspect = w / h;
+          if (w > h) {
+            w = maxLiveDim;
+            h = Math.round(maxLiveDim / aspect);
+          } else {
+            h = maxLiveDim;
+            w = Math.round(maxLiveDim * aspect);
+          }
+        }
+
+        state.canvasWidth = w;
+        state.canvasHeight = h;
+        canvasElement.width = state.canvasWidth;
+        canvasElement.height = state.canvasHeight;
+
+        const frozenFrameCanvas = document.getElementById('frozen-frame-canvas');
+        if (frozenFrameCanvas) {
+          frozenFrameCanvas.width = state.canvasWidth;
+          frozenFrameCanvas.height = state.canvasHeight;
+        }
+
+        const viewport = document.querySelector('.viewport');
+        if (viewport) {
+          viewport.style.aspectRatio = `${state.canvasWidth} / ${state.canvasHeight}`;
+        }
+
+        state.calBoxX = state.canvasWidth / 2;
+        state.calBoxY = state.canvasHeight / 2;
+
+        statusElement.textContent = "Processing static image...";
+
+        // Send once to cache pose & hand landmarks
+        try {
+          await pose.send({ image: uploadedImage });
+          await hands.send({ image: uploadedImage });
+          statusElement.textContent = "Static image processed. Drag manual calibration scale or trigger snapshot captures.";
+        } catch (err) {
+          console.error("Error processing static image:", err);
+          statusElement.textContent = "Error processing image.";
+        }
+
+        startUploadedMediaLoop();
+      };
+    }
+  }
+}
+
+export function startUploadedMediaLoop() {
+  async function videoInferenceLoop() {
+    if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended) {
+      state.isVideoInferenceLoopRunning = false;
+      return;
+    }
+    state.isVideoInferenceLoopRunning = true;
+
+    const startTime = Date.now();
+    try {
+      if (!state.isSnapshotFrozen) {
+        // Detect ArUco Marker
         if (typeof detectArucoMarker === 'function') {
-          const found = detectArucoMarker(videoElement);
+          const found = detectArucoMarker(uploadedVideo);
           state.latestArucoMarker = found;
 
           if (found) {
@@ -1391,7 +1947,6 @@ export async function startCamera() {
             const d30 = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
             const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
 
-            // Smooth calibration scale to avoid webcam noise
             const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
             state.pixelsPerCm = smoothedScale;
             state.calLocked = true;
@@ -1410,37 +1965,42 @@ export async function startCamera() {
           }
         }
 
-        // Sync with MediaPipe Pose Models (from mediapipeLogic.js)
-        await pose.send({ image: videoElement });
-
-        // Sync with MediaPipe Hands Models (from mediapipeLogic.js)
-        await hands.send({ image: videoElement });
-      } catch (poseErr) {
-        console.error("Frame processing error:", poseErr);
+        // Concurrent model calls using Promise.all - cuts down latency and doubles frame rates!
+        await Promise.all([
+          pose.send({ image: uploadedVideo }),
+          hands.send({ image: uploadedVideo })
+        ]);
       }
-      requestAnimationFrame(processFrame);
+    } catch (err) {
+      console.error("Uploaded video processing error:", err);
     }
 
-    // Start processing once stream is playing
-    videoElement.onplay = () => {
-      statusElement.textContent = "Active tracking. Present your printed ArUco marker to calibrate scale!";
-      processFrame();
-    };
+    const elapsed = Date.now() - startTime;
+    const delay = Math.max(50 - elapsed, 1); // target ~20fps inference to prevent CPU starvation
+    setTimeout(videoInferenceLoop, delay);
+  }
 
-  } catch (err) {
-    console.error("Camera access failed:", err);
-    startButton.classList.remove('hidden');
-    if (err.name === 'NotAllowedError') {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
-    } else if (err.name === 'NotReadableError') {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
-    } else {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
-    }
+  // Always kick off UI redraw loop
+  startUiRenderLoop();
+
+  // If it's a video, also kick off the background inference loop
+  if (state.uploadedMediaType === 'video') {
+    videoInferenceLoop();
   }
 }
 
-startButton.addEventListener('click', startCamera);
+// Hook up upload media event listeners
+if (uploadMediaBtn && mediaUploadInput) {
+  uploadMediaBtn.addEventListener('click', () => {
+    mediaUploadInput.click();
+  });
+
+  mediaUploadInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleUploadedFile(e.target.files[0]);
+    }
+  });
+}
 
 // Camera switch event listener for switching between front/back cameras
 const cameraSwitchBtn = document.getElementById('camera-switch-btn');
@@ -1569,6 +2129,7 @@ export function renderGallery() {
 }
 
 function openSnapshotModal(id) {
+  state.activeModalSnapshotId = id;
   snapshotStore.get(id)
     .then(snapshot => {
       if (!snapshot) {
@@ -1763,33 +2324,33 @@ function openSnapshotModal(id) {
         // Global and anatomical segments are populated from optimal poses
         // (Limb lengths, height, and widths come from optimal poses stored in metrics)
         setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
-        setModalMetric('modal-val-wingspan', m.wingspan ? formatSkeletalHeight(m.wingspan) : "--.-");
+        setModalMetric('modal-val-wingspan', m.wingspan ? formatLength(m.wingspan) : "--.-");
 
-        setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatSkeletalHeight(m.thigh_l) : "--.-");
-        setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatSkeletalHeight(m.thigh_r) : "--.-");
-        setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatSkeletalHeight(m.shin_l) : "--.-");
-        setModalMetric('modal-val-shin-r', m.shin_r !== undefined ? formatSkeletalHeight(m.shin_r) : "--.-");
-        setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatSkeletalHeight(m.foot_l) : "--.-");
-        setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatSkeletalHeight(m.foot_r) : "--.-");
+        setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatLength(m.thigh_l) : "--.-");
+        setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatLength(m.thigh_r) : "--.-");
+        setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatLength(m.shin_l) : "--.-");
+        setModalMetric('modal-val-shin-r', m.shin_r !== undefined ? formatLength(m.shin_r) : "--.-");
+        setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatLength(m.foot_l) : "--.-");
+        setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatLength(m.foot_r) : "--.-");
 
-        setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatSkeletalHeight(m.torso_l) : "--.-");
-        setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatSkeletalHeight(m.torso_r) : "--.-");
-        setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatSkeletalHeight(m.upperarm_l) : "--.-");
-        setModalMetric('modal-val-upperarm-r', m.upperarm_r !== undefined ? formatSkeletalHeight(m.upperarm_r) : "--.-");
-        setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatSkeletalHeight(m.forearm_l) : "--.-");
-        setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatSkeletalHeight(m.forearm_r) : "--.-");
+        setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatLength(m.torso_l) : "--.-");
+        setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatLength(m.torso_r) : "--.-");
+        setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatLength(m.upperarm_l) : "--.-");
+        setModalMetric('modal-val-upperarm-r', m.upperarm_r !== undefined ? formatLength(m.upperarm_r) : "--.-");
+        setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatLength(m.forearm_l) : "--.-");
+        setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatLength(m.forearm_r) : "--.-");
 
         if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
-          setModalMetric('modal-val-overhead-reach', `L: ${formatSkeletalHeight(m.fingerToToeL)} / R: ${formatSkeletalHeight(m.fingerToToeR)}`);
+          setModalMetric('modal-val-overhead-reach', `L: ${formatLength(m.fingerToToeL)} / R: ${formatLength(m.fingerToToeR)}`);
         } else {
           setModalMetric('modal-val-overhead-reach', "--.-");
         }
-        setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatSkeletalHeight(m.hipW) : "--.-");
+        setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatLength(m.hipW) : "--.-");
 
-        setModalMetric('modal-val-pinch-l', m.pinch_l_cm !== undefined && m.pinch_l_cm !== null ? formatSkeletalHeight(m.pinch_l_cm) : "--.-");
-        setModalMetric('modal-val-pinch-r', m.pinch_r_cm !== undefined && m.pinch_r_cm !== null ? formatSkeletalHeight(m.pinch_r_cm) : "--.-");
-        setModalMetric('modal-val-span-l', m.span_l_cm !== undefined && m.span_l_cm !== null ? formatSkeletalHeight(m.span_l_cm) : "--.-");
-        setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatSkeletalHeight(m.span_r_cm) : "--.-");
+        setModalMetric('modal-val-pinch-l', m.pinch_l_cm !== undefined && m.pinch_l_cm !== null ? formatLength(m.pinch_l_cm) : "--.-");
+        setModalMetric('modal-val-pinch-r', m.pinch_r_cm !== undefined && m.pinch_r_cm !== null ? formatLength(m.pinch_r_cm) : "--.-");
+        setModalMetric('modal-val-span-l', m.span_l_cm !== undefined && m.span_l_cm !== null ? formatLength(m.span_l_cm) : "--.-");
+        setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatLength(m.span_r_cm) : "--.-");
       }
 
       // Clone download & delete buttons to purge old listeners
@@ -1909,8 +2470,10 @@ canvasElement.addEventListener('mousedown', (e) => {
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
   
-  const canvasMouseX = (mouseX / rect.width) * 640;
-  const canvasMouseY = (mouseY / rect.height) * 480;
+  const width = state.canvasWidth || 640;
+  const height = state.canvasHeight || 480;
+  const canvasMouseX = (mouseX / rect.width) * width;
+  const canvasMouseY = (mouseY / rect.height) * height;
   
   const x1 = state.calBoxX - state.calBoxSize / 2;
   const y1 = state.calBoxY - state.calBoxSize / 2;
@@ -1929,8 +2492,10 @@ canvasElement.addEventListener('mousemove', (e) => {
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
   
-  const canvasMouseX = (mouseX / rect.width) * 640;
-  const canvasMouseY = (mouseY / rect.height) * 480;
+  const width = state.canvasWidth || 640;
+  const height = state.canvasHeight || 480;
+  const canvasMouseX = (mouseX / rect.width) * width;
+  const canvasMouseY = (mouseY / rect.height) * height;
   
   const x1 = state.calBoxX - state.calBoxSize / 2;
   const y1 = state.calBoxY - state.calBoxSize / 2;
@@ -1948,8 +2513,8 @@ canvasElement.addEventListener('mousemove', (e) => {
   }
   
   if (isDragging) {
-    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(640 - state.calBoxSize/2, canvasMouseX - dragStartX));
-    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(480 - state.calBoxSize/2, canvasMouseY - dragStartY));
+    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(width - state.calBoxSize/2, canvasMouseX - dragStartX));
+    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(height - state.calBoxSize/2, canvasMouseY - dragStartY));
   }
 });
 
@@ -1965,8 +2530,10 @@ canvasElement.addEventListener('touchstart', (e) => {
     const mouseX = touch.clientX - rect.left;
     const mouseY = touch.clientY - rect.top;
     
-    const canvasMouseX = (mouseX / rect.width) * 640;
-    const canvasMouseY = (mouseY / rect.height) * 480;
+    const width = state.canvasWidth || 640;
+    const height = state.canvasHeight || 480;
+    const canvasMouseX = (mouseX / rect.width) * width;
+    const canvasMouseY = (mouseY / rect.height) * height;
     
     const x1 = state.calBoxX - state.calBoxSize / 2;
     const y1 = state.calBoxY - state.calBoxSize / 2;
@@ -1989,11 +2556,13 @@ canvasElement.addEventListener('touchmove', (e) => {
     const mouseX = touch.clientX - rect.left;
     const mouseY = touch.clientY - rect.top;
     
-    const canvasMouseX = (mouseX / rect.width) * 640;
-    const canvasMouseY = (mouseY / rect.height) * 480;
+    const width = state.canvasWidth || 640;
+    const height = state.canvasHeight || 480;
+    const canvasMouseX = (mouseX / rect.width) * width;
+    const canvasMouseY = (mouseY / rect.height) * height;
     
-    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(640 - state.calBoxSize/2, canvasMouseX - dragStartX));
-    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(480 - state.calBoxSize/2, canvasMouseY - dragStartY));
+    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(width - state.calBoxSize/2, canvasMouseX - dragStartX));
+    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(height - state.calBoxSize/2, canvasMouseY - dragStartY));
     e.preventDefault();
   }
 });
@@ -2013,9 +2582,15 @@ unitInchBtn.addEventListener('click', () => {
   updateHeightInputUnit();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
+  } else {
+    updateDashboardOfflinePlaceholders();
   }
   if (state.dbInitialized) {
     renderGallery();
+  }
+  const modal = document.getElementById('snapshot-modal');
+  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
+    openSnapshotModal(state.activeModalSnapshotId);
   }
 });
 
@@ -2026,9 +2601,15 @@ unitCmBtn.addEventListener('click', () => {
   updateHeightInputUnit();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
+  } else {
+    updateDashboardOfflinePlaceholders();
   }
   if (state.dbInitialized) {
     renderGallery();
+  }
+  const modal = document.getElementById('snapshot-modal');
+  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
+    openSnapshotModal(state.activeModalSnapshotId);
   }
 });
 
@@ -2036,12 +2617,14 @@ unitCmBtn.addEventListener('click', () => {
 function switchCalibrationTab(method, activeBtn, activePanel) {
   state.activeCalMethod = method;
   
-  [tabArucoBtn, tabHeightBtn].forEach(btn => {
-    btn.classList.toggle('btn-tab-active', btn === activeBtn);
-    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+  [tabArucoBtn, tabHeightBtn, tabPortfolioBtn].forEach(btn => {
+    if (btn) {
+      btn.classList.toggle('btn-tab-active', btn === activeBtn);
+      btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+    }
   });
 
-  [panelAruco, panelCard, panelHeight].forEach(panel => {
+  [panelAruco, panelCard, panelHeight, panelPortfolio].forEach(panel => {
     if (panel) {
       if (panel === activePanel) {
         panel.classList.remove('hidden');
@@ -2072,6 +2655,521 @@ tabHeightBtn.addEventListener('click', () => {
   switchCalibrationTab('height', tabHeightBtn, panelHeight);
 });
 
+if (tabPortfolioBtn) {
+  tabPortfolioBtn.addEventListener('click', () => {
+    switchCalibrationTab('portfolio', tabPortfolioBtn, panelPortfolio);
+  });
+}
+
+// Premeasured scale factor pasting event listener
+if (btnApplyScale && inputPremeasuredScale) {
+  btnApplyScale.addEventListener('click', () => {
+    const val = parseFloat(inputPremeasuredScale.value);
+    if (isNaN(val) || val <= 0) {
+      alert("Please enter a valid positive numeric scale factor (px/cm).");
+      return;
+    }
+
+    state.pixelsPerCm = val;
+    state.calLocked = true;
+
+    // Visual feedback glow
+    btnApplyScale.style.backgroundColor = '#10b981';
+    btnApplyScale.style.boxShadow = '0 0 12px #10b981';
+    btnApplyScale.textContent = "Scale Applied! ✅";
+    
+    setTimeout(() => {
+      btnApplyScale.style.backgroundColor = '';
+      btnApplyScale.style.boxShadow = '';
+      btnApplyScale.textContent = "Apply Scale";
+    }, 2000);
+
+    // Update global scale indicators
+    if (arucoStatusText) {
+      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+    }
+    
+    statusElement.textContent = `Scale calibration locked to pasted premeasured factor: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+  });
+}
+
+// Prior portfolio JSON session importer event listeners
+if (btnImportPortfolio && textareaPortfolioJson) {
+  btnImportPortfolio.addEventListener('click', () => {
+    const rawVal = textareaPortfolioJson.value.trim();
+    if (!rawVal) {
+      alert("Please paste a session JSON report in the text area.");
+      return;
+    }
+
+    try {
+      const data = JSON.parse(rawVal);
+      importPriorPortfolio(data);
+    } catch (e) {
+      alert(`Invalid JSON format: ${e.message}\nPlease make sure you are pasting a valid JSON object.`);
+    }
+  });
+}
+
+// Combined export button event listener
+if (btnExportCombined) {
+  btnExportCombined.addEventListener('click', exportCombinedAssessmentCard);
+}
+
+export function exportCombinedAssessmentCard() {
+  const img = document.getElementById('uploaded-image');
+  if (!img || img.classList.contains('hidden') || !img.src) {
+    alert("Please upload a static image first.");
+    return;
+  }
+  if (!state.latestPoseResults || !state.latestPoseResults.poseLandmarks) {
+    alert("Subject pose not detected yet. Please wait for detection to complete.");
+    return;
+  }
+
+  const width = img.naturalWidth || 640;
+  const height = img.naturalHeight || 480;
+
+  // Temporarily set canvas dimensions to natural size so calculatePoseMetrics computes native high-res coordinates!
+  const originalWidth = state.canvasWidth;
+  const originalHeight = state.canvasHeight;
+  state.canvasWidth = width;
+  state.canvasHeight = height;
+
+  const calculated = calculatePoseMetrics(state.latestPoseResults);
+
+  // Restore original live dimensions
+  state.canvasWidth = originalWidth;
+  state.canvasHeight = originalHeight;
+
+  if (!calculated) {
+    alert("Could not calculate pose metrics.");
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  // Draw background image
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Proportional metrics
+  const scale = width / 640;
+  const lineWidth = Math.max(2.5, 3.5 * scale);
+  const jointRadius = Math.max(4.0, 5.0 * scale);
+
+  const drawOffscreenJoint = (pt, color) => {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, jointRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1, 1 * scale);
+    ctx.stroke();
+  };
+
+  const drawOffscreenBone = (p1, p2, color) => {
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  };
+
+  const {
+    shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+    shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+    head_top, ground_y, all_landmarks, liveMetrics
+  } = calculated;
+
+  // Draw skeleton
+  drawOffscreenBone(shoulder_l, shoulder_r, '#d4a017'); 
+  drawOffscreenBone(hip_l, hip_r, '#d4a017'); 
+  drawOffscreenBone(shoulder_l, hip_l, '#38bdf8'); 
+  drawOffscreenBone(shoulder_r, hip_r, '#38bdf8'); 
+
+  // Left Arm & Leg
+  drawOffscreenBone(shoulder_l, elbow_l, '#ec4899'); 
+  drawOffscreenBone(elbow_l, wrist_l, '#f43f5e'); 
+  drawOffscreenBone(hip_l, knee_l, '#d4a017'); 
+  drawOffscreenBone(knee_l, ankle_l, '#06b6d4'); 
+  drawOffscreenBone(ankle_l, heel_l, '#10b981'); 
+  drawOffscreenBone(heel_l, toe_l, '#10b981'); 
+
+  // Right Arm & Leg
+  drawOffscreenBone(shoulder_r, elbow_r, '#ec4899'); 
+  drawOffscreenBone(elbow_r, wrist_r, '#f43f5e'); 
+  drawOffscreenBone(hip_r, knee_r, '#d4a017'); 
+  drawOffscreenBone(knee_r, ankle_r, '#06b6d4'); 
+  drawOffscreenBone(ankle_r, heel_r, '#10b981'); 
+  drawOffscreenBone(heel_r, toe_r, '#10b981'); 
+
+  // Joint circles
+  const jointNodes = [
+    { pt: shoulder_l, color: '#d4a017' },
+    { pt: shoulder_r, color: '#d4a017' },
+    { pt: elbow_l, color: '#d946ef' },
+    { pt: elbow_r, color: '#d946ef' },
+    { pt: wrist_l, color: '#f43f5e' },
+    { pt: wrist_r, color: '#f43f5e' },
+    { pt: hip_l, color: '#d4a017' },
+    { pt: hip_r, color: '#d4a017' },
+    { pt: knee_l, color: '#10b981' },
+    { pt: knee_r, color: '#10b981' },
+    { pt: ankle_l, color: '#06b6d4' },
+    { pt: ankle_r, color: '#06b6d4' },
+    { pt: toe_l, color: '#10b981' },
+    { pt: toe_r, color: '#10b981' },
+    { pt: head_top, color: '#06b6d4' }
+  ];
+
+  jointNodes.forEach(node => {
+    drawOffscreenJoint(node.pt, node.color);
+  });
+
+  // Draw ruler
+  if (state.pixelsPerCm && liveMetrics) {
+    const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+    const min_x = Math.min(...body_xs);
+    const max_x = Math.max(...body_xs);
+    const ruler_margin = 40 * scale;
+    const ruler_x = max_x + ruler_margin < width - 20 * scale ? max_x + ruler_margin : min_x - ruler_margin > 20 * scale ? min_x - ruler_margin : 50 * scale;
+
+    const live_inches = liveMetrics.live_height / 2.54;
+    const live_feet = Math.floor(live_inches / 12);
+    const live_inches_left = live_inches % 12;
+    const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
+
+    ctx.save();
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = Math.max(1.5, 2.5 * scale);
+    ctx.beginPath();
+    ctx.moveTo(ruler_x, head_top.y);
+    ctx.lineTo(ruler_x, ground_y);
+    ctx.stroke();
+
+    const tick_w = Math.max(10, 15 * scale);
+    ctx.beginPath();
+    ctx.moveTo(ruler_x - tick_w / 2, head_top.y);
+    ctx.lineTo(ruler_x + tick_w / 2, head_top.y);
+    ctx.moveTo(ruler_x - tick_w / 2, ground_y);
+    ctx.lineTo(ruler_x + tick_w / 2, ground_y);
+    ctx.stroke();
+
+    ctx.fillStyle = '#06b6d4';
+    ctx.font = `bold ${Math.max(10, Math.round(12 * scale))}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(6, 182, 212, 0.5)';
+    ctx.shadowBlur = Math.round(4 * scale);
+
+    const label_text = `${formatLength(liveMetrics.live_height)} (${live_feet_inches_str})`;
+    ctx.fillText(label_text, ruler_x + tick_w, (head_top.y + ground_y) / 2);
+    ctx.restore();
+  }
+
+  // Draw assessment stats card
+  const card_w = 260 * scale;
+  const card_h = 320 * scale;
+  const card_x = width - card_w - 20 * scale;
+  const card_y = 20 * scale;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(15, 22, 38, 0.85)';
+  ctx.strokeStyle = 'rgba(236, 72, 153, 0.4)';
+  ctx.lineWidth = Math.max(1.5, 2 * scale);
+  ctx.shadowColor = 'rgba(236, 72, 153, 0.5)';
+  ctx.shadowBlur = Math.round(10 * scale);
+
+  const radius = Math.round(12 * scale);
+  ctx.beginPath();
+  ctx.moveTo(card_x + radius, card_y);
+  ctx.lineTo(card_x + card_w - radius, card_y);
+  ctx.quadraticCurveTo(card_x + card_w, card_y, card_x + card_w, card_y + radius);
+  ctx.lineTo(card_x + card_w, card_y + card_h - radius);
+  ctx.quadraticCurveTo(card_x + card_w, card_y + card_h, card_x + card_w - radius, card_y + card_h);
+  ctx.lineTo(card_x + radius, card_y + card_h);
+  ctx.quadraticCurveTo(card_x, card_y + card_h, card_x, card_y + card_h - radius);
+  ctx.lineTo(card_x, card_y + radius);
+  ctx.quadraticCurveTo(card_x, card_y, card_x + radius, card_y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+
+  ctx.fillStyle = '#ec4899';
+  ctx.font = `bold ${Math.max(11, Math.round(13 * scale))}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText("SCARLET BIOMECHANICS LAB", card_x + card_w / 2, card_y + 25 * scale);
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.lineWidth = Math.max(1, 1 * scale);
+  ctx.beginPath();
+  ctx.moveTo(card_x + 15 * scale, card_y + 38 * scale);
+  ctx.lineTo(card_x + card_w - 15 * scale, card_y + 38 * scale);
+  ctx.stroke();
+
+  const subjectInput = document.getElementById('subject-name-input');
+  const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${Math.max(10, Math.round(11 * scale))}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`SUBJECT: ${subjectName.toUpperCase()}`, card_x + 15 * scale, card_y + 55 * scale);
+
+  const todayStr = new Date().toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = `${Math.max(8, Math.round(9 * scale))}px sans-serif`;
+  ctx.fillText(`DATE: ${todayStr}`, card_x + 15 * scale, card_y + 70 * scale);
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.beginPath();
+  ctx.moveTo(card_x + 15 * scale, card_y + 80 * scale);
+  ctx.lineTo(card_x + card_w - 15 * scale, card_y + 80 * scale);
+  ctx.stroke();
+
+  let listItems = [];
+  if (liveMetrics) {
+    listItems.push({ name: "Stature (Skeletal)", val: formatLength(liveMetrics.skeletal_height || liveMetrics.live_height) });
+    if (liveMetrics.wingspan) {
+      listItems.push({ name: "Wingspan", val: formatLength(liveMetrics.wingspan) });
+    }
+    if (liveMetrics.thigh_l && liveMetrics.thigh_r) {
+      const avgThigh = (liveMetrics.thigh_l + liveMetrics.thigh_r) / 2;
+      listItems.push({ name: "Thigh Length", val: formatLength(avgThigh) });
+    }
+    if (liveMetrics.shin_l && liveMetrics.shin_r) {
+      const avgShin = (liveMetrics.shin_l + liveMetrics.shin_r) / 2;
+      listItems.push({ name: "Shin Length", val: formatLength(avgShin) });
+    }
+    if (liveMetrics.torso_l && liveMetrics.torso_r) {
+      const avgTorso = (liveMetrics.torso_l + liveMetrics.torso_r) / 2;
+      listItems.push({ name: "Torso Length", val: formatLength(avgTorso) });
+    }
+    if (calculated.kneeAngleL && calculated.kneeAngleR) {
+      listItems.push({ name: "Knee Angle (L/R)", val: `${calculated.kneeAngleL}° / ${calculated.kneeAngleR}°` });
+    }
+    if (calculated.hipAngleL && calculated.hipAngleR) {
+      listItems.push({ name: "Hip Angle (L/R)", val: `${calculated.hipAngleL}° / ${calculated.hipAngleR}°` });
+    }
+  } else if (state.metricsA) {
+    const mA = state.metricsA;
+    listItems.push({ name: "Stature (Skeletal)", val: formatLength(mA.skeletal_height) });
+    if (mA.wingspan) {
+      listItems.push({ name: "Wingspan", val: formatLength(mA.wingspan) });
+    }
+    if (mA.thigh_l) listItems.push({ name: "Thigh Length", val: formatLength(mA.thigh_l) });
+    if (mA.shin_l) listItems.push({ name: "Shin Length", val: formatLength(mA.shin_l) });
+    if (mA.torso_l) listItems.push({ name: "Torso Length", val: formatLength(mA.torso_l) });
+    if (mA.kneeAngleL) listItems.push({ name: "Knee Angle (L/R)", val: `${mA.kneeAngleL}° / ${mA.kneeAngleR}°` });
+  } else {
+    listItems.push({ name: "Stature", val: "N/A" });
+  }
+
+  let item_y = card_y + 100 * scale;
+  const item_height = 28 * scale;
+
+  listItems.forEach(item => {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = `${Math.max(9, Math.round(10 * scale))}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(item.name.toUpperCase(), card_x + 15 * scale, item_y);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = `bold ${Math.max(10, Math.round(11 * scale))}px sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(item.val, card_x + card_w - 15 * scale, item_y);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = Math.max(0.5, 0.75 * scale);
+    ctx.beginPath();
+    ctx.moveTo(card_x + 15 * scale, item_y + 8 * scale);
+    ctx.lineTo(card_x + card_w - 15 * scale, item_y + 8 * scale);
+    ctx.stroke();
+
+    item_y += item_height;
+  });
+
+  ctx.restore();
+
+  const dataURL = canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  link.download = `scarlet_biomechanics_${cleanSubjectName}_assessment.png`;
+  link.href = dataURL;
+  link.click();
+}
+
+export function importPriorPortfolio(report) {
+  if (!report) return;
+
+  // Invalidate static image caches to force a full re-calculation with the new scale
+  state.lastProcessedScaleFactor = null;
+  state.lastCalculatedResults = null;
+
+  // 1. Restore Subject Name
+  const subjectInput = document.getElementById('subject-name-input');
+  if (report.subjectName) {
+    if (subjectInput) subjectInput.value = report.subjectName;
+  }
+  const subjectPanel = document.getElementById('subject-profile-panel');
+  if (subjectPanel) {
+    subjectPanel.classList.remove('hidden');
+    subjectPanel.classList.add('visible-flex');
+  }
+
+  // 2. Restore Calibration Scale Factor
+  if (report.pixelsPerCm && report.pixelsPerCm > 0) {
+    state.pixelsPerCm = report.pixelsPerCm;
+    state.calLocked = true;
+    if (inputPremeasuredScale) {
+      inputPremeasuredScale.value = report.pixelsPerCm.toFixed(2);
+    }
+    if (arucoStatusText) {
+      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+    }
+  } else if (report.summary && report.summary.skeletal_height_cm) {
+    console.log("[Portfolio Ingest] Report has skeletal height but no scale factor.");
+  }
+
+  // 3. Reconstruct Biomechanical Metrics structure
+  const mA = report.summary || {};
+  const segs = report.segments || {};
+  const profs = report.posturalFlexionProfiles || {};
+
+  const importedMetrics = {
+    pose: "Combined (Imported)",
+    skeletal_height: mA.skeletal_height_cm || report.metrics?.skeletal_height || 175.0,
+    wingspan: mA.wingspan_cm || report.metrics?.wingspan || null,
+    fingerToToeL: mA.overhead_reach_toe_to_finger_l_cm || report.metrics?.fingerToToeL || null,
+    fingerToToeR: mA.overhead_reach_toe_to_finger_r_cm || report.metrics?.fingerToToeR || null,
+    thigh_l: segs.thigh_l || report.metrics?.thigh_l || null,
+    thigh_r: segs.thigh_r || report.metrics?.thigh_r || null,
+    shin_l: segs.shin_l || report.metrics?.shin_l || null,
+    shin_r: segs.shin_r || report.metrics?.shin_r || null,
+    foot_l: segs.foot_l || report.metrics?.foot_l || null,
+    foot_r: segs.foot_r || report.metrics?.foot_r || null,
+    torso_l: segs.torso_l || report.metrics?.torso_l || null,
+    torso_r: segs.torso_r || report.metrics?.torso_r || null,
+    upperarm_l: segs.upperarm_l || report.metrics?.upperarm_l || null,
+    upperarm_r: segs.upperarm_r || report.metrics?.upperarm_r || null,
+    forearm_l: segs.forearm_l || report.metrics?.forearm_l || null,
+    forearm_r: segs.forearm_r || report.metrics?.forearm_r || null,
+    hipW: report.metrics?.hipW || null,
+    
+    kneeAngleL: profs.aPose?.kneeL || report.metrics?.kneeAngleL || report.metrics?.anglesA?.kneeAngleL || 180,
+    kneeAngleR: profs.aPose?.kneeR || report.metrics?.kneeAngleR || report.metrics?.anglesA?.kneeAngleR || 180,
+    hipAngleL: profs.aPose?.hipL || report.metrics?.hipAngleL || report.metrics?.anglesA?.hipAngleL || 180,
+    hipAngleR: profs.aPose?.hipR || report.metrics?.hipAngleR || report.metrics?.anglesA?.hipAngleR || 180,
+    elbowAngleL: profs.aPose?.elbowL || report.metrics?.elbowAngleL || report.metrics?.anglesA?.elbowAngleL || 180,
+    elbowAngleR: profs.aPose?.elbowR || report.metrics?.elbowAngleR || report.metrics?.anglesA?.elbowAngleR || 180,
+  };
+
+  // 4. Save to controller's cache state for re-rendering or re-compiling
+  state.metricsA = JSON.parse(JSON.stringify(importedMetrics));
+  state.metricsT = {
+    wingspan: importedMetrics.wingspan,
+    kneeAngleL: profs.tPose?.kneeL || report.metrics?.anglesT?.kneeAngleL || 180,
+    kneeAngleR: profs.tPose?.kneeR || report.metrics?.anglesT?.kneeAngleR || 180,
+    hipAngleL: profs.tPose?.hipL || report.metrics?.anglesT?.hipAngleL || 180,
+    hipAngleR: profs.tPose?.hipR || report.metrics?.anglesT?.hipAngleR || 180,
+    elbowAngleL: profs.tPose?.elbowL || report.metrics?.anglesT?.elbowAngleL || 180,
+    elbowAngleR: profs.tPose?.elbowR || report.metrics?.anglesT?.elbowAngleR || 180,
+  };
+  state.metricsOverhead = {
+    fingerToToeL: importedMetrics.fingerToToeL,
+    fingerToToeR: importedMetrics.fingerToToeR,
+    kneeAngleL: profs.overhead?.kneeL || report.metrics?.anglesOverhead?.kneeAngleL || 180,
+    kneeAngleR: profs.overhead?.kneeR || report.metrics?.anglesOverhead?.kneeAngleR || 180,
+    hipAngleL: profs.overhead?.hipL || report.metrics?.anglesOverhead?.hipAngleL || 180,
+    hipAngleR: profs.overhead?.hipR || report.metrics?.anglesOverhead?.hipAngleR || 180,
+    elbowAngleL: profs.overhead?.elbowL || report.metrics?.anglesOverhead?.elbowAngleL || 180,
+    elbowAngleR: profs.overhead?.elbowR || report.metrics?.anglesOverhead?.elbowAngleR || 180,
+  };
+
+  // Re-render dashboard metrics instantly!
+  renderDashboard(importedMetrics);
+
+  // 5. Construct persistent database snapshotRecord for IndexedDB gallery registration
+  const timestamp = report.timestamp || Date.now();
+  const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  const dateStr = new Date(timestamp).toLocaleDateString('en-US', options);
+  
+  const subjectNameLabel = report.subjectName || "Anonymous";
+  const label = `${subjectNameLabel} - Imported Session - ${dateStr}`;
+
+  const consolidatedMetrics = {
+    pose: "Combined",
+    isCombinedSession: true,
+    skeletal_height: importedMetrics.skeletal_height,
+    wingspan: importedMetrics.wingspan,
+    fingerToToeL: importedMetrics.fingerToToeL,
+    fingerToToeR: importedMetrics.fingerToToeR,
+    thigh_l: importedMetrics.thigh_l,
+    thigh_r: importedMetrics.thigh_r,
+    shin_l: importedMetrics.shin_l,
+    shin_r: importedMetrics.shin_r,
+    foot_l: importedMetrics.foot_l,
+    foot_r: importedMetrics.foot_r,
+    torso_l: importedMetrics.torso_l,
+    torso_r: importedMetrics.torso_r,
+    upperarm_l: importedMetrics.upperarm_l,
+    upperarm_r: importedMetrics.upperarm_r,
+    forearm_l: importedMetrics.forearm_l,
+    forearm_r: importedMetrics.forearm_r,
+    hipW: importedMetrics.hipW,
+    anglesA: state.metricsA,
+    anglesT: state.metricsT,
+    anglesOverhead: state.metricsOverhead
+  };
+
+  const snapshotRecord = {
+    name: label,
+    timestamp: timestamp,
+    isCombinedSession: true,
+    imageA: null, // No image in JSON, but standard placeholder can render
+    imageT: null,
+    imageOverhead: null,
+    image: null, 
+    metrics: consolidatedMetrics
+  };
+
+  if (state.dbInitialized) {
+    snapshotStore.save(snapshotRecord)
+      .then(() => {
+        console.log(`[Import] Saved imported session "${label}" to IndexedDB gallery.`);
+        renderGallery();
+        statusElement.textContent = `Portfolio imported successfully! Saved "${label}" in session snapshot history.`;
+      })
+      .catch(err => {
+        console.error("[Import] Failed to save imported snapshot to IndexedDB:", err);
+        statusElement.textContent = "Portfolio imported to dashboard, but saving to gallery database failed.";
+      });
+  } else {
+    statusElement.textContent = "Portfolio imported successfully to live dashboard (IndexedDB inactive).";
+  }
+
+  // Clear inputs on success
+  if (textareaPortfolioJson) {
+    textareaPortfolioJson.value = "";
+  }
+
+  // High-end feedback animation on Import button
+  if (btnImportPortfolio) {
+    btnImportPortfolio.style.backgroundColor = '#10b981';
+    btnImportPortfolio.style.boxShadow = '0 0 16px #10b981';
+    btnImportPortfolio.textContent = "Session Imported Successfully! ✅";
+    setTimeout(() => {
+      btnImportPortfolio.style.backgroundColor = '';
+      btnImportPortfolio.style.boxShadow = '';
+      btnImportPortfolio.textContent = "Import Prior Portfolio";
+    }, 2000);
+  }
+}
+
 const heightCalBtn = document.getElementById('height-cal-btn');
 const inputUserHeight = document.getElementById('input-user-height');
 
@@ -2080,6 +3178,27 @@ heightCalBtn.addEventListener('click', () => {
 
   const activeHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
   if (activeHeightPx > 10) {
+    if (state.isUploadedMedia) {
+      // Recalculate pixel height instantly for uploaded files
+      const captureHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
+      const inputVal = parseFloat(inputUserHeight.value) || (state.useInches ? 68.9 : 175.0);
+      let actualHeightCm = inputVal;
+      if (state.useInches) {
+        actualHeightCm = inputVal * 2.54; // Convert to cm for calibration scale factor
+      }
+
+      state.pixelsPerCm = captureHeightPx / actualHeightCm;
+      state.calLocked = true;
+      heightCalBtn.textContent = "✅ Calibrated!";
+      heightCalBtn.classList.add('btn-success-green');
+      heightCalBtn.classList.remove('btn-warning');
+      statusElement.textContent = `Skeletal-calibrated scale locked (Instant Upload Calibration): ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+      
+      // Trigger camera snapshot visual flash!
+      triggerFlashEffect();
+      return;
+    }
+
     // Start 3-second countdown
     state.isCountingDown = true;
     state.countdownValue = 3;
@@ -2117,7 +3236,11 @@ heightCalBtn.addEventListener('click', () => {
       }
     }, 1000);
   } else {
-    alert("Please click 'Start Biomechanical Tracking' and stand in view of the camera first!");
+    if (state.isUploadedMedia) {
+      alert("Please ensure a person is fully visible in your uploaded image or video first!");
+    } else {
+      alert("Please click 'Start Biomechanical Tracking' and stand in view of the camera first!");
+    }
   }
 });
 
@@ -2232,3 +3355,65 @@ if (modalOverlay) {
     }
   });
 }
+
+// ==========================================
+// OFFLINE DASHBOARD PLACEHOLDERS
+// ==========================================
+
+export function updateDashboardOfflinePlaceholders() {
+  if (state.isSnapshotFrozen && state.frozenMetrics) {
+    renderDashboard(state.frozenMetrics);
+    return;
+  }
+  
+  if (state.activeStream || (state.isUploadedMedia && state.latestPoseResults)) {
+    if (state.frozenMetrics) {
+      renderDashboard(state.frozenMetrics);
+    }
+    return; 
+  }
+
+  const suffix = state.useInches ? "inches" : "cm";
+  const place = `--.- ${suffix}`;
+
+  thighLDisp.textContent = place;
+  thighRDisp.textContent = place;
+  shinLDisp.textContent = place;
+  shinRDisp.textContent = place;
+  footLDisp.textContent = place;
+  footRDisp.textContent = place;
+  torsoLDisp.textContent = place;
+  torsoRDisp.textContent = place;
+  upperarmLDisp.textContent = place;
+  upperarmRDisp.textContent = place;
+  forearmLDisp.textContent = place;
+  forearmRDisp.textContent = place;
+  
+  if (fingerToToeDisp) {
+    fingerToToeDisp.textContent = `L: ${place} / R: ${place}`;
+  }
+  hipWDisp.textContent = place;
+  if (wingspanDisp) {
+    wingspanDisp.textContent = place;
+  }
+  
+  if (state.useInches) {
+    heightCmDisp.textContent = `-'- -"`;
+    heightFtDisp.textContent = `--.- cm (Stature)`;
+  } else {
+    heightCmDisp.textContent = `--.- cm`;
+    heightFtDisp.textContent = `-'- -" (Stature)`;
+  }
+  
+  kneeAngleLDisp.textContent = `--°`;
+  kneeAngleRDisp.textContent = `--°`;
+  hipAngleLDisp.textContent = `--°`;
+  hipAngleRDisp.textContent = `--°`;
+  elbowAngleLDisp.textContent = `--°`;
+  elbowAngleRDisp.textContent = `--°`;
+}
+
+// Initial placeholder update
+setTimeout(() => {
+  updateDashboardOfflinePlaceholders();
+}, 200);

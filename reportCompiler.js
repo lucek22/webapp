@@ -160,6 +160,7 @@ export function compileAndDownloadCombinedSession() {
     sessionId: sessionId,
     timestamp: timestamp,
     formattedDate: formattedDate,
+    pixelsPerCm: state.pixelsPerCm,
     summary: {
       skeletal_height_cm: mA.skeletal_height ? Number(mA.skeletal_height.toFixed(1)) : null,
       wingspan_cm: mT.wingspan ? Number(mT.wingspan.toFixed(1)) : null,

@@ -150,7 +150,7 @@ export function calculatePoseMetrics(results) {
   let liveMetrics = null;
 
   // --- CALCULATE PHYSICAL LENGTHS (IF SCALE LOCKED) ---
-  if (state.pixelsPerCm) {
+  if (state.pixelsPerCm || state.activeCalMethod === 'height') {
     // Left segment calculations
     const thigh_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y);
     const shin_l_px = Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y);
@@ -201,7 +201,10 @@ export function calculatePoseMetrics(results) {
     state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
     let activePixelsPerCm = state.pixelsPerCm;
-    if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
+    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+      activePixelsPerCm = skeletal_height_px / state.inputHeightCm;
+      state.pixelsPerCm = activePixelsPerCm;
+    } else if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
       activePixelsPerCm = skeletal_height_px / state.metricsA.skeletal_height;
     }
 

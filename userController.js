@@ -2011,6 +2011,7 @@ unitInchBtn.addEventListener('click', () => {
   unitInchBtn.classList.add('active');
   unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
+  updateStateInputHeight();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   }
@@ -2024,6 +2025,7 @@ unitCmBtn.addEventListener('click', () => {
   unitCmBtn.classList.add('active');
   unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
+  updateStateInputHeight();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   }
@@ -2053,13 +2055,17 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
     }
   });
 
-  // Clear lock on switch if transitioning away from manual/height
-  if (method !== 'aruco' && state.calLocked) {
+  // Set calibration state based on chosen method
+  if (method === 'height') {
+    state.pixelsPerCm = null; // Calculated dynamically in frame loop
+    state.calLocked = true;   // Automatically consider locked/calibrated
+  } else {
+    state.pixelsPerCm = null;
+    state.calLocked = false;
     if (method === 'card') {
       lockCalButton.textContent = "Lock 20cm Calibration";
       lockCalButton.classList.add('cal-btn-unlocked');
       lockCalButton.classList.remove('cal-btn-locked');
-      state.calLocked = false;
     }
   }
 }
@@ -2072,54 +2078,25 @@ tabHeightBtn.addEventListener('click', () => {
   switchCalibrationTab('height', tabHeightBtn, panelHeight);
 });
 
-const heightCalBtn = document.getElementById('height-cal-btn');
 const inputUserHeight = document.getElementById('input-user-height');
 
-heightCalBtn.addEventListener('click', () => {
-  if (state.isCountingDown || state.isCaptureCountingDown) return; // Prevent clicks during active countdowns
-
-  const activeHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-  if (activeHeightPx > 10) {
-    // Start 3-second countdown
-    state.isCountingDown = true;
-    state.countdownValue = 3;
-    heightCalBtn.textContent = "Get in Position (3s)...";
-    heightCalBtn.classList.add('btn-warning');
-    heightCalBtn.classList.remove('btn-success-green');
-    statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
-
-    const intervalId = setInterval(() => {
-      state.countdownValue--;
-      if (state.countdownValue > 0) {
-        heightCalBtn.textContent = `Get in Position (${state.countdownValue}s)...`;
-        statusElement.textContent = `Stand straight and face the camera. Calibrating in ${state.countdownValue} seconds...`;
-      } else {
-        clearInterval(intervalId);
-        state.isCountingDown = false;
-
-        // Recalculate pixel height at the exact end of countdown
-        const captureHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-        const inputVal = parseFloat(inputUserHeight.value) || (state.useInches ? 68.9 : 175.0);
-        let actualHeightCm = inputVal;
-        if (state.useInches) {
-          actualHeightCm = inputVal * 2.54; // Convert to cm for calibration scale factor
-        }
-
-        state.pixelsPerCm = captureHeightPx / actualHeightCm;
-        state.calLocked = true;
-        heightCalBtn.textContent = "✅ Calibrated!";
-        heightCalBtn.classList.add('btn-success-green');
-        heightCalBtn.classList.remove('btn-warning');
-        statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
-        
-        // Trigger camera snapshot visual flash!
-        triggerFlashEffect();
-      }
-    }, 1000);
-  } else {
-    alert("Please click 'Start Biomechanical Tracking' and stand in view of the camera first!");
+function updateStateInputHeight() {
+  const inputElem = document.getElementById('input-user-height');
+  if (!inputElem) return;
+  const inputVal = parseFloat(inputElem.value);
+  if (!isNaN(inputVal)) {
+    if (state.useInches) {
+      state.inputHeightCm = inputVal * 2.54;
+    } else {
+      state.inputHeightCm = inputVal;
+    }
   }
-});
+}
+
+if (inputUserHeight) {
+  inputUserHeight.addEventListener('input', updateStateInputHeight);
+  updateStateInputHeight();
+}
 
 // YOLO-style background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {

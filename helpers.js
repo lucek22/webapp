@@ -222,6 +222,7 @@ export const state = {
   latestRightMiddleTip: null,
   activeStream: null,
   activeCalMethod: 'aruco',
+  inputHeightCm: 175.006,
   dbInitialized: false,
   autoActive: false,
   autoState: 'IDLE',

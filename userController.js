@@ -229,7 +229,8 @@ export function drawHandMesh(multiHandLandmarks, multiHandedness) {
     const isLeft = handedness ? handedness.label === 'Left' : true;
     const sidePrefix = isLeft ? 'L' : 'R';
 
-    const pts = landmarks.map(lm => ({ x: getCanvasX(lm.x), y: lm.y * 480 }));
+    const height = state.canvasHeight || 480;
+    const pts = landmarks.map(lm => ({ x: getCanvasX(lm.x), y: lm.y * height }));
 
     canvasCtx.beginPath();
     canvasCtx.moveTo(pts[0].x, pts[0].y);
@@ -536,10 +537,10 @@ export function onPoseResults(results) {
     canvasCtx.restore();
   }
 
-  // Draw ArUco box overlay if detected and active tab is 'aruco'
   if (state.latestArucoMarker && state.activeCalMethod === 'aruco') {
+    const width = state.canvasWidth || 640;
     const corners = state.latestArucoMarker.corners.map(c => ({
-      x: state.currentFacingMode === "user" ? 640 - c.x : c.x,
+      x: state.currentFacingMode === "user" ? width - c.x : c.x,
       y: c.y
     }));
     canvasCtx.beginPath();
@@ -757,6 +758,11 @@ export function onPoseResults(results) {
             if (state.holdTimerMs >= state.REQ_HOLD_MS) {
               triggerFlashEffect();
               
+              // Cache current frame image on frozenFrameCanvas
+              const w = state.canvasWidth || 640;
+              const h = state.canvasHeight || 480;
+              frozenFrameCtx.clearRect(0, 0, w, h);
+              frozenFrameCtx.drawImage(canvasElement, 0, 0);
               // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
               frozenFrameCtx.clearRect(0, 0, 640, 480);
               frozenFrameCtx.save();
@@ -878,6 +884,23 @@ function captureSnapshot(joints, metrics, results) {
   state.frozenMetrics = JSON.parse(JSON.stringify(metrics));
   state.frozenHandResults = state.latestHandResults ? JSON.parse(JSON.stringify(state.latestHandResults)) : null;
   
+  // Save current frame image from canvas (if YOLO background isolated) or webcam
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  frozenFrameCtx.clearRect(0, 0, w, h);
+  if (state.yoloModeActive) {
+    // Main canvas currently holds the isolated composite frame (before overlays were drawn)
+    frozenFrameCtx.drawImage(canvasElement, 0, 0);
+  } else {
+    // Grab direct webcam stream and mirror it in memory if in user-facing mode
+    frozenFrameCtx.save();
+    if (state.currentFacingMode === "user") {
+      frozenFrameCtx.translate(w, 0);
+      frozenFrameCtx.scale(-1, 1);
+    }
+    frozenFrameCtx.drawImage(videoElement, 0, 0);
+    frozenFrameCtx.restore();
+  }
   // Save current frame image from results (or fallback to videoElement if results are not available)
   frozenFrameCtx.clearRect(0, 0, 640, 480);
   frozenFrameCtx.save();
@@ -1361,8 +1384,27 @@ export async function startCamera() {
     // Mirror the view only for front/user camera
     videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
     
-    // Wait for video metadata to load and then start playing
     videoElement.onloadedmetadata = () => {
+      const w = videoElement.videoWidth || 640;
+      const h = videoElement.videoHeight || 480;
+      
+      // Dynamically adapt coordinate space and layouts to the true camera feed aspect ratio
+      state.canvasWidth = w;
+      state.canvasHeight = h;
+      canvasElement.width = w;
+      canvasElement.height = h;
+      frozenFrameCanvas.width = w;
+      frozenFrameCanvas.height = h;
+      
+      // Center manual calibration box based on true camera proportions
+      state.calBoxX = w / 2;
+      state.calBoxY = h / 2;
+      
+      const viewport = document.querySelector('.viewport');
+      if (viewport) {
+        viewport.style.aspectRatio = `${w} / ${h}`;
+      }
+      
       videoElement.play();
       statusElement.textContent = "Camera active. Syncing with computer vision models...";
     };
@@ -1882,20 +1924,26 @@ function updatePosBtnStyles(activeBtn) {
 }
 
 posLeftBtn.addEventListener('click', () => {
-  state.calBoxX = 100;
-  state.calBoxY = 240;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  state.calBoxX = w * 0.15;
+  state.calBoxY = h / 2;
   updatePosBtnStyles(posLeftBtn);
 });
 
 posCenterBtn.addEventListener('click', () => {
-  state.calBoxX = 320;
-  state.calBoxY = 240;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  state.calBoxX = w / 2;
+  state.calBoxY = h / 2;
   updatePosBtnStyles(posCenterBtn);
 });
 
 posRightBtn.addEventListener('click', () => {
-  state.calBoxX = 540;
-  state.calBoxY = 240;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  state.calBoxX = w * 0.85;
+  state.calBoxY = h / 2;
   updatePosBtnStyles(posRightBtn);
 });
 
@@ -1909,8 +1957,10 @@ canvasElement.addEventListener('mousedown', (e) => {
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
   
-  const canvasMouseX = (mouseX / rect.width) * 640;
-  const canvasMouseY = (mouseY / rect.height) * 480;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  const canvasMouseX = (mouseX / rect.width) * w;
+  const canvasMouseY = (mouseY / rect.height) * h;
   
   const x1 = state.calBoxX - state.calBoxSize / 2;
   const y1 = state.calBoxY - state.calBoxSize / 2;
@@ -1929,8 +1979,10 @@ canvasElement.addEventListener('mousemove', (e) => {
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
   
-  const canvasMouseX = (mouseX / rect.width) * 640;
-  const canvasMouseY = (mouseY / rect.height) * 480;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  const canvasMouseX = (mouseX / rect.width) * w;
+  const canvasMouseY = (mouseY / rect.height) * h;
   
   const x1 = state.calBoxX - state.calBoxSize / 2;
   const y1 = state.calBoxY - state.calBoxSize / 2;
@@ -1948,8 +2000,8 @@ canvasElement.addEventListener('mousemove', (e) => {
   }
   
   if (isDragging) {
-    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(640 - state.calBoxSize/2, canvasMouseX - dragStartX));
-    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(480 - state.calBoxSize/2, canvasMouseY - dragStartY));
+    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(w - state.calBoxSize/2, canvasMouseX - dragStartX));
+    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(h - state.calBoxSize/2, canvasMouseY - dragStartY));
   }
 });
 
@@ -1965,8 +2017,10 @@ canvasElement.addEventListener('touchstart', (e) => {
     const mouseX = touch.clientX - rect.left;
     const mouseY = touch.clientY - rect.top;
     
-    const canvasMouseX = (mouseX / rect.width) * 640;
-    const canvasMouseY = (mouseY / rect.height) * 480;
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    const canvasMouseX = (mouseX / rect.width) * w;
+    const canvasMouseY = (mouseY / rect.height) * h;
     
     const x1 = state.calBoxX - state.calBoxSize / 2;
     const y1 = state.calBoxY - state.calBoxSize / 2;
@@ -1989,11 +2043,13 @@ canvasElement.addEventListener('touchmove', (e) => {
     const mouseX = touch.clientX - rect.left;
     const mouseY = touch.clientY - rect.top;
     
-    const canvasMouseX = (mouseX / rect.width) * 640;
-    const canvasMouseY = (mouseY / rect.height) * 480;
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    const canvasMouseX = (mouseX / rect.width) * w;
+    const canvasMouseY = (mouseY / rect.height) * h;
     
-    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(640 - state.calBoxSize/2, canvasMouseX - dragStartX));
-    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(480 - state.calBoxSize/2, canvasMouseY - dragStartY));
+    state.calBoxX = Math.max(state.calBoxSize/2, Math.min(w - state.calBoxSize/2, canvasMouseX - dragStartX));
+    state.calBoxY = Math.max(state.calBoxSize/2, Math.min(h - state.calBoxSize/2, canvasMouseY - dragStartY));
     e.preventDefault();
   }
 });
@@ -2001,6 +2057,40 @@ canvasElement.addEventListener('touchmove', (e) => {
 window.addEventListener('touchend', () => {
   isDragging = false;
 });
+
+function updateSidebarPlaceholders() {
+  const updatePlaceholder = (elem, textWithCm, textWithInches) => {
+    if (!elem) return;
+    const current = elem.textContent.trim();
+    if (current.includes('--.-') || current.includes("--'") || current === "" || current === "Offline") {
+      elem.textContent = state.useInches ? textWithInches : textWithCm;
+    }
+  };
+
+  updatePlaceholder(thighLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(thighRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(shinLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(shinRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(footLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(footRDisp, "--.- cm", "--.- inches");
+  
+  updatePlaceholder(torsoLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(torsoRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(upperarmLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(upperarmRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(forearmLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(forearmRDisp, "--.- cm", "--.- inches");
+
+  updatePlaceholder(fingerToToeDisp, "L: --.- cm / R: --.- cm", "L: --.- inches / R: --.- inches");
+  updatePlaceholder(hipWDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(wingspanDisp, "--.- cm", "--.- inches");
+
+  updatePlaceholder(heightCmDisp, "--.- cm", "--'--''");
+  updatePlaceholder(heightFtDisp, "--'--'' (Stature)", "--.- cm (Stature)");
+}
+
+// Initial placeholder configuration on script load
+setTimeout(updateSidebarPlaceholders, 100);
 
 // Multi-unit system controls (Inches/Cm togglers)
 const unitInchBtn = document.getElementById('unit-inch-btn');
@@ -2011,6 +2101,7 @@ unitInchBtn.addEventListener('click', () => {
   unitInchBtn.classList.add('active');
   unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
+  updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   }
@@ -2024,6 +2115,7 @@ unitCmBtn.addEventListener('click', () => {
   unitCmBtn.classList.add('active');
   unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
+  updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   }

@@ -32,7 +32,7 @@ const captureBtn = document.getElementById('capture-btn');
 export const statusElement = document.getElementById('status');
 
 // Helper canvas for caching frozen frames
-const frozenFrameCanvas = document.createElement('canvas');
+export const frozenFrameCanvas = document.createElement('canvas');
 frozenFrameCanvas.width = 640;
 frozenFrameCanvas.height = 480;
 const frozenFrameCtx = frozenFrameCanvas.getContext('2d');
@@ -49,90 +49,65 @@ canvasElement.height = 480;
 if (landmarkDirectory) {
   LANDMARK_NAMES.forEach((name, idx) => {
     const item = document.createElement('div');
-    item.style.display = 'flex';
-    item.style.justifyContent = 'space-between';
-    item.style.alignItems = 'center';
-    item.style.fontSize = '0.68rem';
-    item.style.padding = '0.2rem 0.4rem';
-    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-    item.style.borderRadius = '4px';
-    item.style.borderLeft = '2.5px solid #1e293b';
+    item.className = 'landmark-directory-item';
     
-    let sideColor = '#9ca3af'; // default face/neutral
+    let colorClass = 'gray'; // default face/neutral
     if (idx <= 10) {
-      sideColor = '#ec4899'; // face
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'pink'; // face
     } else if (idx === 11 || idx === 13 || idx === 15 || idx === 17 || idx === 19 || idx === 21) {
-      sideColor = '#06b6d4'; // left arm
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'cyan'; // left arm
     } else if (idx === 12 || idx === 14 || idx === 16 || idx === 18 || idx === 20 || idx === 22) {
-      sideColor = '#a855f7'; // right arm
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'gold'; // right arm
     } else if (idx === 23 || idx === 25 || idx === 27 || idx === 29 || idx === 31) {
-      sideColor = '#10b981'; // left leg
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'emerald'; // left leg
     } else if (idx === 24 || idx === 26 || idx === 28 || idx === 30 || idx === 32) {
-      sideColor = '#f59e0b'; // right leg
-      item.style.borderLeftColor = sideColor;
+      colorClass = 'amber'; // right leg
     }
+    item.classList.add(colorClass);
 
     item.innerHTML = `
-      <span style="color: ${sideColor}; font-weight: 600;">#${idx} ${name}</span>
-      <span id="lm-status-${idx}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+      <span class="landmark-name">#${idx} ${name}</span>
+      <span id="lm-status-${idx}" class="landmark-status-offline">Offline</span>
     `;
     landmarkDirectory.appendChild(item);
   });
 
   // Append Left Hand Fingertips
   const handFingersL = [
-    { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-l-0' },
-    { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-l-1' },
-    { name: 'Middle Tip', color: '#a855f7', id: 'val-fingertip-l-2' },
-    { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-l-3' },
-    { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-l-4' }
+    { name: 'Thumb Tip', colorClass: 'pink', id: 'val-fingertip-l-0' },
+    { name: 'Index Tip', colorClass: 'cyan', id: 'val-fingertip-l-1' },
+    { name: 'Middle Tip', colorClass: 'gold', id: 'val-fingertip-l-2' },
+    { name: 'Ring Tip', colorClass: 'emerald', id: 'val-fingertip-l-3' },
+    { name: 'Pinky Tip', colorClass: 'amber', id: 'val-fingertip-l-4' }
   ];
 
   handFingersL.forEach(f => {
     const item = document.createElement('div');
-    item.style.display = 'flex';
-    item.style.justifyContent = 'space-between';
-    item.style.alignItems = 'center';
-    item.style.fontSize = '0.68rem';
-    item.style.padding = '0.2rem 0.4rem';
-    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-    item.style.borderRadius = '4px';
-    item.style.borderLeft = `2.5px solid ${f.color}`;
+    item.className = `landmark-directory-item ${f.colorClass}`;
     
     item.innerHTML = `
-      <span style="color: ${f.color}; font-weight: 600;">Left ${f.name}</span>
-      <span id="${f.id}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+      <span class="landmark-name">Left ${f.name}</span>
+      <span id="${f.id}" class="landmark-status-offline">Offline</span>
     `;
     landmarkDirectory.appendChild(item);
   });
 
   // Append Right Hand Fingertips
   const handFingersR = [
-    { name: 'Thumb Tip', color: '#ec4899', id: 'val-fingertip-r-0' },
-    { name: 'Index Tip', color: '#06b6d4', id: 'val-fingertip-r-1' },
-    { name: 'Middle Tip', color: '#a855f7', id: 'val-fingertip-r-2' },
-    { name: 'Ring Tip', color: '#10b981', id: 'val-fingertip-r-3' },
-    { name: 'Pinky Tip', color: '#f59e0b', id: 'val-fingertip-r-4' }
+    { name: 'Thumb Tip', colorClass: 'pink', id: 'val-fingertip-r-0' },
+    { name: 'Index Tip', colorClass: 'cyan', id: 'val-fingertip-r-1' },
+    { name: 'Middle Tip', colorClass: 'gold', id: 'val-fingertip-r-2' },
+    { name: 'Ring Tip', colorClass: 'emerald', id: 'val-fingertip-r-3' },
+    { name: 'Pinky Tip', colorClass: 'amber', id: 'val-fingertip-r-4' }
   ];
 
   handFingersR.forEach(f => {
     const item = document.createElement('div');
-    item.style.display = 'flex';
-    item.style.justifyContent = 'space-between';
-    item.style.alignItems = 'center';
-    item.style.fontSize = '0.68rem';
-    item.style.padding = '0.2rem 0.4rem';
-    item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-    item.style.borderRadius = '4px';
-    item.style.borderLeft = `2.5px solid ${f.color}`;
+    item.className = `landmark-directory-item ${f.colorClass}`;
     
     item.innerHTML = `
-      <span style="color: ${f.color}; font-weight: 600;">Right ${f.name}</span>
-      <span id="${f.id}" style="color: #64748b; font-family: monospace; font-size: 0.62rem;">Offline</span>
+      <span class="landmark-name">Right ${f.name}</span>
+      <span id="${f.id}" class="landmark-status-offline">Offline</span>
     `;
     landmarkDirectory.appendChild(item);
   });
@@ -228,7 +203,7 @@ export function drawFullSkeletalMesh(landmarks) {
     } else if (idx === 11 || idx === 13 || idx === 15 || idx === 17 || idx === 19 || idx === 21) {
       color = '#06b6d4'; // Left Arm: Neon Cyan
     } else if (idx === 12 || idx === 14 || idx === 16 || idx === 18 || idx === 20 || idx === 22) {
-      color = '#a855f7'; // Right Arm: Neon Purple
+      color = '#d4a017'; // Right Arm: Neon Warm Gold
     } else if (idx === 23 || idx === 25 || idx === 27 || idx === 29 || idx === 31) {
       color = '#10b981'; // Left Leg/Foot: Neon Emerald
     } else if (idx === 24 || idx === 26 || idx === 28 || idx === 30 || idx === 32) {
@@ -456,12 +431,13 @@ export function renderDashboard(metrics) {
   const activePoseDisp = document.getElementById('val-active-pose');
   if (activePoseDisp) {
     activePoseDisp.textContent = metrics.pose || "A-Pose";
+    activePoseDisp.classList.remove('text-cyan', 'text-emerald', 'text-violet');
     if (metrics.pose === "T-Pose") {
-      activePoseDisp.style.color = "#06b6d4"; // Cyan
+      activePoseDisp.classList.add('text-cyan');
     } else if (metrics.pose === "Overhead Reach") {
-      activePoseDisp.style.color = "#10b981"; // Emerald
+      activePoseDisp.classList.add('text-emerald');
     } else {
-      activePoseDisp.style.color = "#818cf8"; // Violet
+      activePoseDisp.classList.add('text-violet');
     }
   }
 
@@ -532,8 +508,11 @@ export function onPoseResults(results) {
         state.autoState = 'COMPLETE';
         statusElement.textContent = "All poses captured! Compiling session report...";
         
-        // Compile and download consolidated session report
+        // Compile and download consolidated session report JSON
         compileAndDownloadCombinedSession();
+        
+        // Save the consolidated report to local IndexedDB gallery
+        saveCombinedSessionSnapshot();
         
         // End flow after 3 seconds
         setTimeout(() => {
@@ -621,15 +600,16 @@ export function onPoseResults(results) {
           const statusSpan = document.getElementById(`lm-status-${idx}`);
           if (statusSpan) {
             const landmark = results.poseLandmarks[idx];
+            statusSpan.classList.remove('text-emerald', 'text-amber', 'text-slate');
             if (landmark && landmark.visibility > 0.5) {
               statusSpan.textContent = "Online";
-              statusSpan.style.color = "#10b981";
+              statusSpan.classList.add('text-emerald');
             } else if (landmark) {
               statusSpan.textContent = "Low Vis";
-              statusSpan.style.color = "#f59e0b";
+              statusSpan.classList.add('text-amber');
             } else {
               statusSpan.textContent = "Offline";
-              statusSpan.style.color = "#64748b";
+              statusSpan.classList.add('text-slate');
             }
           }
         });
@@ -640,8 +620,8 @@ export function onPoseResults(results) {
 
       // --- DRAW NEON SKELETAL MARKERS ---
       // Shoulder and Hip spans
-      drawBone(shoulder_l, shoulder_r, '#6366f1'); 
-      drawBone(hip_l, hip_r, '#6366f1'); 
+      drawBone(shoulder_l, shoulder_r, '#d4a017'); 
+      drawBone(hip_l, hip_r, '#d4a017'); 
       
       // Torso Lines
       drawBone(shoulder_l, hip_l, '#38bdf8'); 
@@ -650,7 +630,7 @@ export function onPoseResults(results) {
       // Left Arm & Leg
       drawBone(shoulder_l, elbow_l, '#ec4899'); 
       drawBone(elbow_l, wrist_l, '#f43f5e'); 
-      drawBone(hip_l, knee_l, '#a855f7'); 
+      drawBone(hip_l, knee_l, '#d4a017'); 
       drawBone(knee_l, ankle_l, '#06b6d4'); 
       drawBone(ankle_l, heel_l, '#10b981'); 
       drawBone(heel_l, toe_l, '#10b981'); 
@@ -658,20 +638,20 @@ export function onPoseResults(results) {
       // Right Arm & Leg
       drawBone(shoulder_r, elbow_r, '#ec4899'); 
       drawBone(elbow_r, wrist_r, '#f43f5e'); 
-      drawBone(hip_r, knee_r, '#a855f7'); 
+      drawBone(hip_r, knee_r, '#d4a017'); 
       drawBone(knee_r, ankle_r, '#06b6d4'); 
       drawBone(ankle_r, heel_r, '#10b981'); 
       drawBone(heel_r, toe_r, '#10b981'); 
 
       // Joint Nodes
-      drawJoint(shoulder_l, '#6366f1');
-      drawJoint(shoulder_r, '#6366f1');
+      drawJoint(shoulder_l, '#d4a017');
+      drawJoint(shoulder_r, '#d4a017');
       drawJoint(elbow_l, '#d946ef');
       drawJoint(elbow_r, '#d946ef');
       drawJoint(wrist_l, '#f43f5e');
       drawJoint(wrist_r, '#f43f5e');
-      drawJoint(hip_l, '#a855f7');
-      drawJoint(hip_r, '#a855f7');
+      drawJoint(hip_l, '#d4a017');
+      drawJoint(hip_r, '#d4a017');
       drawJoint(knee_l, '#10b981');
       drawJoint(knee_r, '#10b981');
       drawJoint(ankle_l, '#06b6d4');
@@ -739,7 +719,7 @@ export function onPoseResults(results) {
             
             // Glassmorphic styling
             canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.7)';
-            canvasCtx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+            canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.4)';
             canvasCtx.lineWidth = 1.5;
             drawRoundedRect(canvasCtx, barX, barY, barWidth, barHeight, 8);
             canvasCtx.fill();
@@ -749,8 +729,8 @@ export function onPoseResults(results) {
               canvasCtx.save();
               const fillWidth = barWidth * progress;
               const grad = canvasCtx.createLinearGradient(barX, 0, barX + barWidth, 0);
-              grad.addColorStop(0, '#a855f7');
-              grad.addColorStop(1, '#6366f1');
+              grad.addColorStop(0, '#d4a017');
+              grad.addColorStop(1, '#d4a017');
               canvasCtx.fillStyle = grad;
               canvasCtx.beginPath();
               drawRoundedRect(canvasCtx, barX, barY, fillWidth, barHeight, 8);
@@ -767,7 +747,7 @@ export function onPoseResults(results) {
             canvasCtx.fillStyle = '#ffffff';
             canvasCtx.font = 'bold 12px sans-serif';
             canvasCtx.textAlign = 'center';
-            canvasCtx.shadowColor = '#a855f7';
+            canvasCtx.shadowColor = '#d4a017';
             canvasCtx.shadowBlur = 6;
             const percentage = Math.floor(progress * 100);
             canvasCtx.fillText(`HOLDING ${detectedPose.toUpperCase()}: ${percentage}%`, 0, 0);
@@ -783,6 +763,21 @@ export function onPoseResults(results) {
               const h = state.canvasHeight || 480;
               frozenFrameCtx.clearRect(0, 0, w, h);
               frozenFrameCtx.drawImage(canvasElement, 0, 0);
+              // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
+              frozenFrameCtx.clearRect(0, 0, 640, 480);
+              frozenFrameCtx.save();
+              if (state.currentFacingMode === "user") {
+                frozenFrameCtx.translate(640, 0);
+                frozenFrameCtx.scale(-1, 1);
+              }
+              if (results.segmentationMask && state.yoloModeActive) {
+                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+                frozenFrameCtx.globalCompositeOperation = 'source-in';
+                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+              } else {
+                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+              }
+              frozenFrameCtx.restore();
               
               // Cache joints & metrics for lockout screen and consolidation
               state.frozenAutoJoints = JSON.parse(JSON.stringify({
@@ -795,20 +790,21 @@ export function onPoseResults(results) {
               }));
               state.frozenAutoMetrics = JSON.parse(JSON.stringify(liveMetrics));
               
-              // Save automatic snapshot to database in the background
-              saveAutoSeqSnapshot(detectedPose, liveMetrics);
+              // Capture and store specific frame image and metrics for combined report
+              const capturedImage = frozenFrameCanvas.toDataURL('image/png');
+              if (state.autoState === 'WAITING_A') {
+                state.imageA = capturedImage;
+                state.metricsA = JSON.parse(JSON.stringify(liveMetrics));
+              } else if (state.autoState === 'WAITING_T') {
+                state.imageT = capturedImage;
+                state.metricsT = JSON.parse(JSON.stringify(liveMetrics));
+              } else if (state.autoState === 'WAITING_OVERHEAD') {
+                state.imageOverhead = capturedImage;
+                state.metricsOverhead = JSON.parse(JSON.stringify(liveMetrics));
+              }
 
               // Trigger visual feedback lockout period
               state.lockoutTimerMs = state.LOCKOUT_MS;
-              
-              // Store specific pose metrics for combined export
-              if (state.autoState === 'WAITING_A') {
-                state.metricsA = JSON.parse(JSON.stringify(liveMetrics));
-              } else if (state.autoState === 'WAITING_T') {
-                state.metricsT = JSON.parse(JSON.stringify(liveMetrics));
-              } else if (state.autoState === 'WAITING_OVERHEAD') {
-                state.metricsOverhead = JSON.parse(JSON.stringify(liveMetrics));
-              }
             }
           } else {
             state.holdTimerMs = 0;
@@ -824,7 +820,7 @@ export function onPoseResults(results) {
             smoothed_live_height: liveMetrics.live_height,
             kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
             all_landmarks: all_landmarks
-          }, liveMetrics);
+          }, liveMetrics, results);
         }
 
         statusElement.textContent = `✅ Calibrated Tracking active. Real-time biometrics rendering.`;
@@ -842,12 +838,12 @@ export function onPoseResults(results) {
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
     // Tech borders
-    canvasCtx.strokeStyle = 'rgba(124, 58, 237, 0.3)';
+    canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.3)';
     canvasCtx.lineWidth = 2;
     canvasCtx.strokeRect(20, 20, canvasElement.width - 40, canvasElement.height - 40);
 
-    canvasCtx.fillStyle = '#a78bfa'; // violet
-    canvasCtx.strokeStyle = 'rgba(124, 58, 237, 0.5)';
+    canvasCtx.fillStyle = '#d4a017'; // gold
+    canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.5)';
     canvasCtx.lineWidth = 4;
     canvasCtx.textAlign = 'center';
     canvasCtx.textBaseline = 'middle';
@@ -880,7 +876,7 @@ export function onPoseResults(results) {
 // CAPTURE TIMER & SNAPSHOT PROCESSING
 // ==========================================
 
-function captureSnapshot(joints, metrics) {
+function captureSnapshot(joints, metrics, results) {
   state.isCaptureCountingDown = false;
   
   // Save deep copies of the joints coordinates and dashboard metrics
@@ -905,9 +901,27 @@ function captureSnapshot(joints, metrics) {
     frozenFrameCtx.drawImage(videoElement, 0, 0);
     frozenFrameCtx.restore();
   }
+  // Save current frame image from results (or fallback to videoElement if results are not available)
+  frozenFrameCtx.clearRect(0, 0, 640, 480);
+  frozenFrameCtx.save();
+  if (state.currentFacingMode === "user") {
+    frozenFrameCtx.translate(640, 0);
+    frozenFrameCtx.scale(-1, 1);
+  }
+  if (results && results.segmentationMask && state.yoloModeActive) {
+    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+    frozenFrameCtx.globalCompositeOperation = 'source-in';
+    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+  } else if (results && results.image) {
+    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+  } else {
+    frozenFrameCtx.drawImage(videoElement, 0, 0);
+  }
+  frozenFrameCtx.restore();
 
   state.isSnapshotFrozen = true;
-  videoElement.style.opacity = '0'; // Completely hide live video feed under the canvas
+  videoElement.classList.add('video-hidden');
+  videoElement.classList.remove('video-visible', 'video-dimmed'); // Completely hide live video feed under the canvas
   
   // Set capture button to reset mode
   captureBtn.textContent = "Reset & Resume Live Tracking";
@@ -938,7 +952,8 @@ function captureSnapshot(joints, metrics) {
   // Show save panel
   const savePanel = document.getElementById('save-controls-panel');
   if (savePanel) {
-    savePanel.style.display = 'flex';
+    savePanel.classList.remove('hidden');
+    savePanel.classList.add('visible-flex');
   }
 
   // Trigger visual flash
@@ -956,13 +971,14 @@ export function cancelAutoSequence() {
   state.metricsA = null;
   state.metricsT = null;
   state.metricsOverhead = null;
+  state.imageA = null;
+  state.imageT = null;
+  state.imageOverhead = null;
   
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
     autoSequenceBtn.textContent = "Hands-Free Auto Capture";
-    autoSequenceBtn.style.background = "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)";
-    autoSequenceBtn.style.border = "1px solid rgba(168, 85, 247, 0.4)";
-    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(168, 85, 247, 0.2)";
+    autoSequenceBtn.classList.remove('active-cancel');
   }
   
   statusElement.textContent = "Hands-free capture cancelled.";
@@ -977,9 +993,9 @@ export function drawLockoutTransitionOverlay() {
   const panelY = (canvasElement.height - panelH) / 2;
   
   canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.85)';
-  canvasCtx.strokeStyle = 'rgba(139, 92, 246, 0.6)';
+  canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.6)';
   canvasCtx.lineWidth = 2;
-  canvasCtx.shadowColor = 'rgba(139, 92, 246, 0.4)';
+  canvasCtx.shadowColor = 'rgba(212, 160, 23, 0.4)';
   canvasCtx.shadowBlur = 12;
   
   drawRoundedRect(canvasCtx, panelX, panelY, panelW, panelH, 12);
@@ -987,7 +1003,7 @@ export function drawLockoutTransitionOverlay() {
   canvasCtx.stroke();
   canvasCtx.shadowBlur = 0;
   
-  canvasCtx.fillStyle = '#f43f5e';
+  canvasCtx.fillStyle = '#d4a017';
   canvasCtx.font = 'bold 15px sans-serif';
   canvasCtx.textAlign = 'center';
   canvasCtx.textBaseline = 'top';
@@ -1029,8 +1045,8 @@ export function drawLockoutTransitionOverlay() {
     canvasCtx.save();
     const fillW = barW * progress;
     const grad = canvasCtx.createLinearGradient(barX, 0, barX + barW, 0);
-    grad.addColorStop(0, '#f43f5e');
-    grad.addColorStop(1, '#ec4899');
+    grad.addColorStop(0, '#d4a017');
+    grad.addColorStop(1, '#d4a017');
     canvasCtx.fillStyle = grad;
     canvasCtx.beginPath();
     drawRoundedRect(canvasCtx, barX, barY, fillW, barH, 4);
@@ -1051,7 +1067,7 @@ export function drawLockoutTransitionOverlay() {
   canvasCtx.restore();
 }
 
-export function saveAutoSeqSnapshot(poseName, metrics) {
+export function saveCombinedSessionSnapshot() {
   const subjectInput = document.getElementById('subject-name-input');
   const subjectName = subjectInput ? subjectInput.value.trim() : '';
   const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -1059,9 +1075,9 @@ export function saveAutoSeqSnapshot(poseName, metrics) {
   
   let label = "";
   if (subjectName) {
-    label = `${subjectName} - ${poseName} - ${dateStr} (Auto)`;
+    label = `${subjectName} - Combined Report - ${dateStr}`;
   } else {
-    label = `${poseName} - ${dateStr} (Auto)`;
+    label = `Combined Report - ${dateStr}`;
   }
 
   // Retrieve active DOM pinch/span measurements in raw cm values
@@ -1070,8 +1086,59 @@ export function saveAutoSeqSnapshot(poseName, metrics) {
   const span_l_cm = getDomMeasurementCm('val-span-l');
   const span_r_cm = getDomMeasurementCm('val-span-r');
 
-  const metricsToSave = {
-    ...metrics,
+  const mA = state.metricsA || {};
+  const mT = state.metricsT || {};
+  const mO = state.metricsOverhead || {};
+
+  const consolidatedMetrics = {
+    pose: "Combined",
+    isCombinedSession: true,
+    skeletal_height: mA.skeletal_height,
+    wingspan: mT.wingspan,
+    fingerToToeL: mO.fingerToToeL,
+    fingerToToeR: mO.fingerToToeR,
+    hipW: mA.hipW,
+    
+    // Segment lengths from optimal pose (A-Pose)
+    thigh_l: mA.thigh_l,
+    thigh_r: mA.thigh_r,
+    shin_l: mA.shin_l,
+    shin_r: mA.shin_r,
+    foot_l: mA.foot_l,
+    foot_r: mA.foot_r,
+    torso_l: mA.torso_l,
+    torso_r: mA.torso_r,
+    upperarm_l: mA.upperarm_l,
+    upperarm_r: mA.upperarm_r,
+    forearm_l: mA.forearm_l,
+    forearm_r: mA.forearm_r,
+
+    // Store joint angles for switcher display in modal
+    anglesA: {
+      kneeAngleL: mA.kneeAngleL,
+      kneeAngleR: mA.kneeAngleR,
+      hipAngleL: mA.hipAngleL,
+      hipAngleR: mA.hipAngleR,
+      elbowAngleL: mA.elbowAngleL,
+      elbowAngleR: mA.elbowAngleR
+    },
+    anglesT: {
+      kneeAngleL: mT.kneeAngleL,
+      kneeAngleR: mT.kneeAngleR,
+      hipAngleL: mT.hipAngleL,
+      hipAngleR: mT.hipAngleR,
+      elbowAngleL: mT.elbowAngleL,
+      elbowAngleR: mT.elbowAngleR
+    },
+    anglesOverhead: {
+      kneeAngleL: mO.kneeAngleL,
+      kneeAngleR: mO.kneeAngleR,
+      hipAngleL: mO.hipAngleL,
+      hipAngleR: mO.hipAngleR,
+      elbowAngleL: mO.elbowAngleL,
+      elbowAngleR: mO.elbowAngleR
+    },
+
     pinch_l_cm,
     pinch_r_cm,
     span_l_cm,
@@ -1081,18 +1148,22 @@ export function saveAutoSeqSnapshot(poseName, metrics) {
   const snapshotRecord = {
     name: label,
     timestamp: Date.now(),
-    image: frozenFrameCanvas.toDataURL('image/png'),
-    metrics: metricsToSave
+    isCombinedSession: true,
+    imageA: state.imageA,
+    imageT: state.imageT,
+    imageOverhead: state.imageOverhead,
+    image: state.imageA, // Fallback/Thumbnail image is the A-pose image
+    metrics: consolidatedMetrics
   };
 
   if (state.dbInitialized) {
     snapshotStore.save(snapshotRecord)
       .then(() => {
-        console.log(`[AutoCapture] Saved "${label}" snapshot to IndexedDB gallery.`);
+        console.log(`[AutoCapture] Saved combined "${label}" session snapshot to IndexedDB gallery.`);
         renderGallery();
       })
       .catch(err => {
-        console.error("[AutoCapture] Failed to save automatic snapshot to IndexedDB:", err);
+        console.error("[AutoCapture] Failed to save combined snapshot to IndexedDB:", err);
       });
   }
 }
@@ -1118,21 +1189,21 @@ function drawFrozenSnapshot() {
     drawFullSkeletalMesh(all_landmarks);
 
     // Draw bones
-    drawBone(shoulder_l, shoulder_r, '#6366f1'); 
-    drawBone(hip_l, hip_r, '#6366f1'); 
+    drawBone(shoulder_l, shoulder_r, '#d4a017'); 
+    drawBone(hip_l, hip_r, '#d4a017'); 
     drawBone(shoulder_l, hip_l, '#38bdf8'); 
     drawBone(shoulder_r, hip_r, '#38bdf8'); 
 
     drawBone(shoulder_l, elbow_l, '#ec4899'); 
     drawBone(elbow_l, wrist_l, '#f43f5e'); 
-    drawBone(hip_l, knee_l, '#a855f7'); 
+    drawBone(hip_l, knee_l, '#d4a017'); 
     drawBone(knee_l, ankle_l, '#06b6d4'); 
     drawBone(ankle_l, heel_l, '#10b981'); 
     drawBone(heel_l, toe_l, '#10b981'); 
 
     drawBone(shoulder_r, elbow_r, '#ec4899'); 
     drawBone(elbow_r, wrist_r, '#f43f5e'); 
-    drawBone(hip_r, knee_r, '#a855f7'); 
+    drawBone(hip_r, knee_r, '#d4a017'); 
     drawBone(knee_r, ankle_r, '#06b6d4'); 
     drawBone(ankle_r, heel_r, '#10b981'); 
     drawBone(heel_r, toe_r, '#10b981'); 
@@ -1144,8 +1215,8 @@ function drawFrozenSnapshot() {
     drawJoint(elbow_r, '#d946ef');
     drawJoint(wrist_l, '#f43f5e');
     drawJoint(wrist_r, '#f43f5e');
-    drawJoint(hip_l, '#a855f7');
-    drawJoint(hip_r, '#a855f7');
+    drawJoint(hip_l, '#d4a017');
+    drawJoint(hip_r, '#d4a017');
     drawJoint(knee_l, '#10b981');
     drawJoint(knee_r, '#10b981');
     drawJoint(ankle_l, '#06b6d4');
@@ -1245,10 +1316,13 @@ export function resetAndResume() {
   state.frozenHandResults = null;
   
   // Restore standard video feed visibility
+  videoElement.classList.remove('video-hidden');
   if (state.yoloModeActive) {
-    videoElement.style.opacity = '0.05';
+    videoElement.classList.add('video-dimmed');
+    videoElement.classList.remove('video-visible');
   } else {
-    videoElement.style.opacity = '1.0';
+    videoElement.classList.add('video-visible');
+    videoElement.classList.remove('video-dimmed');
   }
   
   // Restore capture button styling
@@ -1261,7 +1335,8 @@ export function resetAndResume() {
   // Hide save panel
   const savePanel = document.getElementById('save-controls-panel');
   if (savePanel) {
-    savePanel.style.display = 'none';
+    savePanel.classList.add('hidden');
+    savePanel.classList.remove('visible-flex');
   }
 }
 
@@ -1271,23 +1346,28 @@ export function resetAndResume() {
 
 export async function startCamera() {
   statusElement.textContent = "Requesting webcam access...";
-  startButton.style.display = 'none';
-  yoloToggleBtn.style.display = 'block';
-  captureBtn.style.display = 'block';
+  startButton.classList.add('hidden');
+  yoloToggleBtn.classList.remove('hidden');
+  yoloToggleBtn.classList.add('visible-block');
+  captureBtn.classList.remove('hidden');
+  captureBtn.classList.add('visible-block');
 
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
-    autoSequenceBtn.style.display = 'block';
+    autoSequenceBtn.classList.remove('hidden');
+    autoSequenceBtn.classList.add('visible-block');
   }
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
-    subjectPanel.style.display = 'flex';
+    subjectPanel.classList.remove('hidden');
+    subjectPanel.classList.add('visible-flex');
   }
 
   const cameraSwitchBtn = document.getElementById('camera-switch-btn');
   if (cameraSwitchBtn) {
-    cameraSwitchBtn.style.display = 'flex';
+    cameraSwitchBtn.classList.remove('hidden');
+    cameraSwitchBtn.classList.add('visible-flex');
   }
 
   try {
@@ -1302,7 +1382,7 @@ export async function startCamera() {
     
     videoElement.srcObject = state.activeStream;
     // Mirror the view only for front/user camera
-    videoElement.style.transform = state.currentFacingMode === "user" ? "scaleX(-1)" : "none";
+    videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
     
     videoElement.onloadedmetadata = () => {
       const w = videoElement.videoWidth || 640;
@@ -1359,12 +1439,12 @@ export async function startCamera() {
             state.calLocked = true;
 
             if (state.activeCalMethod === 'aruco') {
-              arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong style="color: #06b6d4;">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+              arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
             }
           } else {
             if (state.activeCalMethod === 'aruco') {
               if (state.pixelsPerCm) {
-                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong style="color: #06b6d4;">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               } else {
                 arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
               }
@@ -1391,13 +1471,13 @@ export async function startCamera() {
 
   } catch (err) {
     console.error("Camera access failed:", err);
-    startButton.style.display = 'block';
+    startButton.classList.remove('hidden');
     if (err.name === 'NotAllowedError') {
-      statusElement.innerHTML = `<span style="color: #f87171; font-weight: bold;">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
     } else if (err.name === 'NotReadableError') {
-      statusElement.innerHTML = `<span style="color: #f87171; font-weight: bold;">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
     } else {
-      statusElement.innerHTML = `<span style="color: #f87171; font-weight: bold;">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
+      statusElement.innerHTML = `<span class="text-red font-bold">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
     }
   }
 }
@@ -1459,24 +1539,51 @@ export function renderGallery() {
         const dateOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
         const formattedDate = new Date(snapshot.timestamp).toLocaleDateString(undefined, dateOptions);
 
-        card.innerHTML = `
-          <button class="snapshot-card-delete" title="Delete Snapshot" data-id="${snapshot.id}">
-            &times;
-          </button>
-          <div class="snapshot-card-img-wrapper">
-            <img class="snapshot-card-img" src="${snapshot.image}" alt="${snapshot.name || 'Biomechanical Snapshot'}">
-            <div class="snapshot-card-overlay">
-              <span>View Details</span>
+        const isCombined = snapshot.isCombinedSession || (snapshot.metrics && snapshot.metrics.isCombinedSession);
+
+        if (isCombined) {
+          card.classList.add('combined');
+          card.innerHTML = `
+            <button class="snapshot-card-delete" title="Delete Snapshot" data-id="${snapshot.id}">
+              &times;
+            </button>
+            <div class="snapshot-card-img-wrapper combined-collage">
+              <div class="collage-item"><img src="${snapshot.imageA || snapshot.image}" alt="A-Pose"></div>
+              <div class="collage-item"><img src="${snapshot.imageT || snapshot.image}" alt="T-Pose"></div>
+              <div class="collage-item"><img src="${snapshot.imageOverhead || snapshot.image}" alt="Overhead"></div>
+              <div class="snapshot-card-overlay">
+                <span>View Combined Report</span>
+              </div>
+              <span class="combined-tag">3-Pose Session</span>
             </div>
-          </div>
-          <div class="snapshot-card-info">
-            <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Snapshot'}">${snapshot.name || 'Biomechanical Snapshot'}</div>
-            <div class="snapshot-card-meta">
-              <span class="snapshot-card-height">${formattedHeight}</span>
-              <span>${formattedDate}</span>
+            <div class="snapshot-card-info">
+              <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Session'}">${snapshot.name || 'Biomechanical Session'}</div>
+              <div class="snapshot-card-meta">
+                <span class="snapshot-card-height">Height: ${formattedHeight}</span>
+                <span>${formattedDate}</span>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          card.innerHTML = `
+            <button class="snapshot-card-delete" title="Delete Snapshot" data-id="${snapshot.id}">
+              &times;
+            </button>
+            <div class="snapshot-card-img-wrapper">
+              <img class="snapshot-card-img" src="${snapshot.image}" alt="${snapshot.name || 'Biomechanical Snapshot'}">
+              <div class="snapshot-card-overlay">
+                <span>View Details</span>
+              </div>
+            </div>
+            <div class="snapshot-card-info">
+              <div class="snapshot-card-title" title="${snapshot.name || 'Biomechanical Snapshot'}">${snapshot.name || 'Biomechanical Snapshot'}</div>
+              <div class="snapshot-card-meta">
+                <span class="snapshot-card-height">${formattedHeight}</span>
+                <span>${formattedDate}</span>
+              </div>
+            </div>
+          `;
+        }
 
         // Card click handler opens modal
         card.addEventListener('click', (e) => {
@@ -1515,8 +1622,9 @@ function openSnapshotModal(id) {
       const modalImg = document.getElementById('modal-img');
       const modalTitle = document.getElementById('modal-title');
       const modalDate = document.getElementById('modal-date');
+      const poseSwitcher = document.getElementById('modal-pose-switcher');
+      const thumbnailsContainer = document.getElementById('modal-thumbnails-container');
 
-      if (modalImg) modalImg.src = snapshot.image;
       if (modalTitle) modalTitle.textContent = snapshot.name || "Snapshot Analytics";
       
       const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -1524,33 +1632,181 @@ function openSnapshotModal(id) {
       if (modalDate) modalDate.textContent = `Captured on ${dateStr}`;
 
       const m = snapshot.metrics;
+      const isCombined = snapshot.isCombinedSession || (m && m.isCombinedSession);
+      const modalSectionWidths = document.getElementById('modal-section-widths');
+      const modalSectionHandTracking = document.getElementById('modal-section-hand-tracking');
+
+      if (isCombined) {
+        // Show switcher and thumbnails containers
+        if (poseSwitcher) {
+          poseSwitcher.classList.remove('hidden');
+          poseSwitcher.classList.add('visible-flex');
+        }
+        if (thumbnailsContainer) {
+          thumbnailsContainer.classList.remove('hidden');
+          thumbnailsContainer.classList.add('visible-flex');
+        }
+        if (modalSectionWidths) {
+          modalSectionWidths.classList.add('hidden');
+          modalSectionWidths.classList.remove('visible-flex', 'visible-block');
+        }
+        if (modalSectionHandTracking) {
+          modalSectionHandTracking.classList.add('hidden');
+          modalSectionHandTracking.classList.remove('visible-flex', 'visible-block');
+        }
+
+        // Set thumbnail sources
+        const thumbA = document.getElementById('modal-thumb-a');
+        const thumbT = document.getElementById('modal-thumb-t');
+        const thumbOverhead = document.getElementById('modal-thumb-overhead');
+        if (thumbA) thumbA.src = snapshot.imageA || snapshot.image;
+        if (thumbT) thumbT.src = snapshot.imageT || snapshot.image;
+        if (thumbOverhead) thumbOverhead.src = snapshot.imageOverhead || snapshot.image;
+
+        // Reset active states for switcher buttons & thumbnail wrappers
+        const btnSwitchA = document.getElementById('btn-switch-a');
+        const btnSwitchT = document.getElementById('btn-switch-t');
+        const btnSwitchOverhead = document.getElementById('btn-switch-overhead');
+        
+        let wrapperA = null, wrapperT = null, wrapperOverhead = null;
+        if (thumbnailsContainer) {
+          wrapperA = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="A"]');
+          wrapperT = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="T"]');
+          wrapperOverhead = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="Overhead"]');
+        }
+
+        const setActivePoseInModal = (poseKey) => {
+          // Clear all active classes
+          [btnSwitchA, btnSwitchT, btnSwitchOverhead].forEach(btn => btn?.classList.remove('active'));
+          [wrapperA, wrapperT, wrapperOverhead].forEach(wr => wr?.classList.remove('active'));
+
+          let activeImg = snapshot.image;
+          let poseLabel = "A-Pose";
+          let poseColor = "#818cf8"; // Violet
+
+          if (poseKey === 'A') {
+            btnSwitchA?.classList.add('active');
+            wrapperA?.classList.add('active');
+            activeImg = snapshot.imageA || snapshot.image;
+            poseLabel = "A-Pose";
+            poseColor = "#818cf8";
+          } else if (poseKey === 'T') {
+            btnSwitchT?.classList.add('active');
+            wrapperT?.classList.add('active');
+            activeImg = snapshot.imageT || snapshot.image;
+            poseLabel = "T-Pose";
+            poseColor = "#06b6d4"; // Cyan
+          } else if (poseKey === 'Overhead') {
+            btnSwitchOverhead?.classList.add('active');
+            wrapperOverhead?.classList.add('active');
+            activeImg = snapshot.imageOverhead || snapshot.image;
+            poseLabel = "Overhead Reach";
+            poseColor = "#10b981"; // Emerald
+          }
+
+          if (modalImg) modalImg.src = activeImg;
+          setModalMetric('modal-val-pose', poseLabel);
+          const modalPoseElem = document.getElementById('modal-val-pose');
+          if (modalPoseElem) {
+            modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
+            if (poseKey === 'T') {
+              modalPoseElem.classList.add('pose-color-t');
+            } else if (poseKey === 'Overhead') {
+              modalPoseElem.classList.add('pose-color-overhead');
+            } else {
+              modalPoseElem.classList.add('pose-color-default');
+            }
+          }
+
+          // Update joint angles for this specific pose
+          let angles = null;
+          if (poseKey === 'A') angles = m.anglesA;
+          else if (poseKey === 'T') angles = m.anglesT;
+          else if (poseKey === 'Overhead') angles = m.anglesOverhead;
+
+          if (angles) {
+            setModalMetric('modal-angle-knee-l', angles.kneeAngleL !== undefined && angles.kneeAngleL !== null ? `${Math.round(angles.kneeAngleL)}°` : "--°");
+            setModalMetric('modal-angle-knee-r', angles.kneeAngleR !== undefined && angles.kneeAngleR !== null ? `${Math.round(angles.kneeAngleR)}°` : "--°");
+            setModalMetric('modal-angle-hip-l', angles.hipAngleL !== undefined && angles.hipAngleL !== null ? `${Math.round(angles.hipAngleL)}°` : "--°");
+            setModalMetric('modal-angle-hip-r', angles.hipAngleR !== undefined && angles.hipAngleR !== null ? `${Math.round(angles.hipAngleR)}°` : "--°");
+            setModalMetric('modal-angle-elbow-l', angles.elbowAngleL !== undefined && angles.elbowAngleL !== null ? `${Math.round(angles.elbowAngleL)}°` : "--°");
+            setModalMetric('modal-angle-elbow-r', angles.elbowAngleR !== undefined && angles.elbowAngleR !== null ? `${Math.round(angles.elbowAngleR)}°` : "--°");
+          } else {
+            // Fallback to global metrics if angles object is missing
+            setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
+            setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
+            setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
+            setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
+            setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
+            setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+          }
+        };
+
+        // Default to A-Pose on open
+        setActivePoseInModal('A');
+
+        // Bind click handlers for switching
+        const removeOldListenersAndAdd = (elem, handler) => {
+          if (!elem) return;
+          const clone = elem.cloneNode(true);
+          elem.parentNode.replaceChild(clone, elem);
+          clone.addEventListener('click', handler);
+          return clone;
+        };
+
+        removeOldListenersAndAdd(btnSwitchA, () => setActivePoseInModal('A'));
+        removeOldListenersAndAdd(btnSwitchT, () => setActivePoseInModal('T'));
+        removeOldListenersAndAdd(btnSwitchOverhead, () => setActivePoseInModal('Overhead'));
+
+        removeOldListenersAndAdd(wrapperA, () => setActivePoseInModal('A'));
+        removeOldListenersAndAdd(wrapperT, () => setActivePoseInModal('T'));
+        removeOldListenersAndAdd(wrapperOverhead, () => setActivePoseInModal('Overhead'));
+
+      } else {
+        // Normal snapshot: hide switcher and thumbnails
+        if (poseSwitcher) {
+          poseSwitcher.classList.add('hidden');
+          poseSwitcher.classList.remove('visible-flex');
+        }
+        if (thumbnailsContainer) {
+          thumbnailsContainer.classList.add('hidden');
+          thumbnailsContainer.classList.remove('visible-flex');
+        }
+        if (modalSectionWidths) {
+          modalSectionWidths.classList.remove('hidden');
+          modalSectionWidths.classList.add('visible-block');
+        }
+        if (modalSectionHandTracking) {
+          modalSectionHandTracking.classList.remove('hidden');
+          modalSectionHandTracking.classList.add('visible-block');
+        }
+        if (modalImg) modalImg.src = snapshot.image;
+
+        if (m) {
+          setModalMetric('modal-val-pose', m.pose || "A-Pose");
+          const modalPoseElem = document.getElementById('modal-val-pose');
+          if (modalPoseElem) {
+            modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
+            if (m.pose === "T-Pose") modalPoseElem.classList.add('pose-color-t');
+            else if (m.pose === "Overhead Reach") modalPoseElem.classList.add('pose-color-overhead');
+            else modalPoseElem.classList.add('pose-color-default');
+          }
+
+          setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
+          setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
+          setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
+          setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
+          setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
+          setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+        }
+      }
+
       if (m) {
-        // Full Body
+        // Global and anatomical segments are populated from optimal poses
+        // (Limb lengths, height, and widths come from optimal poses stored in metrics)
         setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
         setModalMetric('modal-val-wingspan', m.wingspan ? formatSkeletalHeight(m.wingspan) : "--.-");
 
-        // Render captured pose in snapshot modal
-        setModalMetric('modal-val-pose', m.pose || "A-Pose");
-        const modalPoseElem = document.getElementById('modal-val-pose');
-        if (modalPoseElem) {
-          if (m.pose === "T-Pose") {
-            modalPoseElem.style.color = "#06b6d4"; // Cyan
-          } else if (m.pose === "Overhead Reach") {
-            modalPoseElem.style.color = "#10b981"; // Emerald
-          } else {
-            modalPoseElem.style.color = "#818cf8"; // Violet
-          }
-        }
-
-        // Angles
-        setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-        setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-        setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-        setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-        setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-        setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
-
-        // Lower body
         setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatSkeletalHeight(m.thigh_l) : "--.-");
         setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatSkeletalHeight(m.thigh_r) : "--.-");
         setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatSkeletalHeight(m.shin_l) : "--.-");
@@ -1558,7 +1814,6 @@ function openSnapshotModal(id) {
         setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatSkeletalHeight(m.foot_l) : "--.-");
         setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatSkeletalHeight(m.foot_r) : "--.-");
 
-        // Upper body
         setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatSkeletalHeight(m.torso_l) : "--.-");
         setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatSkeletalHeight(m.torso_r) : "--.-");
         setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatSkeletalHeight(m.upperarm_l) : "--.-");
@@ -1566,22 +1821,20 @@ function openSnapshotModal(id) {
         setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatSkeletalHeight(m.forearm_l) : "--.-");
         setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatSkeletalHeight(m.forearm_r) : "--.-");
 
-        // Widths
         if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
-          setModalMetric('modal-val-finger-to-toe', `L: ${formatSkeletalHeight(m.fingerToToeL)} / R: ${formatSkeletalHeight(m.fingerToToeR)}`);
+          setModalMetric('modal-val-overhead-reach', `L: ${formatSkeletalHeight(m.fingerToToeL)} / R: ${formatSkeletalHeight(m.fingerToToeR)}`);
         } else {
-          setModalMetric('modal-val-finger-to-toe', "--.-");
+          setModalMetric('modal-val-overhead-reach', "--.-");
         }
         setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatSkeletalHeight(m.hipW) : "--.-");
 
-        // Hand Metrics
         setModalMetric('modal-val-pinch-l', m.pinch_l_cm !== undefined && m.pinch_l_cm !== null ? formatSkeletalHeight(m.pinch_l_cm) : "--.-");
         setModalMetric('modal-val-pinch-r', m.pinch_r_cm !== undefined && m.pinch_r_cm !== null ? formatSkeletalHeight(m.pinch_r_cm) : "--.-");
         setModalMetric('modal-val-span-l', m.span_l_cm !== undefined && m.span_l_cm !== null ? formatSkeletalHeight(m.span_l_cm) : "--.-");
         setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatSkeletalHeight(m.span_r_cm) : "--.-");
       }
 
-      // Clone buttons to purge old single-use click event listeners
+      // Clone download & delete buttons to purge old listeners
       const dlBtn = document.getElementById('modal-dl-btn');
       const delBtn = document.getElementById('modal-del-btn');
 
@@ -1589,7 +1842,8 @@ function openSnapshotModal(id) {
         const newDlBtn = dlBtn.cloneNode(true);
         dlBtn.parentNode.replaceChild(newDlBtn, dlBtn);
         newDlBtn.addEventListener('click', () => {
-          downloadSnapshotImage(snapshot.image, snapshot.name || 'biomechanical-snapshot');
+          const activeImageSrc = modalImg ? modalImg.src : snapshot.image;
+          downloadSnapshotImage(activeImageSrc, snapshot.name || 'biomechanical-snapshot');
         });
       }
 
@@ -1643,7 +1897,8 @@ slider.addEventListener('input', (e) => {
   if (state.calLocked) {
     state.calLocked = false;
     lockCalButton.textContent = "Lock 20cm Calibration";
-    lockCalButton.style.backgroundColor = '#10b981';
+    lockCalButton.classList.add('cal-btn-unlocked');
+    lockCalButton.classList.remove('cal-btn-locked');
   }
 });
 
@@ -1651,7 +1906,8 @@ lockCalButton.addEventListener('click', () => {
   state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
   state.calLocked = true;
   lockCalButton.textContent = "✅ Scale Locked!";
-  lockCalButton.style.backgroundColor = '#059669';
+  lockCalButton.classList.add('cal-btn-locked');
+  lockCalButton.classList.remove('cal-btn-unlocked');
   statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
 });
 
@@ -1662,7 +1918,8 @@ const posRightBtn = document.getElementById('pos-right-btn');
 
 function updatePosBtnStyles(activeBtn) {
   [posLeftBtn, posCenterBtn, posRightBtn].forEach(btn => {
-    btn.style.backgroundColor = (btn === activeBtn) ? '#3b82f6' : '#1e293b';
+    btn.classList.toggle('btn-tab-active', btn === activeBtn);
+    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
   });
 }
 
@@ -1733,10 +1990,12 @@ canvasElement.addEventListener('mousemove', (e) => {
   const y2 = state.calBoxY + state.calBoxSize / 2;
   
   if (canvasMouseX >= x1 - 15 && canvasMouseX <= x2 + 15 && canvasMouseY >= y1 - 15 && canvasMouseY <= y2 + 15) {
-    canvasElement.style.cursor = 'move';
+    canvasElement.classList.add('cursor-move');
+    canvasElement.classList.remove('cursor-default');
   } else {
     if (!isDragging) {
-      canvasElement.style.cursor = 'default';
+      canvasElement.classList.add('cursor-default');
+      canvasElement.classList.remove('cursor-move');
     }
   }
   
@@ -1839,10 +2098,8 @@ const unitCmBtn = document.getElementById('unit-cm-btn');
 
 unitInchBtn.addEventListener('click', () => {
   state.useInches = true;
-  unitInchBtn.style.backgroundColor = '#3b82f6';
-  unitInchBtn.style.color = 'white';
-  unitCmBtn.style.backgroundColor = 'transparent';
-  unitCmBtn.style.color = '#9ca3af';
+  unitInchBtn.classList.add('active');
+  unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
@@ -1855,10 +2112,8 @@ unitInchBtn.addEventListener('click', () => {
 
 unitCmBtn.addEventListener('click', () => {
   state.useInches = false;
-  unitCmBtn.style.backgroundColor = '#3b82f6';
-  unitCmBtn.style.color = 'white';
-  unitInchBtn.style.backgroundColor = 'transparent';
-  unitInchBtn.style.color = '#9ca3af';
+  unitCmBtn.classList.add('active');
+  unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
@@ -1874,12 +2129,19 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   state.activeCalMethod = method;
   
   [tabArucoBtn, tabHeightBtn].forEach(btn => {
-    btn.style.backgroundColor = (btn === activeBtn) ? '#3b82f6' : '#1e293b';
+    btn.classList.toggle('btn-tab-active', btn === activeBtn);
+    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
   });
 
   [panelAruco, panelCard, panelHeight].forEach(panel => {
     if (panel) {
-      panel.style.display = (panel === activePanel) ? 'flex' : 'none';
+      if (panel === activePanel) {
+        panel.classList.remove('hidden');
+        panel.classList.add('visible-flex');
+      } else {
+        panel.classList.add('hidden');
+        panel.classList.remove('visible-flex');
+      }
     }
   });
 
@@ -1887,7 +2149,8 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   if (method !== 'aruco' && state.calLocked) {
     if (method === 'card') {
       lockCalButton.textContent = "Lock 20cm Calibration";
-      lockCalButton.style.backgroundColor = '#10b981';
+      lockCalButton.classList.add('cal-btn-unlocked');
+      lockCalButton.classList.remove('cal-btn-locked');
       state.calLocked = false;
     }
   }
@@ -1913,7 +2176,8 @@ heightCalBtn.addEventListener('click', () => {
     state.isCountingDown = true;
     state.countdownValue = 3;
     heightCalBtn.textContent = "Get in Position (3s)...";
-    heightCalBtn.style.backgroundColor = '#d97706'; // warning orange
+    heightCalBtn.classList.add('btn-warning');
+    heightCalBtn.classList.remove('btn-success-green');
     statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
 
     const intervalId = setInterval(() => {
@@ -1936,7 +2200,8 @@ heightCalBtn.addEventListener('click', () => {
         state.pixelsPerCm = captureHeightPx / actualHeightCm;
         state.calLocked = true;
         heightCalBtn.textContent = "✅ Calibrated!";
-        heightCalBtn.style.backgroundColor = '#059669';
+        heightCalBtn.classList.add('btn-success-green');
+        heightCalBtn.classList.remove('btn-warning');
         statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
         
         // Trigger camera snapshot visual flash!
@@ -1953,20 +2218,18 @@ yoloToggleBtn.addEventListener('click', () => {
   state.yoloModeActive = !state.yoloModeActive;
   if (state.yoloModeActive) {
     yoloToggleBtn.textContent = "Disable YOLO Background Isolation";
-    yoloToggleBtn.style.backgroundColor = 'rgba(6, 182, 212, 0.15)';
-    yoloToggleBtn.style.borderColor = '#06b6d4';
-    yoloToggleBtn.style.color = '#06b6d4';
+    yoloToggleBtn.classList.add('active');
     
     // Hide standard video underneath so canvas can show the background cutout
-    videoElement.style.opacity = '0.05'; 
+    videoElement.classList.add('video-dimmed');
+    videoElement.classList.remove('video-visible');
   } else {
     yoloToggleBtn.textContent = "Enable YOLO Background Isolation";
-    yoloToggleBtn.style.backgroundColor = '#0f1626';
-    yoloToggleBtn.style.borderColor = 'rgba(6, 182, 212, 0.4)';
-    yoloToggleBtn.style.color = '#06b6d4';
+    yoloToggleBtn.classList.remove('active');
     
     // Restore standard video opacity
-    videoElement.style.opacity = '1';
+    videoElement.classList.add('video-visible');
+    videoElement.classList.remove('video-dimmed');
   }
 });
 
@@ -2041,9 +2304,7 @@ if (autoSequenceBtn) {
     state.metricsOverhead = null;
 
     autoSequenceBtn.textContent = "Cancel Auto Sequence";
-    autoSequenceBtn.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
-    autoSequenceBtn.style.border = "1px solid rgba(239, 68, 68, 0.4)";
-    autoSequenceBtn.style.boxShadow = "0 4px 10px rgba(239, 68, 68, 0.2)";
+    autoSequenceBtn.classList.add('active-cancel');
 
     statusElement.textContent = "🚀 Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
   });

@@ -11,40 +11,18 @@ export function showDiagnosticError(text) {
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'error-diagnostic-banner';
-    banner.style.position = 'fixed';
-    banner.style.top = '10px';
-    banner.style.left = '50%';
-    banner.style.transform = 'translateX(-50%)';
-    banner.style.backgroundColor = '#7f1d1d';
-    banner.style.color = '#fca5a5';
-    banner.style.border = '2px solid #ef4444';
-    banner.style.padding = '0.75rem 1.5rem';
-    banner.style.borderRadius = '8px';
-    banner.style.fontSize = '0.85rem';
-    banner.style.fontWeight = 'bold';
-    banner.style.zIndex = '9999';
-    banner.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
-    banner.style.maxWidth = '90%';
-    banner.style.textAlign = 'left';
-    banner.style.display = 'flex';
-    banner.style.flexDirection = 'column';
-    banner.style.gap = '0.5rem';
     
     const header = document.createElement('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
+    header.className = 'header';
     header.innerHTML = `
       <span>⚠️ SYSTEM DIAGNOSTIC ERROR DETECTED</span>
-      <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: #fca5a5; font-size: 1.15rem; cursor: pointer; padding: 0 0 0 1rem; line-height: 1;">&times;</button>
+      <button onclick="this.parentElement.parentElement.remove()" class="close-btn">&times;</button>
     `;
     banner.appendChild(header);
     
     const body = document.createElement('div');
     body.id = 'error-diagnostic-body';
-    body.style.fontFamily = 'monospace';
-    body.style.whiteSpace = 'pre-wrap';
-    body.style.wordBreak = 'break-all';
+    body.className = 'body';
     banner.appendChild(body);
     
     document.body.appendChild(banner);
@@ -189,7 +167,7 @@ export const POSE_CONNECTIONS = [
 export const FINGER_COLORS = {
   thumb: '#ec4899',   // Pink
   index: '#06b6d4',   // Cyan
-  middle: '#a855f7',  // Purple
+  middle: '#d4a017',  // Warm Gold
   ring: '#10b981',    // Emerald
   pinky: '#f59e0b'    // Amber
 };
@@ -258,6 +236,9 @@ export const state = {
   metricsA: null,
   metricsT: null,
   metricsOverhead: null,
+  imageA: null,
+  imageT: null,
+  imageOverhead: null,
   REQ_HOLD_MS: 2500,
   LOCKOUT_MS: 3500
 };

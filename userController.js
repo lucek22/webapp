@@ -3006,6 +3006,77 @@ export function exportCombinedAssessmentCard() {
 export function importPriorPortfolio(report) {
   if (!report) return;
 
+  // Try to extract active calculated metrics from the current cached results,
+  // or calculate them from the latest pose results if available.
+  const activeCalculated = state.lastCalculatedResults || (state.latestPoseResults ? calculatePoseMetrics(state.latestPoseResults) : null);
+
+  // Detect the current pose purely from the active calculation coordinates to avoid profile misalignments
+  let detectedPose = "A-Pose";
+  if (activeCalculated && activeCalculated.all_landmarks) {
+    if (activeCalculated.liveMetrics && activeCalculated.liveMetrics.pose) {
+      detectedPose = activeCalculated.liveMetrics.pose;
+    } else {
+      const lm = activeCalculated.all_landmarks;
+      const head_top = activeCalculated.head_top;
+      const shoulder_l = activeCalculated.shoulder_l;
+      const shoulder_r = activeCalculated.shoulder_r;
+      const hip_l = activeCalculated.hip_l;
+      const hip_r = activeCalculated.hip_r;
+      const knee_l = activeCalculated.knee_l;
+      const knee_r = activeCalculated.knee_r;
+      const ankle_l = activeCalculated.ankle_l;
+      const ankle_r = activeCalculated.ankle_r;
+      const heel_l = activeCalculated.heel_l;
+      const heel_r = activeCalculated.heel_r;
+      const toe_l = activeCalculated.toe_l;
+      const toe_r = activeCalculated.toe_r;
+      
+      const shoulder_mid = {
+        x: (shoulder_l.x + shoulder_r.x) / 2,
+        y: (shoulder_l.y + shoulder_r.y) / 2
+      };
+      const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
+      const hip_mid_x = (hip_l.x + hip_r.x) / 2;
+      const hip_mid_y = (hip_l.y + hip_r.y) / 2;
+      const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
+      const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
+                       Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
+                       Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
+      const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
+                       Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
+                       Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
+      const average_leg_px = (leg_l_px + leg_r_px) / 2;
+      const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
+      
+      let wingspan_px = 0;
+      if (state.latestLeftMiddleTip && state.latestRightMiddleTip) {
+        wingspan_px = Math.hypot(state.latestLeftMiddleTip.x - state.latestRightMiddleTip.x, state.latestLeftMiddleTip.y - state.latestRightMiddleTip.y);
+      } else {
+        const leftIdx = lm[19];
+        const rightIdx = lm[20];
+        if (leftIdx && rightIdx) {
+          wingspan_px = Math.hypot(leftIdx.x - rightIdx.x, leftIdx.y - rightIdx.y);
+        }
+      }
+      
+      const finger_l = state.latestLeftMiddleTip || lm[19] || activeCalculated.wrist_l;
+      const fingerToToeL_px = Math.hypot(finger_l.x - toe_l.x, finger_l.y - toe_l.y);
+      const finger_r = state.latestRightMiddleTip || lm[20] || activeCalculated.wrist_r;
+      const fingerToToeR_px = Math.hypot(finger_r.x - toe_r.x, finger_r.y - toe_r.y);
+      const avgFingerToToe_px = (fingerToToeL_px + fingerToToeR_px) / 2;
+      
+      if (skeletal_height_px > 0) {
+        const wingspanRatio = wingspan_px / skeletal_height_px;
+        const fingerToToeRatio = avgFingerToToe_px / skeletal_height_px;
+        if (wingspanRatio > 0.83) {
+          detectedPose = "T-Pose";
+        } else if (fingerToToeRatio > 1.20) {
+          detectedPose = "Overhead Reach";
+        }
+      }
+    }
+  }
+
   // Invalidate static image caches to force a full re-calculation with the new scale
   state.lastProcessedScaleFactor = null;
   state.lastCalculatedResults = null;
@@ -3040,8 +3111,15 @@ export function importPriorPortfolio(report) {
   const segs = report.segments || {};
   const profs = report.posturalFlexionProfiles || {};
 
+  const activeKneeL = activeCalculated ? activeCalculated.kneeAngleL : null;
+  const activeKneeR = activeCalculated ? activeCalculated.kneeAngleR : null;
+  const activeHipL = activeCalculated ? activeCalculated.hipAngleL : null;
+  const activeHipR = activeCalculated ? activeCalculated.hipAngleR : null;
+  const activeElbowL = activeCalculated ? activeCalculated.elbowAngleL : null;
+  const activeElbowR = activeCalculated ? activeCalculated.elbowAngleR : null;
+
   const importedMetrics = {
-    pose: "Combined (Imported)",
+    pose: activeCalculated?.liveMetrics?.pose || "Combined (Imported)",
     skeletal_height: mA.skeletal_height_cm || report.metrics?.skeletal_height || 175.0,
     wingspan: mA.wingspan_cm || report.metrics?.wingspan || null,
     fingerToToeL: mA.overhead_reach_toe_to_finger_l_cm || report.metrics?.fingerToToeL || null,
@@ -3060,34 +3138,63 @@ export function importPriorPortfolio(report) {
     forearm_r: segs.forearm_r || report.metrics?.forearm_r || null,
     hipW: report.metrics?.hipW || null,
     
-    kneeAngleL: profs.aPose?.kneeL || report.metrics?.kneeAngleL || report.metrics?.anglesA?.kneeAngleL || 180,
-    kneeAngleR: profs.aPose?.kneeR || report.metrics?.kneeAngleR || report.metrics?.anglesA?.kneeAngleR || 180,
-    hipAngleL: profs.aPose?.hipL || report.metrics?.hipAngleL || report.metrics?.anglesA?.hipAngleL || 180,
-    hipAngleR: profs.aPose?.hipR || report.metrics?.hipAngleR || report.metrics?.anglesA?.hipAngleR || 180,
-    elbowAngleL: profs.aPose?.elbowL || report.metrics?.elbowAngleL || report.metrics?.anglesA?.elbowAngleL || 180,
-    elbowAngleR: profs.aPose?.elbowR || report.metrics?.elbowAngleR || report.metrics?.anglesA?.elbowAngleR || 180,
+    // Live displayed angles must always represent the active image/pose if available
+    kneeAngleL: (activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.aPose?.kneeL || report.metrics?.kneeAngleL || report.metrics?.anglesA?.kneeAngleL || 180),
+    kneeAngleR: (activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.aPose?.kneeR || report.metrics?.kneeAngleR || report.metrics?.anglesA?.kneeAngleR || 180),
+    hipAngleL: (activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.aPose?.hipL || report.metrics?.hipAngleL || report.metrics?.anglesA?.hipAngleL || 180),
+    hipAngleR: (activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.aPose?.hipR || report.metrics?.hipAngleR || report.metrics?.anglesA?.hipAngleR || 180),
+    elbowAngleL: (activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.aPose?.elbowL || report.metrics?.elbowAngleL || report.metrics?.anglesA?.elbowAngleL || 180),
+    elbowAngleR: (activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.aPose?.elbowR || report.metrics?.elbowAngleR || report.metrics?.anglesA?.elbowAngleR || 180),
   };
 
   // 4. Save to controller's cache state for re-rendering or re-compiling
-  state.metricsA = JSON.parse(JSON.stringify(importedMetrics));
+  state.metricsA = {
+    pose: "A-Pose",
+    skeletal_height: importedMetrics.skeletal_height,
+    wingspan: importedMetrics.wingspan,
+    fingerToToeL: importedMetrics.fingerToToeL,
+    fingerToToeR: importedMetrics.fingerToToeR,
+    thigh_l: importedMetrics.thigh_l,
+    thigh_r: importedMetrics.thigh_r,
+    shin_l: importedMetrics.shin_l,
+    shin_r: importedMetrics.shin_r,
+    foot_l: importedMetrics.foot_l,
+    foot_r: importedMetrics.foot_r,
+    torso_l: importedMetrics.torso_l,
+    torso_r: importedMetrics.torso_r,
+    upperarm_l: importedMetrics.upperarm_l,
+    upperarm_r: importedMetrics.upperarm_r,
+    forearm_l: importedMetrics.forearm_l,
+    forearm_r: importedMetrics.forearm_r,
+    hipW: importedMetrics.hipW,
+    
+    kneeAngleL: (detectedPose === "A-Pose" && activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.aPose?.kneeL || report.metrics?.kneeAngleL || report.metrics?.anglesA?.kneeAngleL || 180),
+    kneeAngleR: (detectedPose === "A-Pose" && activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.aPose?.kneeR || report.metrics?.kneeAngleR || report.metrics?.anglesA?.kneeAngleR || 180),
+    hipAngleL: (detectedPose === "A-Pose" && activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.aPose?.hipL || report.metrics?.hipAngleL || report.metrics?.anglesA?.hipAngleL || 180),
+    hipAngleR: (detectedPose === "A-Pose" && activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.aPose?.hipR || report.metrics?.hipAngleR || report.metrics?.anglesA?.hipAngleR || 180),
+    elbowAngleL: (detectedPose === "A-Pose" && activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.aPose?.elbowL || report.metrics?.elbowAngleL || report.metrics?.anglesA?.elbowAngleL || 180),
+    elbowAngleR: (detectedPose === "A-Pose" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.aPose?.elbowR || report.metrics?.elbowAngleR || report.metrics?.anglesA?.elbowAngleR || 180),
+  };
+
   state.metricsT = {
     wingspan: importedMetrics.wingspan,
-    kneeAngleL: profs.tPose?.kneeL || report.metrics?.anglesT?.kneeAngleL || 180,
-    kneeAngleR: profs.tPose?.kneeR || report.metrics?.anglesT?.kneeAngleR || 180,
-    hipAngleL: profs.tPose?.hipL || report.metrics?.anglesT?.hipAngleL || 180,
-    hipAngleR: profs.tPose?.hipR || report.metrics?.anglesT?.hipAngleR || 180,
-    elbowAngleL: profs.tPose?.elbowL || report.metrics?.anglesT?.elbowAngleL || 180,
-    elbowAngleR: profs.tPose?.elbowR || report.metrics?.anglesT?.elbowAngleR || 180,
+    kneeAngleL: (detectedPose === "T-Pose" && activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.tPose?.kneeL || report.metrics?.anglesT?.kneeAngleL || 180),
+    kneeAngleR: (detectedPose === "T-Pose" && activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.tPose?.kneeR || report.metrics?.anglesT?.kneeAngleR || 180),
+    hipAngleL: (detectedPose === "T-Pose" && activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.tPose?.hipL || report.metrics?.anglesT?.hipAngleL || 180),
+    hipAngleR: (detectedPose === "T-Pose" && activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.tPose?.hipR || report.metrics?.anglesT?.hipAngleR || 180),
+    elbowAngleL: (detectedPose === "T-Pose" && activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.tPose?.elbowL || report.metrics?.anglesT?.elbowAngleL || 180),
+    elbowAngleR: (detectedPose === "T-Pose" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.tPose?.elbowR || report.metrics?.anglesT?.elbowAngleR || 180),
   };
+
   state.metricsOverhead = {
     fingerToToeL: importedMetrics.fingerToToeL,
     fingerToToeR: importedMetrics.fingerToToeR,
-    kneeAngleL: profs.overhead?.kneeL || report.metrics?.anglesOverhead?.kneeAngleL || 180,
-    kneeAngleR: profs.overhead?.kneeR || report.metrics?.anglesOverhead?.kneeAngleR || 180,
-    hipAngleL: profs.overhead?.hipL || report.metrics?.anglesOverhead?.hipAngleL || 180,
-    hipAngleR: profs.overhead?.hipR || report.metrics?.anglesOverhead?.hipAngleR || 180,
-    elbowAngleL: profs.overhead?.elbowL || report.metrics?.anglesOverhead?.elbowAngleL || 180,
-    elbowAngleR: profs.overhead?.elbowR || report.metrics?.anglesOverhead?.elbowAngleR || 180,
+    kneeAngleL: (detectedPose === "Overhead Reach" && activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.overhead?.kneeL || report.metrics?.anglesOverhead?.kneeAngleL || 180),
+    kneeAngleR: (detectedPose === "Overhead Reach" && activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.overhead?.kneeR || report.metrics?.anglesOverhead?.kneeAngleR || 180),
+    hipAngleL: (detectedPose === "Overhead Reach" && activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.overhead?.hipL || report.metrics?.anglesOverhead?.hipAngleL || 180),
+    hipAngleR: (detectedPose === "Overhead Reach" && activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.overhead?.hipR || report.metrics?.anglesOverhead?.hipAngleR || 180),
+    elbowAngleL: (detectedPose === "Overhead Reach" && activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.overhead?.elbowL || report.metrics?.anglesOverhead?.elbowAngleL || 180),
+    elbowAngleR: (detectedPose === "Overhead Reach" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.overhead?.elbowR || report.metrics?.anglesOverhead?.elbowAngleR || 180),
   };
 
   // Re-render dashboard metrics instantly!

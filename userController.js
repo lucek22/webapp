@@ -1799,6 +1799,40 @@ window.addEventListener('touchend', () => {
   isDragging = false;
 });
 
+function updateSidebarPlaceholders() {
+  const updatePlaceholder = (elem, textWithCm, textWithInches) => {
+    if (!elem) return;
+    const current = elem.textContent.trim();
+    if (current.includes('--.-') || current.includes("--'") || current === "" || current === "Offline") {
+      elem.textContent = state.useInches ? textWithInches : textWithCm;
+    }
+  };
+
+  updatePlaceholder(thighLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(thighRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(shinLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(shinRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(footLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(footRDisp, "--.- cm", "--.- inches");
+  
+  updatePlaceholder(torsoLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(torsoRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(upperarmLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(upperarmRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(forearmLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(forearmRDisp, "--.- cm", "--.- inches");
+
+  updatePlaceholder(fingerToToeDisp, "L: --.- cm / R: --.- cm", "L: --.- inches / R: --.- inches");
+  updatePlaceholder(hipWDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(wingspanDisp, "--.- cm", "--.- inches");
+
+  updatePlaceholder(heightCmDisp, "--.- cm", "--'--''");
+  updatePlaceholder(heightFtDisp, "--'--'' (Stature)", "--.- cm (Stature)");
+}
+
+// Initial placeholder configuration on script load
+setTimeout(updateSidebarPlaceholders, 100);
+
 // Multi-unit system controls (Inches/Cm togglers)
 const unitInchBtn = document.getElementById('unit-inch-btn');
 const unitCmBtn = document.getElementById('unit-cm-btn');
@@ -1810,6 +1844,7 @@ unitInchBtn.addEventListener('click', () => {
   unitCmBtn.style.backgroundColor = 'transparent';
   unitCmBtn.style.color = '#9ca3af';
   updateHeightInputUnit();
+  updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   }
@@ -1825,6 +1860,7 @@ unitCmBtn.addEventListener('click', () => {
   unitInchBtn.style.backgroundColor = 'transparent';
   unitInchBtn.style.color = '#9ca3af';
   updateHeightInputUnit();
+  updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   }

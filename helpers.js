@@ -297,7 +297,7 @@ export function getCanvasX(normX) {
 
 export function formatLength(cmVal) {
   if (state.useInches) {
-    return `${(cmVal / 2.54).toFixed(1)} in`;
+    return `${(cmVal / 2.54).toFixed(1)} inches`;
   } else {
     return `${cmVal.toFixed(1)} cm`;
   }

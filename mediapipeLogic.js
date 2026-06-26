@@ -329,8 +329,8 @@ export function updateHandTracking(results) {
       const ringTip = { x: getCanvasX(landmarks[16].x), y: landmarks[16].y * 480 };
       const pinkyTip = { x: getCanvasX(landmarks[20].x), y: landmarks[20].y * 480 };
 
-      let pinchSpanStr = "--.- cm";
-      let handSpanStr = "--.- cm";
+      let pinchSpanStr = state.useInches ? "--.- in" : "--.- cm";
+      let handSpanStr = state.useInches ? "--.- in" : "--.- cm";
 
       if (state.pixelsPerCm) {
         const pinchPx = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
@@ -385,6 +385,7 @@ export function updateHandTracking(results) {
   }
 
   // If left/right hands are not detected, reset their fingertip displays to Offline
+  const fallbackStr = state.useInches ? "--.- in" : "--.- cm";
   if (!leftDetected) {
     state.latestLeftMiddleTip = null;
     if (handStatusLDisp) {
@@ -392,8 +393,8 @@ export function updateHandTracking(results) {
       handStatusLDisp.classList.add('text-slate');
       handStatusLDisp.classList.remove('text-emerald');
     }
-    if (pinchLDisp) pinchLDisp.textContent = "--.- cm";
-    if (spanLDisp) spanLDisp.textContent = "--.- cm";
+    if (pinchLDisp) pinchLDisp.textContent = fallbackStr;
+    if (spanLDisp) spanLDisp.textContent = fallbackStr;
     fingertipLDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";
@@ -409,8 +410,8 @@ export function updateHandTracking(results) {
       handStatusRDisp.classList.add('text-slate');
       handStatusRDisp.classList.remove('text-emerald');
     }
-    if (pinchRDisp) pinchRDisp.textContent = "--.- cm";
-    if (spanRDisp) spanRDisp.textContent = "--.- cm";
+    if (pinchRDisp) pinchRDisp.textContent = fallbackStr;
+    if (spanRDisp) spanRDisp.textContent = fallbackStr;
     fingertipRDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";

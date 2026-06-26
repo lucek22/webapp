@@ -136,6 +136,12 @@ const wingspanDisp = document.getElementById('val-wingspan');
 const heightCmDisp = document.getElementById('val-height-cm');
 const heightFtDisp = document.getElementById('val-height-ft');
 
+// Hand Metrics
+const pinchLDisp = document.getElementById('val-pinch-l');
+const pinchRDisp = document.getElementById('val-pinch-r');
+const spanLDisp = document.getElementById('val-span-l');
+const spanRDisp = document.getElementById('val-span-r');
+
 // UI Angle Elements (Left vs Right)
 const kneeAngleLDisp = document.getElementById('angle-knee-l');
 const kneeAngleRDisp = document.getElementById('angle-knee-r');
@@ -461,6 +467,21 @@ export function renderDashboard(metrics) {
   hipAngleRDisp.textContent = `${metrics.hipAngleR}°`;
   elbowAngleLDisp.textContent = `${metrics.elbowAngleL}°`;
   elbowAngleRDisp.textContent = `${metrics.elbowAngleR}°`;
+
+  // Render Hand Metrics if available
+  const fallbackDash = state.useInches ? "--.- in" : "--.- cm";
+  if (pinchLDisp) {
+    pinchLDisp.textContent = (metrics.pinch_l_cm !== undefined && metrics.pinch_l_cm !== null) ? formatLength(metrics.pinch_l_cm) : fallbackDash;
+  }
+  if (pinchRDisp) {
+    pinchRDisp.textContent = (metrics.pinch_r_cm !== undefined && metrics.pinch_r_cm !== null) ? formatLength(metrics.pinch_r_cm) : fallbackDash;
+  }
+  if (spanLDisp) {
+    spanLDisp.textContent = (metrics.span_l_cm !== undefined && metrics.span_l_cm !== null) ? formatLength(metrics.span_l_cm) : fallbackDash;
+  }
+  if (spanRDisp) {
+    spanRDisp.textContent = (metrics.span_r_cm !== undefined && metrics.span_r_cm !== null) ? formatLength(metrics.span_r_cm) : fallbackDash;
+  }
 }
 
 // ==========================================

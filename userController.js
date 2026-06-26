@@ -1284,6 +1284,10 @@ function drawFrozenSnapshot() {
 }
 
 export function resetAndResume() {
+  if (videoElement && videoElement.src) {
+    URL.revokeObjectURL(videoElement.src); // Free up browser memory allocated for the video file
+    videoElement.src = "";
+  }
   if (state.autoActive) {
     cancelAutoSequence();
   }
@@ -1369,7 +1373,7 @@ export async function startCamera() {
 
     // Frame loop processor
     async function processFrame() {
-      if (!state.activeStream || videoElement.paused || videoElement.ended) return;
+      if ((!state.activeStream && !videoElement.src) || videoElement.paused || videoElement.ended) return;
       try {
         if (state.isSnapshotFrozen) {
           // Direct high-fidelity manual rendering loop when frozen to save CPU resources
@@ -2215,6 +2219,39 @@ if (autoSequenceBtn) {
     autoSequenceBtn.classList.add('active-cancel');
 
     statusElement.textContent = "🚀 Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
+  });
+}
+
+const videoUploadInput = document.getElementById('video-upload-input');
+if (videoUploadInput) {
+  videoUploadInput.addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // 1. If a camera stream is currently active, stop it first
+    if (state.activeStream) {
+      state.activeStream.getTracks().forEach(track => track.stop());
+      state.activeStream = null;
+    }
+
+    // 2. Create a local URL pointing to the uploaded video file
+    const fileURL = URL.createObjectURL(file);
+    
+    // 3. Configure the video element
+    videoElement.srcObject = null; // Remove camera stream reference
+    videoElement.src = fileURL;
+    videoElement.loop = true;      // Option to loop the uploaded video
+    
+    // Turn off mirroring since recorded videos usually don't need reflection
+    videoElement.classList.remove('mirror-x'); 
+
+    // 4. Play the video and announce readiness
+    videoElement.onloadedmetadata = () => {
+      videoElement.play();
+      statusElement.textContent = "Processing uploaded video file...";
+      // Kick off the frame processing loop manually for the video file
+      processFrame();
+    };
   });
 }
 

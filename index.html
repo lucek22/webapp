@@ -90,6 +90,13 @@
         </div>
       </div>
 
+      <div class="calibration-panel" style="margin-bottom: 1.25rem; padding: 1rem; background-color: #161616; border-radius: 10px;">
+        <div class="calibration-row" style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+          <label for="video-upload-input" style="font-weight: 500; color: #a7b1b7;"><strong>Or Upload a Video File:</strong></label>
+          <input type="file" id="video-upload-input" accept="video/*" class="btn btn-tab-inactive" style="cursor: pointer; padding: 0.4rem 0.6rem; background-color: #111111; border: 1px solid rgba(186,12,47,0.25); border-radius: 4px; color: white;">
+        </div>
+      </div>
+
       <div class="viewport">
         <video id="webcam" autoplay playsinline></video>
         <canvas id="overlay"></canvas>

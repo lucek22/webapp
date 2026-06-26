@@ -205,7 +205,9 @@ export function calculatePoseMetrics(results) {
 
     let activePixelsPerCm = state.pixelsPerCm;
     if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
-      activePixelsPerCm = skeletal_height_px / state.inputHeightCm;
+      const rawScale = skeletal_height_px / state.inputHeightCm;
+      // Smooth the calibration scale using a 45-frame window and a stable EMA alpha of 0.08
+      activePixelsPerCm = smooth('height_scale_calibration', rawScale, 45, 0.08);
       state.pixelsPerCm = activePixelsPerCm;
     } else if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
       activePixelsPerCm = skeletal_height_px / state.metricsA.skeletal_height;

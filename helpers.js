@@ -245,17 +245,31 @@ export const state = {
 };
 
 const smoothBuffers = {};
+const lastEmaValues = {};
 
 // ==========================================
 // MATH & STRING FORMATTING HELPER FUNCTIONS
 // ==========================================
-export function smooth(key, val) {
+export function smooth(key, val, windowSize = 15, emaAlpha = 0.15) {
   if (!smoothBuffers[key]) smoothBuffers[key] = [];
   const buf = smoothBuffers[key];
   buf.push(val);
-  if (buf.length > 15) buf.shift();
-  return buf.reduce((a, b) => a + b, 0) / buf.length;
+  if (buf.length > windowSize) buf.shift();
+
+  // 1. Median filtering to reject tracking glitch outlier spikes
+  const sorted = [...buf].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+
+  // 2. Exponential Moving Average (EMA) to eliminate high-frequency jitter
+  if (lastEmaValues[key] === undefined) {
+    lastEmaValues[key] = median;
+    return median;
+  }
+  
+  lastEmaValues[key] = emaAlpha * median + (1 - emaAlpha) * lastEmaValues[key];
+  return lastEmaValues[key];
 }
+
 
 export function calculateAngle(p_vertex, p_arm1, p_arm2) {
   const v1 = { x: p_arm1.x - p_vertex.x, y: p_arm1.y - p_vertex.y };

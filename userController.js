@@ -3232,10 +3232,10 @@ export function startVideoRecording() {
   // Determine the best supported mimeType
   let mimeType = '';
   const types = [
-    'video/mp4;codecs=h264',
     'video/webm;codecs=vp9',
     'video/webm;codecs=vp8',
-    'video/webm'
+    'video/webm',
+    'video/mp4;codecs=h264'
   ];
   for (const t of types) {
     if (MediaRecorder.isTypeSupported(t)) {
@@ -3264,31 +3264,92 @@ export function startVideoRecording() {
       console.warn("No recorded chunks gathered!");
       return;
     }
-    const blob = new Blob(state.recordedChunks, {
+
+    const duration = Date.now() - (state.recordingStartTime || Date.now());
+    const rawBlob = new Blob(state.recordedChunks, {
       type: mimeType || 'video/webm'
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    const subjectInput = document.getElementById('subject-name-input');
-    const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
-    const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-    const ext = (mimeType && mimeType.includes('mp4')) ? 'mp4' : 'webm';
-    a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    }, 100);
 
-    state.isRecording = false;
-    updateRecordButtonUI();
-    statusElement.textContent = "Video recording exported successfully!";
+    const ext = (mimeType && mimeType.includes('mp4')) ? 'mp4' : 'webm';
+
+    if (ext === 'webm' && typeof EBML !== 'undefined') {
+      const fileReader = new FileReader();
+      fileReader.onload = function(e) {
+        try {
+          const arrayBuffer = e.target.result;
+          const decoder = new EBML.Decoder();
+          const reader = new EBML.Reader();
+          
+          const ebmlElms = decoder.decode(arrayBuffer);
+          ebmlElms.forEach((element) => {
+            reader.read(element);
+          });
+          reader.stop();
+          
+          let finalDuration = reader.duration;
+          if (typeof finalDuration !== 'number' || finalDuration <= 0 || isNaN(finalDuration)) {
+            finalDuration = duration;
+          }
+          
+          const refinedMetadataBuf = EBML.tools.makeMetadataSeekable(
+            reader.metadatas, 
+            finalDuration, 
+            reader.cues
+          );
+          
+          const body = arrayBuffer.slice(reader.metadataSize);
+          const fixedBlob = new Blob([refinedMetadataBuf, body], { type: 'video/webm' });
+          triggerDownload(fixedBlob, ext);
+        } catch (err) {
+          console.error("EBML parsing failed, trying ysFixWebmDuration fallback:", err);
+          runWebmDurationFallback();
+        }
+      };
+      fileReader.onerror = () => {
+        runWebmDurationFallback();
+      };
+      fileReader.readAsArrayBuffer(rawBlob);
+    } else if (ext === 'webm' && typeof ysFixWebmDuration === 'function') {
+      runWebmDurationFallback();
+    } else {
+      triggerDownload(rawBlob, ext);
+    }
+
+    function runWebmDurationFallback() {
+      ysFixWebmDuration(rawBlob, duration, { logger: false })
+        .then((fixedBlob) => {
+          triggerDownload(fixedBlob, ext);
+        })
+        .catch((err) => {
+          console.error("Failed to fix WebM duration, exporting raw stream:", err);
+          triggerDownload(rawBlob, ext);
+        });
+    }
+
+    function triggerDownload(blobToDownload, fileExt) {
+      const url = URL.createObjectURL(blobToDownload);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      const subjectInput = document.getElementById('subject-name-input');
+      const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+      const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+      a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${fileExt}`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      state.isRecording = false;
+      updateRecordButtonUI();
+      statusElement.textContent = "Video recording exported successfully!";
+    }
   };
 
   state.isRecording = true;
+  state.recordingStartTime = Date.now();
   state.mediaRecorder.start(250); // Slice data every 250ms
   updateRecordButtonUI();
   statusElement.textContent = "🔴 Video recording in progress... Click the red button to stop and save.";

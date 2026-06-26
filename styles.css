@@ -1884,3 +1884,42 @@ div[style*="color: #10b981"] {
   transform: none !important;
 }
 
+/* ==========================================================================
+   VIDEO EXPORT AND RECORDING STYLES
+   ========================================================================== */
+.recording-pulse {
+  animation: recPulse 1.5s infinite alternate !important;
+}
+
+@keyframes recPulse {
+  0% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.4);
+    filter: brightness(1);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
+    filter: brightness(1.2);
+  }
+}
+
+.recording-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  animation: dotBlink 1s infinite alternate;
+}
+
+@keyframes dotBlink {
+  0% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+

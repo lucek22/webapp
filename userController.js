@@ -166,6 +166,7 @@ const btnApplyScale = document.getElementById('btn-apply-scale');
 const textareaPortfolioJson = document.getElementById('textarea-portfolio-json');
 const btnImportPortfolio = document.getElementById('btn-import-portfolio');
 const btnExportCombined = document.getElementById('btn-export-combined');
+const btnExportVideo = document.getElementById('btn-export-video');
 
 // ==========================================
 // CANVAS DRAWING COMPONENT UTILITIES
@@ -415,6 +416,133 @@ function drawPoseBadge(poseName) {
   canvasCtx.restore();
 }
 
+function drawLiveStatsCard(ctx, calculated) {
+  if (!calculated || !calculated.liveMetrics) return;
+  const liveMetrics = calculated.liveMetrics;
+
+  const scale = canvasElement.width / 640;
+  
+  // Card dimensions
+  const cardW = 190 * scale;
+  const cardH = 168 * scale;
+  const cardX = canvasElement.width - cardW - 20 * scale;
+  const cardY = 20 * scale;
+
+  ctx.save();
+  
+  // Glassmorphic background
+  ctx.fillStyle = 'rgba(15, 22, 38, 0.85)';
+  ctx.strokeStyle = '#ec4899'; // Sleek Neon Pink/Rose border
+  ctx.lineWidth = 1.5 * scale;
+  
+  // Draw glow shadow
+  ctx.shadowColor = 'rgba(236, 72, 153, 0.4)';
+  ctx.shadowBlur = 10 * scale;
+  
+  drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 8 * scale);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Disable shadows for crisp text rendering
+  ctx.shadowBlur = 0;
+  
+  // Title / Subject Name
+  const subjectInput = document.getElementById('subject-name-input');
+  const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+  
+  let displayName = subjectName.toUpperCase();
+  if (displayName.length > 15) {
+    displayName = displayName.substring(0, 13) + "...";
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${Math.max(10, Math.round(11 * scale))}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`SUBJECT: ${displayName}`, cardX + 12 * scale, cardY + 12 * scale);
+  
+  // Subtitle: Stature (Premeasured or Live)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = `${Math.max(9, Math.round(10 * scale))}px sans-serif`;
+  
+  const heightVal = liveMetrics.skeletal_height || liveMetrics.live_height;
+  const heightStr = heightVal ? formatLength(heightVal) : "--.- cm";
+  ctx.fillText(`STATURE: ${heightStr}`, cardX + 12 * scale, cardY + 26 * scale);
+  
+  // Horizontal divider line
+  ctx.strokeStyle = 'rgba(236, 72, 153, 0.2)';
+  ctx.beginPath();
+  ctx.moveTo(cardX + 12 * scale, cardY + 40 * scale);
+  ctx.lineTo(cardX + cardW - 12 * scale, cardY + 40 * scale);
+  ctx.stroke();
+  
+  // Section: Joint Flexions
+  ctx.fillStyle = '#ec4899'; // Neon pink section header
+  ctx.font = `bold ${Math.max(9, Math.round(9 * scale))}px sans-serif`;
+  ctx.fillText("LIVE JOINT FLEXIONS", cardX + 12 * scale, cardY + 46 * scale);
+  
+  // Joint values mapping helper
+  ctx.font = `${Math.max(9, Math.round(10 * scale))}px sans-serif`;
+  let itemY = cardY + 58 * scale;
+  const rowSpacing = 14 * scale;
+  
+  const joints = [
+    { label: "Knee L / R", val: `${Math.round(calculated.kneeAngleL)}° / ${Math.round(calculated.kneeAngleR)}°` },
+    { label: "Hip L / R", val: `${Math.round(calculated.hipAngleL)}° / ${Math.round(calculated.hipAngleR)}°` },
+    { label: "Elbow L / R", val: `${Math.round(calculated.elbowAngleL)}° / ${Math.round(calculated.elbowAngleR)}°` }
+  ];
+  
+  joints.forEach(j => {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillText(j.label, cardX + 12 * scale, itemY);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'right';
+    ctx.fillText(j.val, cardX + cardW - 12 * scale, itemY);
+    ctx.textAlign = 'left';
+    itemY += rowSpacing;
+  });
+  
+  // Divider
+  ctx.strokeStyle = 'rgba(236, 72, 153, 0.2)';
+  ctx.beginPath();
+  ctx.moveTo(cardX + 12 * scale, itemY + 2 * scale);
+  ctx.lineTo(cardX + cardW - 12 * scale, itemY + 2 * scale);
+  ctx.stroke();
+  
+  itemY += 10 * scale;
+  
+  // Section: Physical Segments (Torso, Thigh, Shin)
+  ctx.fillStyle = '#ec4899';
+  ctx.font = `bold ${Math.max(9, Math.round(9 * scale))}px sans-serif`;
+  ctx.fillText("PHYSICAL SEGMENTS", cardX + 12 * scale, itemY);
+  
+  itemY += 14 * scale;
+  
+  // Calculate average torso, thigh, shin
+  const avgTorso = (liveMetrics.torso_l && liveMetrics.torso_r) ? (liveMetrics.torso_l + liveMetrics.torso_r) / 2 : (liveMetrics.torso_l || liveMetrics.torso_r || null);
+  const avgThigh = (liveMetrics.thigh_l && liveMetrics.thigh_r) ? (liveMetrics.thigh_l + liveMetrics.thigh_r) / 2 : (liveMetrics.thigh_l || liveMetrics.thigh_r || null);
+  const avgShin = (liveMetrics.shin_l && liveMetrics.shin_r) ? (liveMetrics.shin_l + liveMetrics.shin_r) / 2 : (liveMetrics.shin_l || liveMetrics.shin_r || null);
+
+  const segments = [
+    { label: "Avg. Torso", val: avgTorso ? formatLength(avgTorso) : "--.- cm" },
+    { label: "Avg. Thigh", val: avgThigh ? formatLength(avgThigh) : "--.- cm" },
+    { label: "Avg. Shin", val: avgShin ? formatLength(avgShin) : "--.- cm" }
+  ];
+  
+  ctx.font = `${Math.max(9, Math.round(10 * scale))}px sans-serif`;
+  segments.forEach(s => {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillText(s.label, cardX + 12 * scale, itemY);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'right';
+    ctx.fillText(s.val, cardX + cardW - 12 * scale, itemY);
+    ctx.textAlign = 'left';
+    itemY += rowSpacing;
+  });
+
+  ctx.restore();
+}
+
 export function renderDashboard(metrics) {
   if (!metrics) return;
 
@@ -486,6 +614,17 @@ export function onPoseResults(results) {
   state.latestPoseResults = results;
   canvasCtx.save();
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+  // Draw background video/webcam frame if YOLO background masking is NOT active
+  if (!state.yoloModeActive && results && results.image) {
+    canvasCtx.save();
+    if (!state.isUploadedMedia && state.currentFacingMode === "user") {
+      canvasCtx.translate(canvasElement.width, 0);
+      canvasCtx.scale(-1, 1);
+    }
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.restore();
+  }
 
   const now = Date.now();
   const dt = now - state.lastFrameTime;
@@ -564,6 +703,9 @@ export function onPoseResults(results) {
       if (liveMetrics.pose) {
         drawPoseBadge(liveMetrics.pose);
       }
+
+      // Draw live stats HUD overlay on top-right of canvas
+      drawLiveStatsCard(canvasCtx, calculated);
     }
 
     canvasCtx.restore();
@@ -775,6 +917,31 @@ export function onPoseResults(results) {
         liveMetrics
       } = calculated;
 
+      // Merge imported pre-measured portfolio metrics to override raw image length calculations
+      if (state.importedPortfolioMetrics && liveMetrics) {
+        const imp = state.importedPortfolioMetrics;
+        if (imp.skeletal_height !== null && imp.skeletal_height !== undefined) {
+          liveMetrics.skeletal_height = imp.skeletal_height;
+          liveMetrics.live_height = imp.skeletal_height;
+        }
+        if (imp.wingspan !== null && imp.wingspan !== undefined) liveMetrics.wingspan = imp.wingspan;
+        if (imp.thigh_l !== null && imp.thigh_l !== undefined) liveMetrics.thigh_l = imp.thigh_l;
+        if (imp.thigh_r !== null && imp.thigh_r !== undefined) liveMetrics.thigh_r = imp.thigh_r;
+        if (imp.shin_l !== null && imp.shin_l !== undefined) liveMetrics.shin_l = imp.shin_l;
+        if (imp.shin_r !== null && imp.shin_r !== undefined) liveMetrics.shin_r = imp.shin_r;
+        if (imp.foot_l !== null && imp.foot_l !== undefined) liveMetrics.foot_l = imp.foot_l;
+        if (imp.foot_r !== null && imp.foot_r !== undefined) liveMetrics.foot_r = imp.foot_r;
+        if (imp.torso_l !== null && imp.torso_l !== undefined) liveMetrics.torso_l = imp.torso_l;
+        if (imp.torso_r !== null && imp.torso_r !== undefined) liveMetrics.torso_r = imp.torso_r;
+        if (imp.upperarm_l !== null && imp.upperarm_l !== undefined) liveMetrics.upperarm_l = imp.upperarm_l;
+        if (imp.upperarm_r !== null && imp.upperarm_r !== undefined) liveMetrics.upperarm_r = imp.upperarm_r;
+        if (imp.forearm_l !== null && imp.forearm_l !== undefined) liveMetrics.forearm_l = imp.forearm_l;
+        if (imp.forearm_r !== null && imp.forearm_r !== undefined) liveMetrics.forearm_r = imp.forearm_r;
+        if (imp.fingerToToeL !== null && imp.fingerToToeL !== undefined) liveMetrics.fingerToToeL = imp.fingerToToeL;
+        if (imp.fingerToToeR !== null && imp.fingerToToeR !== undefined) liveMetrics.fingerToToeR = imp.fingerToToeR;
+        if (imp.hipW !== null && imp.hipW !== undefined) liveMetrics.hipW = imp.hipW;
+      }
+
       // Update Landmark Directory status in a throttled way
       state.frameCount++;
       if (state.frameCount % 10 === 0) {
@@ -875,6 +1042,9 @@ export function onPoseResults(results) {
         if (liveMetrics.pose) {
           drawPoseBadge(liveMetrics.pose);
         }
+
+        // Draw live stats HUD overlay on top-right of canvas
+        drawLiveStatsCard(canvasCtx, calculated);
 
         // Active Sequential Pose hold tracking
         if (state.autoActive && state.lockoutTimerMs === 0) {
@@ -1616,6 +1786,17 @@ export async function startCamera() {
     exportCombinedBtn.style.display = 'none';
   }
 
+  if (btnExportVideo) {
+    btnExportVideo.classList.remove('hidden');
+    btnExportVideo.classList.add('visible-block');
+  }
+
+  // Safe safeguard: stop any active recording on session switch
+  if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+    try { state.mediaRecorder.stop(); } catch(e){}
+    state.isRecording = false;
+  }
+
   if (uploadedVideo) {
     uploadedVideo.classList.add('hidden');
     uploadedVideo.classList.remove('video-visible');
@@ -1686,8 +1867,12 @@ export async function startCamera() {
       const startTime = Date.now();
       try {
         if (!state.isSnapshotFrozen) {
-          // Call modular ArUco Marker Scanner helper (from arucoDetector.js)
-          if (typeof detectArucoMarker === 'function') {
+          if (state.importedPortfolioMetrics) {
+            state.latestArucoMarker = null;
+            if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
+              arucoStatusText.innerHTML = `✅ Calibrated via Portfolio Stature (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+            }
+          } else if (typeof detectArucoMarker === 'function') {
             const found = detectArucoMarker(videoElement);
             state.latestArucoMarker = found;
 
@@ -1717,11 +1902,9 @@ export async function startCamera() {
             }
           }
 
-          // Concurrent model calls using Promise.all - cuts down latency and doubles frame rates!
-          await Promise.all([
-            pose.send({ image: videoElement }),
-            hands.send({ image: videoElement })
-          ]);
+          // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
+          await pose.send({ image: videoElement });
+          await hands.send({ image: videoElement });
         }
       } catch (err) {
         console.error("Camera inference loop error:", err);
@@ -1791,6 +1974,22 @@ export async function handleUploadedFile(file) {
     }
   }
 
+  if (btnExportVideo) {
+    if (isVideo) {
+      btnExportVideo.classList.remove('hidden');
+      btnExportVideo.classList.add('visible-block');
+    } else {
+      btnExportVideo.classList.add('hidden');
+      btnExportVideo.classList.remove('visible-block');
+    }
+  }
+
+  // Safe safeguard: stop any active recording on session switch
+  if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+    try { state.mediaRecorder.stop(); } catch(e){}
+    state.isRecording = false;
+  }
+
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
     autoSequenceBtn.classList.remove('hidden');
@@ -1856,6 +2055,12 @@ export async function handleUploadedFile(file) {
 
       uploadedVideo.onplay = () => {
         startUploadedMediaLoop();
+      };
+
+      uploadedVideo.onended = () => {
+        if (state.isRecording) {
+          stopVideoRecording();
+        }
       };
     }
   } else {
@@ -1934,8 +2139,12 @@ export function startUploadedMediaLoop() {
     const startTime = Date.now();
     try {
       if (!state.isSnapshotFrozen) {
-        // Detect ArUco Marker
-        if (typeof detectArucoMarker === 'function') {
+        if (state.importedPortfolioMetrics) {
+          state.latestArucoMarker = null;
+          if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
+            arucoStatusText.innerHTML = `✅ Calibrated via Portfolio Stature (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+          }
+        } else if (typeof detectArucoMarker === 'function') {
           const found = detectArucoMarker(uploadedVideo);
           state.latestArucoMarker = found;
 
@@ -1965,11 +2174,9 @@ export function startUploadedMediaLoop() {
           }
         }
 
-        // Concurrent model calls using Promise.all - cuts down latency and doubles frame rates!
-        await Promise.all([
-          pose.send({ image: uploadedVideo }),
-          hands.send({ image: uploadedVideo })
-        ]);
+        // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
+        await pose.send({ image: uploadedVideo });
+        await hands.send({ image: uploadedVideo });
       }
     } catch (err) {
       console.error("Uploaded video processing error:", err);
@@ -2716,6 +2923,10 @@ if (btnExportCombined) {
   btnExportCombined.addEventListener('click', exportCombinedAssessmentCard);
 }
 
+if (btnExportVideo) {
+  btnExportVideo.addEventListener('click', toggleVideoRecording);
+}
+
 export function exportCombinedAssessmentCard() {
   const img = document.getElementById('uploaded-image');
   if (!img || img.classList.contains('hidden') || !img.src) {
@@ -3003,6 +3214,121 @@ export function exportCombinedAssessmentCard() {
   link.click();
 }
 
+export function startVideoRecording() {
+  if (state.isRecording) return;
+
+  state.recordedChunks = [];
+  const fps = 30;
+  // Capture canvas stream
+  let stream;
+  try {
+    stream = canvasElement.captureStream(fps);
+  } catch (err) {
+    console.error("Canvas captureStream failed:", err);
+    alert("Could not start canvas recording. Your browser may not support canvas.captureStream().");
+    return;
+  }
+
+  // Determine the best supported mimeType
+  let mimeType = '';
+  const types = [
+    'video/mp4;codecs=h264',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm'
+  ];
+  for (const t of types) {
+    if (MediaRecorder.isTypeSupported(t)) {
+      mimeType = t;
+      break;
+    }
+  }
+
+  const options = mimeType ? { mimeType } : {};
+  try {
+    state.mediaRecorder = new MediaRecorder(stream, options);
+  } catch (err) {
+    console.error("MediaRecorder initialization failed:", err);
+    alert("Could not initialize MediaRecorder. Please check browser compatibility.");
+    return;
+  }
+
+  state.mediaRecorder.ondataavailable = (event) => {
+    if (event.data && event.data.size > 0) {
+      state.recordedChunks.push(event.data);
+    }
+  };
+
+  state.mediaRecorder.onstop = () => {
+    if (state.recordedChunks.length === 0) {
+      console.warn("No recorded chunks gathered!");
+      return;
+    }
+    const blob = new Blob(state.recordedChunks, {
+      type: mimeType || 'video/webm'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    const subjectInput = document.getElementById('subject-name-input');
+    const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+    const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    const ext = (mimeType && mimeType.includes('mp4')) ? 'mp4' : 'webm';
+    a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+
+    state.isRecording = false;
+    updateRecordButtonUI();
+    statusElement.textContent = "Video recording exported successfully!";
+  };
+
+  state.isRecording = true;
+  state.mediaRecorder.start(250); // Slice data every 250ms
+  updateRecordButtonUI();
+  statusElement.textContent = "🔴 Video recording in progress... Click the red button to stop and save.";
+}
+
+export function stopVideoRecording() {
+  if (!state.isRecording || !state.mediaRecorder || state.mediaRecorder.state === 'inactive') return;
+  state.mediaRecorder.stop();
+}
+
+export function toggleVideoRecording() {
+  if (state.isRecording) {
+    stopVideoRecording();
+  } else {
+    startVideoRecording();
+  }
+}
+
+export function updateRecordButtonUI() {
+  if (!btnExportVideo) return;
+  if (state.isRecording) {
+    btnExportVideo.innerHTML = `
+      <span class="recording-dot"></span>
+      Stop & Export Video
+    `;
+    btnExportVideo.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+    btnExportVideo.classList.add('recording-pulse');
+  } else {
+    btnExportVideo.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+      </svg>
+      Record & Export Video
+    `;
+    btnExportVideo.style.background = 'linear-gradient(135deg, #ec4899, #818cf8)';
+    btnExportVideo.classList.remove('recording-pulse');
+  }
+}
+
 export function importPriorPortfolio(report) {
   if (!report) return;
 
@@ -3197,6 +3523,9 @@ export function importPriorPortfolio(report) {
     elbowAngleR: (detectedPose === "Overhead Reach" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.overhead?.elbowR || report.metrics?.anglesOverhead?.elbowAngleR || 180),
   };
 
+  // Save to persistent state for live/image tracking overrides
+  state.importedPortfolioMetrics = importedMetrics;
+
   // Re-render dashboard metrics instantly!
   renderDashboard(importedMetrics);
 
@@ -3282,6 +3611,9 @@ const inputUserHeight = document.getElementById('input-user-height');
 
 heightCalBtn.addEventListener('click', () => {
   if (state.isCountingDown || state.isCaptureCountingDown) return; // Prevent clicks during active countdowns
+
+  // Reset imported portfolio metrics when manually recalibrating
+  state.importedPortfolioMetrics = null;
 
   const activeHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
   if (activeHeightPx > 10) {

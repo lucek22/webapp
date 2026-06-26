@@ -150,6 +150,27 @@ export function calculatePoseMetrics(results) {
 
   let liveMetrics = null;
 
+  // Auto-calibrate state.pixelsPerCm using pre-measured portfolio stature if present
+  if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {
+    const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
+    const hip_mid_x = (hip_l.x + hip_r.x) / 2;
+    const hip_mid_y = (hip_l.y + hip_r.y) / 2;
+    const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
+    const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
+                     Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
+                     Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
+    const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
+                     Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
+                     Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
+    const average_leg_px = (leg_l_px + leg_r_px) / 2;
+    const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
+
+    if (skeletal_height_px > 10) {
+      state.pixelsPerCm = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
+      state.calLocked = true;
+    }
+  }
+
   // --- CALCULATE PHYSICAL LENGTHS (IF SCALE LOCKED) ---
   if (state.pixelsPerCm) {
     // Left segment calculations

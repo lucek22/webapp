@@ -240,11 +240,15 @@ export const state = {
   metricsA: null,
   metricsT: null,
   metricsOverhead: null,
+  importedPortfolioMetrics: null,
   imageA: null,
   imageT: null,
   imageOverhead: null,
   REQ_HOLD_MS: 2500,
-  LOCKOUT_MS: 3500
+  LOCKOUT_MS: 3500,
+  isRecording: false,
+  recordedChunks: [],
+  mediaRecorder: null
 };
 
 const smoothBuffers = {};
@@ -284,6 +288,9 @@ export function getCanvasX(normX) {
 }
 
 export function formatLength(cmVal) {
+  if (cmVal === null || cmVal === undefined || isNaN(cmVal)) {
+    return state.useInches ? "--.- inches" : "--.- cm";
+  }
   if (state.useInches) {
     return `${(cmVal / 2.54).toFixed(1)} inches`;
   } else {

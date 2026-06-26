@@ -213,8 +213,14 @@ export function calculatePoseMetrics(results) {
       activePixelsPerCm = skeletal_height_px / state.metricsA.skeletal_height;
     }
 
-    const skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
+    let skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
     const live_height_cm = vertical_height_px / activePixelsPerCm;
+
+    // When actively calibrating via input height, we bypass calculations 
+    // and trust the input height 100% as the absolute ground truth.
+    if (state.activeCalMethod === 'height' && state.inputHeightCm) {
+      skeletal_height_cm = state.inputHeightCm;
+    }
 
     // Calculate Wingspan (using Middle Fingertips if detected, or Pose Indexes 19 & 20 as fallback)
     let wingspan_cm = 0;
@@ -253,7 +259,7 @@ export function calculatePoseMetrics(results) {
       hipW: smooth('hipW', hipW_px / activePixelsPerCm),
       wingspan: smooth('wingspan_distance', wingspan_cm),
 
-      skeletal_height: smooth('body_height_skeletal', skeletal_height_cm),
+      skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm),
       live_height: smooth('body_height_live', live_height_cm),
 
       kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR

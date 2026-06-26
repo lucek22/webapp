@@ -2186,18 +2186,18 @@ if (inputUserHeight) {
   updateStateInputHeight();
 }
 
-// YOLO-style background isolation click handler
+// Background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {
   state.yoloModeActive = !state.yoloModeActive;
   if (state.yoloModeActive) {
-    yoloToggleBtn.textContent = "Disable YOLO Background Isolation";
+    yoloToggleBtn.textContent = "Disable Background Isolation";
     yoloToggleBtn.classList.add('active');
     
     // Hide standard video underneath so canvas can show the background cutout
     videoElement.classList.add('video-dimmed');
     videoElement.classList.remove('video-visible');
   } else {
-    yoloToggleBtn.textContent = "Enable YOLO Background Isolation";
+    yoloToggleBtn.textContent = "Enable Background Isolation";
     yoloToggleBtn.classList.remove('active');
     
     // Restore standard video opacity

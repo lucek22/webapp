@@ -449,17 +449,22 @@ export function renderDashboard(metrics) {
   }
 
   // Render height
-  const skeletal_inches = metrics.skeletal_height / 2.54;
-  const skeletal_feet = Math.floor(skeletal_inches / 12);
-  const skeletal_inches_left = skeletal_inches % 12;
-  const skeletal_feet_inches_str = `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
-
-  if (state.useInches) {
-    heightCmDisp.textContent = skeletal_feet_inches_str;
-    heightFtDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm (Stature)`;
+  if (state.activeCalMethod === 'validation') {
+    heightCmDisp.textContent = "--.-";
+    heightFtDisp.textContent = "Hidden (Validation Mode)";
   } else {
-    heightCmDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm`;
-    heightFtDisp.textContent = `${skeletal_feet_inches_str} (Stature)`;
+    const skeletal_inches = metrics.skeletal_height / 2.54;
+    const skeletal_feet = Math.floor(skeletal_inches / 12);
+    const skeletal_inches_left = skeletal_inches % 12;
+    const skeletal_feet_inches_str = `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
+
+    if (state.useInches) {
+      heightCmDisp.textContent = skeletal_feet_inches_str;
+      heightFtDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm (Stature)`;
+    } else {
+      heightCmDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm`;
+      heightFtDisp.textContent = `${skeletal_feet_inches_str} (Stature)`;
+    }
   }
 
   // Render angles
@@ -690,11 +695,11 @@ export function onPoseResults(results) {
         const live_inches_left = live_inches % 12;
         const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
 
-        // Draw head top indicator node
-        drawJoint(head_top, '#06b6d4');
-
-        // Draw the live ruler graphics
-        drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
+        // Only draw head top indicator node and ruler graphics if not in validation mode
+        if (state.activeCalMethod !== 'validation') {
+          drawJoint(head_top, '#06b6d4');
+          drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
+        }
 
         // Draw active pose badge
         if (liveMetrics.pose) {
@@ -902,23 +907,25 @@ export function onPoseResults(results) {
           const trueStr = formatSkeletalHeight(targetHeight);
           const diffStr = state.useInches ? `${(diffCm / 2.54).toFixed(1)} in` : `${diffCm.toFixed(1)} cm`;
           
-          if (diffCm <= 1.0) {
+          if (diffCm <= 0.5) {
             feedbackBox.style.border = "1px solid #10b981";
             feedbackBox.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
             feedbackBox.style.color = "#10b981";
             feedbackBox.innerHTML = `
               <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #10b981;">✅ SUCCESS: Calibrated & Positioned Properly!</div>
               <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
+              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: ${diffStr} (Within 0.5 cm limit)</div>
             `;
           } else {
+            const stepInstruction = liveHeight > targetHeight ? "Take a small step backward" : "Take a small step forward";
             feedbackBox.style.border = "1px solid #ec4899";
             feedbackBox.style.backgroundColor = "rgba(236, 72, 153, 0.1)";
             feedbackBox.style.color = "#ec4899";
             feedbackBox.innerHTML = `
               <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #ec4899;">⚠️ POSITION CHECK: Discrepancy Found</div>
+              <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">👉 ${stepInstruction}</div>
               <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: <strong style="color: #ec4899;">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
+              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: <strong style="color: #ec4899;">${diffStr}</strong> (Max allowed: 0.5 cm)</div>
               <div style="margin-top: 6px; font-size: 11px; color: #a7b1b7;">Please adjust your ArUco marker position or camera alignment.</div>
             `;
           }

@@ -125,8 +125,10 @@ export function calculatePoseMetrics(results) {
     x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
     y: (lm[7].y * 480 + lm[8].y * 480) / 2
   };
-  // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height above the ear level
+  // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height or 70% of ear-to-ear distance above ear level (maximum to prevent shrugging/posture errors)
   const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
+  const ear_to_ear_px = Math.hypot(mirrorX(lm[7].x) - mirrorX(lm[8].x), (lm[7].y - lm[8].y) * height);
+  const ear_to_crown_px = Math.max(shoulder_to_ear_px * 0.65, ear_to_ear_px * 0.70);
   const head_top = {
     x: ear_mid.x,
     y: ear_mid.y - (shoulder_to_ear_px * 0.65)
@@ -201,12 +203,23 @@ export function calculatePoseMetrics(results) {
     state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
     let activePixelsPerCm = state.pixelsPerCm;
-    if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
+    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+      const rawScale = skeletal_height_px / state.inputHeightCm;
+      // Smooth the calibration scale using a 45-frame window and a stable EMA alpha of 0.08
+      activePixelsPerCm = smooth('height_scale_calibration', rawScale, 45, 0.08);
+      state.pixelsPerCm = activePixelsPerCm;
+    } else if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
       activePixelsPerCm = skeletal_height_px / state.metricsA.skeletal_height;
     }
 
-    const skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
+    let skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
     const live_height_cm = vertical_height_px / activePixelsPerCm;
+
+    // When actively calibrating via input height, we bypass calculations 
+    // and trust the input height 100% as the absolute ground truth.
+    if (state.activeCalMethod === 'height' && state.inputHeightCm) {
+      skeletal_height_cm = state.inputHeightCm;
+    }
 
     // Calculate Wingspan (using Middle Fingertips if detected, or Pose Indexes 19 & 20 as fallback)
     let wingspan_cm = 0;
@@ -245,7 +258,7 @@ export function calculatePoseMetrics(results) {
       hipW: smooth('hipW', hipW_px / activePixelsPerCm),
       wingspan: smooth('wingspan_distance', wingspan_cm),
 
-      skeletal_height: smooth('body_height_skeletal', skeletal_height_cm),
+      skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm),
       live_height: smooth('body_height_live', live_height_cm),
 
       kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR

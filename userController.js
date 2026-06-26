@@ -758,18 +758,20 @@ export function onPoseResults(results) {
               triggerFlashEffect();
               
               // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
-              frozenFrameCtx.clearRect(0, 0, 640, 480);
+              const w = state.canvasWidth || 640;
+              const h = state.canvasHeight || 480;
+              frozenFrameCtx.clearRect(0, 0, w, h);
               frozenFrameCtx.save();
               if (state.currentFacingMode === "user") {
-                frozenFrameCtx.translate(640, 0);
+                frozenFrameCtx.translate(w, 0);
                 frozenFrameCtx.scale(-1, 1);
               }
               if (results.segmentationMask && state.yoloModeActive) {
-                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, w, h);
                 frozenFrameCtx.globalCompositeOperation = 'source-in';
-                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
               } else {
-                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
               }
               frozenFrameCtx.restore();
               
@@ -879,20 +881,22 @@ function captureSnapshot(joints, metrics, results) {
   state.frozenHandResults = state.latestHandResults ? JSON.parse(JSON.stringify(state.latestHandResults)) : null;
   
   // Save current frame image from results (or fallback to videoElement if results are not available)
-  frozenFrameCtx.clearRect(0, 0, 640, 480);
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  frozenFrameCtx.clearRect(0, 0, w, h);
   frozenFrameCtx.save();
   if (state.currentFacingMode === "user") {
-    frozenFrameCtx.translate(640, 0);
+    frozenFrameCtx.translate(w, 0);
     frozenFrameCtx.scale(-1, 1);
   }
   if (results && results.segmentationMask && state.yoloModeActive) {
-    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, w, h);
     frozenFrameCtx.globalCompositeOperation = 'source-in';
-    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
   } else if (results && results.image) {
-    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
   } else {
-    frozenFrameCtx.drawImage(videoElement, 0, 0);
+    frozenFrameCtx.drawImage(videoElement, 0, 0, w, h);
   }
   frozenFrameCtx.restore();
 
@@ -1348,14 +1352,28 @@ export async function startCamera() {
   }
 
   try {
-    state.activeStream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        facingMode: state.currentFacingMode
-      }
-    });
+    try {
+      // Attempt HD/FHD stream for high tracking accuracy (min 720p, ideal 1080p)
+      state.activeStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+          facingMode: state.currentFacingMode
+        }
+      });
+    } catch (hdErr) {
+      console.warn("HD/FHD camera request failed, falling back to 640x480:", hdErr);
+      // Fallback to standard definition if HD is overconstrained or unsupported
+      state.activeStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: state.currentFacingMode
+        }
+      });
+    }
     
     videoElement.srcObject = state.activeStream;
     // Mirror the view only for front/user camera
@@ -2075,64 +2093,36 @@ tabHeightBtn.addEventListener('click', () => {
 const heightCalBtn = document.getElementById('height-cal-btn');
 const inputUserHeight = document.getElementById('input-user-height');
 
-heightCalBtn.addEventListener('click', () => {
-  if (state.isCountingDown || state.isCaptureCountingDown) return; // Prevent clicks during active countdowns
-
-  const activeHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-  if (activeHeightPx > 10) {
-    // Start 3-second countdown
-    state.isCountingDown = true;
-    state.countdownValue = 3;
-    heightCalBtn.textContent = "Get in Position (3s)...";
-    heightCalBtn.classList.add('btn-warning');
-    heightCalBtn.classList.remove('btn-success-green');
-    statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
-
-    const intervalId = setInterval(() => {
-      state.countdownValue--;
-      if (state.countdownValue > 0) {
-        heightCalBtn.textContent = `Get in Position (${state.countdownValue}s)...`;
-        statusElement.textContent = `Stand straight and face the camera. Calibrating in ${state.countdownValue} seconds...`;
-      } else {
-        clearInterval(intervalId);
-        state.isCountingDown = false;
-
-        // Recalculate pixel height at the exact end of countdown
-        const captureHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-        const inputVal = parseFloat(inputUserHeight.value) || (state.useInches ? 68.9 : 175.0);
-        let actualHeightCm = inputVal;
-        if (state.useInches) {
-          actualHeightCm = inputVal * 2.54; // Convert to cm for calibration scale factor
-        }
-
-        state.pixelsPerCm = captureHeightPx / actualHeightCm;
-        state.calLocked = true;
-        heightCalBtn.textContent = "✅ Calibrated!";
-        heightCalBtn.classList.add('btn-success-green');
-        heightCalBtn.classList.remove('btn-warning');
-        statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
-        
-        // Trigger camera snapshot visual flash!
-        triggerFlashEffect();
-      }
-    }, 1000);
-  } else {
-    alert("Please click 'Start Biomechanical Tracking' and stand in view of the camera first!");
+function updateStateInputHeight() {
+  const inputElem = document.getElementById('input-user-height');
+  if (!inputElem) return;
+  const inputVal = parseFloat(inputElem.value);
+  if (!isNaN(inputVal)) {
+    if (state.useInches) {
+      state.inputHeightCm = inputVal * 2.54;
+    } else {
+      state.inputHeightCm = inputVal;
+    }
   }
-});
+}
 
-// YOLO-style background isolation click handler
+if (inputUserHeight) {
+  inputUserHeight.addEventListener('input', updateStateInputHeight);
+  updateStateInputHeight();
+}
+
+// Background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {
   state.yoloModeActive = !state.yoloModeActive;
   if (state.yoloModeActive) {
-    yoloToggleBtn.textContent = "Disable YOLO Background Isolation";
+    yoloToggleBtn.textContent = "Disable Background Isolation";
     yoloToggleBtn.classList.add('active');
     
     // Hide standard video underneath so canvas can show the background cutout
     videoElement.classList.add('video-dimmed');
     videoElement.classList.remove('video-visible');
   } else {
-    yoloToggleBtn.textContent = "Enable YOLO Background Isolation";
+    yoloToggleBtn.textContent = "Enable Background Isolation";
     yoloToggleBtn.classList.remove('active');
     
     // Restore standard video opacity

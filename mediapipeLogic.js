@@ -126,10 +126,10 @@ export function calculatePoseMetrics(results) {
     x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
     y: (lm[7].y * height + lm[8].y * height) / 2
   };
-  // The top of the head (crown) is approximately 115% of the shoulder-to-ear neck height or 95% of ear-to-ear distance above ear level (maximum to prevent shrugging/posture errors)
+  // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height or 70% of ear-to-ear distance above ear level (maximum to prevent shrugging/posture errors)
   const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
   const ear_to_ear_px = Math.hypot(mirrorX(lm[7].x) - mirrorX(lm[8].x), (lm[7].y - lm[8].y) * height);
-  const ear_to_crown_px = Math.max(shoulder_to_ear_px * 1.15, ear_to_ear_px * 0.95);
+  const ear_to_crown_px = Math.max(shoulder_to_ear_px * 0.65, ear_to_ear_px * 0.70);
   const head_top = {
     x: ear_mid.x,
     y: ear_mid.y - ear_to_crown_px

@@ -758,24 +758,21 @@ export function onPoseResults(results) {
             if (state.holdTimerMs >= state.REQ_HOLD_MS) {
               triggerFlashEffect();
               
-              // Cache current frame image on frozenFrameCanvas
+              // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
               const w = state.canvasWidth || 640;
               const h = state.canvasHeight || 480;
               frozenFrameCtx.clearRect(0, 0, w, h);
-              frozenFrameCtx.drawImage(canvasElement, 0, 0);
-              // Cache current frame image on frozenFrameCanvas (raw picture with YOLO cutout if active, raw video if not)
-              frozenFrameCtx.clearRect(0, 0, 640, 480);
               frozenFrameCtx.save();
               if (state.currentFacingMode === "user") {
-                frozenFrameCtx.translate(640, 0);
+                frozenFrameCtx.translate(w, 0);
                 frozenFrameCtx.scale(-1, 1);
               }
               if (results.segmentationMask && state.yoloModeActive) {
-                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, w, h);
                 frozenFrameCtx.globalCompositeOperation = 'source-in';
-                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
               } else {
-                frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+                frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
               }
               frozenFrameCtx.restore();
               
@@ -884,38 +881,23 @@ function captureSnapshot(joints, metrics, results) {
   state.frozenMetrics = JSON.parse(JSON.stringify(metrics));
   state.frozenHandResults = state.latestHandResults ? JSON.parse(JSON.stringify(state.latestHandResults)) : null;
   
-  // Save current frame image from canvas (if YOLO background isolated) or webcam
+  // Save current frame image from results (or fallback to videoElement if results are not available)
   const w = state.canvasWidth || 640;
   const h = state.canvasHeight || 480;
   frozenFrameCtx.clearRect(0, 0, w, h);
-  if (state.yoloModeActive) {
-    // Main canvas currently holds the isolated composite frame (before overlays were drawn)
-    frozenFrameCtx.drawImage(canvasElement, 0, 0);
-  } else {
-    // Grab direct webcam stream and mirror it in memory if in user-facing mode
-    frozenFrameCtx.save();
-    if (state.currentFacingMode === "user") {
-      frozenFrameCtx.translate(w, 0);
-      frozenFrameCtx.scale(-1, 1);
-    }
-    frozenFrameCtx.drawImage(videoElement, 0, 0);
-    frozenFrameCtx.restore();
-  }
-  // Save current frame image from results (or fallback to videoElement if results are not available)
-  frozenFrameCtx.clearRect(0, 0, 640, 480);
   frozenFrameCtx.save();
   if (state.currentFacingMode === "user") {
-    frozenFrameCtx.translate(640, 0);
+    frozenFrameCtx.translate(w, 0);
     frozenFrameCtx.scale(-1, 1);
   }
   if (results && results.segmentationMask && state.yoloModeActive) {
-    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.segmentationMask, 0, 0, w, h);
     frozenFrameCtx.globalCompositeOperation = 'source-in';
-    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
   } else if (results && results.image) {
-    frozenFrameCtx.drawImage(results.image, 0, 0, 640, 480);
+    frozenFrameCtx.drawImage(results.image, 0, 0, w, h);
   } else {
-    frozenFrameCtx.drawImage(videoElement, 0, 0);
+    frozenFrameCtx.drawImage(videoElement, 0, 0, w, h);
   }
   frozenFrameCtx.restore();
 
@@ -1371,14 +1353,28 @@ export async function startCamera() {
   }
 
   try {
-    state.activeStream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        facingMode: state.currentFacingMode
-      }
-    });
+    try {
+      // Attempt HD/FHD stream for high tracking accuracy (min 720p, ideal 1080p)
+      state.activeStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+          facingMode: state.currentFacingMode
+        }
+      });
+    } catch (hdErr) {
+      console.warn("HD/FHD camera request failed, falling back to 640x480:", hdErr);
+      // Fallback to standard definition if HD is overconstrained or unsupported
+      state.activeStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: state.currentFacingMode
+        }
+      });
+    }
     
     videoElement.srcObject = state.activeStream;
     // Mirror the view only for front/user camera

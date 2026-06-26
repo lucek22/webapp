@@ -196,8 +196,6 @@ export const MARKER_PHYSICAL_SIZE_CM = 20.0;
 // GLOBAL STATE VARIABLES (SHARED)
 // ==========================================
 export const state = {
-  canvasWidth: 640,
-  canvasHeight: 480,
   pixelsPerCm: null,
   calLocked: false,
   useInches: true,
@@ -224,7 +222,6 @@ export const state = {
   latestRightMiddleTip: null,
   activeStream: null,
   activeCalMethod: 'aruco',
-  inputHeightCm: 175.006,
   dbInitialized: false,
   autoActive: false,
   autoState: 'IDLE',
@@ -287,13 +284,12 @@ export function calculateAngle(p_vertex, p_arm1, p_arm2) {
 }
 
 export function getCanvasX(normX) {
-  const width = state.canvasWidth || 640;
-  return state.currentFacingMode === "user" ? (1.0 - normX) * width : normX * width;
+  return state.currentFacingMode === "user" ? (1.0 - normX) * 640 : normX * 640;
 }
 
 export function formatLength(cmVal) {
   if (state.useInches) {
-    return `${(cmVal / 2.54).toFixed(1)} inches`;
+    return `${(cmVal / 2.54).toFixed(1)} in`;
   } else {
     return `${cmVal.toFixed(1)} cm`;
   }

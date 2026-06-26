@@ -399,20 +399,25 @@
 }
 
 /* ID style mappings */
-#tab-aruco-btn {
+#tab-aruco-btn,
+#tab-height-btn,
+#tab-validation-btn {
   margin-top: 0;
   padding: 0.4rem;
   font-size: 0.72rem;
+  width: 33.33%;
+}
+
+#tab-aruco-btn {
   background-color: var(--color-scarlet);
-  width: 50%;
 }
 
 #tab-height-btn {
-  margin-top: 0;
-  padding: 0.4rem;
-  font-size: 0.72rem;
   background-color: var(--color-dark-gray);
-  width: 50%;
+}
+
+#tab-validation-btn {
+  background-color: var(--color-dark-gray);
 }
 
 #pos-left-btn, #pos-right-btn {
@@ -442,7 +447,8 @@
   width: auto;
 }
 
-#input-user-height {
+#input-user-height,
+#input-validation-height {
   width: 75px;
   background-color: #111111;
   color: white;
@@ -456,19 +462,23 @@
   transition: all 0.2s ease;
 }
 
-#input-user-height:focus {
+#input-user-height:focus,
+#input-validation-height:focus {
   border-color: #BA0C2F;
   box-shadow: 0 0 8px rgba(186, 12, 47, 0.35);
 }
 
 /* Hide standard number input spinner up/down arrows */
 #input-user-height::-webkit-outer-spin-button,
-#input-user-height::-webkit-inner-spin-button {
+#input-user-height::-webkit-inner-spin-button,
+#input-validation-height::-webkit-outer-spin-button,
+#input-validation-height::-webkit-inner-spin-button {
   -webkit-appearance: none;
   appearance: none;
   margin: 0;
 }
-#input-user-height {
+#input-user-height,
+#input-validation-height {
   -moz-appearance: textfield;
   appearance: textfield;
   -webkit-appearance: textfield;
@@ -1523,7 +1533,8 @@ canvas {
   }
   .save-input,
   #subject-name-input,
-  #input-user-height {
+  #input-user-height,
+  #input-validation-height {
     font-size: 16px !important;
   }
   .snapshot-card-delete {
@@ -1762,7 +1773,9 @@ canvas {
 #tab-aruco-btn[style*="background-color: rgb(59, 130, 246)"],
 #tab-aruco-btn[style*="background-color: #3b82f6"],
 #tab-height-btn[style*="background-color: rgb(59, 130, 246)"],
-#tab-height-btn[style*="background-color: #3b82f6"] {
+#tab-height-btn[style*="background-color: #3b82f6"],
+#tab-validation-btn[style*="background-color: rgb(59, 130, 246)"],
+#tab-validation-btn[style*="background-color: #3b82f6"] {
   background-color: #BA0C2F !important;
   color: #ffffff !important;
 }
@@ -1771,7 +1784,8 @@ canvas {
 #unit-inch-btn[style*="background-color"]:hover,
 #unit-cm-btn[style*="background-color"]:hover,
 #tab-aruco-btn[style*="background-color"]:hover,
-#tab-height-btn[style*="background-color"]:hover {
+#tab-height-btn[style*="background-color"]:hover,
+#tab-validation-btn[style*="background-color"]:hover {
   filter: brightness(0.85);
 }
 

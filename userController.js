@@ -147,11 +147,18 @@ const elbowAngleRDisp = document.getElementById('angle-elbow-r');
 // UI Calibration Toggles & Panels
 const tabArucoBtn = document.getElementById('tab-aruco-btn');
 const tabHeightBtn = document.getElementById('tab-height-btn');
+const tabValidationBtn = document.getElementById('tab-validation-btn');
 
 const panelAruco = document.getElementById('panel-aruco');
 const panelCard = document.getElementById('panel-card');
 const panelHeight = document.getElementById('panel-height');
+const panelValidation = document.getElementById('panel-validation');
+
 const arucoStatusText = document.getElementById('aruco-status-text');
+const validationStatusText = document.getElementById('validation-status-text');
+const validationFeedbackBox = document.getElementById('validation-feedback-box');
+const validationHeightLabel = document.getElementById('validation-height-label');
+const inputValidationHeight = document.getElementById('input-validation-height');
 
 // ==========================================
 // CANVAS DRAWING COMPONENT UTILITIES
@@ -537,7 +544,7 @@ export function onPoseResults(results) {
     canvasCtx.restore();
   }
 
-  if (state.latestArucoMarker && state.activeCalMethod === 'aruco') {
+  if (state.latestArucoMarker && (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation')) {
     const width = state.canvasWidth || 640;
     const corners = state.latestArucoMarker.corners.map(c => ({
       x: state.currentFacingMode === "user" ? width - c.x : c.x,
@@ -864,6 +871,60 @@ export function onPoseResults(results) {
   if (state.flashOpacity > 0) {
     canvasCtx.fillStyle = `rgba(255, 255, 255, ${state.flashOpacity})`;
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+  }
+
+  // --- REAL-TIME CALIBRATION / VALIDATION CHECK ---
+  if (state.activeCalMethod === 'validation') {
+    const feedbackBox = document.getElementById('validation-feedback-box');
+    const statusText = document.getElementById('validation-status-text');
+    if (feedbackBox && statusText) {
+      if (!state.pixelsPerCm) {
+        statusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
+        feedbackBox.classList.add('hidden');
+      } else {
+        statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+        
+        // Check if there is a person/pose detected and calculated
+        const calculated = typeof calculatePoseMetrics === 'function' ? calculatePoseMetrics(results) : null;
+        if (!calculated || !calculated.liveMetrics) {
+          feedbackBox.classList.remove('hidden');
+          feedbackBox.style.border = "1px dashed rgba(167, 177, 183, 0.4)";
+          feedbackBox.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
+          feedbackBox.style.color = "#a7b1b7";
+          feedbackBox.innerHTML = `👤 Please stand in view of the camera to perform real-time verification...`;
+        } else {
+          feedbackBox.classList.remove('hidden');
+          const liveHeight = calculated.liveMetrics.skeletal_height;
+          const targetHeight = state.validationHeightCm;
+          const diffCm = Math.abs(liveHeight - targetHeight);
+          
+          const calculatedStr = formatSkeletalHeight(liveHeight);
+          const trueStr = formatSkeletalHeight(targetHeight);
+          const diffStr = state.useInches ? `${(diffCm / 2.54).toFixed(1)} in` : `${diffCm.toFixed(1)} cm`;
+          
+          if (diffCm <= 1.0) {
+            feedbackBox.style.border = "1px solid #10b981";
+            feedbackBox.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
+            feedbackBox.style.color = "#10b981";
+            feedbackBox.innerHTML = `
+              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #10b981;">✅ SUCCESS: Calibrated & Positioned Properly!</div>
+              <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
+              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
+            `;
+          } else {
+            feedbackBox.style.border = "1px solid #ec4899";
+            feedbackBox.style.backgroundColor = "rgba(236, 72, 153, 0.1)";
+            feedbackBox.style.color = "#ec4899";
+            feedbackBox.innerHTML = `
+              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #ec4899;">⚠️ POSITION CHECK: Discrepancy Found</div>
+              <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
+              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: <strong style="color: #ec4899;">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
+              <div style="margin-top: 6px; font-size: 11px; color: #a7b1b7;">Please adjust your ArUco marker position or camera alignment.</div>
+            `;
+          }
+        }
+      }
+    }
   }
 
   canvasCtx.restore();
@@ -2098,6 +2159,7 @@ unitInchBtn.addEventListener('click', () => {
   unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
   updateStateInputHeight();
+  updateStateValidationHeight();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -2113,6 +2175,7 @@ unitCmBtn.addEventListener('click', () => {
   unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
   updateStateInputHeight();
+  updateStateValidationHeight();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -2126,12 +2189,14 @@ unitCmBtn.addEventListener('click', () => {
 function switchCalibrationTab(method, activeBtn, activePanel) {
   state.activeCalMethod = method;
   
-  [tabArucoBtn, tabHeightBtn].forEach(btn => {
-    btn.classList.toggle('btn-tab-active', btn === activeBtn);
-    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+  [tabArucoBtn, tabHeightBtn, tabValidationBtn].forEach(btn => {
+    if (btn) {
+      btn.classList.toggle('btn-tab-active', btn === activeBtn);
+      btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+    }
   });
 
-  [panelAruco, panelCard, panelHeight].forEach(panel => {
+  [panelAruco, panelCard, panelHeight, panelValidation].forEach(panel => {
     if (panel) {
       if (panel === activePanel) {
         panel.classList.remove('hidden');
@@ -2166,6 +2231,10 @@ tabHeightBtn.addEventListener('click', () => {
   switchCalibrationTab('height', tabHeightBtn, panelHeight);
 });
 
+tabValidationBtn.addEventListener('click', () => {
+  switchCalibrationTab('validation', tabValidationBtn, panelValidation);
+});
+
 const inputUserHeight = document.getElementById('input-user-height');
 
 function updateStateInputHeight() {
@@ -2184,6 +2253,24 @@ function updateStateInputHeight() {
 if (inputUserHeight) {
   inputUserHeight.addEventListener('input', updateStateInputHeight);
   updateStateInputHeight();
+}
+
+function updateStateValidationHeight() {
+  const inputElem = document.getElementById('input-validation-height');
+  if (!inputElem) return;
+  const inputVal = parseFloat(inputElem.value);
+  if (!isNaN(inputVal)) {
+    if (state.useInches) {
+      state.validationHeightCm = inputVal * 2.54;
+    } else {
+      state.validationHeightCm = inputVal;
+    }
+  }
+}
+
+if (inputValidationHeight) {
+  inputValidationHeight.addEventListener('input', updateStateValidationHeight);
+  updateStateValidationHeight();
 }
 
 // Background isolation click handler

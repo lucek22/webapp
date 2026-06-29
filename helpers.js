@@ -202,6 +202,8 @@ export const state = {
   calLocked: false,
   useInches: true,
   currentFacingMode: "user",
+  wallPerspectiveEnabled: false,
+  wallPerspectiveFactor: 1.09, // Increases px/cm scale, decreasing calculated height to correct for being closer to the camera when standing beside wall-mounted ArUco
   calBoxSize: 150,
   calBoxX: 320,
   calBoxY: 240,

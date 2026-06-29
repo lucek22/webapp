@@ -6,6 +6,7 @@ import {
   snapshotStore,
   getDomMeasurementCm
 } from './helpers.js';
+import { autoSyncToActiveProfile } from './userController.js';
 
 /**
  * Sanitizes a filename to ensure safe downloading on various OS systems.
@@ -108,6 +109,22 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
         metrics: metricsToSave
       };
 
+      if (state.activeProfileId) {
+        const poseName = state.frozenMetrics.pose || "A-Pose";
+        const capturedImg = frozenFrameCanvas.toDataURL('image/png');
+        if (poseName === "A-Pose") {
+          state.metricsA = JSON.parse(JSON.stringify(metricsToSave));
+          state.imageA = capturedImg;
+        } else if (poseName === "T-Pose") {
+          state.metricsT = JSON.parse(JSON.stringify(metricsToSave));
+          state.imageT = capturedImg;
+        } else if (poseName === "Overhead Reach" || poseName === "Overhead Pose") {
+          state.metricsOverhead = JSON.parse(JSON.stringify(metricsToSave));
+          state.imageOverhead = capturedImg;
+        }
+        autoSyncToActiveProfile();
+      }
+
       snapshotStore.save(snapshotRecord)
         .then(() => {
           statusElement.textContent = `💾 Snapshot "${label}" successfully saved to biomechanical gallery!`;
@@ -141,8 +158,18 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
           const blob = new Blob([jsonStr], { type: 'application/json' });
           
           // Formulate a clean filename incorporating the subject's name if specified
-          const subjectInput = document.getElementById('subject-name-input');
-          const subjectName = subjectInput ? subjectInput.value.trim() : '';
+          let subjectName = '';
+          if (state.activeProfileId && state.allProfiles) {
+            const activeProfile = state.allProfiles.find(p => p.id === state.activeProfileId);
+            if (activeProfile) {
+              subjectName = activeProfile.name;
+            }
+          } else {
+            const subjectInput = document.getElementById('subject-name-input');
+            if (subjectInput && subjectInput.value.trim()) {
+              subjectName = subjectInput.value.trim();
+            }
+          }
           let baseFilename = 'biomechanical-gallery-export';
           if (subjectName) {
             baseFilename = `${sanitizeFilename(subjectName)}-gallery-export`;
@@ -169,8 +196,18 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
 }
 
 export function compileAndDownloadCombinedSession() {
-  const subjectInput = document.getElementById('subject-name-input');
-  const subjectName = subjectInput ? subjectInput.value.trim() : 'Anonymous Subject';
+  let subjectName = 'Anonymous Subject';
+  if (state.activeProfileId && state.allProfiles) {
+    const activeProfile = state.allProfiles.find(p => p.id === state.activeProfileId);
+    if (activeProfile) {
+      subjectName = activeProfile.name;
+    }
+  } else {
+    const subjectInput = document.getElementById('subject-name-input');
+    if (subjectInput && subjectInput.value.trim()) {
+      subjectName = subjectInput.value.trim();
+    }
+  }
   const sessionId = `session-${state.currentGroupId || Date.now()}`;
   const timestamp = Date.now();
   

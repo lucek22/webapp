@@ -417,17 +417,102 @@
 #subject-profile-panel {
   margin-top: 0.5rem;
   margin-bottom: 0.25rem;
-  background-color: rgba(15, 22, 38, 0.4);
+  background: rgba(15, 22, 38, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(6, 182, 212, 0.15);
   border-radius: 8px;
-  padding: 0.6rem;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.5rem;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.profile-delete-btn {
+  background: rgba(186, 12, 47, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(186, 12, 47, 0.3);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease-in-out;
+  font-weight: 500;
+}
+
+.profile-delete-btn:hover {
+  background: rgba(186, 12, 47, 0.3);
+  border-color: rgba(186, 12, 47, 0.6);
+  box-shadow: 0 0 8px rgba(186, 12, 47, 0.25);
+  color: #f87171;
+}
+
+.profile-search-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.profile-search-input {
+  width: 100%;
+  background-color: rgba(15, 22, 38, 0.6);
+  color: white;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  outline: none;
+  transition: all 0.2s;
+  font-weight: 400;
+}
+
+.profile-search-input:focus {
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+  background-color: rgba(15, 22, 38, 0.85);
+}
+
+.profile-controls-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.profile-dropdown {
+  width: 100%;
+  background-color: rgba(15, 22, 38, 0.6);
+  color: white;
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-dropdown:focus {
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+}
+
+.profile-dropdown option {
+  background-color: #0f172a;
+  color: white;
 }
 
 #subject-name-input {
-  background-color: var(--color-bg-dark);
+  flex: 1;
+  background-color: rgba(15, 22, 38, 0.6);
   color: white;
   border: 1px solid rgba(6, 182, 212, 0.3);
   padding: 0.4rem 0.6rem;
@@ -436,6 +521,55 @@
   outline: none;
   transition: all 0.2s;
   font-weight: 500;
+}
+
+#subject-name-input:focus {
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.25);
+}
+
+.compact-btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding: 0.25rem 0.4rem;
+  background: rgba(6, 182, 212, 0.05);
+  border-radius: 4px;
+  border-left: 3px solid var(--color-cyan);
+  margin-top: 0.15rem;
+}
+
+.status-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-green 1.5s infinite;
+  display: inline-block;
+}
+
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
 #capture-btn {
@@ -667,7 +801,7 @@ h1 {
   border: 1px solid #2d2d2d;
 }
 
-video, #uploaded-image {
+#webcam, #uploaded-video, #uploaded-image {
   position: absolute;
   top: 0;
   left: 0;
@@ -870,6 +1004,17 @@ canvas {
 .btn-capture-reset:hover {
   background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
   box-shadow: 0 6px 16px rgba(239, 68, 68, 0.5) !important;
+}
+
+.btn-capture-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: 1px solid #34d399 !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35) !important;
+  color: white;
+}
+.btn-capture-success:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5) !important;
 }
 
 #status {
@@ -2250,5 +2395,12 @@ div[style*="color: #10b981"] {
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding-top: 0.75rem;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .profile-details-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
 }
 

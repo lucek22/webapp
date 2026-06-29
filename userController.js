@@ -1254,6 +1254,9 @@ export function onPoseResults(results) {
                 state.imageOverhead = capturedImage;
                 state.metricsOverhead = JSON.parse(JSON.stringify(liveMetrics));
               }
+              if (state.activeProfileId) {
+                autoSyncToActiveProfile();
+              }
 
               // Trigger visual feedback lockout period
               state.lockoutTimerMs = state.LOCKOUT_MS;
@@ -2016,10 +2019,10 @@ export async function startCamera() {
       const startTime = Date.now();
       try {
         if (!state.isSnapshotFrozen) {
-          if (state.importedPortfolioMetrics) {
+          if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
             state.latestArucoMarker = null;
             if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-              arucoStatusText.innerHTML = `✅ Calibrated via Portfolio Stature (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+              arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
             }
           } else if (typeof detectArucoMarker === 'function') {
             const found = detectArucoMarker(videoElement);
@@ -2307,10 +2310,10 @@ export function startUploadedMediaLoop() {
     const startTime = Date.now();
     try {
       if (!state.isSnapshotFrozen) {
-        if (state.importedPortfolioMetrics) {
+        if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
           state.latestArucoMarker = null;
           if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-            arucoStatusText.innerHTML = `✅ Calibrated via Portfolio Stature (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+            arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
           }
         } else if (typeof detectArucoMarker === 'function') {
           const found = detectArucoMarker(uploadedVideo);
@@ -2425,7 +2428,9 @@ export function renderGallery() {
         card.setAttribute('data-id', snapshot.id);
 
         let formattedHeight = '--.-';
-        if (snapshot.metrics && snapshot.metrics.skeletal_height) {
+        if (snapshot.metrics && snapshot.metrics.isSquatMobility) {
+          formattedHeight = "Mobility Peaks";
+        } else if (snapshot.metrics && snapshot.metrics.skeletal_height) {
           formattedHeight = formatSkeletalHeight(snapshot.metrics.skeletal_height);
         }
 
@@ -2527,137 +2532,31 @@ function openSnapshotModal(id) {
 
       const m = snapshot.metrics;
       const isCombined = snapshot.isCombinedSession || (m && m.isCombinedSession);
+      const isSquatMobility = m && m.isSquatMobility;
+
+      const modalSectionStature = document.getElementById('modal-section-stature');
+      const modalSectionJoints = document.getElementById('modal-section-joints');
+      const modalSectionSquatPeaks = document.getElementById('modal-section-squat-peaks');
+      const modalSectionLowerBody = document.getElementById('modal-section-lower-body');
+      const modalSectionUpperBody = document.getElementById('modal-section-upper-body');
       const modalSectionWidths = document.getElementById('modal-section-widths');
       const modalSectionHandTracking = document.getElementById('modal-section-hand-tracking');
 
-      if (isCombined) {
-        // Show switcher and thumbnails containers
-        if (poseSwitcher) {
-          poseSwitcher.classList.remove('hidden');
-          poseSwitcher.classList.add('visible-flex');
-        }
-        if (thumbnailsContainer) {
-          thumbnailsContainer.classList.remove('hidden');
-          thumbnailsContainer.classList.add('visible-flex');
-        }
-        if (modalSectionWidths) {
-          modalSectionWidths.classList.add('hidden');
-          modalSectionWidths.classList.remove('visible-flex', 'visible-block');
-        }
-        if (modalSectionHandTracking) {
-          modalSectionHandTracking.classList.add('hidden');
-          modalSectionHandTracking.classList.remove('visible-flex', 'visible-block');
+      if (isSquatMobility) {
+        // Hide standard sections
+        if (modalSectionStature) modalSectionStature.classList.add('hidden');
+        if (modalSectionJoints) modalSectionJoints.classList.add('hidden');
+        if (modalSectionLowerBody) modalSectionLowerBody.classList.add('hidden');
+        if (modalSectionUpperBody) modalSectionUpperBody.classList.add('hidden');
+        if (modalSectionWidths) modalSectionWidths.classList.add('hidden');
+        if (modalSectionHandTracking) modalSectionHandTracking.classList.add('hidden');
+
+        // Show squat peaks section
+        if (modalSectionSquatPeaks) {
+          modalSectionSquatPeaks.classList.remove('hidden');
+          modalSectionSquatPeaks.classList.add('visible-block');
         }
 
-        // Set thumbnail sources
-        const thumbA = document.getElementById('modal-thumb-a');
-        const thumbT = document.getElementById('modal-thumb-t');
-        const thumbOverhead = document.getElementById('modal-thumb-overhead');
-        if (thumbA) thumbA.src = snapshot.imageA || snapshot.image;
-        if (thumbT) thumbT.src = snapshot.imageT || snapshot.image;
-        if (thumbOverhead) thumbOverhead.src = snapshot.imageOverhead || snapshot.image;
-
-        // Reset active states for switcher buttons & thumbnail wrappers
-        const btnSwitchA = document.getElementById('btn-switch-a');
-        const btnSwitchT = document.getElementById('btn-switch-t');
-        const btnSwitchOverhead = document.getElementById('btn-switch-overhead');
-        
-        let wrapperA = null, wrapperT = null, wrapperOverhead = null;
-        if (thumbnailsContainer) {
-          wrapperA = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="A"]');
-          wrapperT = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="T"]');
-          wrapperOverhead = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="Overhead"]');
-        }
-
-        const setActivePoseInModal = (poseKey) => {
-          // Clear all active classes
-          [btnSwitchA, btnSwitchT, btnSwitchOverhead].forEach(btn => btn?.classList.remove('active'));
-          [wrapperA, wrapperT, wrapperOverhead].forEach(wr => wr?.classList.remove('active'));
-
-          let activeImg = snapshot.image;
-          let poseLabel = "A-Pose";
-          let poseColor = "#818cf8"; // Violet
-
-          if (poseKey === 'A') {
-            btnSwitchA?.classList.add('active');
-            wrapperA?.classList.add('active');
-            activeImg = snapshot.imageA || snapshot.image;
-            poseLabel = "A-Pose";
-            poseColor = "#818cf8";
-          } else if (poseKey === 'T') {
-            btnSwitchT?.classList.add('active');
-            wrapperT?.classList.add('active');
-            activeImg = snapshot.imageT || snapshot.image;
-            poseLabel = "T-Pose";
-            poseColor = "#06b6d4"; // Cyan
-          } else if (poseKey === 'Overhead') {
-            btnSwitchOverhead?.classList.add('active');
-            wrapperOverhead?.classList.add('active');
-            activeImg = snapshot.imageOverhead || snapshot.image;
-            poseLabel = "Overhead Reach";
-            poseColor = "#10b981"; // Emerald
-          }
-
-          if (modalImg) modalImg.src = activeImg;
-          setModalMetric('modal-val-pose', poseLabel);
-          const modalPoseElem = document.getElementById('modal-val-pose');
-          if (modalPoseElem) {
-            modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
-            if (poseKey === 'T') {
-              modalPoseElem.classList.add('pose-color-t');
-            } else if (poseKey === 'Overhead') {
-              modalPoseElem.classList.add('pose-color-overhead');
-            } else {
-              modalPoseElem.classList.add('pose-color-default');
-            }
-          }
-
-          // Update joint angles for this specific pose
-          let angles = null;
-          if (poseKey === 'A') angles = m.anglesA;
-          else if (poseKey === 'T') angles = m.anglesT;
-          else if (poseKey === 'Overhead') angles = m.anglesOverhead;
-
-          if (angles) {
-            setModalMetric('modal-angle-knee-l', angles.kneeAngleL !== undefined && angles.kneeAngleL !== null ? `${Math.round(angles.kneeAngleL)}°` : "--°");
-            setModalMetric('modal-angle-knee-r', angles.kneeAngleR !== undefined && angles.kneeAngleR !== null ? `${Math.round(angles.kneeAngleR)}°` : "--°");
-            setModalMetric('modal-angle-hip-l', angles.hipAngleL !== undefined && angles.hipAngleL !== null ? `${Math.round(angles.hipAngleL)}°` : "--°");
-            setModalMetric('modal-angle-hip-r', angles.hipAngleR !== undefined && angles.hipAngleR !== null ? `${Math.round(angles.hipAngleR)}°` : "--°");
-            setModalMetric('modal-angle-elbow-l', angles.elbowAngleL !== undefined && angles.elbowAngleL !== null ? `${Math.round(angles.elbowAngleL)}°` : "--°");
-            setModalMetric('modal-angle-elbow-r', angles.elbowAngleR !== undefined && angles.elbowAngleR !== null ? `${Math.round(angles.elbowAngleR)}°` : "--°");
-          } else {
-            // Fallback to global metrics if angles object is missing
-            setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-            setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-            setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-            setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-            setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-            setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
-          }
-        };
-
-        // Default to A-Pose on open
-        setActivePoseInModal('A');
-
-        // Bind click handlers for switching
-        const removeOldListenersAndAdd = (elem, handler) => {
-          if (!elem) return;
-          const clone = elem.cloneNode(true);
-          elem.parentNode.replaceChild(clone, elem);
-          clone.addEventListener('click', handler);
-          return clone;
-        };
-
-        removeOldListenersAndAdd(btnSwitchA, () => setActivePoseInModal('A'));
-        removeOldListenersAndAdd(btnSwitchT, () => setActivePoseInModal('T'));
-        removeOldListenersAndAdd(btnSwitchOverhead, () => setActivePoseInModal('Overhead'));
-
-        removeOldListenersAndAdd(wrapperA, () => setActivePoseInModal('A'));
-        removeOldListenersAndAdd(wrapperT, () => setActivePoseInModal('T'));
-        removeOldListenersAndAdd(wrapperOverhead, () => setActivePoseInModal('Overhead'));
-
-      } else {
-        // Normal snapshot: hide switcher and thumbnails
         if (poseSwitcher) {
           poseSwitcher.classList.add('hidden');
           poseSwitcher.classList.remove('visible-flex');
@@ -2666,66 +2565,250 @@ function openSnapshotModal(id) {
           thumbnailsContainer.classList.add('hidden');
           thumbnailsContainer.classList.remove('visible-flex');
         }
-        if (modalSectionWidths) {
-          modalSectionWidths.classList.remove('hidden');
-          modalSectionWidths.classList.add('visible-block');
-        }
-        if (modalSectionHandTracking) {
-          modalSectionHandTracking.classList.remove('hidden');
-          modalSectionHandTracking.classList.add('visible-block');
-        }
+
         if (modalImg) modalImg.src = snapshot.image;
 
         if (m) {
-          setModalMetric('modal-val-pose', m.pose || "A-Pose");
-          const modalPoseElem = document.getElementById('modal-val-pose');
-          if (modalPoseElem) {
-            modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
-            if (m.pose === "T-Pose") modalPoseElem.classList.add('pose-color-t');
-            else if (m.pose === "Overhead Reach") modalPoseElem.classList.add('pose-color-overhead');
-            else modalPoseElem.classList.add('pose-color-default');
+          const peaks = m.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+          setModalMetric('modal-squat-peak-knee-l', `${Math.round(peaks.kneeL)}°`);
+          setModalMetric('modal-squat-peak-knee-r', `${Math.round(peaks.kneeR)}°`);
+          setModalMetric('modal-squat-peak-hip-l', `${Math.round(peaks.hipL)}°`);
+          setModalMetric('modal-squat-peak-hip-r', `${Math.round(peaks.hipR)}°`);
+          setModalMetric('modal-squat-peak-ankle-l', `${Math.round(peaks.ankleL)}°`);
+          setModalMetric('modal-squat-peak-ankle-r', `${Math.round(peaks.ankleR)}°`);
+
+          // Calculate depth status
+          const maxKneeMob = Math.max(peaks.kneeL, peaks.kneeR);
+          let depthStatus = "Standing Upright";
+          let statusClass = "text-slate";
+
+          if (maxKneeMob >= 110) {
+            depthStatus = "Deep Squat";
+            statusClass = "text-emerald";
+          } else if (maxKneeMob >= 75) {
+            depthStatus = "Parallel Squat";
+            statusClass = "text-cyan";
+          } else if (maxKneeMob >= 30) {
+            depthStatus = "Partial Squat";
+            statusClass = "text-amber";
           }
 
-          setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-          setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-          setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-          setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-          setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-          setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+          const depthStatusElem = document.getElementById('modal-squat-depth-status');
+          if (depthStatusElem) {
+            depthStatusElem.textContent = depthStatus;
+            depthStatusElem.className = `modal-metric-val ${statusClass}`;
+          }
         }
-      }
+      } else {
+        // Hide squat peaks section
+        if (modalSectionSquatPeaks) {
+          modalSectionSquatPeaks.classList.add('hidden');
+          modalSectionSquatPeaks.classList.remove('visible-block');
+        }
 
-      if (m) {
-        // Global and anatomical segments are populated from optimal poses
-        // (Limb lengths, height, and widths come from optimal poses stored in metrics)
-        setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
-        setModalMetric('modal-val-wingspan', m.wingspan ? formatLength(m.wingspan) : "--.-");
+        // Show standard sections
+        if (modalSectionStature) modalSectionStature.classList.remove('hidden');
+        if (modalSectionJoints) modalSectionJoints.classList.remove('hidden');
+        if (modalSectionLowerBody) modalSectionLowerBody.classList.remove('hidden');
+        if (modalSectionUpperBody) modalSectionUpperBody.classList.remove('hidden');
 
-        setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatLength(m.thigh_l) : "--.-");
-        setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatLength(m.thigh_r) : "--.-");
-        setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatLength(m.shin_l) : "--.-");
-        setModalMetric('modal-val-shin-r', m.shin_r !== undefined ? formatLength(m.shin_r) : "--.-");
-        setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatLength(m.foot_l) : "--.-");
-        setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatLength(m.foot_r) : "--.-");
+        if (isCombined) {
+          // Show switcher and thumbnails containers
+          if (poseSwitcher) {
+            poseSwitcher.classList.remove('hidden');
+            poseSwitcher.classList.add('visible-flex');
+          }
+          if (thumbnailsContainer) {
+            thumbnailsContainer.classList.remove('hidden');
+            thumbnailsContainer.classList.add('visible-flex');
+          }
+          if (modalSectionWidths) {
+            modalSectionWidths.classList.add('hidden');
+            modalSectionWidths.classList.remove('visible-flex', 'visible-block');
+          }
+          if (modalSectionHandTracking) {
+            modalSectionHandTracking.classList.add('hidden');
+            modalSectionHandTracking.classList.remove('visible-flex', 'visible-block');
+          }
 
-        setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatLength(m.torso_l) : "--.-");
-        setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatLength(m.torso_r) : "--.-");
-        setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatLength(m.upperarm_l) : "--.-");
-        setModalMetric('modal-val-upperarm-r', m.upperarm_r !== undefined ? formatLength(m.upperarm_r) : "--.-");
-        setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatLength(m.forearm_l) : "--.-");
-        setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatLength(m.forearm_r) : "--.-");
+          // Set thumbnail sources
+          const thumbA = document.getElementById('modal-thumb-a');
+          const thumbT = document.getElementById('modal-thumb-t');
+          const thumbOverhead = document.getElementById('modal-thumb-overhead');
+          if (thumbA) thumbA.src = snapshot.imageA || snapshot.image;
+          if (thumbT) thumbT.src = snapshot.imageT || snapshot.image;
+          if (thumbOverhead) thumbOverhead.src = snapshot.imageOverhead || snapshot.image;
 
-        if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
-          setModalMetric('modal-val-overhead-reach', `L: ${formatLength(m.fingerToToeL)} / R: ${formatLength(m.fingerToToeR)}`);
+          // Reset active states for switcher buttons & thumbnail wrappers
+          const btnSwitchA = document.getElementById('btn-switch-a');
+          const btnSwitchT = document.getElementById('btn-switch-t');
+          const btnSwitchOverhead = document.getElementById('btn-switch-overhead');
+          
+          let wrapperA = null, wrapperT = null, wrapperOverhead = null;
+          if (thumbnailsContainer) {
+            wrapperA = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="A"]');
+            wrapperT = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="T"]');
+            wrapperOverhead = thumbnailsContainer.querySelector('.thumb-wrapper[data-pose="Overhead"]');
+          }
+
+          const setActivePoseInModal = (poseKey) => {
+            // Clear all active classes
+            [btnSwitchA, btnSwitchT, btnSwitchOverhead].forEach(btn => btn?.classList.remove('active'));
+            [wrapperA, wrapperT, wrapperOverhead].forEach(wr => wr?.classList.remove('active'));
+
+            let activeImg = snapshot.image;
+            let poseLabel = "A-Pose";
+            let poseColor = "#818cf8"; // Violet
+
+            if (poseKey === 'A') {
+              btnSwitchA?.classList.add('active');
+              wrapperA?.classList.add('active');
+              activeImg = snapshot.imageA || snapshot.image;
+              poseLabel = "A-Pose";
+              poseColor = "#818cf8";
+            } else if (poseKey === 'T') {
+              btnSwitchT?.classList.add('active');
+              wrapperT?.classList.add('active');
+              activeImg = snapshot.imageT || snapshot.image;
+              poseLabel = "T-Pose";
+              poseColor = "#06b6d4"; // Cyan
+            } else if (poseKey === 'Overhead') {
+              btnSwitchOverhead?.classList.add('active');
+              wrapperOverhead?.classList.add('active');
+              activeImg = snapshot.imageOverhead || snapshot.image;
+              poseLabel = "Overhead Reach";
+              poseColor = "#10b981"; // Emerald
+            }
+
+            if (modalImg) modalImg.src = activeImg;
+            setModalMetric('modal-val-pose', poseLabel);
+            const modalPoseElem = document.getElementById('modal-val-pose');
+            if (modalPoseElem) {
+              modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
+              if (poseKey === 'T') {
+                modalPoseElem.classList.add('pose-color-t');
+              } else if (poseKey === 'Overhead') {
+                modalPoseElem.classList.add('pose-color-overhead');
+              } else {
+                modalPoseElem.classList.add('pose-color-default');
+              }
+            }
+
+            // Update joint angles for this specific pose
+            let angles = null;
+            if (poseKey === 'A') angles = m.anglesA;
+            else if (poseKey === 'T') angles = m.anglesT;
+            else if (poseKey === 'Overhead') angles = m.anglesOverhead;
+
+            if (angles) {
+              setModalMetric('modal-angle-knee-l', angles.kneeAngleL !== undefined && angles.kneeAngleL !== null ? `${Math.round(angles.kneeAngleL)}°` : "--°");
+              setModalMetric('modal-angle-knee-r', angles.kneeAngleR !== undefined && angles.kneeAngleR !== null ? `${Math.round(angles.kneeAngleR)}°` : "--°");
+              setModalMetric('modal-angle-hip-l', angles.hipAngleL !== undefined && angles.hipAngleL !== null ? `${Math.round(angles.hipAngleL)}°` : "--°");
+              setModalMetric('modal-angle-hip-r', angles.hipAngleR !== undefined && angles.hipAngleR !== null ? `${Math.round(angles.hipAngleR)}°` : "--°");
+              setModalMetric('modal-angle-elbow-l', angles.elbowAngleL !== undefined && angles.elbowAngleL !== null ? `${Math.round(angles.elbowAngleL)}°` : "--°");
+              setModalMetric('modal-angle-elbow-r', angles.elbowAngleR !== undefined && angles.elbowAngleR !== null ? `${Math.round(angles.elbowAngleR)}°` : "--°");
+            } else {
+              // Fallback to global metrics if angles object is missing
+              setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
+              setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
+              setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
+              setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
+              setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
+              setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+            }
+          };
+
+          // Default to A-Pose on open
+          setActivePoseInModal('A');
+
+          // Bind click handlers for switching
+          const removeOldListenersAndAdd = (elem, handler) => {
+            if (!elem) return;
+            const clone = elem.cloneNode(true);
+            elem.parentNode.replaceChild(clone, elem);
+            clone.addEventListener('click', handler);
+            return clone;
+          };
+
+          removeOldListenersAndAdd(btnSwitchA, () => setActivePoseInModal('A'));
+          removeOldListenersAndAdd(btnSwitchT, () => setActivePoseInModal('T'));
+          removeOldListenersAndAdd(btnSwitchOverhead, () => setActivePoseInModal('Overhead'));
+
+          removeOldListenersAndAdd(wrapperA, () => setActivePoseInModal('A'));
+          removeOldListenersAndAdd(wrapperT, () => setActivePoseInModal('T'));
+          removeOldListenersAndAdd(wrapperOverhead, () => setActivePoseInModal('Overhead'));
+
         } else {
-          setModalMetric('modal-val-overhead-reach', "--.-");
-        }
-        setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatLength(m.hipW) : "--.-");
+          // Normal snapshot: hide switcher and thumbnails
+          if (poseSwitcher) {
+            poseSwitcher.classList.add('hidden');
+            poseSwitcher.classList.remove('visible-flex');
+          }
+          if (thumbnailsContainer) {
+            thumbnailsContainer.classList.add('hidden');
+            thumbnailsContainer.classList.remove('visible-flex');
+          }
+          if (modalSectionWidths) {
+            modalSectionWidths.classList.remove('hidden');
+            modalSectionWidths.classList.add('visible-block');
+          }
+          if (modalSectionHandTracking) {
+            modalSectionHandTracking.classList.remove('hidden');
+            modalSectionHandTracking.classList.add('visible-block');
+          }
+          if (modalImg) modalImg.src = snapshot.image;
 
-        setModalMetric('modal-val-pinch-l', m.pinch_l_cm !== undefined && m.pinch_l_cm !== null ? formatLength(m.pinch_l_cm) : "--.-");
-        setModalMetric('modal-val-pinch-r', m.pinch_r_cm !== undefined && m.pinch_r_cm !== null ? formatLength(m.pinch_r_cm) : "--.-");
-        setModalMetric('modal-val-span-l', m.span_l_cm !== undefined && m.span_l_cm !== null ? formatLength(m.span_l_cm) : "--.-");
-        setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatLength(m.span_r_cm) : "--.-");
+          if (m) {
+            setModalMetric('modal-val-pose', m.pose || "A-Pose");
+            const modalPoseElem = document.getElementById('modal-val-pose');
+            if (modalPoseElem) {
+              modalPoseElem.classList.remove('pose-color-t', 'pose-color-overhead', 'pose-color-default');
+              if (m.pose === "T-Pose") modalPoseElem.classList.add('pose-color-t');
+              else if (m.pose === "Overhead Reach") modalPoseElem.classList.add('pose-color-overhead');
+              else modalPoseElem.classList.add('pose-color-default');
+            }
+
+            setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
+            setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
+            setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
+            setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
+            setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
+            setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+          }
+        }
+
+        if (m) {
+          // Global and anatomical segments are populated from optimal poses
+          // (Limb lengths, height, and widths come from optimal poses stored in metrics)
+          setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
+          setModalMetric('modal-val-wingspan', m.wingspan ? formatLength(m.wingspan) : "--.-");
+
+          setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatLength(m.thigh_l) : "--.-");
+          setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatLength(m.thigh_r) : "--.-");
+          setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatLength(m.shin_l) : "--.-");
+          setModalMetric('modal-val-shin-r', m.shin_r !== undefined ? formatLength(m.shin_r) : "--.-");
+          setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatLength(m.foot_l) : "--.-");
+          setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatLength(m.foot_r) : "--.-");
+
+          setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatLength(m.torso_l) : "--.-");
+          setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatLength(m.torso_r) : "--.-");
+          setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatLength(m.upperarm_l) : "--.-");
+          setModalMetric('modal-val-upperarm-r', m.upperarm_r !== undefined ? formatLength(m.upperarm_r) : "--.-");
+          setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatLength(m.forearm_l) : "--.-");
+          setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatLength(m.forearm_r) : "--.-");
+
+          if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
+            setModalMetric('modal-val-overhead-reach', `L: ${formatLength(m.fingerToToeL)} / R: ${formatLength(m.fingerToToeR)}`);
+          } else {
+            setModalMetric('modal-val-overhead-reach', "--.-");
+          }
+          setModalMetric('modal-val-hip-w', m.hipW !== undefined ? formatLength(m.hipW) : "--.-");
+
+          setModalMetric('modal-val-pinch-l', m.pinch_l_cm !== undefined && m.pinch_l_cm !== null ? formatLength(m.pinch_l_cm) : "--.-");
+          setModalMetric('modal-val-pinch-r', m.pinch_r_cm !== undefined && m.pinch_r_cm !== null ? formatLength(m.pinch_r_cm) : "--.-");
+          setModalMetric('modal-val-span-l', m.span_l_cm !== undefined && m.span_l_cm !== null ? formatLength(m.span_l_cm) : "--.-");
+          setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatLength(m.span_r_cm) : "--.-");
+        }
       }
 
       // Clone download, json, & delete buttons to purge old listeners
@@ -2812,6 +2895,9 @@ lockCalButton.addEventListener('click', () => {
   lockCalButton.classList.add('cal-btn-locked');
   lockCalButton.classList.remove('cal-btn-unlocked');
   statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+  if (state.activeProfileId) {
+    autoSyncToActiveProfile();
+  }
 });
 
 // Preset Position buttons
@@ -3074,6 +3160,9 @@ if (btnApplyScale && inputPremeasuredScale) {
     }
     
     statusElement.textContent = `Scale calibration locked to pasted premeasured factor: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+    if (state.activeProfileId) {
+      autoSyncToActiveProfile();
+    }
   });
 }
 
@@ -3502,6 +3591,11 @@ export function startVideoRecording() {
       const successMsg = `✅ Video exported successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB, Format: ${fileExt.toUpperCase()}]`;
       console.log(`[ExportDebug] Download triggered. ${successMsg}`);
       statusElement.textContent = successMsg;
+
+      // Save video to active profile if one is selected
+      if (state.activeProfileId) {
+        saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration);
+      }
     }
   };
 
@@ -3538,10 +3632,34 @@ export function stopVideoRecording() {
     }
     if (state.wasPlaybackRate !== undefined) {
       uploadedVideo.playbackRate = state.wasPlaybackRate;
-      if (videoSpeedBtn) {
-        videoSpeedBtn.textContent = `${state.wasPlaybackRate.toFixed(1)}x`;
-      }
     }
+  }
+}
+
+export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration) {
+  try {
+    const profile = await snapshotStore.getProfile(state.activeProfileId);
+    if (profile) {
+      profile.videos = profile.videos || [];
+      const videoEntry = {
+        id: Date.now(),
+        name: `Video Capture (${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })})`,
+        blob: blobToDownload,
+        timestamp: Date.now(),
+        duration: finalDuration,
+        fileExt: fileExt
+      };
+      profile.videos.push(videoEntry);
+      await snapshotStore.saveProfile(profile);
+      
+      // Update local cache
+      state.allProfiles = await snapshotStore.getAllProfiles();
+      
+      console.log(`[VideoSave] Successfully saved video to profile: ${profile.name}`);
+      statusElement.textContent = `🎥 Video saved directly to "${profile.name}"'s portfolio and downloaded locally!`;
+    }
+  } catch (err) {
+    console.error("[VideoSave] Failed to save video to active profile:", err);
   }
 }
 
@@ -3808,7 +3926,7 @@ export function showExportProgressOverlay(percent) {
         </div>
         <div class="export-progress-text" id="export-progress-text">0% Completed</div>
         <div class="export-progress-warning">
-          Step-by-step biomechanical calculation is active. Once finished, Phase 2 will record at a buttery-smooth 1.0x speed.
+          Biomechanical calculation is active. Once finished, Phase 2 will start recording
         </div>
       </div>
     `;
@@ -3907,10 +4025,31 @@ export function importPriorPortfolio(report) {
   state.lastProcessedScaleFactor = null;
   state.lastCalculatedResults = null;
 
-  // 1. Restore Subject Name
+  // 1. Restore Subject Name & Automatically map to/load matching Profile
   const subjectInput = document.getElementById('subject-name-input');
   if (report.subjectName) {
     if (subjectInput) subjectInput.value = report.subjectName;
+    
+    // Find matching profile by name (case-insensitive)
+    const matchingProfile = state.allProfiles.find(p => p.name.toLowerCase() === report.subjectName.toLowerCase());
+    if (matchingProfile) {
+      state.activeProfileId = matchingProfile.id;
+      // Sync dropdown select element
+      const profileSelect = document.getElementById('profile-select');
+      if (profileSelect) {
+        profileSelect.value = String(matchingProfile.id);
+      }
+      
+      // Update status bar
+      const activeProfileName = document.getElementById('active-profile-name');
+      if (activeProfileName) activeProfileName.textContent = matchingProfile.name;
+      const profileStatusBar = document.getElementById('profile-status-bar');
+      if (profileStatusBar) profileStatusBar.classList.remove('hidden');
+      const btnDeleteProfile = document.getElementById('btn-delete-profile');
+      if (btnDeleteProfile) btnDeleteProfile.classList.remove('hidden');
+      
+      console.log(`[importPriorPortfolio] Found and automatically matched active profile: ${matchingProfile.name}`);
+    }
   }
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
@@ -4093,6 +4232,11 @@ export function importPriorPortfolio(report) {
     textareaPortfolioJson.value = "";
   }
 
+  // If a profile is active, sync the imported metrics to the database
+  if (state.activeProfileId) {
+    autoSyncToActiveProfile();
+  }
+
   // High-end feedback animation on Import button
   if (btnImportPortfolio) {
     btnImportPortfolio.style.backgroundColor = '#10b981';
@@ -4132,6 +4276,9 @@ heightCalBtn.addEventListener('click', () => {
       heightCalBtn.classList.add('btn-success-green');
       heightCalBtn.classList.remove('btn-warning');
       statusElement.textContent = `Skeletal-calibrated scale locked (Instant Upload Calibration): ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+      if (state.activeProfileId) {
+        autoSyncToActiveProfile();
+      }
       
       // Trigger camera snapshot visual flash!
       triggerFlashEffect();
@@ -4169,6 +4316,9 @@ heightCalBtn.addEventListener('click', () => {
         heightCalBtn.classList.add('btn-success-green');
         heightCalBtn.classList.remove('btn-warning');
         statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+        if (state.activeProfileId) {
+          autoSyncToActiveProfile();
+        }
         
         // Trigger camera snapshot visual flash!
         triggerFlashEffect();
@@ -4323,6 +4473,8 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
   if (squatLiveAnkleL) squatLiveAnkleL.textContent = `${ankleMobL}°`;
   if (squatLiveAnkleR) squatLiveAnkleR.textContent = `${ankleMobR}°`;
 
+  const prevPeaks = JSON.stringify(state.squatPeaks);
+
   // Compare and update peak recorded values in state
   state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
   state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
@@ -4330,6 +4482,10 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
   state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
   state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
   state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+
+  if (state.activeProfileId && JSON.stringify(state.squatPeaks) !== prevPeaks) {
+    autoSyncToActiveProfileDebounced();
+  }
 
   // Update peak elements in DOM
   if (squatPeakKneeL) squatPeakKneeL.textContent = `${state.squatPeaks.kneeL}°`;
@@ -4374,6 +4530,10 @@ export function resetSquatPeaks() {
     ankleL: 0,
     ankleR: 0
   };
+
+  if (state.activeProfileId) {
+    autoSyncToActiveProfile();
+  }
 
   if (squatPeakKneeL) squatPeakKneeL.textContent = '0°';
   if (squatPeakKneeR) squatPeakKneeR.textContent = '0°';
@@ -4482,6 +4642,70 @@ if (btnModeSquat) {
 const btnResetPeaks = document.getElementById('btn-reset-peaks');
 if (btnResetPeaks) {
   btnResetPeaks.addEventListener('click', resetSquatPeaks);
+}
+
+const btnSaveSquatPeaks = document.getElementById('btn-save-squat-peaks');
+if (btnSaveSquatPeaks) {
+  btnSaveSquatPeaks.addEventListener('click', async () => {
+    // 1. Validation check for non-zero squat peaks
+    const peaks = state.squatPeaks;
+    if (!peaks || (peaks.kneeL === 0 && peaks.kneeR === 0 && peaks.hipL === 0 && peaks.hipR === 0 && peaks.ankleL === 0 && peaks.ankleR === 0)) {
+      alert("No peak mobility metrics recorded yet. Please perform an overhead squat test first!");
+      return;
+    }
+
+    // 2. Identify active subject or Guest Mode
+    let activeProfileName = "Guest";
+    if (state.activeProfileId) {
+      try {
+        const profile = await snapshotStore.getProfile(state.activeProfileId);
+        if (profile) {
+          activeProfileName = profile.name;
+        }
+      } catch (err) {
+        console.error("Error fetching active profile for peak saving:", err);
+      }
+    }
+
+    const label = state.activeProfileId ? `${activeProfileName} - Mobility Peaks` : "Guest - Mobility Peaks";
+
+    // 3. Construct persistent database snapshotRecord for IndexedDB gallery registration
+    const snapshotRecord = {
+      name: label,
+      timestamp: Date.now(),
+      image: canvasElement.toDataURL('image/png'),
+      metrics: {
+        isSquatMobility: true,
+        squatPeaks: JSON.parse(JSON.stringify(state.squatPeaks))
+      }
+    };
+
+    try {
+      // 4. Save standalone isSquatMobility snapshot to IndexedDB gallery
+      await snapshotStore.save(snapshotRecord);
+
+      // 5. If we have an active profile, sync these peaks directly to their portfolio record
+      if (state.activeProfileId) {
+        await autoSyncToActiveProfile();
+        
+        if (statusElement) {
+          statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to biomechanical gallery and portfolio!`;
+        }
+      } else {
+        // If in Guest Mode, alert user to select/create profile to save to portfolio
+        if (statusElement) {
+          statusElement.textContent = `💾 Standalone peak mobility snapshot successfully saved to gallery!`;
+        }
+        alert("You are currently in Guest Mode. The peak mobility scores have been saved as a standalone snapshot in your offline Gallery, but NOT in a player portfolio. To save these scores to a player portfolio, please select or create a profile first, then click Save Peaks to Portfolio again.");
+      }
+
+      // 6. Redraw the gallery
+      renderGallery();
+    } catch (err) {
+      console.error("Failed to save squat peak snapshot to IndexedDB:", err);
+      alert("Could not save squat peaks snapshot. See developer console for errors.");
+    }
+  });
 }
 
 // Initial placeholder update
@@ -4642,4 +4866,1048 @@ if (videoSpeedBtn) {
     videoSpeedBtn.textContent = `${nextRate.toFixed(1)}x`;
   });
 }
+
+// ==========================================
+// BUCKEYE PERSISTENT SUBJECT PROFILES CONTROLLER
+// ==========================================
+
+export function getActiveProfileName(includeFallback = true) {
+  if (state.activeProfileId && state.allProfiles) {
+    const activeProfile = state.allProfiles.find(p => p.id === state.activeProfileId);
+    if (activeProfile) {
+      return activeProfile.name;
+    }
+  }
+  const subjectInput = document.getElementById('subject-name-input');
+  if (subjectInput && subjectInput.value.trim()) {
+    return subjectInput.value.trim();
+  }
+  return includeFallback ? "Guest Mode" : "";
+}
+
+export async function initializeProfilesSelector() {
+  const profileSelect = document.getElementById('profile-select');
+  const calProfileSelect = document.getElementById('cal-profile-select');
+  const profileSearchInput = document.getElementById('profile-search-input');
+  const btnSaveProfile = document.getElementById('btn-save-profile');
+  const subjectNameInput = document.getElementById('subject-name-input');
+  const btnDeleteProfile = document.getElementById('btn-delete-profile');
+  const profileStatusBar = document.getElementById('profile-status-bar');
+  const newProfileInputContainer = document.getElementById('new-profile-input-container');
+
+  const profileActionRow = document.getElementById('profile-action-row');
+  const btnViewProfileDetails = document.getElementById('btn-view-profile-details');
+  const profileDetailsModal = document.getElementById('profile-details-modal');
+  const btnCloseProfileDetails = document.getElementById('btn-close-profile-details');
+  const btnCloseProfileDetailsFooter = document.getElementById('btn-close-profile-details-footer');
+  const btnProfileExportJson = document.getElementById('btn-profile-export-json');
+
+  if (!profileSelect) return;
+
+  function populateDropdown(filteredProfiles) {
+    const currentSelected = profileSelect.value;
+    profileSelect.innerHTML = '';
+    
+    const guestOpt = document.createElement('option');
+    guestOpt.value = '';
+    guestOpt.textContent = '-- Guest Session (Unsaved) --';
+    profileSelect.appendChild(guestOpt);
+
+    if (calProfileSelect) {
+      calProfileSelect.innerHTML = '';
+      const calGuestOpt = document.createElement('option');
+      calGuestOpt.value = '';
+      calGuestOpt.textContent = '-- Guest Session (Unsaved) --';
+      calProfileSelect.appendChild(calGuestOpt);
+    }
+    
+    filteredProfiles.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      profileSelect.appendChild(opt);
+
+      if (calProfileSelect) {
+        const calOpt = document.createElement('option');
+        calOpt.value = p.id;
+        calOpt.textContent = p.name;
+        calProfileSelect.appendChild(calOpt);
+      }
+    });
+    
+    const createOpt = document.createElement('option');
+    createOpt.value = 'new';
+    createOpt.textContent = '+ Create New Profile...';
+    profileSelect.appendChild(createOpt);
+
+    if (currentSelected && [...profileSelect.options].some(o => o.value === currentSelected)) {
+      profileSelect.value = currentSelected;
+    } else {
+      profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
+    }
+
+    if (calProfileSelect) {
+      calProfileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
+    }
+  }
+
+  try {
+    state.allProfiles = await snapshotStore.getAllProfiles();
+    populateDropdown(state.allProfiles);
+    if (state.activeProfileId) {
+      if (profileActionRow) profileActionRow.classList.remove('hidden');
+    } else {
+      if (profileActionRow) profileActionRow.classList.add('hidden');
+    }
+  } catch (err) {
+    console.error("[initializeProfilesSelector] Failed to load initial profiles:", err);
+  }
+
+  if (profileSearchInput) {
+    profileSearchInput.addEventListener('input', () => {
+      const searchVal = profileSearchInput.value.toLowerCase().trim();
+      const filtered = state.allProfiles.filter(p => p.name.toLowerCase().includes(searchVal));
+      populateDropdown(filtered);
+    });
+  }
+
+  const handleProfileChange = async (selectedVal) => {
+    if (selectedVal === 'new') {
+      if (profileSelect) profileSelect.value = 'new';
+      if (calProfileSelect) calProfileSelect.value = '';
+      if (newProfileInputContainer) {
+        newProfileInputContainer.classList.remove('hidden');
+        newProfileInputContainer.classList.add('visible-flex');
+      }
+      if (profileStatusBar) profileStatusBar.classList.add('hidden');
+      if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
+      if (profileActionRow) profileActionRow.classList.add('hidden');
+    } else if (selectedVal === '') {
+      if (profileSelect) profileSelect.value = '';
+      if (calProfileSelect) calProfileSelect.value = '';
+
+      // Cleanly reset Guest state caches
+      state.activeProfileId = null;
+      state.metricsA = null;
+      state.metricsT = null;
+      state.metricsOverhead = null;
+      state.imageA = null;
+      state.imageT = null;
+      state.imageOverhead = null;
+      state.importedPortfolioMetrics = null;
+      state.pixelsPerCm = null;
+      state.calLocked = false;
+      state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+
+      updateDashboardOfflinePlaceholders();
+
+      if (newProfileInputContainer) {
+        newProfileInputContainer.classList.add('hidden');
+        newProfileInputContainer.classList.remove('visible-flex');
+      }
+      if (profileStatusBar) {
+        const activeProfileName = document.getElementById('active-profile-name');
+        if (activeProfileName) activeProfileName.textContent = 'Guest Mode';
+        profileStatusBar.classList.add('hidden');
+      }
+      if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
+      if (profileActionRow) profileActionRow.classList.add('hidden');
+      
+      const arucoStatusText = document.getElementById('aruco-status-text');
+      if (arucoStatusText) {
+        arucoStatusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
+      }
+    } else {
+      if (profileSelect) profileSelect.value = selectedVal;
+      if (calProfileSelect) calProfileSelect.value = selectedVal;
+
+      if (newProfileInputContainer) {
+        newProfileInputContainer.classList.add('hidden');
+        newProfileInputContainer.classList.remove('visible-flex');
+      }
+      await loadProfileIntoState(Number(selectedVal));
+    }
+  };
+
+  profileSelect.addEventListener('change', () => handleProfileChange(profileSelect.value));
+  if (calProfileSelect) {
+    calProfileSelect.addEventListener('change', () => handleProfileChange(calProfileSelect.value));
+  }
+
+  if (btnSaveProfile) {
+    btnSaveProfile.addEventListener('click', async () => {
+      if (!subjectNameInput) return;
+      const nameVal = subjectNameInput.value.trim();
+      if (!nameVal) {
+        alert("Please enter a subject name to create a profile.");
+        return;
+      }
+
+      const isDuplicate = state.allProfiles.some(p => p.name.toLowerCase() === nameVal.toLowerCase());
+      if (isDuplicate) {
+        alert(`A profile named "${nameVal}" already exists. Please choose a different name.`);
+        return;
+      }
+
+      const newProfile = {
+        name: nameVal,
+        timestamp: Date.now(),
+        metricsA: null,
+        metricsT: null,
+        metricsOverhead: null,
+        squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+        imageA: null,
+        imageT: null,
+        imageOverhead: null,
+        pixelsPerCm: null
+      };
+
+      try {
+        const newId = await snapshotStore.saveProfile(newProfile);
+        state.activeProfileId = newId;
+        state.allProfiles = await snapshotStore.getAllProfiles();
+        
+        if (profileSearchInput) profileSearchInput.value = '';
+        
+        populateDropdown(state.allProfiles);
+        profileSelect.value = String(newId);
+        if (calProfileSelect) calProfileSelect.value = String(newId);
+        
+        if (newProfileInputContainer) {
+          newProfileInputContainer.classList.add('hidden');
+          newProfileInputContainer.classList.remove('visible-flex');
+        }
+        subjectNameInput.value = '';
+
+        await loadProfileIntoState(newId);
+        statusElement.textContent = `✅ Profile "${nameVal}" created successfully!`;
+      } catch (err) {
+        console.error("[initializeProfilesSelector] Failed to save new profile:", err);
+        alert("Failed to save profile to database.");
+      }
+    });
+  }
+
+  if (btnDeleteProfile) {
+    btnDeleteProfile.addEventListener('click', async () => {
+      if (!state.activeProfileId) return;
+      
+      const activeProfile = state.allProfiles.find(p => p.id === state.activeProfileId);
+      const nameToDelete = activeProfile ? activeProfile.name : "this profile";
+      
+      if (!confirm(`⚠️ WARNING: Are you sure you want to permanently delete the profile "${nameToDelete}" and all of its compiled metrics?\n\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await snapshotStore.deleteProfile(state.activeProfileId);
+        state.activeProfileId = null;
+        state.metricsA = null;
+        state.metricsT = null;
+        state.metricsOverhead = null;
+        state.imageA = null;
+        state.imageT = null;
+        state.imageOverhead = null;
+        state.importedPortfolioMetrics = null;
+        state.pixelsPerCm = null;
+        state.calLocked = false;
+        state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+        
+        state.allProfiles = await snapshotStore.getAllProfiles();
+        
+        if (profileSearchInput) profileSearchInput.value = '';
+        populateDropdown(state.allProfiles);
+        profileSelect.value = '';
+        if (calProfileSelect) calProfileSelect.value = '';
+        
+        updateDashboardOfflinePlaceholders();
+
+        if (profileStatusBar) {
+          const activeProfileName = document.getElementById('active-profile-name');
+          if (activeProfileName) activeProfileName.textContent = 'Guest Mode';
+          profileStatusBar.classList.add('hidden');
+        }
+        btnDeleteProfile.classList.add('hidden');
+        if (profileActionRow) profileActionRow.classList.add('hidden');
+        
+        const arucoStatusText = document.getElementById('aruco-status-text');
+        if (arucoStatusText) {
+          arucoStatusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
+        }
+
+        statusElement.textContent = `🗑️ Profile deleted successfully. Switched back to Guest Mode.`;
+      } catch (err) {
+        console.error("[initializeProfilesSelector] Failed to delete profile:", err);
+        alert("Failed to delete profile from database.");
+      }
+    });
+  }
+
+  if (btnViewProfileDetails) {
+    btnViewProfileDetails.addEventListener('click', () => {
+      if (state.activeProfileId) {
+        openProfileDetailsModal(state.activeProfileId);
+      } else {
+        alert("Please select or create a profile to view details.");
+      }
+    });
+  }
+
+  if (btnCloseProfileDetails) {
+    btnCloseProfileDetails.addEventListener('click', closeProfileDetailsModal);
+  }
+
+  if (btnCloseProfileDetailsFooter) {
+    btnCloseProfileDetailsFooter.addEventListener('click', closeProfileDetailsModal);
+  }
+
+  if (btnProfileExportJson) {
+    btnProfileExportJson.addEventListener('click', () => {
+      compileAndDownloadCombinedSession();
+    });
+  }
+}
+
+export function compileImportedMetricsFromProfile(profile) {
+  if (!profile) return null;
+  const metricsKeys = [
+    'skeletal_height', 'wingspan', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r',
+    'foot_l', 'foot_r', 'torso_l', 'torso_r', 'upperarm_l', 'upperarm_r',
+    'forearm_l', 'forearm_r', 'fingerToToeL', 'fingerToToeR'
+  ];
+  const compiled = {};
+  let hasAny = false;
+  const poseSources = [profile.metricsA, profile.metricsT, profile.metricsOverhead];
+  for (const key of metricsKeys) {
+    let foundValue = null;
+    for (const src of poseSources) {
+      if (src && src[key] !== null && src[key] !== undefined) {
+        foundValue = src[key];
+        break;
+      }
+    }
+    if (foundValue !== null) {
+      compiled[key] = foundValue;
+      hasAny = true;
+    }
+  }
+  return hasAny ? compiled : null;
+}
+
+export async function loadProfileIntoState(profileId) {
+  try {
+    const profile = await snapshotStore.getProfile(profileId);
+    if (!profile) return;
+
+    state.activeProfileId = profile.id;
+    state.metricsA = profile.metricsA || null;
+    state.metricsT = profile.metricsT || null;
+    state.metricsOverhead = profile.metricsOverhead || null;
+    state.squatPeaks = profile.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+    state.imageA = profile.imageA || null;
+    state.imageT = profile.imageT || null;
+    state.imageOverhead = profile.imageOverhead || null;
+    
+    state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile);
+
+    const activeHeightCm = state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height;
+    if (activeHeightCm) {
+      const inputUserHeight = document.getElementById('input-user-height');
+      if (inputUserHeight) {
+        if (state.useInches) {
+          inputUserHeight.value = (activeHeightCm / 2.54).toFixed(1);
+        } else {
+          inputUserHeight.value = activeHeightCm.toFixed(1);
+        }
+      }
+    }
+    
+    if (profile.pixelsPerCm) {
+      state.pixelsPerCm = profile.pixelsPerCm;
+      state.calLocked = true;
+      const arucoStatusText = document.getElementById('aruco-status-text');
+      if (arucoStatusText) {
+        arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+      }
+      const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
+      if (inputPremeasuredScale) {
+        inputPremeasuredScale.value = state.pixelsPerCm.toFixed(2);
+      }
+    } else {
+      state.pixelsPerCm = null;
+      state.calLocked = false;
+    }
+
+    const displayMetrics = state.metricsA || state.metricsT || state.metricsOverhead;
+    if (displayMetrics) {
+      renderDashboard(displayMetrics);
+    } else {
+      updateDashboardOfflinePlaceholders();
+    }
+
+    if (squatPeakKneeL) squatPeakKneeL.textContent = `${state.squatPeaks.kneeL || 0}°`;
+    if (squatPeakKneeR) squatPeakKneeR.textContent = `${state.squatPeaks.kneeR || 0}°`;
+    if (squatPeakHipL) squatPeakHipL.textContent = `${state.squatPeaks.hipL || 0}°`;
+    if (squatPeakHipR) squatPeakHipR.textContent = `${state.squatPeaks.hipR || 0}°`;
+    if (squatPeakAnkleL) squatPeakAnkleL.textContent = `${state.squatPeaks.ankleL || 0}°`;
+    if (squatPeakAnkleR) squatPeakAnkleR.textContent = `${state.squatPeaks.ankleR || 0}°`;
+
+    const activeProfileName = document.getElementById('active-profile-name');
+    if (activeProfileName) {
+      activeProfileName.textContent = profile.name;
+    }
+    const profileStatusBar = document.getElementById('profile-status-bar');
+    if (profileStatusBar) {
+      profileStatusBar.classList.remove('hidden');
+    }
+    const btnDeleteProfile = document.getElementById('btn-delete-profile');
+    if (btnDeleteProfile) {
+      btnDeleteProfile.classList.remove('hidden');
+    }
+    const profileActionRow = document.getElementById('profile-action-row');
+    if (profileActionRow) {
+      profileActionRow.classList.remove('hidden');
+    }
+    const profileSelect = document.getElementById('profile-select');
+    const calProfileSelect = document.getElementById('cal-profile-select');
+    if (profileSelect) profileSelect.value = String(profileId);
+    if (calProfileSelect) calProfileSelect.value = String(profileId);
+
+  } catch (err) {
+    console.error("[loadProfile] Error loading profile into state:", err);
+  }
+}
+
+export async function autoSyncToActiveProfile() {
+  if (!state.activeProfileId || !state.dbInitialized) return;
+  try {
+    const profile = await snapshotStore.getProfile(state.activeProfileId);
+    if (!profile) return;
+    
+    profile.timestamp = Date.now();
+    profile.pixelsPerCm = state.pixelsPerCm;
+    profile.metricsA = state.metricsA;
+    profile.metricsT = state.metricsT;
+    profile.metricsOverhead = state.metricsOverhead;
+    profile.squatPeaks = state.squatPeaks;
+    profile.imageA = state.imageA;
+    profile.imageT = state.imageT;
+    profile.imageOverhead = state.imageOverhead;
+    
+    await snapshotStore.saveProfile(profile);
+    console.log(`[autoSync] Synced active profile: ${profile.name}`);
+    
+    state.allProfiles = await snapshotStore.getAllProfiles();
+  } catch (err) {
+    console.error("[autoSync] Error syncing to active profile:", err);
+  }
+}
+
+let syncTimeout = null;
+export function autoSyncToActiveProfileDebounced() {
+  if (!state.activeProfileId || !state.dbInitialized) return;
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+  }
+  syncTimeout = setTimeout(() => {
+    autoSyncToActiveProfile();
+  }, 1500);
+}
+
+export async function openProfileDetailsModal(profileId) {
+  if (!profileId) return;
+  try {
+    const profile = await snapshotStore.getProfile(profileId);
+    if (!profile) return;
+
+    // 1. Text elements & Profile Renaming
+    const detailName = document.getElementById('profile-detail-name');
+    const detailScale = document.getElementById('profile-detail-scale');
+    const detailLastSession = document.getElementById('profile-detail-last-session');
+    
+    if (detailName) {
+      detailName.innerHTML = `
+        ${profile.name || "Anonymous Subject"} 
+        <button class="btn btn-rename-profile" style="background: none; border: none; padding: 2px 4px; color: #888; cursor: pointer; transition: color 0.2s; display: inline-flex; align-items: center; vertical-align: middle;" title="Rename Profile">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+          </svg>
+        </button>
+      `;
+      
+      const renameProfileBtn = detailName.querySelector('.btn-rename-profile');
+      if (renameProfileBtn) {
+        renameProfileBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const currentName = profile.name || "Anonymous Subject";
+          const newName = prompt("Enter new profile name:", currentName);
+          if (newName === null) return;
+          const trimmedName = newName.trim();
+          if (!trimmedName) {
+            alert("Profile name cannot be empty.");
+            return;
+          }
+          if (trimmedName.toLowerCase() !== currentName.toLowerCase()) {
+            const isDuplicate = state.allProfiles.some(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+            if (isDuplicate) {
+              alert(`A profile named "${trimmedName}" already exists. Please choose a different name.`);
+              return;
+            }
+          }
+          try {
+            const freshProfile = await snapshotStore.getProfile(profileId);
+            if (freshProfile) {
+              freshProfile.name = trimmedName;
+              await snapshotStore.saveProfile(freshProfile);
+              state.allProfiles = await snapshotStore.getAllProfiles();
+              
+              // Sync select dropdown selectors
+              const profileSelect = document.getElementById('profile-select');
+              const calProfileSelect = document.getElementById('cal-profile-select');
+              if (profileSelect) {
+                const opt = [...profileSelect.options].find(o => Number(o.value) === profileId);
+                if (opt) opt.textContent = trimmedName;
+              }
+              if (calProfileSelect) {
+                const opt = [...calProfileSelect.options].find(o => Number(o.value) === profileId);
+                if (opt) opt.textContent = trimmedName;
+              }
+              
+              // Update bottom status bar name
+              if (state.activeProfileId === profileId) {
+                const activeProfileName = document.getElementById('active-profile-name');
+                if (activeProfileName) activeProfileName.textContent = trimmedName;
+              }
+              
+              openProfileDetailsModal(profileId);
+            }
+          } catch (err) {
+            console.error("[ProfileRename] Failed to rename profile:", err);
+          }
+        });
+      }
+    }
+
+    if (detailScale) {
+      detailScale.textContent = profile.pixelsPerCm 
+        ? `Calibration: ${profile.pixelsPerCm.toFixed(2)} px/cm` 
+        : "Calibration: Uncalibrated";
+    }
+    if (detailLastSession) {
+      if (profile.timestamp) {
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        detailLastSession.textContent = `Last Session: ${new Date(profile.timestamp).toLocaleDateString(undefined, options)}`;
+      } else {
+        detailLastSession.textContent = "Last Session: --";
+      }
+    }
+
+    // 2. Pose status cards
+    const poses = [
+      { key: 'a', metricsKey: 'metricsA', imgKey: 'imageA', title: 'A-Pose (Stature)', color: 'var(--color-scarlet)' },
+      { key: 't', metricsKey: 'metricsT', imgKey: 'imageT', title: 'T-Pose (Wingspan)', color: 'var(--color-cyan)' },
+      { key: 'overhead', metricsKey: 'metricsOverhead', imgKey: 'imageOverhead', title: 'Overhead (Reach)', color: '#d4a017' }
+    ];
+
+    poses.forEach(p => {
+      const statusEl = document.getElementById(`detail-status-${p.key}`);
+      const imgEl = document.getElementById(`detail-preview-img-${p.key}`);
+      const containerEl = document.getElementById(`detail-preview-container-${p.key}`);
+      const metrics = profile[p.metricsKey];
+      const imgSrc = profile[p.imgKey];
+
+      if (metrics) {
+        if (statusEl) {
+          statusEl.textContent = "✅ Complete";
+          statusEl.style.color = "#10b981"; // Emerald green
+        }
+        if (imgSrc) {
+          if (imgEl) imgEl.src = imgSrc;
+          if (containerEl) containerEl.classList.remove('hidden');
+        } else {
+          if (containerEl) containerEl.classList.add('hidden');
+        }
+      } else {
+        if (statusEl) {
+          statusEl.textContent = "❌ Missing";
+          statusEl.style.color = "#ef4444"; // Scarlet/red
+        }
+        if (containerEl) containerEl.classList.add('hidden');
+        if (imgEl) imgEl.src = "";
+      }
+    });
+
+    // 3. Helper functions for table cells
+    const mA = profile.metricsA || {};
+    const mT = profile.metricsT || {};
+    const mO = profile.metricsOverhead || {};
+
+    const formatPair = (left, right) => {
+      if ((left === null || left === undefined) && (right === null || right === undefined)) return '--';
+      return `L: ${formatLength(left)} / R: ${formatLength(right)}`;
+    };
+
+    const formatSingle = (val) => {
+      if (val === null || val === undefined) return '--';
+      return formatLength(val);
+    };
+
+    const renderCellSingle = (poseKey, metricKey, val) => {
+      if (!state.isEditingProfileMetrics) {
+        return formatSingle(val);
+      }
+      let displayVal = "";
+      if (val !== null && val !== undefined && !isNaN(val)) {
+        displayVal = state.useInches ? (val / 2.54).toFixed(1) : val.toFixed(1);
+      }
+      const suffix = state.useInches ? "in" : "cm";
+      return `
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <input type="number" step="0.1" min="0" class="profile-edit-input" 
+                 data-pose="${poseKey}" data-key="${metricKey}" 
+                 value="${displayVal}" placeholder="--" 
+                 style="width: 60px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
+          <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+        </div>
+      `;
+    };
+
+    const renderCellPair = (poseKey, leftMetricKey, rightMetricKey, leftVal, rightVal) => {
+      if (!state.isEditingProfileMetrics) {
+        return formatPair(leftVal, rightVal);
+      }
+      let displayLeft = "";
+      if (leftVal !== null && leftVal !== undefined && !isNaN(leftVal)) {
+        displayLeft = state.useInches ? (leftVal / 2.54).toFixed(1) : leftVal.toFixed(1);
+      }
+      let displayRight = "";
+      if (rightVal !== null && rightVal !== undefined && !isNaN(rightVal)) {
+        displayRight = state.useInches ? (rightVal / 2.54).toFixed(1) : rightVal.toFixed(1);
+      }
+      const suffix = state.useInches ? "in" : "cm";
+      return `
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 100px;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 0.7rem; color: #aaa; width: 12px;">L:</span>
+            <input type="number" step="0.1" min="0" class="profile-edit-input" 
+                   data-pose="${poseKey}" data-key="${leftMetricKey}" 
+                   value="${displayLeft}" placeholder="--" 
+                   style="width: 50px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
+            <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 0.7rem; color: #aaa; width: 12px;">R:</span>
+            <input type="number" step="0.1" min="0" class="profile-edit-input" 
+                   data-pose="${poseKey}" data-key="${rightMetricKey}" 
+                   value="${displayRight}" placeholder="--" 
+                   style="width: 50px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
+            <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+          </div>
+        </div>
+      `;
+    };
+
+    // Stature Height row
+    const thA = document.getElementById('detail-table-height-a');
+    const thT = document.getElementById('detail-table-height-t');
+    const thO = document.getElementById('detail-table-height-overhead');
+    if (thA) thA.innerHTML = renderCellSingle('a', 'skeletal_height', mA.skeletal_height);
+    if (thT) thT.innerHTML = renderCellSingle('t', 'skeletal_height', mT.skeletal_height);
+    if (thO) thO.innerHTML = renderCellSingle('overhead', 'skeletal_height', mO.skeletal_height);
+
+    // Wingspan / Reach row
+    const twA = document.getElementById('detail-table-wingspan-a');
+    const twT = document.getElementById('detail-table-wingspan-t');
+    const twO = document.getElementById('detail-table-wingspan-overhead');
+    if (twA) twA.innerHTML = renderCellSingle('a', 'wingspan', mA.wingspan);
+    if (twT) twT.innerHTML = renderCellSingle('t', 'wingspan', mT.wingspan);
+    if (twO) twO.innerHTML = renderCellPair('overhead', 'fingerToToeL', 'fingerToToeR', mO.fingerToToeL, mO.fingerToToeR);
+
+    // Torso Length row
+    const ttA = document.getElementById('detail-table-torso-a');
+    const ttT = document.getElementById('detail-table-torso-t');
+    const ttO = document.getElementById('detail-table-torso-overhead');
+    if (ttA) ttA.innerHTML = renderCellPair('a', 'torso_l', 'torso_r', mA.torso_l, mA.torso_r);
+    if (ttT) ttT.innerHTML = renderCellPair('t', 'torso_l', 'torso_r', mT.torso_l, mT.torso_r);
+    if (ttO) ttO.innerHTML = renderCellPair('overhead', 'torso_l', 'torso_r', mO.torso_l, mO.torso_r);
+
+    // Thigh Length row
+    const tthA = document.getElementById('detail-table-thigh-a');
+    const tthT = document.getElementById('detail-table-thigh-t');
+    const tthO = document.getElementById('detail-table-thigh-overhead');
+    if (tthA) tthA.innerHTML = renderCellPair('a', 'thigh_l', 'thigh_r', mA.thigh_l, mA.thigh_r);
+    if (tthT) tthT.innerHTML = renderCellPair('t', 'thigh_l', 'thigh_r', mT.thigh_l, mT.thigh_r);
+    if (tthO) tthO.innerHTML = renderCellPair('overhead', 'thigh_l', 'thigh_r', mO.thigh_l, mO.thigh_r);
+
+    // Shank Length (shin) row
+    const tsA = document.getElementById('detail-table-shin-a');
+         const tsT = document.getElementById('detail-table-shin-t');
+    const tsO = document.getElementById('detail-table-shin-overhead');
+    if (tsA) tsA.innerHTML = renderCellPair('a', 'shin_l', 'shin_r', mA.shin_l, mA.shin_r);
+    if (tsT) tsT.innerHTML = renderCellPair('t', 'shin_l', 'shin_r', mT.shin_l, mT.shin_r);
+    if (tsO) tsO.innerHTML = renderCellPair('overhead', 'shin_l', 'shin_r', mO.shin_l, mO.shin_r);
+
+    // Upper Arm row
+    const tuaA = document.getElementById('detail-table-upperarm-a');
+    const tuaT = document.getElementById('detail-table-upperarm-t');
+    const tuaO = document.getElementById('detail-table-upperarm-overhead');
+    if (tuaA) tuaA.innerHTML = renderCellPair('a', 'upperarm_l', 'upperarm_r', mA.upperarm_l, mA.upperarm_r);
+    if (tuaT) tuaT.innerHTML = renderCellPair('t', 'upperarm_l', 'upperarm_r', mT.upperarm_l, mT.upperarm_r);
+    if (tuaO) tuaO.innerHTML = renderCellPair('overhead', 'upperarm_l', 'upperarm_r', mO.upperarm_l, mO.upperarm_r);
+
+    // Forearm row
+    const tfaA = document.getElementById('detail-table-forearm-a');
+    const tfaT = document.getElementById('detail-table-forearm-t');
+    const tfaO = document.getElementById('detail-table-forearm-overhead');
+    if (tfaA) tfaA.innerHTML = renderCellPair('a', 'forearm_l', 'forearm_r', mA.forearm_l, mA.forearm_r);
+    if (tfaT) tfaT.innerHTML = renderCellPair('t', 'forearm_l', 'forearm_r', mT.forearm_l, mT.forearm_r);
+    if (tfaO) tfaO.innerHTML = renderCellPair('overhead', 'forearm_l', 'forearm_r', mO.forearm_l, mO.forearm_r);
+
+    // 3b. Wire up metrics editing button event handlers
+    const editBtn = document.getElementById('btn-edit-baseline-metrics');
+    if (editBtn) {
+      if (state.isEditingProfileMetrics) {
+        editBtn.innerHTML = '💾 Save Metrics';
+        editBtn.style.background = 'rgba(16, 185, 129, 0.15)';
+        editBtn.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+        editBtn.style.color = '#10b981';
+        
+        let cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
+        if (!cancelBtn) {
+          cancelBtn = document.createElement('button');
+          cancelBtn.id = 'btn-cancel-baseline-metrics';
+          cancelBtn.className = 'btn';
+          cancelBtn.style.cssText = 'background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 4px; margin-left: 4px;';
+          cancelBtn.innerHTML = '❌ Cancel';
+          editBtn.parentNode.appendChild(cancelBtn);
+        }
+        
+        cancelBtn.onclick = () => {
+          state.isEditingProfileMetrics = false;
+          openProfileDetailsModal(profileId);
+        };
+        
+        editBtn.onclick = async () => {
+          try {
+            const freshProfile = await snapshotStore.getProfile(profileId);
+            if (!freshProfile) return;
+            
+            if (!freshProfile.metricsA) freshProfile.metricsA = {};
+            if (!freshProfile.metricsT) freshProfile.metricsT = {};
+            if (!freshProfile.metricsOverhead) freshProfile.metricsOverhead = {};
+            
+            const inputs = document.querySelectorAll('.profile-edit-input');
+            inputs.forEach(input => {
+              const pose = input.getAttribute('data-pose');
+              const key = input.getAttribute('data-key');
+              const rawVal = input.value.trim();
+              
+              let targetMetrics;
+              if (pose === 'a') targetMetrics = freshProfile.metricsA;
+              else if (pose === 't') targetMetrics = freshProfile.metricsT;
+              else if (pose === 'overhead') targetMetrics = freshProfile.metricsOverhead;
+              
+              if (targetMetrics) {
+                if (rawVal === "") {
+                  targetMetrics[key] = null;
+                } else {
+                  const parsed = parseFloat(rawVal);
+                  if (!isNaN(parsed)) {
+                    const cmVal = state.useInches ? parsed * 2.54 : parsed;
+                    targetMetrics[key] = cmVal;
+                  }
+                }
+              }
+            });
+            
+            await snapshotStore.saveProfile(freshProfile);
+            state.allProfiles = await snapshotStore.getAllProfiles();
+            if (state.activeProfileId === profileId) {
+              await loadProfileIntoState(profileId);
+            }
+            
+            state.isEditingProfileMetrics = false;
+            alert("Metrics updated successfully!");
+            openProfileDetailsModal(profileId);
+          } catch (err) {
+            console.error("[SaveMetrics] Failed to save metrics:", err);
+            alert("Failed to save metrics: " + err.message);
+          }
+        };
+      } else {
+        editBtn.innerHTML = '✏️ Edit Metrics';
+        editBtn.style.background = 'rgba(0, 229, 255, 0.1)';
+        editBtn.style.border = '1px solid rgba(0, 229, 255, 0.3)';
+        editBtn.style.color = '#00e5ff';
+        
+        const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
+        if (cancelBtn) {
+          cancelBtn.parentNode.removeChild(cancelBtn);
+        }
+        
+        editBtn.onclick = () => {
+          state.isEditingProfileMetrics = true;
+          openProfileDetailsModal(profileId);
+        };
+      }
+    }
+
+    // 4. Squat Peak mobility
+    const dsqKnee = document.getElementById('detail-squat-knee');
+    const dsqHip = document.getElementById('detail-squat-hip');
+    const dsqAnkle = document.getElementById('detail-squat-ankle');
+    
+    if (profile.squatPeaks) {
+      if (dsqKnee) dsqKnee.textContent = `${profile.squatPeaks.kneeL || 0}° / ${profile.squatPeaks.kneeR || 0}°`;
+      if (dsqHip) dsqHip.textContent = `${profile.squatPeaks.hipL || 0}° / ${profile.squatPeaks.hipR || 0}°`;
+      if (dsqAnkle) dsqAnkle.textContent = `${profile.squatPeaks.ankleL || 0}° / ${profile.squatPeaks.ankleR || 0}°`;
+    } else {
+      if (dsqKnee) dsqKnee.textContent = "0° / 0°";
+      if (dsqHip) dsqHip.textContent = "0° / 0°";
+      if (dsqAnkle) dsqAnkle.textContent = "0° / 0°";
+    }
+
+    // 5. Populate Saved Videos & Interactive Playlist Manager
+    if (state.modalObjectUrls) {
+      state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    }
+    state.modalObjectUrls = [];
+
+    const videosListEl = document.getElementById('profile-details-videos-list');
+    const mainVideoPlayer = document.getElementById('profile-details-video-player');
+    const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
+
+    if (mainVideoPlayer) {
+      mainVideoPlayer.src = '';
+      mainVideoPlayer.style.display = 'none';
+    }
+    if (videoPlaceholder) {
+      videoPlaceholder.style.display = 'flex';
+      videoPlaceholder.innerHTML = `
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+        <span>Select a recording from the playlist below to play</span>
+      `;
+    }
+
+    if (videosListEl) {
+      videosListEl.innerHTML = '';
+      
+      const savedVideos = profile.videos || [];
+      if (savedVideos.length === 0) {
+        if (videoPlaceholder) {
+          videoPlaceholder.innerHTML = `
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #444;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            <span style="color: #666;">No video recordings saved for this profile yet.</span>
+          `;
+        }
+        videosListEl.innerHTML = `
+          <div style="color: #555; font-size: 0.8rem; text-align: center; padding: 1.5rem 0;">
+            🎥 Playlist Empty
+          </div>
+        `;
+      } else {
+        savedVideos.forEach((video, idx) => {
+          const videoRow = document.createElement('div');
+          videoRow.className = 'profile-video-row-item';
+          videoRow.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; padding: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; transition: all 0.2s;';
+          
+          const videoUrl = URL.createObjectURL(video.blob);
+          state.modalObjectUrls.push(videoUrl);
+          
+          const dateStr = video.timestamp ? new Date(video.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unknown Date';
+          const sizeMb = (video.blob.size / (1024 * 1024)).toFixed(1);
+          const durationStr = video.duration ? `${(video.duration / 1000).toFixed(1)}s` : '--';
+          
+          videoRow.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px; flex-grow: 1; min-width: 0;">
+              <div class="playlist-play-icon" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: #888; flex-shrink: 0; transition: all 0.2s;">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex-grow: 1;">
+                <div style="display: flex; align-items: center; gap: 4px; width: 100%;">
+                  <span class="playlist-video-name" style="font-size: 0.8rem; font-weight: 600; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">${video.name || 'Video Capture'}</span>
+                  <button class="btn btn-rename-video" style="background: none; border: none; padding: 2px; color: #666; cursor: pointer; transition: color 0.2s; display: flex; align-items: center;" title="Rename Video">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                  </button>
+                </div>
+                <span style="font-size: 0.7rem; color: #777;">${dateStr} &bull; ${sizeMb} MB &bull; ${durationStr}</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 4px; flex-shrink: 0;">
+              <button class="btn btn-dl-video" style="padding: 2px 6px; font-size: 0.7rem; background: rgba(212, 160, 23, 0.08); border: 1px solid rgba(212, 160, 23, 0.2); color: #d4a017; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+                DL
+              </button>
+              <button class="btn btn-del-video" style="padding: 2px 6px; font-size: 0.7rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+                DEL
+              </button>
+            </div>
+          `;
+
+          // Hover states
+          videoRow.addEventListener('mouseenter', () => {
+            if (!videoRow.classList.contains('active-playlist-item')) {
+              videoRow.style.background = 'rgba(255,255,255,0.05)';
+              videoRow.style.borderColor = 'rgba(255,255,255,0.1)';
+            }
+          });
+          videoRow.addEventListener('mouseleave', () => {
+            if (!videoRow.classList.contains('active-playlist-item')) {
+              videoRow.style.background = 'rgba(255,255,255,0.02)';
+              videoRow.style.borderColor = 'rgba(255,255,255,0.04)';
+            }
+          });
+
+          // Play selection trigger
+          const selectVideo = () => {
+            const allItems = videosListEl.querySelectorAll('.profile-video-row-item');
+            allItems.forEach(item => {
+              item.classList.remove('active-playlist-item');
+              item.style.background = 'rgba(255,255,255,0.02)';
+              item.style.borderColor = 'rgba(255,255,255,0.04)';
+              const playIcon = item.querySelector('.playlist-play-icon');
+              if (playIcon) {
+                playIcon.style.background = 'rgba(255,255,255,0.05)';
+                playIcon.style.color = '#888';
+              }
+            });
+
+            videoRow.classList.add('active-playlist-item');
+            videoRow.style.background = 'rgba(0, 229, 255, 0.08)';
+            videoRow.style.borderColor = 'rgba(0, 229, 255, 0.25)';
+            const playIcon = videoRow.querySelector('.playlist-play-icon');
+            if (playIcon) {
+              playIcon.style.background = 'var(--color-cyan)';
+              playIcon.style.color = '#000';
+            }
+
+            if (mainVideoPlayer) {
+              mainVideoPlayer.src = videoUrl;
+              mainVideoPlayer.style.display = 'block';
+              if (videoPlaceholder) {
+                videoPlaceholder.style.display = 'none';
+              }
+              mainVideoPlayer.play().catch(e => console.log("[VideoPlay] Autoplay blocked:", e));
+            }
+          };
+
+          videoRow.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-rename-video') || e.target.closest('.btn-dl-video') || e.target.closest('.btn-del-video')) {
+              return;
+            }
+            selectVideo();
+          });
+
+          // Auto pre-select the first video on open
+          if (idx === 0) {
+            videoRow.classList.add('active-playlist-item');
+            videoRow.style.background = 'rgba(0, 229, 255, 0.05)';
+            videoRow.style.borderColor = 'rgba(0, 229, 255, 0.15)';
+            const pIcon = videoRow.querySelector('.playlist-play-icon');
+            if (pIcon) {
+              pIcon.style.background = 'var(--color-cyan)';
+              pIcon.style.color = '#000';
+            }
+            if (mainVideoPlayer) {
+              mainVideoPlayer.src = videoUrl;
+              mainVideoPlayer.style.display = 'block';
+              if (videoPlaceholder) {
+                videoPlaceholder.style.display = 'none';
+              }
+            }
+          }
+
+          // Rename action
+          const renameBtn = videoRow.querySelector('.btn-rename-video');
+          renameBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const currentName = video.name || 'Video Capture';
+            const newName = prompt("Enter a new name for this video:", currentName);
+            if (newName === null) return;
+            const trimmedName = newName.trim();
+            if (!trimmedName) {
+              alert("Video name cannot be empty.");
+              return;
+            }
+            try {
+              const freshProfile = await snapshotStore.getProfile(profileId);
+              if (freshProfile && freshProfile.videos) {
+                const vToUpdate = freshProfile.videos.find(v => v.id === video.id);
+                if (vToUpdate) {
+                  vToUpdate.name = trimmedName;
+                  await snapshotStore.saveProfile(freshProfile);
+                  state.allProfiles = await snapshotStore.getAllProfiles();
+                  openProfileDetailsModal(profileId);
+                }
+              }
+            } catch (err) {
+              console.error("[VideoRename] Failed to rename saved video:", err);
+            }
+          });
+
+          // Download action
+          const dlBtn = videoRow.querySelector('.btn-dl-video');
+          dlBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = videoUrl;
+            const fileExt = video.fileExt || 'webm';
+            const cleanSubjectName = profile.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+            a.download = `scarlet_biomechanics_${cleanSubjectName}_saved_recording_${video.id}.${fileExt}`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+              document.body.removeChild(a);
+            }, 100);
+          });
+
+          // Delete action
+          const delBtn = videoRow.querySelector('.btn-del-video');
+          delBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (!confirm("Are you sure you want to permanently delete this saved video from the profile?")) {
+              return;
+            }
+            try {
+              const freshProfile = await snapshotStore.getProfile(profileId);
+              if (freshProfile && freshProfile.videos) {
+                freshProfile.videos = freshProfile.videos.filter(v => v.id !== video.id);
+                await snapshotStore.saveProfile(freshProfile);
+                state.allProfiles = await snapshotStore.getAllProfiles();
+                openProfileDetailsModal(profileId);
+              }
+            } catch (err) {
+              console.error("[VideoDelete] Failed to delete saved video:", err);
+            }
+          });
+
+          videosListEl.appendChild(videoRow);
+        });
+      }
+    }
+
+    // 6. Open the modal
+    const profileDetailsModal = document.getElementById('profile-details-modal');
+    if (profileDetailsModal) {
+      profileDetailsModal.classList.add('active');
+    }
+
+  } catch (err) {
+    console.error("[openProfileDetailsModal] Error showing profile details modal:", err);
+  }
+}
+
+export function closeProfileDetailsModal() {
+  const profileDetailsModal = document.getElementById('profile-details-modal');
+  if (profileDetailsModal) {
+    profileDetailsModal.classList.remove('active');
+  }
+  if (state.modalObjectUrls) {
+    state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    state.modalObjectUrls = [];
+  }
+  state.isEditingProfileMetrics = false;
+}
+
 

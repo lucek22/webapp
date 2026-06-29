@@ -40,7 +40,7 @@ export function showDiagnosticError(text) {
 export class SnapshotStore {
   constructor() {
     this.dbName = "ScarletBiomechanics";
-    this.dbVersion = 1;
+    this.dbVersion = 2;
     this.db = null;
   }
 
@@ -67,6 +67,9 @@ export class SnapshotStore {
         const db = event.target.result;
         if (!db.objectStoreNames.contains("snapshots")) {
           db.createObjectStore("snapshots", { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains("profiles")) {
+          db.createObjectStore("profiles", { keyPath: "id", autoIncrement: true });
         }
       };
     });
@@ -125,6 +128,69 @@ export class SnapshotStore {
       }
       const transaction = this.db.transaction(["snapshots"], "readwrite");
       const store = transaction.objectStore("snapshots");
+      const request = store.delete(Number(id));
+
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  // ==========================================
+  // PROFILE PERSISTENCE OPERATIONS
+  // ==========================================
+  saveProfile(profile) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readwrite");
+      const store = transaction.objectStore("profiles");
+      const request = store.put(profile); // put handles both insert and update
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  getProfile(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readonly");
+      const store = transaction.objectStore("profiles");
+      const request = store.get(Number(id));
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  getAllProfiles() {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readonly");
+      const store = transaction.objectStore("profiles");
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  deleteProfile(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readwrite");
+      const store = transaction.objectStore("profiles");
       const request = store.delete(Number(id));
 
       request.onsuccess = () => resolve();
@@ -255,7 +321,11 @@ export const state = {
   imageOverhead: null,
   REQ_HOLD_MS: 2500,
   LOCKOUT_MS: 3500,
+  activeProfileId: null,
+  allProfiles: [],
+  isEditingProfileMetrics: false,
   isRecording: false,
+
   recordedChunks: [],
   mediaRecorder: null
 };

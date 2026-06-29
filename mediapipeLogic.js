@@ -125,7 +125,6 @@ export function calculatePoseMetrics(results) {
     x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
     y: (lm[7].y * 480 + lm[8].y * 480) / 2
   };
-  // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height above the ear level
   const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
   const head_top = {
     x: ear_mid.x,
@@ -147,9 +146,51 @@ export function calculatePoseMetrics(results) {
   const foot_r_bottom = Math.max(heel_r.y, toe_r.y);
   const ground_y = (foot_l_bottom + foot_r_bottom) / 2;
 
+  // =================================================================
+  // NEW: COMPUTE HEIGHTS OUTSIDE THE LOCK TO ENABLE INSTAGRAM fallbacks
+  // =================================================================
+  const vertical_height_px = Math.abs(ground_y - head_top.y);
+  state.lastVerticalHeightPx = vertical_height_px; // Save for input-based calibration
+
+  const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
+  const hip_mid_x = (hip_l.x + hip_r.x) / 2;
+  const hip_mid_y = (hip_l.y + hip_r.y) / 2;
+  const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
+  
+  const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
+                   Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
+                   Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
+                   
+  const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
+                   Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
+                   Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
+                   
+  const average_leg_px = (leg_l_px + leg_r_px) / 2;
+  const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
+  state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
+
+  // NEW FALLBACK: If no scale is locked yet, or we're explicitly utilizing height mode
+  if (!state.pixelsPerCm || state.activeCalMethod === 'height') {
+    const heightInput = document.getElementById('input-user-height');
+    let userHeightCm = 175.0; // Default fallback height if input is empty
+    
+    if (heightInput) {
+      const val = parseFloat(heightInput.value);
+      if (!isNaN(val) && val > 0) {
+        userHeightCm = state.useInches ? (val * 2.54) : val;
+      }
+    }
+    
+    // FIX: Match user height directly against the vertical straight-line ground plane 
+    // instead of the broken skeletal_height_px segment accumulation.
+    if (vertical_height_px > 10) {
+      state.pixelsPerCm = vertical_height_px / userHeightCm;
+    }
+  }
+
   let liveMetrics = null;
 
-  // --- CALCULATE PHYSICAL LENGTHS (IF SCALE LOCKED) ---
+  // --- CALCULATE PHYSICAL LENGTHS (IF SCALE LOCKED / SET BY HEIGHT FALLBACK) ---
   if (state.pixelsPerCm) {
     // Left segment calculations
     const thigh_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y);
@@ -170,35 +211,13 @@ export function calculatePoseMetrics(results) {
     const shoulderW_px = Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y);
     const hipW_px = Math.hypot(hip_l.x - hip_r.x, hip_l.y - hip_r.y);
 
-    // Left Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
+    // Left Finger to Toe
     const finger_l = state.latestLeftMiddleTip || all_landmarks[19] || wrist_l;
     const fingerToToeL_px = Math.hypot(finger_l.x - toe_l.x, finger_l.y - toe_l.y);
 
-    // Right Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
+    // Right Finger to Toe
     const finger_r = state.latestRightMiddleTip || all_landmarks[20] || wrist_r;
     const fingerToToeR_px = Math.hypot(finger_r.x - toe_r.x, finger_r.y - toe_r.y);
-
-    // Vertical height using lowest foot contacts (heels/toes) as the ground plane
-    const vertical_height_px = Math.abs(ground_y - head_top.y);
-    state.lastVerticalHeightPx = vertical_height_px; // Save for input-based calibration
-
-    // Anatomical (Skeletal) posture-independent stature calculation
-    const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
-    const hip_mid_x = (hip_l.x + hip_r.x) / 2;
-    const hip_mid_y = (hip_l.y + hip_r.y) / 2;
-    const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
-    
-    const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
-                     Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
-                     Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
-                     
-    const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
-                     Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
-                     Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
-                     
-    const average_leg_px = (leg_l_px + leg_r_px) / 2;
-    const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
-    state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
     let activePixelsPerCm = state.pixelsPerCm;
     if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
@@ -208,13 +227,12 @@ export function calculatePoseMetrics(results) {
     const skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
     const live_height_cm = vertical_height_px / activePixelsPerCm;
 
-    // Calculate Wingspan (using Middle Fingertips if detected, or Pose Indexes 19 & 20 as fallback)
+    // Calculate Wingspan
     let wingspan_cm = 0;
     if (state.latestLeftMiddleTip && state.latestRightMiddleTip) {
       const dist_px = Math.hypot(state.latestLeftMiddleTip.x - state.latestRightMiddleTip.x, state.latestLeftMiddleTip.y - state.latestRightMiddleTip.y);
       wingspan_cm = dist_px / activePixelsPerCm;
     } else {
-      // Fallback: Use Pose indexes 19 and 20 (L Index and R Index)
       const leftIdx = all_landmarks[19];
       const rightIdx = all_landmarks[20];
       if (leftIdx && rightIdx) {

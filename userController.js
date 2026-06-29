@@ -2082,46 +2082,59 @@ const inputUserHeight = document.getElementById('input-user-height');
 heightCalBtn.addEventListener('click', () => {
   if (state.isCountingDown || state.isCaptureCountingDown) return; // Prevent clicks during active countdowns
 
-  const activeHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
+  // Fix: Target the true vertical straight ground plane line for validation
+  const activeHeightPx = state.lastVerticalHeightPx;
+  
+  // Check if a video file is currently uploaded/playing instead of live webcam
+  const isUploadedVideo = videoElement && videoElement.src && !videoElement.srcObject;
+
   if (activeHeightPx > 10) {
-    // Start 3-second countdown
-    state.isCountingDown = true;
-    state.countdownValue = 3;
-    heightCalBtn.textContent = "Get in Position (3s)...";
-    heightCalBtn.classList.add('btn-warning');
-    heightCalBtn.classList.remove('btn-success-green');
-    statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
-
-    const intervalId = setInterval(() => {
-      state.countdownValue--;
-      if (state.countdownValue > 0) {
-        heightCalBtn.textContent = `Get in Position (${state.countdownValue}s)...`;
-        statusElement.textContent = `Stand straight and face the camera. Calibrating in ${state.countdownValue} seconds...`;
-      } else {
-        clearInterval(intervalId);
-        state.isCountingDown = false;
-
-        // Recalculate pixel height at the exact end of countdown
-        const captureHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-        const inputVal = parseFloat(inputUserHeight.value) || (state.useInches ? 68.9 : 175.0);
-        let actualHeightCm = inputVal;
-        if (state.useInches) {
-          actualHeightCm = inputVal * 2.54; // Convert to cm for calibration scale factor
-        }
-
-        state.pixelsPerCm = captureHeightPx / actualHeightCm;
-        state.calLocked = true;
-        heightCalBtn.textContent = "✅ Calibrated!";
-        heightCalBtn.classList.add('btn-success-green');
-        heightCalBtn.classList.remove('btn-warning');
-        statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
-        
-        // Trigger camera snapshot visual flash!
-        triggerFlashEffect();
+    // FUNCTION TO RUN CALIBRATION
+    const performHeightCalibration = () => {
+      const val = parseFloat(inputUserHeight.value);
+      if (isNaN(val) || val <= 0) {
+        alert("Please enter a valid height value first.");
+        return;
       }
-    }, 1000);
+      const userHeightCm = state.useInches ? (val * 2.54) : val;
+      
+      // FIX: Base pixel calculation scale directly on the straight vertical plane
+      state.pixelsPerCm = state.lastVerticalHeightPx / userHeightCm;
+      state.calLocked = true;
+
+      statusElement.textContent = `Calibration locked via height: ${state.pixelsPerCm.toFixed(2)} px/cm`;
+      heightCalBtn.textContent = "Recalibrate with My Height";
+      heightCalBtn.className = "btn btn-success-green"; // Reset style
+    };
+
+    if (isUploadedVideo) {
+      // INSTANT CALIBRATION FOR INSTAGRAM VIDEOS (No countdown needed!)
+      performHeightCalibration();
+    } else {
+      // LIVE CAMERA MODE: Keep your 3-second countdown
+      state.isCountingDown = true;
+      state.countdownValue = 3;
+      heightCalBtn.textContent = "Get in Position (3s)...";
+      heightCalBtn.classList.add('btn-warning');
+      heightCalBtn.classList.remove('btn-success-green');
+      statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
+
+      const intervalId = setInterval(() => {
+        state.countdownValue--;
+        if (state.countdownValue > 0) {
+          heightCalBtn.textContent = `Get in Position (${state.countdownValue}s)...`;
+          statusElement.textContent = `Stand straight and face the camera. Calibrating in ${state.countdownValue} seconds...`;
+        } else {
+          clearInterval(intervalId);
+          state.isCountingDown = false;
+          
+          // Execute calibration after countdown finishes for live stream
+          performHeightCalibration();
+        }
+      }, 1000);
+    }
   } else {
-    alert("Please click 'Start Biomechanical Tracking' and stand in view of the camera first!");
+    statusElement.textContent = "No body detected. Make sure the subject is visible in the frame!";
   }
 });
 
@@ -2227,28 +2240,36 @@ if (videoUploadInput) {
   videoUploadInput.addEventListener('change', function(event) {
     const file = event.target.files[0];
     if (!file) return;
-
+    
     // 1. If a camera stream is currently active, stop it first
     if (state.activeStream) {
       state.activeStream.getTracks().forEach(track => track.stop());
       state.activeStream = null;
     }
-
-    // 2. Create a local URL pointing to the uploaded video file
+    
+    // 2. FORCE HEIGHT CALIBRATION MODE FOR REELS/VIDEOS
+    // This allows tracking segments without needing an ArUco card in the frame
+    state.activeCalMethod = 'height'; 
+    const panelAruco = document.getElementById('panel-aruco');
+    const panelHeight = document.getElementById('panel-height');
+    if (panelAruco) panelAruco.classList.add('hidden');
+    if (panelHeight) panelHeight.classList.remove('hidden');
+    
+    // 3. Create a local URL pointing to the uploaded video file
     const fileURL = URL.createObjectURL(file);
     
-    // 3. Configure the video element
+    // 4. Configure the video element
     videoElement.srcObject = null; // Remove camera stream reference
     videoElement.src = fileURL;
     videoElement.loop = true;      // Option to loop the uploaded video
     
     // Turn off mirroring since recorded videos usually don't need reflection
     videoElement.classList.remove('mirror-x'); 
-
-    // 4. Play the video and announce readiness
+    
+    // 5. Play the video and announce readiness
     videoElement.onloadedmetadata = () => {
       videoElement.play();
-      statusElement.textContent = "Processing uploaded video file...";
+      statusElement.textContent = "Processing uploaded video file via Height Alignment Scale...";
       // Kick off the frame processing loop manually for the video file
       processFrame();
     };

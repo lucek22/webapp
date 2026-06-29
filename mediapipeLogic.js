@@ -69,10 +69,6 @@ export function setupMediaPipeCallbacks(onPoseResultsCb, drawHandMeshCb) {
 hands.onResults((results) => {
   state.latestHandResults = results;
   updateHandTracking(results);
-  
-  if (!state.isSnapshotFrozen && drawHandMesh) {
-    drawHandMesh(results.multiHandLandmarks, results.multiHandedness);
-  }
 });
 
 pose.onResults((results) => {
@@ -94,6 +90,16 @@ export function calculatePoseMetrics(results) {
   if (!results.poseLandmarks) return null;
 
   const lm = results.poseLandmarks;
+
+  // Safety check: Make sure all required landmarks exist in the poseLandmarks array
+  const requiredIndices = [7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+  for (const idx of requiredIndices) {
+    if (!lm[idx]) {
+      console.warn(`Missing required landmark index ${idx} in calculatePoseMetrics`);
+      return null;
+    }
+  }
+
   const mirrorX = getCanvasX;
   const height = state.canvasHeight || 480;
 
@@ -142,6 +148,8 @@ export function calculatePoseMetrics(results) {
   const hipAngleR = calculateAngle(hip_r, shoulder_r, knee_r);
   const elbowAngleL = calculateAngle(elbow_l, shoulder_l, wrist_l);
   const elbowAngleR = calculateAngle(elbow_r, shoulder_r, wrist_r);
+  const ankleAngleL = calculateAngle(ankle_l, knee_l, toe_l);
+  const ankleAngleR = calculateAngle(ankle_r, knee_r, toe_r);
 
   // Vertical height ground plane
   const foot_l_bottom = Math.max(heel_l.y, toe_l.y);
@@ -296,6 +304,7 @@ export function calculatePoseMetrics(results) {
     shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
     head_top, ground_y, all_landmarks,
     kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+    ankleAngleL, ankleAngleR,
     liveMetrics
   };
 }

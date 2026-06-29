@@ -37,6 +37,12 @@
       </div>
       <div class="subtitle">Complete biomechanical movement segment analysis & joint angle tracking.</div>
       
+      <!-- Main Mode Switcher Tabs -->
+      <div class="main-mode-tabs">
+        <button id="btn-mode-posture" class="main-mode-btn active">Posture & Stature Scan</button>
+        <button id="btn-mode-squat" class="main-mode-btn">Overhead Squat Analyzer</button>
+      </div>
+
       <!-- Calibration Panel -->
       <div class="calibration-panel">
         <div class="calibration-row calibration-row-compact">
@@ -127,6 +133,19 @@
             <path d="M16 16h5v5"></path>
           </svg>
         </button>
+
+        <!-- Floating Glassmorphic Video Controls Bar -->
+        <div id="video-controls-bar" class="hidden video-controls-bar">
+          <button id="video-play-pause-btn" class="video-control-btn" title="Play/Pause">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          </button>
+          
+          <input type="range" id="video-seekbar" class="video-seekbar" min="0" max="100" value="0" title="Seek Video Progress">
+          
+          <span id="video-time-display" class="video-time-display">00:00 / 00:00</span>
+          
+          <button id="video-speed-btn" class="video-speed-btn" title="Playback Speed">1.0x</button>
+        </div>
       </div>
       
       <button id="start-btn" class="unit-btn">Start Biomechanical Tracking</button>
@@ -209,164 +228,268 @@
         </div>
       </div>
       
-      <!-- Full-Body Stature -->
-      <div class="panel-section panel-section-stature">
-        <div class="section-title stature-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-          Full-Body Stature
-        </div>
-        <div class="metrics-list">
-          <div class="metric-row metric-row-stature">
-            <span class="metric-lbl metric-lbl-bold">Total Height</span>
-            <div class="text-right">
-              <span id="val-height-cm" class="metric-val">--.- cm</span>
-              <span id="val-height-ft">--'--''</span>
+      
+      <div id="posture-sidebar-content">
+        <!-- Full-Body Stature -->
+        <div class="panel-section panel-section-stature">
+          <div class="section-title stature-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            Full-Body Stature
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row metric-row-stature">
+              <span class="metric-lbl metric-lbl-bold">Total Height</span>
+              <div class="text-right">
+                <span id="val-height-cm" class="metric-val">--.- cm</span>
+                <span id="val-height-ft">--'--''</span>
+              </div>
+            </div>
+            <div class="metric-row metric-row-stature">
+              <span class="metric-lbl metric-lbl-bold">Active Pose</span>
+              <div class="text-right">
+                <span id="val-active-pose" class="metric-val">A-Pose</span>
+              </div>
             </div>
           </div>
-          <div class="metric-row metric-row-stature">
-            <span class="metric-lbl metric-lbl-bold">Active Pose</span>
-            <div class="text-right">
-              <span id="val-active-pose" class="metric-val">A-Pose</span>
-            </div>
-          </div>
         </div>
-      </div>
 
-      <!-- Real-time Joint Angles -->
-      <div class="panel-section">
-      <div class="section-title">Joint Angles (Flexion)</div>
-      <div class="angle-header-row angle-header-row-spaced">
-        <span class="side-header-left">Left Side</span>
-        <span class="side-header-right">Right Side</span>
-      </div>
-        <div class="angle-box-grid">
-          <div class="angle-box left-border">
-            <div class="angle-lbl">Knee Angle</div>
-            <div id="angle-knee-l" class="angle-val left-color">--°</div>
-          </div>
-          <div class="angle-box right-border">
-            <div class="angle-lbl">Knee Angle</div>
-            <div id="angle-knee-r" class="angle-val right-color">--°</div>
-          </div>
-          
-          <div class="angle-box left-border">
-            <div class="angle-lbl">Hip Angle</div>
-            <div id="angle-hip-l" class="angle-val left-color">--°</div>
-          </div>
-          <div class="angle-box right-border">
-            <div class="angle-lbl">Hip Angle</div>
-            <div id="angle-hip-r" class="angle-val right-color">--°</div>
-          </div>
-          
-          <div class="angle-box left-border">
-            <div class="angle-lbl">Elbow Angle</div>
-            <div id="angle-elbow-l" class="angle-val left-color">--°</div>
-          </div>
-          <div class="angle-box right-border">
-            <div class="angle-lbl">Elbow Angle</div>
-            <div id="angle-elbow-r" class="angle-val right-color">--°</div>
+        <!-- Real-time Joint Angles -->
+        <div class="panel-section">
+        <div class="section-title">Joint Angles (Flexion)</div>
+        <div class="angle-header-row angle-header-row-spaced">
+          <span class="side-header-left">Left Side</span>
+          <span class="side-header-right">Right Side</span>
+        </div>
+          <div class="angle-box-grid">
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Knee Angle</div>
+              <div id="angle-knee-l" class="angle-val left-color">--°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Knee Angle</div>
+              <div id="angle-knee-r" class="angle-val right-color">--°</div>
+            </div>
+            
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Hip Angle</div>
+              <div id="angle-hip-l" class="angle-val left-color">--°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Hip Angle</div>
+              <div id="angle-hip-r" class="angle-val right-color">--°</div>
+            </div>
+            
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Elbow Angle</div>
+              <div id="angle-elbow-l" class="angle-val left-color">--°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Elbow Angle</div>
+              <div id="angle-elbow-r" class="angle-val right-color">--°</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Lower Body Segments -->
-      <div class="panel-section">
-        <div class="section-title">Lower Body Segments</div>
-        <div class="angle-header-row">
-          <span class="text-left-color">Left</span>
-          <span class="text-right-color">Right</span>
+        <!-- Lower Body Segments -->
+        <div class="panel-section">
+          <div class="section-title">Lower Body Segments</div>
+          <div class="angle-header-row">
+            <span class="text-left-color">Left</span>
+            <span class="text-right-color">Right</span>
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl">Thigh (Hip➔Knee)</span>
+              <div class="side-values">
+                <span id="val-thigh-l" class="side-val-item left-color">--.- cm</span>
+                <span id="val-thigh-r" class="side-val-item right-color">--.- cm</span>
+              </div>
+            </div>
+            <div class="metric-row">
+              <span class="metric-lbl">Shank (Knee➔Ankle)</span>
+              <div class="side-values">
+                <span id="val-shin-l" class="side-val-item left-color">--.- cm</span>
+                <span id="val-shin-r" class="side-val-item right-color">--.- cm</span>
+              </div>
+            </div>
+            <div class="metric-row">
+              <span class="metric-lbl">Foot (Ankle➔Toe)</span>
+              <div class="side-values">
+                <span id="val-foot-l" class="side-val-item left-color">--.- cm</span>
+                <span id="val-foot-r" class="side-val-item right-color">--.- cm</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="metrics-list">
-          <div class="metric-row">
-            <span class="metric-lbl">Thigh (Hip➔Knee)</span>
-            <div class="side-values">
-              <span id="val-thigh-l" class="side-val-item left-color">--.- cm</span>
-              <span id="val-thigh-r" class="side-val-item right-color">--.- cm</span>
-            </div>
-          </div>
-          <div class="metric-row">
-            <span class="metric-lbl">Shank (Knee➔Ankle)</span>
-            <div class="side-values">
-              <span id="val-shin-l" class="side-val-item left-color">--.- cm</span>
-              <span id="val-shin-r" class="side-val-item right-color">--.- cm</span>
-            </div>
-          </div>
-          <div class="metric-row">
-            <span class="metric-lbl">Foot (Ankle➔Toe)</span>
-            <div class="side-values">
-              <span id="val-foot-l" class="side-val-item left-color">--.- cm</span>
-              <span id="val-foot-r" class="side-val-item right-color">--.- cm</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Upper Body Segments -->
-      <div class="panel-section">
-        <div class="section-title">Upper Body Segments</div>
-        <div class="metrics-list">
-          <div class="metric-row">
-            <span class="metric-lbl">Torso (Shld➔Hip)</span>
-            <div class="side-values">
-              <span id="val-torso-l" class="side-val-item left-color">--.- cm</span>
-              <span id="val-torso-r" class="side-val-item right-color">--.- cm</span>
+        <!-- Upper Body Segments -->
+        <div class="panel-section">
+          <div class="section-title">Upper Body Segments</div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl">Torso (Shld➔Hip)</span>
+              <div class="side-values">
+                <span id="val-torso-l" class="side-val-item left-color">--.- cm</span>
+                <span id="val-torso-r" class="side-val-item right-color">--.- cm</span>
+              </div>
             </div>
-          </div>
-          <div class="metric-row">
-            <span class="metric-lbl">Upper Arm</span>
-            <div class="side-values">
-              <span id="val-upperarm-l" class="side-val-item left-color">--.- cm</span>
-              <span id="val-upperarm-r" class="side-val-item right-color">--.- cm</span>
+            <div class="metric-row">
+              <span class="metric-lbl">Upper Arm</span>
+              <div class="side-values">
+                <span id="val-upperarm-l" class="side-val-item left-color">--.- cm</span>
+                <span id="val-upperarm-r" class="side-val-item right-color">--.- cm</span>
+              </div>
             </div>
-          </div>
-          <div class="metric-row">
-            <span class="metric-lbl">Forearm</span>
-            <div class="side-values">
-              <span id="val-forearm-l" class="side-val-item left-color">--.- cm</span>
-              <span id="val-forearm-r" class="side-val-item right-color">--.- cm</span>
+            <div class="metric-row">
+              <span class="metric-lbl">Forearm</span>
+              <div class="side-values">
+                <span id="val-forearm-l" class="side-val-item left-color">--.- cm</span>
+                <span id="val-forearm-r" class="side-val-item right-color">--.- cm</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Body Widths -->
-      <div class="panel-section">
-        <div class="section-title">Full Body Widths</div>
-        <div class="metrics-list">
-          <div class="metric-row">
-            <span class="metric-lbl">Pelvic (Hip) Width</span>
-            <span id="val-hip-w" class="metric-val">--.- cm</span>
+        <!-- Body Widths -->
+        <div class="panel-section">
+          <div class="section-title">Full Body Widths</div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl">Pelvic (Hip) Width</span>
+              <span id="val-hip-w" class="metric-val">--.- cm</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-flex">
+                Wingspan
+                <span class="metric-lbl-sub">(Mid Fingers)</span>
+              </span>
+              <span id="val-wingspan" class="metric-val">--.- cm</span>
+            </div>
           </div>
-          <div class="metric-row">
-            <span class="metric-lbl metric-lbl-flex">
-              Wingspan
-              <span class="metric-lbl-sub">(Mid Fingers)</span>
+        </div>
+
+        <!-- Pose Landmarks Overlay Section -->
+        <div class="panel-section panel-section-landmarks">
+          <div class="section-title landmarks-title">
+            <span class="metric-lbl-flex">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+              Landmark Points
             </span>
-            <span id="val-wingspan" class="metric-val">--.- cm</span>
           </div>
+          
+          <div class="landmarks-desc">
+            List of all 43 landmark and fingertip points tracked on your body.
+          </div>
+          
+          <!-- Expandable directory -->
+          <details class="landmarks-details">
+            <summary class="landmarks-summary">Show 43 Landmark Directory</summary>
+            <div id="landmark-directory">
+              <!-- Populated dynamically via JS -->
+            </div>
+          </details>
         </div>
       </div>
 
-      <!-- Pose Landmarks Overlay Section -->
-      <div class="panel-section panel-section-landmarks">
-        <div class="section-title landmarks-title">
-          <span class="metric-lbl-flex">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
-            Landmark Points
-          </span>
-        </div>
+      <!-- Overhead Squat Mobility Dashboard content -->
+      <div id="squat-sidebar-content" class="hidden">
         
-        <div class="landmarks-desc">
-          List of all 43 landmark and fingertip points tracked on your body.
-        </div>
-        
-        <!-- Expandable directory -->
-        <details class="landmarks-details">
-          <summary class="landmarks-summary">Show 43 Landmark Directory</summary>
-          <div id="landmark-directory">
-            <!-- Populated dynamically via JS -->
+        <!-- Overhead Squat Performance Overview Card -->
+        <div class="panel-section squat-performance-section">
+          <div class="section-title squat-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+            Overhead Squat Analyzer
           </div>
-        </details>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="squat-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobility Analysis Dashboard Section -->
+        <div class="panel-section">
+          <div class="section-title">Peak Mobility Scores</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Captures and locks the maximum flexion angles reached during your squat descent.
+          </div>
+          
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid">
+            <!-- Knee Mobility -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Peak Knee Flexion</div>
+              <div id="squat-peak-knee-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live: <span id="squat-live-knee-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Peak Knee Flexion</div>
+              <div id="squat-peak-knee-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live: <span id="squat-live-knee-r">0°</span></div>
+            </div>
+
+            <!-- Hip Mobility -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Peak Hip Flexion</div>
+              <div id="squat-peak-hip-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live: <span id="squat-live-hip-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Peak Hip Flexion</div>
+              <div id="squat-peak-hip-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live: <span id="squat-live-hip-r">0°</span></div>
+            </div>
+
+            <!-- Ankle Mobility -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Peak Ankle Flex</div>
+              <div id="squat-peak-ankle-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live: <span id="squat-live-ankle-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Peak Ankle Flex</div>
+              <div id="squat-peak-ankle-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live: <span id="squat-live-ankle-r">0°</span></div>
+            </div>
+          </div>
+          
+          <button id="btn-reset-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+        </div>
+
+        <!-- Squat Biomechanics Reference Guide -->
+        <div class="panel-section squat-guide-section">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                <strong>Knee Mobility:</strong> Flexion targets 110° - 130° at full depth. Tracked as <code>180° - KneeAngle</code>.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-hip" style="color: var(--color-gold);">●</span>
+              <div class="guide-text">
+                <strong>Hip Mobility:</strong> Flexion targets 90° - 110° at depth. Tracked as <code>180° - HipAngle</code>.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-ankle" style="color: var(--color-cyan);">●</span>
+              <div class="guide-text">
+                <strong>Ankle Dorsiflexion:</strong> Targets 15° - 25° of forward shin tilt. Tracked as <code>max(0, 115° - AnkleAngle)</code>.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </aside>
@@ -384,6 +507,10 @@
           <button id="modal-dl-btn" class="btn-modal-action btn-modal-dl">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             <span class="btn-text">Download PNG</span>
+          </button>
+          <button id="modal-json-btn" class="btn-modal-action btn-modal-json">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 19c-1.7 0-3-1.3-3-3V12c0-1.7-1.3-3-3-3 1.7 0 3-1.3 3-3V8c0-1.7 1.3-3 3-3M14 19c1.7 0 3-1.3 3-3V12c0-1.7 1.3-3 3-3-1.7 0-3-1.3-3-3V8c0-1.7-1.3-3-3-3"></path></svg>
+            <span class="btn-text">Export JSON</span>
           </button>
           <button id="modal-del-btn" class="btn-modal-action btn-modal-del">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>

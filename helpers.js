@@ -198,6 +198,15 @@ export const MARKER_PHYSICAL_SIZE_CM = 20.0;
 export const state = {
   canvasWidth: 640,
   canvasHeight: 480,
+  currentMode: "posture",
+  squatPeaks: {
+    kneeL: 0,
+    kneeR: 0,
+    hipL: 0,
+    hipR: 0,
+    ankleL: 0,
+    ankleR: 0
+  },
   isUploadedMedia: false,
   uploadedMediaType: null,
   latestPoseResults: null,

@@ -35,6 +35,32 @@ export function downloadSnapshotImage(dataUrl, filename) {
   document.body.removeChild(link);
 }
 
+/**
+ * Triggers a download of an individual snapshot record or combined report in JSON format.
+ * @param {Object} snapshot The complete snapshot object retrieved from IndexedDB
+ */
+export function downloadIndividualSnapshotJson(snapshot) {
+  if (!snapshot) return;
+
+  const jsonStr = JSON.stringify(snapshot, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  
+  const baseName = snapshot.name || 'biomechanical-snapshot';
+  const safeName = sanitizeFilename(baseName) || 'biomechanical-snapshot';
+  const filename = `${safeName}-${snapshot.timestamp || Date.now()}.json`;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+
 // ==========================================
 // BIND SAVE & EXPORT ACTION CONTROLS
 // ==========================================
@@ -206,6 +232,14 @@ export function compileAndDownloadCombinedSession() {
         elbowL: mO.elbowAngleL ? Math.round(mO.elbowAngleL) : null,
         elbowR: mO.elbowAngleR ? Math.round(mO.elbowAngleR) : null
       }
+    },
+    overheadSquatMobility: {
+      peakKneeFlexionL: state.squatPeaks.kneeL || 0,
+      peakKneeFlexionR: state.squatPeaks.kneeR || 0,
+      peakHipFlexionL: state.squatPeaks.hipL || 0,
+      peakHipFlexionR: state.squatPeaks.hipR || 0,
+      peakAnkleDorsiflexionL: state.squatPeaks.ankleL || 0,
+      peakAnkleDorsiflexionR: state.squatPeaks.ankleR || 0
     }
   };
 

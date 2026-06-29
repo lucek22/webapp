@@ -21,7 +21,7 @@ import {
 
 import { detectArucoMarker } from './arucoDetector.js';
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
-import { downloadSnapshotImage, compileAndDownloadCombinedSession } from './reportCompiler.js';
+import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
 
 export const videoElement = document.getElementById('webcam');
 export const canvasElement = document.getElementById('overlay');
@@ -36,6 +36,14 @@ const uploadedVideo = document.getElementById('uploaded-video');
 const uploadedImage = document.getElementById('uploaded-image');
 const uploadMediaBtn = document.getElementById('upload-media-btn');
 const mediaUploadInput = document.getElementById('media-upload-input');
+
+// Custom Floating Video Player Controls (Buckeyes theme)
+const videoControlsBar = document.getElementById('video-controls-bar');
+const videoPlayPauseBtn = document.getElementById('video-play-pause-btn');
+const videoSeekbar = document.getElementById('video-seekbar');
+const videoTimeDisplay = document.getElementById('video-time-display');
+const videoSpeedBtn = document.getElementById('video-speed-btn');
+
 
 // Helper canvas for caching frozen frames
 export const frozenFrameCanvas = document.createElement('canvas');
@@ -149,6 +157,30 @@ const hipAngleLDisp = document.getElementById('angle-hip-l');
 const hipAngleRDisp = document.getElementById('angle-hip-r');
 const elbowAngleLDisp = document.getElementById('angle-elbow-l');
 const elbowAngleRDisp = document.getElementById('angle-elbow-r');
+
+// UI Overhead Squat Elements
+const btnModePosture = document.getElementById('btn-mode-posture');
+const btnModeSquat = document.getElementById('btn-mode-squat');
+const postureSidebarContent = document.getElementById('posture-sidebar-content');
+const squatSidebarContent = document.getElementById('squat-sidebar-content');
+
+const squatPeakKneeL = document.getElementById('squat-peak-knee-l');
+const squatLiveKneeL = document.getElementById('squat-live-knee-l');
+const squatPeakKneeR = document.getElementById('squat-peak-knee-r');
+const squatLiveKneeR = document.getElementById('squat-live-knee-r');
+
+const squatPeakHipL = document.getElementById('squat-peak-hip-l');
+const squatLiveHipL = document.getElementById('squat-live-hip-l');
+const squatPeakHipR = document.getElementById('squat-peak-hip-r');
+const squatLiveHipR = document.getElementById('squat-live-hip-r');
+
+const squatPeakAnkleL = document.getElementById('squat-peak-ankle-l');
+const squatLiveAnkleL = document.getElementById('squat-live-ankle-l');
+const squatPeakAnkleR = document.getElementById('squat-peak-ankle-r');
+const squatLiveAnkleR = document.getElementById('squat-live-ankle-r');
+
+const squatStatusVal = document.getElementById('squat-status-val');
+
 
 // UI Calibration Toggles & Panels
 const tabArucoBtn = document.getElementById('tab-aruco-btn');
@@ -610,21 +642,39 @@ export function renderDashboard(metrics) {
 // POSE EVENT DISPATCH COORDINATOR
 // ==========================================
 
-export function onPoseResults(results) {
-  state.latestPoseResults = results;
-  canvasCtx.save();
-  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+export function drawActiveMediaBackground() {
+  if (state.yoloModeActive) return;
 
-  // Draw background video/webcam frame if YOLO background masking is NOT active
-  if (!state.yoloModeActive && results && results.image) {
+  let sourceElement = null;
+  if (state.isUploadedMedia) {
+    if (state.uploadedMediaType === 'video') {
+      sourceElement = uploadedVideo;
+    } else if (state.uploadedMediaType === 'image') {
+      sourceElement = uploadedImage;
+    }
+  } else {
+    sourceElement = videoElement;
+  }
+
+  if (sourceElement) {
     canvasCtx.save();
     if (!state.isUploadedMedia && state.currentFacingMode === "user") {
       canvasCtx.translate(canvasElement.width, 0);
       canvasCtx.scale(-1, 1);
     }
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(sourceElement, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.restore();
   }
+}
+
+export function onPoseResults(results) {
+  try {
+    state.latestPoseResults = results;
+    canvasCtx.save();
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+  // Draw background video/webcam frame if YOLO background masking is NOT active
+  drawActiveMediaBackground();
 
   const now = Date.now();
   const dt = now - state.lastFrameTime;
@@ -636,7 +686,10 @@ export function onPoseResults(results) {
     const {
       shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
       shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
-      head_top, ground_y, all_landmarks, liveMetrics
+      head_top, ground_y, all_landmarks,
+      kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+      ankleAngleL, ankleAngleR,
+      liveMetrics
     } = calculated;
 
     // Draw standard skeletal mesh elements
@@ -699,13 +752,33 @@ export function onPoseResults(results) {
       // Draw the live ruler graphics
       drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
 
-      // Draw active pose badge
-      if (liveMetrics.pose) {
+      // Draw active pose badge (only on camera/images, remove from video as requested)
+      const isVideo = state.isUploadedMedia && state.uploadedMediaType === 'video';
+      if (liveMetrics.pose && !isVideo) {
         drawPoseBadge(liveMetrics.pose);
       }
 
       // Draw live stats HUD overlay on top-right of canvas
       drawLiveStatsCard(canvasCtx, calculated);
+
+      // Support Overhead Squat metrics update for static images
+      const kneeMobL = 180 - (kneeAngleL || 180);
+      const kneeMobR = 180 - (kneeAngleR || 180);
+      const hipMobL = 180 - (hipAngleL || 180);
+      const hipMobR = 180 - (hipAngleR || 180);
+      const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
+      const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
+
+      state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+      state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+      state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+      state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+      state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+      state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+
+      if (state.currentMode === 'squat') {
+        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR);
+      }
     }
 
     canvasCtx.restore();
@@ -848,16 +921,18 @@ export function onPoseResults(results) {
     state.lastSkeletalHeightPx = 0;
     state.lastVerticalHeightPx = 0;
 
-    // Reset status elements
-    if (state.autoActive) {
-      statusElement.textContent = "🔍 Waiting for subject to enter and align in view...";
-      state.holdTimerMs = 0; // Reset sequence hold timer
-    } else {
-      statusElement.textContent = "🔍 Scanning for a person... Align yourself in view of the camera.";
+    // Reset status elements (only when not in playout recording to preserve "Recording playout is active..." status)
+    if (!state.isRecordingPlayLoop) {
+      if (state.autoActive) {
+        statusElement.textContent = "🔍 Waiting for subject to enter and align in view...";
+        state.holdTimerMs = 0; // Reset sequence hold timer
+      } else {
+        statusElement.textContent = "🔍 Scanning for a person... Align yourself in view of the camera.";
+      }
     }
 
     // Set all sidebar landmarks to Offline
-    if (typeof LANDMARK_NAMES !== 'undefined') {
+    if (!state.isRecordingPlayLoop && typeof LANDMARK_NAMES !== 'undefined') {
       LANDMARK_NAMES.forEach((name, idx) => {
         const statusSpan = document.getElementById(`lm-status-${idx}`);
         if (statusSpan) {
@@ -868,33 +943,36 @@ export function onPoseResults(results) {
       });
     }
 
-    // Draw a premium neon-glowing "SUBJECT NOT DETECTED" warning overlay
-    canvasCtx.save();
-    const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 250);
-    const bannerW = 280;
-    const bannerH = 40;
-    const bannerX = (canvasElement.width - bannerW) / 2;
-    const bannerY = 30; // Near the top of the canvas
-    
-    canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.85)';
-    canvasCtx.strokeStyle = `rgba(239, 68, 68, ${0.3 + 0.2 * pulse})`; // Crimson Red glow
-    canvasCtx.lineWidth = 1.5;
-    canvasCtx.shadowColor = 'rgba(239, 68, 68, 0.6)';
-    canvasCtx.shadowBlur = 8;
-    
-    // Draw container box
-    drawRoundedRect(canvasCtx, bannerX, bannerY, bannerW, bannerH, 6);
-    canvasCtx.fill();
-    canvasCtx.stroke();
-    
-    // Draw text (disable shadow blur for sharpness)
-    canvasCtx.shadowBlur = 0;
-    canvasCtx.fillStyle = `rgba(239, 68, 68, ${0.8 + 0.2 * pulse})`;
-    canvasCtx.font = 'bold 11px sans-serif';
-    canvasCtx.textAlign = 'center';
-    canvasCtx.textBaseline = 'middle';
-    canvasCtx.fillText("⚠️  SUBJECT NOT DETECTED IN FRAME", canvasElement.width / 2, bannerY + bannerH / 2);
-    canvasCtx.restore();
+    // Only draw the warning banner if NOT exporting/recording video playout to keep athletic footage pristine
+    if (!state.isRecordingPlayLoop) {
+      // Draw a premium neon-glowing "SUBJECT NOT DETECTED" warning overlay
+      canvasCtx.save();
+      const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 250);
+      const bannerW = 280;
+      const bannerH = 40;
+      const bannerX = (canvasElement.width - bannerW) / 2;
+      const bannerY = 30; // Near the top of the canvas
+      
+      canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.85)';
+      canvasCtx.strokeStyle = `rgba(239, 68, 68, ${0.3 + 0.2 * pulse})`; // Crimson Red glow
+      canvasCtx.lineWidth = 1.5;
+      canvasCtx.shadowColor = 'rgba(239, 68, 68, 0.6)';
+      canvasCtx.shadowBlur = 8;
+      
+      // Draw container box
+      drawRoundedRect(canvasCtx, bannerX, bannerY, bannerW, bannerH, 6);
+      canvasCtx.fill();
+      canvasCtx.stroke();
+      
+      // Draw text (disable shadow blur for sharpness)
+      canvasCtx.shadowBlur = 0;
+      canvasCtx.fillStyle = `rgba(239, 68, 68, ${0.8 + 0.2 * pulse})`;
+      canvasCtx.font = 'bold 11px sans-serif';
+      canvasCtx.textAlign = 'center';
+      canvasCtx.textBaseline = 'middle';
+      canvasCtx.fillText("⚠️  SUBJECT NOT DETECTED IN FRAME", canvasElement.width / 2, bannerY + bannerH / 2);
+      canvasCtx.restore();
+    }
 
     canvasCtx.restore();
     return;
@@ -914,6 +992,7 @@ export function onPoseResults(results) {
         shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
         head_top, ground_y, all_landmarks,
         kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+        ankleAngleL, ankleAngleR,
         liveMetrics
       } = calculated;
 
@@ -1016,6 +1095,27 @@ export function onPoseResults(results) {
       elbowAngleLDisp.textContent = `${elbowAngleL}°`;
       elbowAngleRDisp.textContent = `${elbowAngleR}°`;
 
+      // Overhead Squat Mobility calculations
+      const kneeMobL = 180 - (kneeAngleL || 180);
+      const kneeMobR = 180 - (kneeAngleR || 180);
+      const hipMobL = 180 - (hipAngleL || 180);
+      const hipMobR = 180 - (hipAngleR || 180);
+      const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
+      const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
+
+      // Always update peaks state when a valid frame is processed
+      state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+      state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+      state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+      state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+      state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+      state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+
+      // If in squat mode, update the Overhead Squat dashboard UI
+      if (state.currentMode === 'squat') {
+        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR);
+      }
+
       // Draw real-time biometrics to dashboard and ruler if calibrated
       if (state.pixelsPerCm && liveMetrics) {
         renderDashboard(liveMetrics);
@@ -1038,8 +1138,9 @@ export function onPoseResults(results) {
         // Draw the live ruler graphics
         drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
 
-        // Draw active pose badge
-        if (liveMetrics.pose) {
+        // Draw active pose badge (only on camera/images, remove from video as requested)
+        const isVideo = state.isUploadedMedia && state.uploadedMediaType === 'video';
+        if (liveMetrics.pose && !isVideo) {
           drawPoseBadge(liveMetrics.pose);
         }
 
@@ -1221,6 +1322,10 @@ export function onPoseResults(results) {
   }
 
   canvasCtx.restore();
+  } catch (err) {
+    console.error("Error inside onPoseResults:", err);
+    try { canvasCtx.restore(); } catch (e) {}
+  }
 }
 
 // ==========================================
@@ -1623,8 +1728,9 @@ function drawFrozenSnapshot() {
     drawHandMesh(state.frozenHandResults.multiHandLandmarks, state.frozenHandResults.multiHandedness);
   }
 
-  // Draw frozen pose badge if available
-  if (state.frozenMetrics && state.frozenMetrics.pose) {
+  // Draw frozen pose badge if available (only on camera/images, remove from video as requested)
+  const isVideo = state.isUploadedMedia && state.uploadedMediaType === 'video';
+  if (state.frozenMetrics && state.frozenMetrics.pose && !isVideo) {
     drawPoseBadge(state.frozenMetrics.pose);
   }
 
@@ -1679,13 +1785,52 @@ export function startUiRenderLoop() {
     if (shouldRender) {
       if (state.isSnapshotFrozen) {
         drawFrozenSnapshot();
+      } else if (state.isRecordingPlayLoop && state.exportFramesData && state.exportFramesData.length > 0) {
+        try {
+          // Look up the closest pre-processed frame for perfect sync
+          const curTime = uploadedVideo.currentTime;
+          let closestFrame = state.exportFramesData[0];
+          let minDiff = Math.abs(closestFrame.time - curTime);
+          
+          for (let i = 1; i < state.exportFramesData.length; i++) {
+            const diff = Math.abs(state.exportFramesData[i].time - curTime);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestFrame = state.exportFramesData[i];
+            }
+          }
+          
+          // Mock results and render immediately on canvas (zero-lag!)
+          if (closestFrame) {
+            const mockedResults = {
+              poseLandmarks: closestFrame.poseLandmarks,
+              image: uploadedVideo
+            };
+            state.latestHandResults = closestFrame.handResults;
+            onPoseResults(mockedResults);
+          }
+        } catch (err) {
+          console.error("Error in playout render tick:", err);
+          try {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            drawActiveMediaBackground();
+            canvasCtx.restore();
+          } catch (e) {
+            console.error("Playout tick fallback drawing failed:", e);
+          }
+        }
       } else {
         if (state.latestPoseResults) {
-          onPoseResults(state.latestPoseResults);
+          // If YOLO mode is active, we let the async callback handle drawing to avoid WebGL recycled resource flashing
+          if (!state.yoloModeActive) {
+            onPoseResults(state.latestPoseResults);
+          }
         } else {
-          // If no results yet, clear canvas and draw manual calibration box if active
+          // If no results yet, clear canvas, draw background, and draw manual calibration box if active
           canvasCtx.save();
           canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+          drawActiveMediaBackground();
           if (state.activeCalMethod === 'card') {
             const x1 = state.calBoxX - state.calBoxSize / 2;
             const y1 = state.calBoxY - state.calBoxSize / 2;
@@ -1789,6 +1934,7 @@ export async function startCamera() {
   if (btnExportVideo) {
     btnExportVideo.classList.remove('hidden');
     btnExportVideo.classList.add('visible-block');
+    updateRecordButtonUI();
   }
 
   // Safe safeguard: stop any active recording on session switch
@@ -1802,6 +1948,9 @@ export async function startCamera() {
     uploadedVideo.classList.remove('video-visible');
     try { uploadedVideo.pause(); } catch(e){}
     uploadedVideo.src = "";
+  }
+  if (videoControlsBar) {
+    videoControlsBar.classList.add('hidden');
   }
   if (uploadedImage) {
     uploadedImage.classList.add('hidden');
@@ -1978,6 +2127,7 @@ export async function handleUploadedFile(file) {
     if (isVideo) {
       btnExportVideo.classList.remove('hidden');
       btnExportVideo.classList.add('visible-block');
+      updateRecordButtonUI();
     } else {
       btnExportVideo.classList.add('hidden');
       btnExportVideo.classList.remove('visible-block');
@@ -2017,6 +2167,9 @@ export async function handleUploadedFile(file) {
   const objectURL = URL.createObjectURL(file);
 
   if (isVideo) {
+    if (videoControlsBar) {
+      videoControlsBar.classList.remove('hidden');
+    }
     if (uploadedImage) {
       uploadedImage.classList.add('hidden');
       uploadedImage.classList.remove('video-visible');
@@ -2058,13 +2211,28 @@ export async function handleUploadedFile(file) {
       };
 
       uploadedVideo.onended = () => {
+        console.log(`[ExportDebug] uploadedVideo.onended fired. isRecording: ${state.isRecording}, isRecordingPlayLoop: ${state.isRecordingPlayLoop}, currentTime: ${uploadedVideo.currentTime}, duration: ${uploadedVideo.duration}`);
         if (state.isRecording) {
-          stopVideoRecording();
+          if (state.isRecordingPlayLoop) {
+            statusElement.textContent = `⏱️ Video ended at ${uploadedVideo.currentTime.toFixed(1)}s. Finishing export...`;
+            setTimeout(() => {
+              stopVideoRecording();
+            }, 100);
+          } else {
+            // Wait 2.5 seconds to let the MediaPipe processing pipeline catch up and drain fully to prevent end truncation
+            statusElement.textContent = "⏱️ Finalizing export, compiling remaining frames... please wait.";
+            setTimeout(() => {
+              stopVideoRecording();
+            }, 2500);
+          }
         }
       };
     }
   } else {
     // Image
+    if (videoControlsBar) {
+      videoControlsBar.classList.add('hidden');
+    }
     if (uploadedVideo) {
       uploadedVideo.classList.add('hidden');
       uploadedVideo.classList.remove('video-visible');
@@ -2130,7 +2298,7 @@ export async function handleUploadedFile(file) {
 
 export function startUploadedMediaLoop() {
   async function videoInferenceLoop() {
-    if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended) {
+    if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended || state.isRecordingPlayLoop || state.isExportingFrameByFrame) {
       state.isVideoInferenceLoopRunning = false;
       return;
     }
@@ -2560,8 +2728,9 @@ function openSnapshotModal(id) {
         setModalMetric('modal-val-span-r', m.span_r_cm !== undefined && m.span_r_cm !== null ? formatLength(m.span_r_cm) : "--.-");
       }
 
-      // Clone download & delete buttons to purge old listeners
+      // Clone download, json, & delete buttons to purge old listeners
       const dlBtn = document.getElementById('modal-dl-btn');
+      const jsonBtn = document.getElementById('modal-json-btn');
       const delBtn = document.getElementById('modal-del-btn');
 
       if (dlBtn) {
@@ -2570,6 +2739,14 @@ function openSnapshotModal(id) {
         newDlBtn.addEventListener('click', () => {
           const activeImageSrc = modalImg ? modalImg.src : snapshot.image;
           downloadSnapshotImage(activeImageSrc, snapshot.name || 'biomechanical-snapshot');
+        });
+      }
+
+      if (jsonBtn) {
+        const newJsonBtn = jsonBtn.cloneNode(true);
+        jsonBtn.parentNode.replaceChild(newJsonBtn, jsonBtn);
+        newJsonBtn.addEventListener('click', () => {
+          downloadIndividualSnapshotJson(snapshot);
         });
       }
 
@@ -3229,12 +3406,12 @@ export function startVideoRecording() {
     return;
   }
 
-  // Determine the best supported mimeType
+  // Determine the best supported mimeType (prioritizing stable WebM VP8 to prevent Windows VP9 hardware-acceleration crashes on Canvas recordings)
   let mimeType = '';
   const types = [
-    'video/webm;codecs=vp9',
     'video/webm;codecs=vp8',
     'video/webm',
+    'video/webm;codecs=vp9',
     'video/mp4;codecs=h264'
   ];
   for (const t of types) {
@@ -3244,7 +3421,11 @@ export function startVideoRecording() {
     }
   }
 
-  const options = mimeType ? { mimeType } : {};
+  const options = mimeType ? { 
+    mimeType: mimeType,
+    videoBitsPerSecond: 2500000 // 2.5 Mbps target for stable, high-quality encoding without overwhelming the CPU/GPU
+  } : {};
+  
   try {
     state.mediaRecorder = new MediaRecorder(stream, options);
   } catch (err) {
@@ -3253,6 +3434,12 @@ export function startVideoRecording() {
     return;
   }
 
+  // Handle encoding errors gracefully
+  state.mediaRecorder.onerror = (event) => {
+    console.error("[ExportDebug] MediaRecorder error:", event.error);
+    statusElement.textContent = `⚠️ Recording encoder error: ${event.error.name} - ${event.error.message}`;
+  };
+
   state.mediaRecorder.ondataavailable = (event) => {
     if (event.data && event.data.size > 0) {
       state.recordedChunks.push(event.data);
@@ -3260,8 +3447,10 @@ export function startVideoRecording() {
   };
 
   state.mediaRecorder.onstop = () => {
+    console.log(`[ExportDebug] MediaRecorder stopped. Chunks collected: ${state.recordedChunks.length}`);
     if (state.recordedChunks.length === 0) {
       console.warn("No recorded chunks gathered!");
+      statusElement.textContent = "❌ Export failed: No video data captured.";
       return;
     }
 
@@ -3270,63 +3459,26 @@ export function startVideoRecording() {
       type: mimeType || 'video/webm'
     });
 
+    console.log(`[ExportDebug] Compiled raw blob size: ${(rawBlob.size / 1024 / 1024).toFixed(2)} MB, calculated duration: ${duration}ms`);
+
     const ext = (mimeType && mimeType.includes('mp4')) ? 'mp4' : 'webm';
 
-    if (ext === 'webm' && typeof EBML !== 'undefined') {
-      const fileReader = new FileReader();
-      fileReader.onload = function(e) {
-        try {
-          const arrayBuffer = e.target.result;
-          const decoder = new EBML.Decoder();
-          const reader = new EBML.Reader();
-          
-          const ebmlElms = decoder.decode(arrayBuffer);
-          ebmlElms.forEach((element) => {
-            reader.read(element);
-          });
-          reader.stop();
-          
-          let finalDuration = reader.duration;
-          if (typeof finalDuration !== 'number' || finalDuration <= 0 || isNaN(finalDuration)) {
-            finalDuration = duration;
-          }
-          
-          const refinedMetadataBuf = EBML.tools.makeMetadataSeekable(
-            reader.metadatas, 
-            finalDuration, 
-            reader.cues
-          );
-          
-          const body = arrayBuffer.slice(reader.metadataSize);
-          const fixedBlob = new Blob([refinedMetadataBuf, body], { type: 'video/webm' });
-          triggerDownload(fixedBlob, ext);
-        } catch (err) {
-          console.error("EBML parsing failed, trying ysFixWebmDuration fallback:", err);
-          runWebmDurationFallback();
-        }
-      };
-      fileReader.onerror = () => {
-        runWebmDurationFallback();
-      };
-      fileReader.readAsArrayBuffer(rawBlob);
-    } else if (ext === 'webm' && typeof ysFixWebmDuration === 'function') {
-      runWebmDurationFallback();
-    } else {
-      triggerDownload(rawBlob, ext);
-    }
-
-    function runWebmDurationFallback() {
+    if (ext === 'webm' && typeof ysFixWebmDuration === 'function') {
+      console.log(`[ExportDebug] Applying WebM duration fix...`);
       ysFixWebmDuration(rawBlob, duration, { logger: false })
         .then((fixedBlob) => {
-          triggerDownload(fixedBlob, ext);
+          console.log(`[ExportDebug] WebM duration fix succeeded. Fixed blob size: ${(fixedBlob.size / 1024 / 1024).toFixed(2)} MB`);
+          triggerDownload(fixedBlob, ext, duration);
         })
         .catch((err) => {
-          console.error("Failed to fix WebM duration, exporting raw stream:", err);
-          triggerDownload(rawBlob, ext);
+          console.error("[ExportDebug] Failed to fix WebM duration, exporting raw stream:", err);
+          triggerDownload(rawBlob, ext, duration);
         });
+    } else {
+      triggerDownload(rawBlob, ext, duration);
     }
 
-    function triggerDownload(blobToDownload, fileExt) {
+    function triggerDownload(blobToDownload, fileExt, finalDuration) {
       const url = URL.createObjectURL(blobToDownload);
       const a = document.createElement('a');
       a.style.display = 'none';
@@ -3344,49 +3496,336 @@ export function startVideoRecording() {
 
       state.isRecording = false;
       updateRecordButtonUI();
-      statusElement.textContent = "Video recording exported successfully!";
+      
+      const sizeMb = (blobToDownload.size / (1024 * 1024)).toFixed(2);
+      const durationSec = (finalDuration / 1000).toFixed(1);
+      const successMsg = `✅ Video exported successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB, Format: ${fileExt.toUpperCase()}]`;
+      console.log(`[ExportDebug] Download triggered. ${successMsg}`);
+      statusElement.textContent = successMsg;
     }
   };
 
   state.isRecording = true;
   state.recordingStartTime = Date.now();
-  state.mediaRecorder.start(250); // Slice data every 250ms
+  state.mediaRecorder.start(); // Start recording without timeslices to avoid index corruption
   updateRecordButtonUI();
   statusElement.textContent = "🔴 Video recording in progress... Click the red button to stop and save.";
 }
 
 export function stopVideoRecording() {
-  if (!state.isRecording || !state.mediaRecorder || state.mediaRecorder.state === 'inactive') return;
-  state.mediaRecorder.stop();
+  console.log(`[ExportDebug] stopVideoRecording() triggered. isRecording: ${state.isRecording}, isRecordingPlayLoop: ${state.isRecordingPlayLoop}`);
+  if (!state.isRecording || !state.mediaRecorder || state.mediaRecorder.state === 'inactive') {
+    console.warn(`[ExportDebug] stopVideoRecording called but not actively recording.`);
+    return;
+  }
+  
+  try {
+    state.mediaRecorder.stop();
+    console.log(`[ExportDebug] mediaRecorder.stop() called successfully.`);
+  } catch (err) {
+    console.error("[ExportDebug] Failed to call mediaRecorder.stop():", err);
+  }
+
+  // Reset high-fidelity video export flags
+  state.isRecordingPlayLoop = false;
+  state.isExportingFrameByFrame = false;
+  state.exportFramesData = [];
+
+  // Restore original video looping and playback speed after export completes
+  if (state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo) {
+    if (state.wasLooping !== undefined) {
+      uploadedVideo.loop = state.wasLooping;
+    }
+    if (state.wasPlaybackRate !== undefined) {
+      uploadedVideo.playbackRate = state.wasPlaybackRate;
+      if (videoSpeedBtn) {
+        videoSpeedBtn.textContent = `${state.wasPlaybackRate.toFixed(1)}x`;
+      }
+    }
+  }
 }
 
 export function toggleVideoRecording() {
+  if (state.isExportingFrameByFrame) {
+    // Cancel frame pre-processing
+    state.isExportingFrameByFrame = false;
+    hideExportProgressOverlay();
+    statusElement.textContent = "❌ Export pre-processing cancelled.";
+    // Restore original video playback settings
+    if (state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo) {
+      if (state.wasLooping !== undefined) uploadedVideo.loop = state.wasLooping;
+      if (state.wasPlaybackRate !== undefined) uploadedVideo.playbackRate = state.wasPlaybackRate;
+    }
+    updateRecordButtonUI();
+    return;
+  }
+
   if (state.isRecording) {
     stopVideoRecording();
   } else {
-    startVideoRecording();
+    if (state.isUploadedMedia && state.uploadedMediaType === 'video') {
+      const uploadedVideo = document.getElementById('uploaded-video');
+      if (uploadedVideo) {
+        runVideoFramePreprocessing();
+      } else {
+        startVideoRecording();
+      }
+    } else {
+      startVideoRecording();
+    }
   }
 }
 
 export function updateRecordButtonUI() {
   if (!btnExportVideo) return;
-  if (state.isRecording) {
+  const isVideo = state.isUploadedMedia && state.uploadedMediaType === 'video';
+
+  if (state.isExportingFrameByFrame) {
+    btnExportVideo.innerHTML = `
+      <span class="recording-dot" style="background-color: #BA0C2F; animation: pulse 1s infinite;"></span>
+      Cancel Analysis...
+    `;
+    btnExportVideo.style.background = 'linear-gradient(135deg, #475569, #334155)';
+    btnExportVideo.classList.add('recording-pulse');
+  } else if (state.isRecording) {
     btnExportVideo.innerHTML = `
       <span class="recording-dot"></span>
-      Stop & Export Video
+      ${isVideo ? 'Exporting Full Video...' : 'Stop & Export Video'}
     `;
     btnExportVideo.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
     btnExportVideo.classList.add('recording-pulse');
   } else {
-    btnExportVideo.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
-        <circle cx="12" cy="12" r="10"></circle>
-        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
-      </svg>
-      Record & Export Video
-    `;
+    if (isVideo) {
+      btnExportVideo.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
+          <polyline points="8 17 12 21 16 17"></polyline>
+          <line x1="12" y1="12" x2="12" y2="21"></line>
+          <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
+        </svg>
+        Export Full Video
+      `;
+    } else {
+      btnExportVideo.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+        </svg>
+        Record & Export Video
+      `;
+    }
     btnExportVideo.style.background = 'linear-gradient(135deg, #ec4899, #818cf8)';
     btnExportVideo.classList.remove('recording-pulse');
+  }
+}
+
+export async function runVideoFramePreprocessing() {
+  if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || !uploadedVideo) {
+    statusElement.textContent = "❌ No active uploaded video found for high-fidelity export.";
+    return;
+  }
+
+  // Prevent double triggers
+  if (state.isExportingFrameByFrame || state.isRecordingPlayLoop) return;
+
+  statusElement.textContent = "⚙️ Initiating High-Fidelity Pre-processing...";
+  state.isExportingFrameByFrame = true;
+  state.exportFramesData = [];
+  updateRecordButtonUI();
+
+  // Temporarily pause standard looping and background inference
+  uploadedVideo.pause();
+  
+  // Store original video settings
+  state.wasLooping = uploadedVideo.loop;
+  state.wasPlaybackRate = uploadedVideo.playbackRate;
+  
+  uploadedVideo.loop = false;
+  uploadedVideo.playbackRate = 1.0; // pre-process at normal playhead rate reference
+
+  const duration = uploadedVideo.duration;
+  if (!duration || isNaN(duration)) {
+    statusElement.textContent = "❌ Failed to retrieve video duration. Cannot pre-process.";
+    state.isExportingFrameByFrame = false;
+    updateRecordButtonUI();
+    return;
+  }
+
+  showExportProgressOverlay(0);
+
+  const fps = 30;
+  const dt = 1 / fps;
+  let currentTime = 0;
+
+  // Let's create our promise-based seek helper
+  function seekVideoTo(time) {
+    return new Promise((resolve) => {
+      let resolved = false;
+      function onSeeked() {
+        if (!resolved) {
+          resolved = true;
+          uploadedVideo.removeEventListener('seeked', onSeeked);
+          resolve();
+        }
+      }
+      uploadedVideo.addEventListener('seeked', onSeeked);
+      uploadedVideo.currentTime = time;
+      
+      // Safety timeout
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          uploadedVideo.removeEventListener('seeked', onSeeked);
+          resolve();
+        }
+      }, 1000);
+    });
+  }
+
+  try {
+    while (currentTime <= duration && state.isExportingFrameByFrame) {
+      // 1. Seek video to currentTime
+      await seekVideoTo(currentTime);
+
+      // 2. Clear old state results to prevent frame bleed / stale data
+      state.latestPoseResults = null;
+      state.latestHandResults = null;
+
+      // 3. Process video frame via MediaPipe Pose and Hands models
+      try {
+        await pose.send({ image: uploadedVideo });
+        await hands.send({ image: uploadedVideo });
+      } catch (err) {
+        console.warn(`MediaPipe processing error at t=${currentTime.toFixed(3)}s:`, err);
+      }
+
+      // 4. Cache landmarks & results
+      const poseLandmarksClone = state.latestPoseResults && state.latestPoseResults.poseLandmarks
+        ? JSON.parse(JSON.stringify(state.latestPoseResults.poseLandmarks))
+        : null;
+
+      const handResultsClone = state.latestHandResults
+        ? JSON.parse(JSON.stringify(state.latestHandResults))
+        : null;
+
+      state.exportFramesData.push({
+        time: currentTime,
+        poseLandmarks: poseLandmarksClone,
+        handResults: handResultsClone
+      });
+
+      // 5. Update glassmorphic progress HUD
+      const progressPercent = Math.min(100, (currentTime / duration) * 100);
+      showExportProgressOverlay(progressPercent);
+      statusElement.textContent = `⚙️ Analyzing biomechanical movements... ${progressPercent.toFixed(0)}%`;
+
+      // 6. Step forward
+      currentTime += dt;
+    }
+
+    // Pre-processing complete!
+    if (state.isExportingFrameByFrame) {
+      hideExportProgressOverlay();
+      statusElement.textContent = "✅ Pre-processing complete. Initializing zero-lag playout record...";
+      state.isExportingFrameByFrame = false;
+      updateRecordButtonUI();
+
+      // Start the Playout phase!
+      await startRealTimePlaybackExport();
+    }
+  } catch (err) {
+    console.error("High-Fidelity Pre-processing failed:", err);
+    statusElement.textContent = "❌ High-Fidelity Pre-processing failed. Reverting to manual recording.";
+    hideExportProgressOverlay();
+    state.isExportingFrameByFrame = false;
+    state.exportFramesData = [];
+    updateRecordButtonUI();
+    
+    // Fallback: start standard recording
+    startVideoRecording();
+  }
+}
+
+export async function startRealTimePlaybackExport() {
+  if (!uploadedVideo) return;
+
+  // Set the playout recording flag early to ensure any seeked event triggered by resetting the currentTime is ignored by the manual single-frame inference listener
+  state.isRecordingPlayLoop = true;
+
+  statusElement.textContent = "🔴 Starting recording playout at 1.0x speed...";
+  
+  // Set video to beginning and wait for seeked to complete
+  await new Promise((resolve) => {
+    let resolved = false;
+    function onSeeked() {
+      if (!resolved) {
+        resolved = true;
+        uploadedVideo.removeEventListener('seeked', onSeeked);
+        resolve();
+      }
+    }
+    uploadedVideo.addEventListener('seeked', onSeeked);
+    uploadedVideo.currentTime = 0;
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        uploadedVideo.removeEventListener('seeked', onSeeked);
+        resolve();
+      }
+    }, 1000);
+  });
+
+  
+  // Start canvas recording
+  startVideoRecording();
+  
+  // Play the video at standard 1.0x speed
+  uploadedVideo.play();
+  
+  statusElement.textContent = "🔴 Recording playout is active. Analyzing from cached timeline... please do not close this tab.";
+  updateRecordButtonUI();
+}
+
+export function showExportProgressOverlay(percent) {
+  const viewport = document.querySelector('.viewport');
+  if (!viewport) return;
+
+  let overlay = document.getElementById('export-progress-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'export-progress-overlay';
+    overlay.className = 'export-progress-overlay';
+    overlay.innerHTML = `
+      <div class="export-progress-card">
+        <div class="export-progress-spinner">
+          <svg class="spinner-svg" viewBox="0 0 50 50">
+            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+          </svg>
+        </div>
+        <div class="export-progress-title">Analyzing Athletic Motion</div>
+        <div class="export-progress-subtitle">Phase 1 of 2: High-Fidelity Pre-processing</div>
+        <div class="export-progress-bar-container">
+          <div class="export-progress-bar-fill" id="export-progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="export-progress-text" id="export-progress-text">0% Completed</div>
+        <div class="export-progress-warning">
+          Step-by-step biomechanical calculation is active. Once finished, Phase 2 will record at a buttery-smooth 1.0x speed.
+        </div>
+      </div>
+    `;
+    viewport.appendChild(overlay);
+  }
+
+  // Update percentages
+  const fill = document.getElementById('export-progress-fill');
+  const text = document.getElementById('export-progress-text');
+  if (fill) fill.style.width = `${percent}%`;
+  if (text) text.textContent = `${Math.round(percent)}% Completed`;
+}
+
+export function hideExportProgressOverlay() {
+  const overlay = document.getElementById('export-progress-overlay');
+  if (overlay && overlay.parentNode) {
+    overlay.parentNode.removeChild(overlay);
   }
 }
 
@@ -3860,6 +4299,95 @@ if (modalOverlay) {
 // OFFLINE DASHBOARD PLACEHOLDERS
 // ==========================================
 
+export function updateSquatDashboardOffline() {
+  if (squatLiveKneeL) squatLiveKneeL.textContent = '--°';
+  if (squatLiveKneeR) squatLiveKneeR.textContent = '--°';
+  if (squatLiveHipL) squatLiveHipL.textContent = '--°';
+  if (squatLiveHipR) squatLiveHipR.textContent = '--°';
+  if (squatLiveAnkleL) squatLiveAnkleL.textContent = '--°';
+  if (squatLiveAnkleR) squatLiveAnkleR.textContent = '--°';
+
+  if (squatStatusVal) {
+    squatStatusVal.textContent = 'Awaiting Subject';
+    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-cyan', 'text-emerald');
+    squatStatusVal.classList.add('text-slate');
+  }
+}
+
+export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR) {
+  // Update live monitors
+  if (squatLiveKneeL) squatLiveKneeL.textContent = `${kneeMobL}°`;
+  if (squatLiveKneeR) squatLiveKneeR.textContent = `${kneeMobR}°`;
+  if (squatLiveHipL) squatLiveHipL.textContent = `${hipMobL}°`;
+  if (squatLiveHipR) squatLiveHipR.textContent = `${hipMobR}°`;
+  if (squatLiveAnkleL) squatLiveAnkleL.textContent = `${ankleMobL}°`;
+  if (squatLiveAnkleR) squatLiveAnkleR.textContent = `${ankleMobR}°`;
+
+  // Compare and update peak recorded values in state
+  state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+  state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+  state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+  state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+  state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+  state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+
+  // Update peak elements in DOM
+  if (squatPeakKneeL) squatPeakKneeL.textContent = `${state.squatPeaks.kneeL}°`;
+  if (squatPeakKneeR) squatPeakKneeR.textContent = `${state.squatPeaks.kneeR}°`;
+  if (squatPeakHipL) squatPeakHipL.textContent = `${state.squatPeaks.hipL}°`;
+  if (squatPeakHipR) squatPeakHipR.textContent = `${state.squatPeaks.hipR}°`;
+  if (squatPeakAnkleL) squatPeakAnkleL.textContent = `${state.squatPeaks.ankleL}°`;
+  if (squatPeakAnkleR) squatPeakAnkleR.textContent = `${state.squatPeaks.ankleR}°`;
+
+  // Determine active movement-depth categorization based on the deepest tracked knee
+  const maxKneeMob = Math.max(kneeMobL, kneeMobR);
+  let depthStatus = "Standing Upright";
+  let statusClass = "text-slate";
+
+  if (maxKneeMob >= 110) {
+    depthStatus = "Deep Squat";
+    statusClass = "text-emerald";
+  } else if (maxKneeMob >= 75) {
+    depthStatus = "Parallel Squat";
+    statusClass = "text-cyan";
+  } else if (maxKneeMob >= 30) {
+    depthStatus = "Partial Squat";
+    statusClass = "text-amber";
+  } else {
+    depthStatus = "Standing Upright";
+    statusClass = "text-slate";
+  }
+
+  if (squatStatusVal) {
+    squatStatusVal.textContent = depthStatus;
+    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-cyan', 'text-emerald');
+    squatStatusVal.classList.add(statusClass);
+  }
+}
+
+export function resetSquatPeaks() {
+  state.squatPeaks = {
+    kneeL: 0,
+    kneeR: 0,
+    hipL: 0,
+    hipR: 0,
+    ankleL: 0,
+    ankleR: 0
+  };
+
+  if (squatPeakKneeL) squatPeakKneeL.textContent = '0°';
+  if (squatPeakKneeR) squatPeakKneeR.textContent = '0°';
+  if (squatPeakHipL) squatPeakHipL.textContent = '0°';
+  if (squatPeakHipR) squatPeakHipR.textContent = '0°';
+  if (squatPeakAnkleL) squatPeakAnkleL.textContent = '0°';
+  if (squatPeakAnkleR) squatPeakAnkleR.textContent = '0°';
+
+  // Recalculate and redraw current frame if pose results are active
+  if (state.latestPoseResults) {
+    onPoseResults(state.latestPoseResults);
+  }
+}
+
 export function updateDashboardOfflinePlaceholders() {
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -3872,6 +4400,9 @@ export function updateDashboardOfflinePlaceholders() {
     }
     return; 
   }
+
+  // Handle Squat Dashboard offline state reset
+  updateSquatDashboardOffline();
 
   const suffix = state.useInches ? "inches" : "cm";
   const place = `--.- ${suffix}`;
@@ -3913,7 +4444,202 @@ export function updateDashboardOfflinePlaceholders() {
   elbowAngleRDisp.textContent = `--°`;
 }
 
+// BIND OVERHEAD SQUAT INTERFACE LISTENERS
+if (btnModePosture) {
+  btnModePosture.addEventListener('click', () => {
+    state.currentMode = 'posture';
+    btnModePosture.classList.add('active');
+    if (btnModeSquat) btnModeSquat.classList.remove('active');
+    
+    if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
+    if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+    
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateDashboardOfflinePlaceholders();
+    }
+  });
+}
+
+if (btnModeSquat) {
+  btnModeSquat.addEventListener('click', () => {
+    state.currentMode = 'squat';
+    btnModeSquat.classList.add('active');
+    if (btnModePosture) btnModePosture.classList.remove('active');
+    
+    if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
+    if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
+    
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateSquatDashboardOffline();
+    }
+  });
+}
+
+const btnResetPeaks = document.getElementById('btn-reset-peaks');
+if (btnResetPeaks) {
+  btnResetPeaks.addEventListener('click', resetSquatPeaks);
+}
+
 // Initial placeholder update
 setTimeout(() => {
   updateDashboardOfflinePlaceholders();
 }, 200);
+
+// ==========================================================================
+// CUSTOM INTERACTIVE VIDEO CONTROLLER LOGIC (BUCKEYES GLASSMORPHIC THEME)
+// ==========================================================================
+
+const PLAY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+const PAUSE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+state.isUserDraggingSeekbar = false;
+let isSeekingInferenceRunning = false;
+let pendingInferenceRequest = false;
+
+// Format seconds into MM:SS
+function formatTime(seconds) {
+  if (isNaN(seconds) || seconds === Infinity) return "00:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Update playbar position and clock timer text
+function updateVideoControlsUI() {
+  if (!uploadedVideo || !videoSeekbar || !videoTimeDisplay) return;
+  const current = uploadedVideo.currentTime;
+  const duration = uploadedVideo.duration || 0;
+  
+  if (!state.isUserDraggingSeekbar) {
+    if (duration > 0) {
+      videoSeekbar.value = (current / duration) * 100;
+    } else {
+      videoSeekbar.value = 0;
+    }
+  }
+  
+  videoTimeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
+}
+
+// Throttled frame-by-frame inference for manual seeking & video scrubbing on pause
+async function renderSingleVideoFrame() {
+  if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || !uploadedVideo) return;
+  
+  if (isSeekingInferenceRunning) {
+    pendingInferenceRequest = true;
+    return;
+  }
+  
+  isSeekingInferenceRunning = true;
+  pendingInferenceRequest = false;
+  
+  try {
+    // Run computer-vision models sequentially to avoid Emscripten memory allocation collisions
+    await pose.send({ image: uploadedVideo });
+    await hands.send({ image: uploadedVideo });
+    
+    // Refresh canvas overlays & telemetry tables instantly
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    }
+    if (state.latestHandResults && drawHandMesh) {
+      drawHandMesh(state.latestHandResults.multiHandLandmarks, state.latestHandResults.multiHandedness);
+    }
+  } catch (err) {
+    console.error("[RealtimeSeek] Stopped CV Frame Render Error:", err);
+  } finally {
+    isSeekingInferenceRunning = false;
+    // If another seek happened while we were computing, run inference for the newest frame now
+    if (pendingInferenceRequest) {
+      renderSingleVideoFrame();
+    }
+  }
+}
+
+// Set up video controls event bindings
+if (uploadedVideo) {
+  // Sync button icons on play/pause events
+  uploadedVideo.addEventListener('play', () => {
+    if (videoPlayPauseBtn) videoPlayPauseBtn.innerHTML = PAUSE_SVG;
+  });
+
+  uploadedVideo.addEventListener('pause', () => {
+    if (videoPlayPauseBtn) videoPlayPauseBtn.innerHTML = PLAY_SVG;
+  });
+
+  // Track progress updates
+  uploadedVideo.addEventListener('timeupdate', () => {
+    updateVideoControlsUI();
+  });
+
+  uploadedVideo.addEventListener('durationchange', () => {
+    updateVideoControlsUI();
+  });
+
+  // Real-time CV update when seeked on pause
+  uploadedVideo.addEventListener('seeked', () => {
+    // Prevent triggering single-frame inference during frame-by-frame preprocessing or active recording playout to avoid concurrent WASM model collisions
+    if (uploadedVideo.paused && !state.isExportingFrameByFrame && !state.isRecordingPlayLoop && !state.isRecording) {
+      renderSingleVideoFrame();
+    }
+  });
+}
+
+// Play/Pause button click handler
+if (videoPlayPauseBtn) {
+  videoPlayPauseBtn.addEventListener('click', () => {
+    if (!uploadedVideo) return;
+    if (uploadedVideo.paused) {
+      uploadedVideo.play().catch(err => console.error(err));
+    } else {
+      uploadedVideo.pause();
+    }
+  });
+}
+
+// Seekbar drag seeking event handlers
+if (videoSeekbar) {
+  videoSeekbar.addEventListener('input', (e) => {
+    if (!uploadedVideo) return;
+    state.isUserDraggingSeekbar = true;
+    
+    const pct = parseFloat(e.target.value) / 100;
+    const duration = uploadedVideo.duration || 0;
+    uploadedVideo.currentTime = pct * duration;
+    
+    if (videoTimeDisplay) {
+      videoTimeDisplay.textContent = `${formatTime(uploadedVideo.currentTime)} / ${formatTime(duration)}`;
+    }
+  });
+
+  videoSeekbar.addEventListener('change', () => {
+    state.isUserDraggingSeekbar = false;
+  });
+}
+
+// Playback speed cycle selector button
+const SPEED_STEPS = [0.5, 1.0, 1.5, 2.0];
+if (videoSpeedBtn) {
+  videoSpeedBtn.addEventListener('click', () => {
+    if (!uploadedVideo) return;
+    const currentRate = uploadedVideo.playbackRate;
+    
+    // Cycle to next speed step in array
+    let nextIdx = 0;
+    for (let i = 0; i < SPEED_STEPS.length; i++) {
+      if (Math.abs(currentRate - SPEED_STEPS[i]) < 0.1) {
+        nextIdx = (i + 1) % SPEED_STEPS.length;
+        break;
+      }
+    }
+    
+    const nextRate = SPEED_STEPS[nextIdx];
+    uploadedVideo.playbackRate = nextRate;
+    videoSpeedBtn.textContent = `${nextRate.toFixed(1)}x`;
+  });
+}
+

@@ -241,7 +241,8 @@ export const state = {
   imageT: null,
   imageOverhead: null,
   REQ_HOLD_MS: 2500,
-  LOCKOUT_MS: 3500
+  LOCKOUT_MS: 3500,
+  scaleFactor3D: null
 };
 
 const smoothBuffers = {};
@@ -268,6 +269,20 @@ export function smooth(key, val, windowSize = 15, emaAlpha = 0.15) {
   
   lastEmaValues[key] = emaAlpha * median + (1 - emaAlpha) * lastEmaValues[key];
   return lastEmaValues[key];
+}
+
+export function clearSmoothBuffer(key) {
+  if (key === '*') {
+    for (const k in smoothBuffers) {
+      delete smoothBuffers[k];
+    }
+    for (const k in lastEmaValues) {
+      delete lastEmaValues[k];
+    }
+  } else {
+    delete smoothBuffers[key];
+    delete lastEmaValues[key];
+  }
 }
 
 

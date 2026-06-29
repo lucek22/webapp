@@ -10,6 +10,7 @@ import {
   FINGER_COLORS,
   MARKER_PHYSICAL_SIZE_CM,
   smooth,
+  clearSmoothBuffer,
   getCanvasX,
   formatLength,
   updateHeightInputUnit,
@@ -1450,13 +1451,19 @@ export async function startCamera() {
             const d30 = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
             const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
 
-            // Smooth calibration scale to avoid webcam noise
-            const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
-            state.pixelsPerCm = smoothedScale;
-            state.calLocked = true;
+            // Safeguard: Ignore noise / false detections with extremely small edge lengths
+            if (edgeLengthPx > 25) {
+              // Smooth calibration scale to avoid webcam noise
+              const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
+              state.pixelsPerCm = smoothedScale;
+              state.calLocked = true;
 
-            if (state.activeCalMethod === 'aruco') {
-              arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+              if (state.activeCalMethod === 'aruco') {
+                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+              }
+            } else {
+              // If it's a tiny detection (likely noise), treat as not found in this frame
+              state.latestArucoMarker = null;
             }
           } else {
             if (state.activeCalMethod === 'aruco') {
@@ -1913,6 +1920,12 @@ slider.addEventListener('input', (e) => {
   sliderValDisplay.textContent = `${state.calBoxSize} px`;
   if (state.calLocked) {
     state.calLocked = false;
+    state.scaleFactor3D = null; // Reset 3D scale so that it re-estimates based on new card scale!
+    clearSmoothBuffer('scale_factor_3d_aruco');
+    clearSmoothBuffer('height_scale_calibration');
+    clearSmoothBuffer('body_height_skeletal');
+    clearSmoothBuffer('body_height_live');
+    
     lockCalButton.textContent = "Lock 20cm Calibration";
     lockCalButton.classList.add('cal-btn-unlocked');
     lockCalButton.classList.remove('cal-btn-locked');
@@ -1922,6 +1935,12 @@ slider.addEventListener('input', (e) => {
 lockCalButton.addEventListener('click', () => {
   state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
   state.calLocked = true;
+  state.scaleFactor3D = null; // Force recalibration of 3D scale factor using new pixelsPerCm
+  clearSmoothBuffer('scale_factor_3d_aruco');
+  clearSmoothBuffer('height_scale_calibration');
+  clearSmoothBuffer('body_height_skeletal');
+  clearSmoothBuffer('body_height_live');
+  
   lockCalButton.textContent = "✅ Scale Locked!";
   lockCalButton.classList.add('cal-btn-locked');
   lockCalButton.classList.remove('cal-btn-unlocked');
@@ -2146,6 +2165,15 @@ unitCmBtn.addEventListener('click', () => {
 // Switch calibration tabs
 function switchCalibrationTab(method, activeBtn, activePanel) {
   state.activeCalMethod = method;
+  state.scaleFactor3D = null; // Clear scale factor on switch so we can recalibrate cleanly!
+  
+  // Clear calibration-related smoothing buffers to avoid slow drift/lag from previous states
+  clearSmoothBuffer('scale_factor');
+  clearSmoothBuffer('scale_factor_3d_height');
+  clearSmoothBuffer('scale_factor_3d_aruco');
+  clearSmoothBuffer('height_scale_calibration');
+  clearSmoothBuffer('body_height_skeletal');
+  clearSmoothBuffer('body_height_live');
   
   [tabArucoBtn, tabHeightBtn].forEach(btn => {
     btn.classList.toggle('btn-tab-active', btn === activeBtn);

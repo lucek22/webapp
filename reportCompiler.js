@@ -277,7 +277,10 @@ export function compileAndDownloadCombinedSession() {
       peakHipFlexionR: state.squatPeaks.hipR || 0,
       peakAnkleDorsiflexionL: state.squatPeaks.ankleL || 0,
       peakAnkleDorsiflexionR: state.squatPeaks.ankleR || 0
-    }
+    },
+    anglesA: state.metricsA,
+    anglesT: state.metricsT,
+    anglesOverhead: state.metricsOverhead
   };
 
   const jsonString = JSON.stringify(report, null, 2);

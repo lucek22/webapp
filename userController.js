@@ -4141,25 +4141,56 @@ export function importPriorPortfolio(report) {
     elbowAngleR: (detectedPose === "A-Pose" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.aPose?.elbowR || report.metrics?.elbowAngleR || report.metrics?.anglesA?.elbowAngleR || 180),
   };
 
+  const rT = report.anglesT || report.metrics?.anglesT || {};
+  const rO = report.anglesOverhead || report.metrics?.anglesOverhead || {};
+
   state.metricsT = {
     wingspan: importedMetrics.wingspan,
-    kneeAngleL: (detectedPose === "T-Pose" && activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.tPose?.kneeL || report.metrics?.anglesT?.kneeAngleL || 180),
-    kneeAngleR: (detectedPose === "T-Pose" && activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.tPose?.kneeR || report.metrics?.anglesT?.kneeAngleR || 180),
-    hipAngleL: (detectedPose === "T-Pose" && activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.tPose?.hipL || report.metrics?.anglesT?.hipAngleL || 180),
-    hipAngleR: (detectedPose === "T-Pose" && activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.tPose?.hipR || report.metrics?.anglesT?.hipAngleR || 180),
-    elbowAngleL: (detectedPose === "T-Pose" && activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.tPose?.elbowL || report.metrics?.anglesT?.elbowAngleL || 180),
-    elbowAngleR: (detectedPose === "T-Pose" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.tPose?.elbowR || report.metrics?.anglesT?.elbowAngleR || 180),
+    thigh_l: (rT.thigh_l !== undefined && rT.thigh_l !== null) ? rT.thigh_l : importedMetrics.thigh_l,
+    thigh_r: (rT.thigh_r !== undefined && rT.thigh_r !== null) ? rT.thigh_r : importedMetrics.thigh_r,
+    shin_l: (rT.shin_l !== undefined && rT.shin_l !== null) ? rT.shin_l : importedMetrics.shin_l,
+    shin_r: (rT.shin_r !== undefined && rT.shin_r !== null) ? rT.shin_r : importedMetrics.shin_r,
+    foot_l: (rT.foot_l !== undefined && rT.foot_l !== null) ? rT.foot_l : importedMetrics.foot_l,
+    foot_r: (rT.foot_r !== undefined && rT.foot_r !== null) ? rT.foot_r : importedMetrics.foot_r,
+    torso_l: (rT.torso_l !== undefined && rT.torso_l !== null) ? rT.torso_l : importedMetrics.torso_l,
+    torso_r: (rT.torso_r !== undefined && rT.torso_r !== null) ? rT.torso_r : importedMetrics.torso_r,
+    upperarm_l: (rT.upperarm_l !== undefined && rT.upperarm_l !== null) ? rT.upperarm_l : importedMetrics.upperarm_l,
+    upperarm_r: (rT.upperarm_r !== undefined && rT.upperarm_r !== null) ? rT.upperarm_r : importedMetrics.upperarm_r,
+    forearm_l: (rT.forearm_l !== undefined && rT.forearm_l !== null) ? rT.forearm_l : importedMetrics.forearm_l,
+    forearm_r: (rT.forearm_r !== undefined && rT.forearm_r !== null) ? rT.forearm_r : importedMetrics.forearm_r,
+    hipW: (rT.hipW !== undefined && rT.hipW !== null) ? rT.hipW : importedMetrics.hipW,
+    
+    kneeAngleL: (detectedPose === "T-Pose" && activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.tPose?.kneeL || report.metrics?.anglesT?.kneeAngleL || rT.kneeAngleL || 180),
+    kneeAngleR: (detectedPose === "T-Pose" && activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.tPose?.kneeR || report.metrics?.anglesT?.kneeAngleR || rT.kneeAngleR || 180),
+    hipAngleL: (detectedPose === "T-Pose" && activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.tPose?.hipL || report.metrics?.anglesT?.hipAngleL || rT.hipAngleL || 180),
+    hipAngleR: (detectedPose === "T-Pose" && activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.tPose?.hipR || report.metrics?.anglesT?.hipAngleR || rT.hipAngleR || 180),
+    elbowAngleL: (detectedPose === "T-Pose" && activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.tPose?.elbowL || report.metrics?.anglesT?.elbowAngleL || rT.elbowAngleL || 180),
+    elbowAngleR: (detectedPose === "T-Pose" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.tPose?.elbowR || report.metrics?.anglesT?.elbowAngleR || rT.elbowAngleR || 180),
   };
 
   state.metricsOverhead = {
     fingerToToeL: importedMetrics.fingerToToeL,
     fingerToToeR: importedMetrics.fingerToToeR,
-    kneeAngleL: (detectedPose === "Overhead Reach" && activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.overhead?.kneeL || report.metrics?.anglesOverhead?.kneeAngleL || 180),
-    kneeAngleR: (detectedPose === "Overhead Reach" && activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.overhead?.kneeR || report.metrics?.anglesOverhead?.kneeAngleR || 180),
-    hipAngleL: (detectedPose === "Overhead Reach" && activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.overhead?.hipL || report.metrics?.anglesOverhead?.hipAngleL || 180),
-    hipAngleR: (detectedPose === "Overhead Reach" && activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.overhead?.hipR || report.metrics?.anglesOverhead?.hipAngleR || 180),
-    elbowAngleL: (detectedPose === "Overhead Reach" && activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.overhead?.elbowL || report.metrics?.anglesOverhead?.elbowAngleL || 180),
-    elbowAngleR: (detectedPose === "Overhead Reach" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.overhead?.elbowR || report.metrics?.anglesOverhead?.elbowAngleR || 180),
+    thigh_l: (rO.thigh_l !== undefined && rO.thigh_l !== null) ? rO.thigh_l : importedMetrics.thigh_l,
+    thigh_r: (rO.thigh_r !== undefined && rO.thigh_r !== null) ? rO.thigh_r : importedMetrics.thigh_r,
+    shin_l: (rO.shin_l !== undefined && rO.shin_l !== null) ? rO.shin_l : importedMetrics.shin_l,
+    shin_r: (rO.shin_r !== undefined && rO.shin_r !== null) ? rO.shin_r : importedMetrics.shin_r,
+    foot_l: (rO.foot_l !== undefined && rO.foot_l !== null) ? rO.foot_l : importedMetrics.foot_l,
+    foot_r: (rO.foot_r !== undefined && rO.foot_r !== null) ? rO.foot_r : importedMetrics.foot_r,
+    torso_l: (rO.torso_l !== undefined && rO.torso_l !== null) ? rO.torso_l : importedMetrics.torso_l,
+    torso_r: (rO.torso_r !== undefined && rO.torso_r !== null) ? rO.torso_r : importedMetrics.torso_r,
+    upperarm_l: (rO.upperarm_l !== undefined && rO.upperarm_l !== null) ? rO.upperarm_l : importedMetrics.upperarm_l,
+    upperarm_r: (rO.upperarm_r !== undefined && rO.upperarm_r !== null) ? rO.upperarm_r : importedMetrics.upperarm_r,
+    forearm_l: (rO.forearm_l !== undefined && rO.forearm_l !== null) ? rO.forearm_l : importedMetrics.forearm_l,
+    forearm_r: (rO.forearm_r !== undefined && rO.forearm_r !== null) ? rO.forearm_r : importedMetrics.forearm_r,
+    hipW: (rO.hipW !== undefined && rO.hipW !== null) ? rO.hipW : importedMetrics.hipW,
+
+    kneeAngleL: (detectedPose === "Overhead Reach" && activeKneeL !== null && activeKneeL !== undefined) ? activeKneeL : (profs.overhead?.kneeL || report.metrics?.anglesOverhead?.kneeAngleL || rO.kneeAngleL || 180),
+    kneeAngleR: (detectedPose === "Overhead Reach" && activeKneeR !== null && activeKneeR !== undefined) ? activeKneeR : (profs.overhead?.kneeR || report.metrics?.anglesOverhead?.kneeAngleR || rO.kneeAngleR || 180),
+    hipAngleL: (detectedPose === "Overhead Reach" && activeHipL !== null && activeHipL !== undefined) ? activeHipL : (profs.overhead?.hipL || report.metrics?.anglesOverhead?.hipAngleL || rO.hipAngleL || 180),
+    hipAngleR: (detectedPose === "Overhead Reach" && activeHipR !== null && activeHipR !== undefined) ? activeHipR : (profs.overhead?.hipR || report.metrics?.anglesOverhead?.hipAngleR || rO.hipAngleR || 180),
+    elbowAngleL: (detectedPose === "Overhead Reach" && activeElbowL !== null && activeElbowL !== undefined) ? activeElbowL : (profs.overhead?.elbowL || report.metrics?.anglesOverhead?.elbowAngleL || rO.elbowAngleL || 180),
+    elbowAngleR: (detectedPose === "Overhead Reach" && activeElbowR !== null && activeElbowR !== undefined) ? activeElbowR : (profs.overhead?.elbowR || report.metrics?.anglesOverhead?.elbowAngleR || rO.elbowAngleR || 180),
   };
 
   // Save to persistent state for live/image tracking overrides
@@ -5170,17 +5201,20 @@ export async function initializeProfilesSelector() {
 
 export function compileImportedMetricsFromProfile(profile) {
   if (!profile) return null;
-  const metricsKeys = [
-    'skeletal_height', 'wingspan', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r',
-    'foot_l', 'foot_r', 'torso_l', 'torso_r', 'upperarm_l', 'upperarm_r',
-    'forearm_l', 'forearm_r', 'fingerToToeL', 'fingerToToeR'
-  ];
   const compiled = {};
   let hasAny = false;
-  const poseSources = [profile.metricsA, profile.metricsT, profile.metricsOverhead];
-  for (const key of metricsKeys) {
+
+  const standardSegments = [
+    'skeletal_height', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r',
+    'foot_l', 'foot_r', 'torso_l', 'torso_r', 'upperarm_l', 'upperarm_r',
+    'forearm_l', 'forearm_r'
+  ];
+
+  // 1. Height and standard segments: prioritize A-pose (stature scan), fallback to T, then Overhead
+  const standardSources = [profile.metricsA, profile.metricsT, profile.metricsOverhead];
+  for (const key of standardSegments) {
     let foundValue = null;
-    for (const src of poseSources) {
+    for (const src of standardSources) {
       if (src && src[key] !== null && src[key] !== undefined) {
         foundValue = src[key];
         break;
@@ -5191,6 +5225,37 @@ export function compileImportedMetricsFromProfile(profile) {
       hasAny = true;
     }
   }
+
+  // 2. Wingspan: prioritize T-pose (wingspan scan), fallback to A, then Overhead
+  const wingspanSources = [profile.metricsT, profile.metricsA, profile.metricsOverhead];
+  let foundWingspan = null;
+  for (const src of wingspanSources) {
+    if (src && src.wingspan !== null && src.wingspan !== undefined) {
+      foundWingspan = src.wingspan;
+      break;
+    }
+  }
+  if (foundWingspan !== null) {
+    compiled.wingspan = foundWingspan;
+    hasAny = true;
+  }
+
+  // 3. Overhead reach (finger to toe): prioritize Overhead pose (reach scan), fallback to A, then T
+  const reachSources = [profile.metricsOverhead, profile.metricsA, profile.metricsT];
+  for (const key of ['fingerToToeL', 'fingerToToeR']) {
+    let foundValue = null;
+    for (const src of reachSources) {
+      if (src && src[key] !== null && src[key] !== undefined) {
+        foundValue = src[key];
+        break;
+      }
+    }
+    if (foundValue !== null) {
+      compiled[key] = foundValue;
+      hasAny = true;
+    }
+  }
+
   return hasAny ? compiled : null;
 }
 
@@ -5443,6 +5508,62 @@ export async function openProfileDetailsModal(profileId) {
     const mT = profile.metricsT || {};
     const mO = profile.metricsOverhead || {};
 
+    const getVal = (poseKey, metricKey, fallbackSources) => {
+      let rawVal = null;
+      if (poseKey === 'a') rawVal = mA[metricKey];
+      else if (poseKey === 't') rawVal = mT[metricKey];
+      else if (poseKey === 'overhead') rawVal = mO[metricKey];
+
+      if (rawVal !== null && rawVal !== undefined) return rawVal;
+
+      if (fallbackSources) {
+        for (const srcKey of fallbackSources) {
+          const src = srcKey === 'a' ? mA : (srcKey === 't' ? mT : mO);
+          if (src && src[metricKey] !== null && src[metricKey] !== undefined) {
+            return src[metricKey];
+          }
+        }
+      }
+      return null;
+    };
+
+    const getValPair = (poseKey, leftKey, rightKey, fallbackSources) => {
+      let rawL = null, rawR = null;
+      if (poseKey === 'a') {
+        rawL = mA[leftKey];
+        rawR = mA[rightKey];
+      } else if (poseKey === 't') {
+        rawL = mT[leftKey];
+        rawR = mT[rightKey];
+      } else if (poseKey === 'overhead') {
+        rawL = mO[leftKey];
+        rawR = mO[rightKey];
+      }
+
+      let finalL = (rawL !== null && rawL !== undefined) ? rawL : null;
+      let finalR = (rawR !== null && rawR !== undefined) ? rawR : null;
+
+      if (finalL === null && fallbackSources) {
+        for (const srcKey of fallbackSources) {
+          const src = srcKey === 'a' ? mA : (srcKey === 't' ? mT : mO);
+          if (src && src[leftKey] !== null && src[leftKey] !== undefined) {
+            finalL = src[leftKey];
+            break;
+          }
+        }
+      }
+      if (finalR === null && fallbackSources) {
+        for (const srcKey of fallbackSources) {
+          const src = srcKey === 'a' ? mA : (srcKey === 't' ? mT : mO);
+          if (src && src[rightKey] !== null && src[rightKey] !== undefined) {
+            finalR = src[rightKey];
+            break;
+          }
+        }
+      }
+      return [finalL, finalR];
+    };
+
     const formatPair = (left, right) => {
       if ((left === null || left === undefined) && (right === null || right === undefined)) return '--';
       return `L: ${formatLength(left)} / R: ${formatLength(right)}`;
@@ -5508,61 +5629,152 @@ export async function openProfileDetailsModal(profileId) {
       `;
     };
 
-    // Stature Height row
+    const renderSquatPeakEdit = (jointKey, valL, valR) => {
+      if (!state.isEditingProfileMetrics) {
+        return `${valL || 0}° / ${valR || 0}°`;
+      }
+      return `
+        <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+          <span style="font-size: 0.75rem; color: #aaa;">L:</span>
+          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input" 
+                 data-joint="${jointKey}" data-side="L" 
+                 value="${valL || 0}" 
+                 style="width: 45px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px; border-radius: 3px; font-size: 0.85rem; text-align: center;">
+          <span style="font-size: 0.75rem; color: #888;">°</span>
+          <span style="font-size: 0.75rem; color: #aaa; margin-left: 4px;">R:</span>
+          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input" 
+                 data-joint="${jointKey}" data-side="R" 
+                 value="${valR || 0}" 
+                 style="width: 45px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px; border-radius: 3px; font-size: 0.85rem; text-align: center;">
+          <span style="font-size: 0.75rem; color: #888;">°</span>
+        </div>
+      `;
+    };
+
+    // Stature Height row (Reverted: show on all columns with fallbacks)
     const thA = document.getElementById('detail-table-height-a');
     const thT = document.getElementById('detail-table-height-t');
     const thO = document.getElementById('detail-table-height-overhead');
-    if (thA) thA.innerHTML = renderCellSingle('a', 'skeletal_height', mA.skeletal_height);
-    if (thT) thT.innerHTML = renderCellSingle('t', 'skeletal_height', mT.skeletal_height);
-    if (thO) thO.innerHTML = renderCellSingle('overhead', 'skeletal_height', mO.skeletal_height);
+    if (thA) thA.innerHTML = renderCellSingle('a', 'skeletal_height', getVal('a', 'skeletal_height', ['t', 'overhead']));
+    if (thT) thT.innerHTML = renderCellSingle('t', 'skeletal_height', getVal('t', 'skeletal_height', ['a', 'overhead']));
+    if (thO) thO.innerHTML = renderCellSingle('overhead', 'skeletal_height', getVal('overhead', 'skeletal_height', ['a', 't']));
 
-    // Wingspan / Reach row
+    // Wingspan / Reach row (Reverted: show on all columns with fallbacks)
     const twA = document.getElementById('detail-table-wingspan-a');
     const twT = document.getElementById('detail-table-wingspan-t');
     const twO = document.getElementById('detail-table-wingspan-overhead');
-    if (twA) twA.innerHTML = renderCellSingle('a', 'wingspan', mA.wingspan);
-    if (twT) twT.innerHTML = renderCellSingle('t', 'wingspan', mT.wingspan);
-    if (twO) twO.innerHTML = renderCellPair('overhead', 'fingerToToeL', 'fingerToToeR', mO.fingerToToeL, mO.fingerToToeR);
+    if (twA) twA.innerHTML = renderCellSingle('a', 'wingspan', getVal('a', 'wingspan', ['t', 'overhead']));
+    if (twT) twT.innerHTML = renderCellSingle('t', 'wingspan', getVal('t', 'wingspan', ['a', 'overhead']));
+    if (twO) {
+      const [reachL, reachR] = getValPair('overhead', 'fingerToToeL', 'fingerToToeR', ['a', 't']);
+      twO.innerHTML = renderCellPair('overhead', 'fingerToToeL', 'fingerToToeR', reachL, reachR);
+    }
 
     // Torso Length row
     const ttA = document.getElementById('detail-table-torso-a');
     const ttT = document.getElementById('detail-table-torso-t');
     const ttO = document.getElementById('detail-table-torso-overhead');
-    if (ttA) ttA.innerHTML = renderCellPair('a', 'torso_l', 'torso_r', mA.torso_l, mA.torso_r);
-    if (ttT) ttT.innerHTML = renderCellPair('t', 'torso_l', 'torso_r', mT.torso_l, mT.torso_r);
-    if (ttO) ttO.innerHTML = renderCellPair('overhead', 'torso_l', 'torso_r', mO.torso_l, mO.torso_r);
+    if (ttA) {
+      const [valL, valR] = getValPair('a', 'torso_l', 'torso_r', ['t', 'overhead']);
+      ttA.innerHTML = renderCellPair('a', 'torso_l', 'torso_r', valL, valR);
+    }
+    if (ttT) {
+      const [valL, valR] = getValPair('t', 'torso_l', 'torso_r', ['a', 'overhead']);
+      ttT.innerHTML = renderCellPair('t', 'torso_l', 'torso_r', valL, valR);
+    }
+    if (ttO) {
+      const [valL, valR] = getValPair('overhead', 'torso_l', 'torso_r', ['a', 't']);
+      ttO.innerHTML = renderCellPair('overhead', 'torso_l', 'torso_r', valL, valR);
+    }
 
     // Thigh Length row
     const tthA = document.getElementById('detail-table-thigh-a');
     const tthT = document.getElementById('detail-table-thigh-t');
     const tthO = document.getElementById('detail-table-thigh-overhead');
-    if (tthA) tthA.innerHTML = renderCellPair('a', 'thigh_l', 'thigh_r', mA.thigh_l, mA.thigh_r);
-    if (tthT) tthT.innerHTML = renderCellPair('t', 'thigh_l', 'thigh_r', mT.thigh_l, mT.thigh_r);
-    if (tthO) tthO.innerHTML = renderCellPair('overhead', 'thigh_l', 'thigh_r', mO.thigh_l, mO.thigh_r);
+    if (tthA) {
+      const [valL, valR] = getValPair('a', 'thigh_l', 'thigh_r', ['t', 'overhead']);
+      tthA.innerHTML = renderCellPair('a', 'thigh_l', 'thigh_r', valL, valR);
+    }
+    if (tthT) {
+      const [valL, valR] = getValPair('t', 'thigh_l', 'thigh_r', ['a', 'overhead']);
+      tthT.innerHTML = renderCellPair('t', 'thigh_l', 'thigh_r', valL, valR);
+    }
+    if (tthO) {
+      const [valL, valR] = getValPair('overhead', 'thigh_l', 'thigh_r', ['a', 't']);
+      tthO.innerHTML = renderCellPair('overhead', 'thigh_l', 'thigh_r', valL, valR);
+    }
 
     // Shank Length (shin) row
     const tsA = document.getElementById('detail-table-shin-a');
-         const tsT = document.getElementById('detail-table-shin-t');
+    const tsT = document.getElementById('detail-table-shin-t');
     const tsO = document.getElementById('detail-table-shin-overhead');
-    if (tsA) tsA.innerHTML = renderCellPair('a', 'shin_l', 'shin_r', mA.shin_l, mA.shin_r);
-    if (tsT) tsT.innerHTML = renderCellPair('t', 'shin_l', 'shin_r', mT.shin_l, mT.shin_r);
-    if (tsO) tsO.innerHTML = renderCellPair('overhead', 'shin_l', 'shin_r', mO.shin_l, mO.shin_r);
+    if (tsA) {
+      const [valL, valR] = getValPair('a', 'shin_l', 'shin_r', ['t', 'overhead']);
+      tsA.innerHTML = renderCellPair('a', 'shin_l', 'shin_r', valL, valR);
+    }
+    if (tsT) {
+      const [valL, valR] = getValPair('t', 'shin_l', 'shin_r', ['a', 'overhead']);
+      tsT.innerHTML = renderCellPair('t', 'shin_l', 'shin_r', valL, valR);
+    }
+    if (tsO) {
+      const [valL, valR] = getValPair('overhead', 'shin_l', 'shin_r', ['a', 't']);
+      tsO.innerHTML = renderCellPair('overhead', 'shin_l', 'shin_r', valL, valR);
+    }
 
     // Upper Arm row
     const tuaA = document.getElementById('detail-table-upperarm-a');
     const tuaT = document.getElementById('detail-table-upperarm-t');
     const tuaO = document.getElementById('detail-table-upperarm-overhead');
-    if (tuaA) tuaA.innerHTML = renderCellPair('a', 'upperarm_l', 'upperarm_r', mA.upperarm_l, mA.upperarm_r);
-    if (tuaT) tuaT.innerHTML = renderCellPair('t', 'upperarm_l', 'upperarm_r', mT.upperarm_l, mT.upperarm_r);
-    if (tuaO) tuaO.innerHTML = renderCellPair('overhead', 'upperarm_l', 'upperarm_r', mO.upperarm_l, mO.upperarm_r);
+    if (tuaA) {
+      const [valL, valR] = getValPair('a', 'upperarm_l', 'upperarm_r', ['t', 'overhead']);
+      tuaA.innerHTML = renderCellPair('a', 'upperarm_l', 'upperarm_r', valL, valR);
+    }
+    if (tuaT) {
+      const [valL, valR] = getValPair('t', 'upperarm_l', 'upperarm_r', ['a', 'overhead']);
+      tuaT.innerHTML = renderCellPair('t', 'upperarm_l', 'upperarm_r', valL, valR);
+    }
+    if (tuaO) {
+      const [valL, valR] = getValPair('overhead', 'upperarm_l', 'upperarm_r', ['a', 't']);
+      tuaO.innerHTML = renderCellPair('overhead', 'upperarm_l', 'upperarm_r', valL, valR);
+    }
 
     // Forearm row
     const tfaA = document.getElementById('detail-table-forearm-a');
     const tfaT = document.getElementById('detail-table-forearm-t');
     const tfaO = document.getElementById('detail-table-forearm-overhead');
-    if (tfaA) tfaA.innerHTML = renderCellPair('a', 'forearm_l', 'forearm_r', mA.forearm_l, mA.forearm_r);
-    if (tfaT) tfaT.innerHTML = renderCellPair('t', 'forearm_l', 'forearm_r', mT.forearm_l, mT.forearm_r);
-    if (tfaO) tfaO.innerHTML = renderCellPair('overhead', 'forearm_l', 'forearm_r', mO.forearm_l, mO.forearm_r);
+    if (tfaA) {
+      const [valL, valR] = getValPair('a', 'forearm_l', 'forearm_r', ['t', 'overhead']);
+      tfaA.innerHTML = renderCellPair('a', 'forearm_l', 'forearm_r', valL, valR);
+    }
+    if (tfaT) {
+      const [valL, valR] = getValPair('t', 'forearm_l', 'forearm_r', ['a', 'overhead']);
+      tfaT.innerHTML = renderCellPair('t', 'forearm_l', 'forearm_r', valL, valR);
+    }
+    if (tfaO) {
+      const [valL, valR] = getValPair('overhead', 'forearm_l', 'forearm_r', ['a', 't']);
+      tfaO.innerHTML = renderCellPair('overhead', 'forearm_l', 'forearm_r', valL, valR);
+    }
+
+    // 3c. Populate Consolidated Final Baselines Table
+    const cHeight = document.getElementById('consolidated-val-height');
+    const cWingspan = document.getElementById('consolidated-val-wingspan');
+    const cReach = document.getElementById('consolidated-val-reach');
+    const cTorso = document.getElementById('consolidated-val-torso');
+    const cThigh = document.getElementById('consolidated-val-thigh');
+    const cShin = document.getElementById('consolidated-val-shin');
+    const cUpperarm = document.getElementById('consolidated-val-upperarm');
+    const cForearm = document.getElementById('consolidated-val-forearm');
+
+    const compiled = compileImportedMetricsFromProfile(profile) || {};
+
+    if (cHeight) cHeight.innerHTML = formatSingle(compiled.skeletal_height);
+    if (cWingspan) cWingspan.innerHTML = formatSingle(compiled.wingspan);
+    if (cReach) cReach.innerHTML = formatPair(compiled.fingerToToeL, compiled.fingerToToeR);
+    if (cTorso) cTorso.innerHTML = formatPair(compiled.torso_l, compiled.torso_r);
+    if (cThigh) cThigh.innerHTML = formatPair(compiled.thigh_l, compiled.thigh_r);
+    if (cShin) cShin.innerHTML = formatPair(compiled.shin_l, compiled.shin_r);
+    if (cUpperarm) cUpperarm.innerHTML = formatPair(compiled.upperarm_l, compiled.upperarm_r);
+    if (cForearm) cForearm.innerHTML = formatPair(compiled.forearm_l, compiled.forearm_r);
 
     // 3b. Wire up metrics editing button event handlers
     const editBtn = document.getElementById('btn-edit-baseline-metrics');
@@ -5620,6 +5832,26 @@ export async function openProfileDetailsModal(profileId) {
                 }
               }
             });
+
+            // Save squat peaks mobility records
+            if (!freshProfile.squatPeaks) {
+              freshProfile.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+            }
+            const squatInputs = document.querySelectorAll('.profile-squat-edit-input');
+            squatInputs.forEach(input => {
+              const joint = input.getAttribute('data-joint');
+              const side = input.getAttribute('data-side');
+              const rawVal = input.value.trim();
+              let val = 0;
+              if (rawVal !== "") {
+                const parsed = parseInt(rawVal, 10);
+                if (!isNaN(parsed)) {
+                  val = parsed;
+                }
+              }
+              const key = joint + side; // e.g. kneeL, kneeR, hipL, hipR, ankleL, ankleR
+              freshProfile.squatPeaks[key] = val;
+            });
             
             await snapshotStore.saveProfile(freshProfile);
             state.allProfiles = await snapshotStore.getAllProfiles();
@@ -5653,20 +5885,15 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    // 4. Squat Peak mobility
+    // 4. Squat Peak mobility (with edit inputs support)
     const dsqKnee = document.getElementById('detail-squat-knee');
     const dsqHip = document.getElementById('detail-squat-hip');
     const dsqAnkle = document.getElementById('detail-squat-ankle');
     
-    if (profile.squatPeaks) {
-      if (dsqKnee) dsqKnee.textContent = `${profile.squatPeaks.kneeL || 0}° / ${profile.squatPeaks.kneeR || 0}°`;
-      if (dsqHip) dsqHip.textContent = `${profile.squatPeaks.hipL || 0}° / ${profile.squatPeaks.hipR || 0}°`;
-      if (dsqAnkle) dsqAnkle.textContent = `${profile.squatPeaks.ankleL || 0}° / ${profile.squatPeaks.ankleR || 0}°`;
-    } else {
-      if (dsqKnee) dsqKnee.textContent = "0° / 0°";
-      if (dsqHip) dsqHip.textContent = "0° / 0°";
-      if (dsqAnkle) dsqAnkle.textContent = "0° / 0°";
-    }
+    const sPeaks = profile.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+    if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
+    if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
+    if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
 
     // 5. Populate Saved Videos & Interactive Playlist Manager
     if (state.modalObjectUrls) {

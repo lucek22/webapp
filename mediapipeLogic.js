@@ -359,11 +359,14 @@ export function calculatePoseMetrics(results) {
     // Maintain 2D calibration state for any 2D canvas drawing / manual fallback, hand tracking, etc.
     const vertical_height_px = Math.abs(ground_y - head_top.y);
     const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
->>>>>>> 3d-landmark-change
     const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
                      Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
                      Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
     const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
+                     Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
+                     Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
+    const average_leg_px = (leg_l_px + leg_r_px) / 2;
+    const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
 
     state.lastVerticalHeightPx = vertical_height_px;
     state.lastSkeletalHeightPx = skeletal_height_px;

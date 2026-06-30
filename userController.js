@@ -1454,7 +1454,7 @@ export async function startCamera() {
             // Safeguard: Ignore noise / false detections with extremely small edge lengths
             if (edgeLengthPx > 25) {
               // Smooth calibration scale to avoid webcam noise
-              const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
+              const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM, 8, 0.25);
               state.pixelsPerCm = smoothedScale;
               state.calLocked = true;
 

@@ -20,6 +20,7 @@
   <script src="https://cdn.jsdelivr.net/npm/fix-webm-duration/fix-webm-duration.js"></script>
 
   <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/x-icon" href="https://www.osu.edu/favicon.ico">
 </head>
 <body>
 
@@ -30,7 +31,7 @@
       
       <!-- Custom OSU Text Logo Block -->
       <div class="brand-logo-container">
-        <img src="./OSU.webp" alt="Ohio State Block O" class="brand-logo-img">
+        <img src="https://www.osu.edu/images/osu-logo-stacked.svg" alt="Ohio State Block O" class="brand-logo-img">
         
         <div class="brand-title">SCARLET Biomechanics</div>
         <div class="brand-subtitle">BUCKEYE PERFORMANCE PLATFORM</div>
@@ -51,9 +52,9 @@
         
         <!-- Tab buttons -->
         <div class="calibration-tabs">
-          <button id="tab-aruco-btn" class="btn">ArUco (Auto)</button>
-          <button id="tab-height-btn" class="btn">Input Height</button>
-          <button id="tab-portfolio-btn" class="btn">Select Player Profile</button>
+          <button id="tab-aruco-btn" class="btn btn-tab-active">ArUco (Auto)</button>
+          <button id="tab-height-btn" class="btn btn-tab-inactive">Input Height</button>
+          <button id="tab-portfolio-btn" class="btn btn-tab-inactive">Select Player Profile</button>
         </div>
 
         <!-- Panel 1: ArUco Calibration (Auto) -->
@@ -67,6 +68,23 @@
           <div class="calibration-row cal-tip-box">
             💡 <strong>Depth Tip:</strong> Place the card at your feet or on the wall next to you. Calibrating up-close and then stepping back causes incorrect heights due to depth perspective.
           </div>
+          <div class="calibration-row cal-row-center" style="margin-top: 0.35rem; gap: 0.5rem;">
+            <label class="switch-container">
+              <input type="checkbox" id="toggle-wall-perspective">
+              <span class="switch-slider"></span>
+            </label>
+            <label for="toggle-wall-perspective" class="cal-label" style="font-weight: 500; cursor: pointer; margin-bottom: 0; font-size: 0.8rem; user-select: none;">Wall-Mounted ArUco (Stand Beside)</label>
+          </div>
+          <div id="wall-perspective-slider-container" class="calibration-row cal-row-center hidden" style="margin-top: 0.5rem; flex-direction: column; gap: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; justify-content: center; width: 100%;">
+              <label for="wall-perspective-slider" class="cal-label" style="font-size: 0.75rem; margin-bottom: 0;">Correction Factor:</label>
+              <input type="range" id="wall-perspective-slider" class="slider" min="1.00" max="1.25" step="0.01" value="1.10" style="width: 120px;">
+              <span id="wall-perspective-val" style="font-size: 0.75rem; font-weight: bold; width: 2.5rem; text-align: left;" class="text-cyan">1.10x</span>
+            </div>
+            <div style="font-size: 0.7rem; color: #a7b1b7; text-align: center; max-width: 90%; line-height: 1.2;">
+              Compensates for depth difference when standing slightly in front of a wall-mounted card.
+            </div>
+          </div>
         </div>
 
         <!-- Panel 2: Card Calibration (Manual) -->
@@ -74,9 +92,9 @@
           <div class="calibration-row cal-instruction">Hold a 200mm card inside the alignment box below.</div>
           <div class="calibration-row cal-row-center">
             <span class="cal-label">Move Box:</span>
-            <button id="pos-left-btn" class="btn">Left</button>
-            <button id="pos-center-btn" class="btn">Center</button>
-            <button id="pos-right-btn" class="btn">Right</button>
+            <button id="pos-left-btn" class="btn btn-tab-inactive">Left</button>
+            <button id="pos-center-btn" class="btn btn-tab-active">Center</button>
+            <button id="pos-right-btn" class="btn btn-tab-inactive">Right</button>
           </div>
           <div class="calibration-row">
             <label for="box-slider">Box Width:</label>
@@ -90,13 +108,15 @@
 
         <!-- Panel 3: Height Calibration -->
         <div id="panel-height" class="cal-panel hidden">
-          <div class="calibration-row cal-instruction">Stand straight, enter your height, and click calibrate.</div>
+          <div class="calibration-row cal-status-success">
+            <span id="height-status-text">⚡ Auto-Calibrating Scale...</span>
+          </div>
+          <div class="calibration-row cal-status-info">
+            Enter your height. The scale calibrates automatically in real-time as you stand in view of the camera.
+          </div>
           <div class="calibration-row cal-row-center">
             <label for="input-user-height">Your Height (inches):</label>
             <input type="number" id="input-user-height" value="68.9" step="0.1">
-          </div>
-          <div class="calibration-row">
-            <button id="height-cal-btn" class="btn success">Calibrate with My Height</button>
           </div>
         </div>
 
@@ -113,7 +133,7 @@
       </div>
 
       <div class="viewport">
-        <video id="webcam" autoplay playsinline></video>
+        <video id="webcam" class="mirror-x" autoplay playsinline></video>
         <video id="uploaded-video" class="hidden no-mirror" loop playsinline muted></video>
         <img id="uploaded-image" class="hidden no-mirror" alt="Uploaded Biomechanical Frame">
         <canvas id="overlay"></canvas>
@@ -140,7 +160,7 @@
         </div>
       </div>
       
-      <button id="start-btn" class="unit-btn">Start Biomechanical Tracking</button>
+      <button id="start-btn" class="btn-start">Start Biomechanical Tracking</button>
       <button id="upload-media-btn" class="unit-btn" style="margin-top: 0.5rem;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
         Upload Image / Video File
@@ -245,7 +265,10 @@
       
       <!-- Unit Selection Toggle -->
       <div class="panel-section unit-section">
-        <span class="section-title unit-section-title">Display Units</span>
+        <span class="section-title unit-section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="9" y1="8" x2="13" y2="8"></line><line x1="9" y1="12" x2="13" y2="12"></line><line x1="9" y1="16" x2="13" y2="16"></line></svg>
+          Live Metrics
+        </span>
         <div class="unit-switcher">
           <button id="unit-inch-btn" class="unit-btn active">Inches</button>
           <button id="unit-cm-btn" class="unit-btn">cm</button>

@@ -846,7 +846,6 @@ export function onPoseResults(results) {
     canvasCtx.restore();
   }
 
-  // Draw ArUco box overlay if detected and active tab is 'aruco'
   if (state.latestArucoMarker && state.activeCalMethod === 'aruco') {
     const width = state.canvasWidth || 640;
     const corners = state.latestArucoMarker.corners.map(c => ({
@@ -1989,21 +1988,54 @@ export async function startCamera() {
   }
 
   try {
-    state.activeStream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        facingMode: state.currentFacingMode
-      }
-    });
+    try {
+      // Attempt HD/FHD stream for high tracking accuracy (min 720p, ideal 1080p)
+      state.activeStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+          facingMode: state.currentFacingMode
+        }
+      });
+    } catch (hdErr) {
+      console.warn("HD/FHD camera request failed, falling back to 640x480:", hdErr);
+      // Fallback to standard definition if HD is overconstrained or unsupported
+      state.activeStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: state.currentFacingMode
+        }
+      });
+    }
     
     videoElement.srcObject = state.activeStream;
     // Mirror the view only for front/user camera
     videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
     
-    // Wait for video metadata to load and then start playing
     videoElement.onloadedmetadata = () => {
+      const w = videoElement.videoWidth || 640;
+      const h = videoElement.videoHeight || 480;
+      
+      // Dynamically adapt coordinate space and layouts to the true camera feed aspect ratio
+      state.canvasWidth = w;
+      state.canvasHeight = h;
+      canvasElement.width = w;
+      canvasElement.height = h;
+      frozenFrameCanvas.width = w;
+      frozenFrameCanvas.height = h;
+      
+      // Center manual calibration box based on true camera proportions
+      state.calBoxX = w / 2;
+      state.calBoxY = h / 2;
+      
+      const viewport = document.querySelector('.viewport');
+      if (viewport) {
+        viewport.style.aspectRatio = `${w} / ${h}`;
+      }
+      
       videoElement.play();
       statusElement.textContent = "Camera active. Syncing with computer vision models...";
     };
@@ -2328,7 +2360,11 @@ export function startUploadedMediaLoop() {
             const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
 
             const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
-            state.pixelsPerCm = smoothedScale;
+            if (state.wallPerspectiveEnabled) {
+              state.pixelsPerCm = smoothedScale * state.wallPerspectiveFactor;
+            } else {
+              state.pixelsPerCm = smoothedScale;
+            }
             state.calLocked = true;
 
             if (state.activeCalMethod === 'aruco') {
@@ -2913,20 +2949,26 @@ function updatePosBtnStyles(activeBtn) {
 }
 
 posLeftBtn.addEventListener('click', () => {
-  state.calBoxX = 100;
-  state.calBoxY = 240;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  state.calBoxX = w * 0.15;
+  state.calBoxY = h / 2;
   updatePosBtnStyles(posLeftBtn);
 });
 
 posCenterBtn.addEventListener('click', () => {
-  state.calBoxX = 320;
-  state.calBoxY = 240;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  state.calBoxX = w / 2;
+  state.calBoxY = h / 2;
   updatePosBtnStyles(posCenterBtn);
 });
 
 posRightBtn.addEventListener('click', () => {
-  state.calBoxX = 540;
-  state.calBoxY = 240;
+  const w = state.canvasWidth || 640;
+  const h = state.canvasHeight || 480;
+  state.calBoxX = w * 0.85;
+  state.calBoxY = h / 2;
   updatePosBtnStyles(posRightBtn);
 });
 
@@ -3041,6 +3083,40 @@ window.addEventListener('touchend', () => {
   isDragging = false;
 });
 
+function updateSidebarPlaceholders() {
+  const updatePlaceholder = (elem, textWithCm, textWithInches) => {
+    if (!elem) return;
+    const current = elem.textContent.trim();
+    if (current.includes('--.-') || current.includes("--'") || current === "" || current === "Offline") {
+      elem.textContent = state.useInches ? textWithInches : textWithCm;
+    }
+  };
+
+  updatePlaceholder(thighLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(thighRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(shinLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(shinRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(footLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(footRDisp, "--.- cm", "--.- inches");
+  
+  updatePlaceholder(torsoLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(torsoRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(upperarmLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(upperarmRDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(forearmLDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(forearmRDisp, "--.- cm", "--.- inches");
+
+  updatePlaceholder(fingerToToeDisp, "L: --.- cm / R: --.- cm", "L: --.- inches / R: --.- inches");
+  updatePlaceholder(hipWDisp, "--.- cm", "--.- inches");
+  updatePlaceholder(wingspanDisp, "--.- cm", "--.- inches");
+
+  updatePlaceholder(heightCmDisp, "--.- cm", "--'--''");
+  updatePlaceholder(heightFtDisp, "--'--'' (Stature)", "--.- cm (Stature)");
+}
+
+// Initial placeholder configuration on script load
+setTimeout(updateSidebarPlaceholders, 100);
+
 // Multi-unit system controls (Inches/Cm togglers)
 const unitInchBtn = document.getElementById('unit-inch-btn');
 const unitCmBtn = document.getElementById('unit-cm-btn');
@@ -3050,6 +3126,8 @@ unitInchBtn.addEventListener('click', () => {
   unitInchBtn.classList.add('active');
   unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
+  updateStateInputHeight();
+  updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   } else {
@@ -3069,6 +3147,8 @@ unitCmBtn.addEventListener('click', () => {
   unitCmBtn.classList.add('active');
   unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
+  updateStateInputHeight();
+  updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
   } else {
@@ -3106,13 +3186,17 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
     }
   });
 
-  // Clear lock on switch if transitioning away from manual/height
-  if (method !== 'aruco' && state.calLocked) {
+  // Set calibration state based on chosen method
+  if (method === 'height') {
+    state.pixelsPerCm = null; // Calculated dynamically in frame loop
+    state.calLocked = true;   // Automatically consider locked/calibrated
+  } else {
+    state.pixelsPerCm = null;
+    state.calLocked = false;
     if (method === 'card') {
       lockCalButton.textContent = "Lock 20cm Calibration";
       lockCalButton.classList.add('cal-btn-unlocked');
       lockCalButton.classList.remove('cal-btn-locked');
-      state.calLocked = false;
     }
   }
 }
@@ -3124,6 +3208,7 @@ tabArucoBtn.addEventListener('click', () => {
 tabHeightBtn.addEventListener('click', () => {
   switchCalibrationTab('height', tabHeightBtn, panelHeight);
 });
+
 
 if (tabPortfolioBtn) {
   tabPortfolioBtn.addEventListener('click', () => {
@@ -4364,18 +4449,111 @@ heightCalBtn.addEventListener('click', () => {
   }
 });
 
-// YOLO-style background isolation click handler
+function updateStateInputHeight() {
+  const inputElem = document.getElementById('input-user-height');
+  if (!inputElem) return;
+  const inputVal = parseFloat(inputElem.value);
+  if (!isNaN(inputVal)) {
+    if (state.useInches) {
+      state.inputHeightCm = inputVal * 2.54;
+    } else {
+      state.inputHeightCm = inputVal;
+    }
+  }
+}
+
+if (inputUserHeight) {
+  inputUserHeight.addEventListener('input', updateStateInputHeight);
+  updateStateInputHeight();
+}
+
+const toggleWallPerspective = document.getElementById('toggle-wall-perspective');
+if (toggleWallPerspective) {
+  // Sync checkbox with initial state
+  toggleWallPerspective.checked = state.wallPerspectiveEnabled;
+  
+  const sliderContainer = document.getElementById('wall-perspective-slider-container');
+  if (sliderContainer) {
+    if (state.wallPerspectiveEnabled) {
+      sliderContainer.classList.remove('hidden');
+    } else {
+      sliderContainer.classList.add('hidden');
+    }
+  }
+
+  toggleWallPerspective.addEventListener('change', (e) => {
+    const wasEnabled = state.wallPerspectiveEnabled;
+    const nowEnabled = e.target.checked;
+    state.wallPerspectiveEnabled = nowEnabled;
+    
+    // Toggle container visibility
+    if (sliderContainer) {
+      if (nowEnabled) {
+        sliderContainer.classList.remove('hidden');
+      } else {
+        sliderContainer.classList.add('hidden');
+      }
+    }
+    
+    // Adjust cached pixelsPerCm immediately if it exists
+    if (state.pixelsPerCm && wasEnabled !== nowEnabled) {
+      if (nowEnabled) {
+        state.pixelsPerCm *= state.wallPerspectiveFactor;
+      } else {
+        state.pixelsPerCm /= state.wallPerspectiveFactor;
+      }
+      
+      // Update UI status text if in ArUco mode
+      const arucoStatusText = document.getElementById('aruco-status-text');
+      if (arucoStatusText && state.activeCalMethod === 'aruco') {
+        arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      }
+    }
+  });
+}
+
+const wallPerspectiveSlider = document.getElementById('wall-perspective-slider');
+const wallPerspectiveVal = document.getElementById('wall-perspective-val');
+if (wallPerspectiveSlider) {
+  // Sync initial state to UI
+  wallPerspectiveSlider.value = state.wallPerspectiveFactor;
+  if (wallPerspectiveVal) {
+    wallPerspectiveVal.textContent = `${state.wallPerspectiveFactor.toFixed(2)}x`;
+  }
+
+  wallPerspectiveSlider.addEventListener('input', (e) => {
+    const newVal = parseFloat(e.target.value);
+    const oldVal = state.wallPerspectiveFactor;
+    
+    if (wallPerspectiveVal) {
+      wallPerspectiveVal.textContent = `${newVal.toFixed(2)}x`;
+    }
+    
+    if (state.wallPerspectiveEnabled && state.pixelsPerCm && oldVal > 0) {
+      state.pixelsPerCm = (state.pixelsPerCm / oldVal) * newVal;
+      
+      const arucoStatusText = document.getElementById('aruco-status-text');
+      if (arucoStatusText && state.activeCalMethod === 'aruco') {
+        arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      }
+    }
+    
+    state.wallPerspectiveFactor = newVal;
+  });
+}
+
+// Background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {
   state.yoloModeActive = !state.yoloModeActive;
   if (state.yoloModeActive) {
-    yoloToggleBtn.textContent = "Disable YOLO Background Isolation";
+    yoloToggleBtn.textContent = "Disable Background Isolation";
     yoloToggleBtn.classList.add('active');
     
     // Hide standard video underneath so canvas can show the background cutout
     videoElement.classList.add('video-dimmed');
     videoElement.classList.remove('video-visible');
   } else {
-    yoloToggleBtn.textContent = "Enable YOLO Background Isolation";
+    yoloToggleBtn.textContent = "Enable Background Isolation";
     yoloToggleBtn.classList.remove('active');
     
     // Restore standard video opacity

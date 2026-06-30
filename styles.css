@@ -448,7 +448,9 @@
 }
 
 #input-user-height,
-#input-validation-height {
+#input-validation-height,
+#wall-perspective-input,
+#wall-perspective-input-validation {
   width: 75px;
   background-color: #111111;
   color: white;
@@ -463,7 +465,9 @@
 }
 
 #input-user-height:focus,
-#input-validation-height:focus {
+#input-validation-height:focus,
+#wall-perspective-input:focus,
+#wall-perspective-input-validation:focus {
   border-color: #BA0C2F;
   box-shadow: 0 0 8px rgba(186, 12, 47, 0.35);
 }
@@ -472,13 +476,19 @@
 #input-user-height::-webkit-outer-spin-button,
 #input-user-height::-webkit-inner-spin-button,
 #input-validation-height::-webkit-outer-spin-button,
-#input-validation-height::-webkit-inner-spin-button {
+#input-validation-height::-webkit-inner-spin-button,
+#wall-perspective-input::-webkit-outer-spin-button,
+#wall-perspective-input::-webkit-inner-spin-button,
+#wall-perspective-input-validation::-webkit-outer-spin-button,
+#wall-perspective-input-validation::-webkit-inner-spin-button {
   -webkit-appearance: none;
   appearance: none;
   margin: 0;
 }
 #input-user-height,
-#input-validation-height {
+#input-validation-height,
+#wall-perspective-input,
+#wall-perspective-input-validation {
   -moz-appearance: textfield;
   appearance: textfield;
   -webkit-appearance: textfield;

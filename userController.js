@@ -934,8 +934,8 @@ export function onPoseResults(results) {
       }
     }
     const avgVis = totalVisibility / keyIndices.length;
-    // Real person requires average visibility >= 0.55 and at least 5 key joints with high visibility (0.55+)
-    if (highVisCount >= 5 && avgVis >= 0.55) {
+    // Real person check: more lenient to allow upper-body tracking when sitting or partially cut off
+    if (highVisCount >= 3 || avgVis >= 0.3) {
       hasValidPerson = true;
     }
   }
@@ -2151,7 +2151,11 @@ export async function startCamera() {
               const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
 
               const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
-              state.pixelsPerCm = smoothedScale;
+              if (state.wallPerspectiveEnabled) {
+                state.pixelsPerCm = smoothedScale * state.wallPerspectiveFactor;
+              } else {
+                state.pixelsPerCm = smoothedScale;
+              }
               state.calLocked = true;
 
               if (state.activeCalMethod === 'aruco') {
@@ -4478,8 +4482,6 @@ export function importPriorPortfolio(report) {
   }
 }
 
-const heightCalBtn = document.getElementById('height-cal-btn');
-
 if (tabValidationBtn) {
   tabValidationBtn.addEventListener('click', () => {
     switchCalibrationTab('validation', tabValidationBtn, panelValidation);
@@ -4487,86 +4489,6 @@ if (tabValidationBtn) {
 }
 
 const inputUserHeight = document.getElementById('input-user-height');
-
-heightCalBtn.addEventListener('click', () => {
-  if (state.isCountingDown || state.isCaptureCountingDown) return; // Prevent clicks during active countdowns
-
-  // Reset imported portfolio metrics when manually recalibrating
-  state.importedPortfolioMetrics = null;
-
-  const activeHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-  if (activeHeightPx > 10) {
-    if (state.isUploadedMedia) {
-      // Recalculate pixel height instantly for uploaded files
-      const captureHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-      const inputVal = parseFloat(inputUserHeight.value) || (state.useInches ? 68.9 : 175.0);
-      let actualHeightCm = inputVal;
-      if (state.useInches) {
-        actualHeightCm = inputVal * 2.54; // Convert to cm for calibration scale factor
-      }
-
-      state.pixelsPerCm = captureHeightPx / actualHeightCm;
-      state.calLocked = true;
-      heightCalBtn.textContent = "✅ Calibrated!";
-      heightCalBtn.classList.add('btn-success-green');
-      heightCalBtn.classList.remove('btn-warning');
-      statusElement.textContent = `Skeletal-calibrated scale locked (Instant Upload Calibration): ${state.pixelsPerCm.toFixed(2)} px/cm.`;
-      if (state.activeProfileId) {
-        autoSyncToActiveProfile();
-      }
-      
-      // Trigger camera snapshot visual flash!
-      triggerFlashEffect();
-      return;
-    }
-
-    // Start 3-second countdown
-    state.isCountingDown = true;
-    state.countdownValue = 3;
-    heightCalBtn.textContent = "Get in Position (3s)...";
-    heightCalBtn.classList.add('btn-warning');
-    heightCalBtn.classList.remove('btn-success-green');
-    statusElement.textContent = "Stand straight and face the camera. Calibrating in 3 seconds...";
-
-    const intervalId = setInterval(() => {
-      state.countdownValue--;
-      if (state.countdownValue > 0) {
-        heightCalBtn.textContent = `Get in Position (${state.countdownValue}s)...`;
-        statusElement.textContent = `Stand straight and face the camera. Calibrating in ${state.countdownValue} seconds...`;
-      } else {
-        clearInterval(intervalId);
-        state.isCountingDown = false;
-
-        // Recalculate pixel height at the exact end of countdown
-        const captureHeightPx = state.lastSkeletalHeightPx > 10 ? state.lastSkeletalHeightPx : state.lastVerticalHeightPx;
-        const inputVal = parseFloat(inputUserHeight.value) || (state.useInches ? 68.9 : 175.0);
-        let actualHeightCm = inputVal;
-        if (state.useInches) {
-          actualHeightCm = inputVal * 2.54; // Convert to cm for calibration scale factor
-        }
-
-        state.pixelsPerCm = captureHeightPx / actualHeightCm;
-        state.calLocked = true;
-        heightCalBtn.textContent = "✅ Calibrated!";
-        heightCalBtn.classList.add('btn-success-green');
-        heightCalBtn.classList.remove('btn-warning');
-        statusElement.textContent = `Skeletal-calibrated scale locked: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
-        if (state.activeProfileId) {
-          autoSyncToActiveProfile();
-        }
-        
-        // Trigger camera snapshot visual flash!
-        triggerFlashEffect();
-      }
-    }, 1000);
-  } else {
-    if (state.isUploadedMedia) {
-      alert("Please ensure a person is fully visible in your uploaded image or video first!");
-    } else {
-      alert("Please click 'Start Biomechanical Tracking' and stand in view of the camera first!");
-    }
-  }
-});
 
 function updateStateInputHeight() {
   const inputElem = document.getElementById('input-user-height');

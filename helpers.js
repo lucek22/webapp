@@ -313,7 +313,7 @@ export function updateHeightInputUnit() {
       heightInputLabel.textContent = "Your Height (inches):";
       const val = parseFloat(inputUserHeight.value);
       if (val > 100) { // If it was in cm, convert to inches
-        inputUserHeight.value = (val / 2.54).toFixed(1);
+        inputUserHeight.value = parseFloat((val / 2.54).toFixed(2));
       } else if (isNaN(val)) {
         inputUserHeight.value = "68.9";
       }
@@ -321,9 +321,9 @@ export function updateHeightInputUnit() {
       heightInputLabel.textContent = "Your Height (cm):";
       const val = parseFloat(inputUserHeight.value);
       if (val < 100) { // If it was in inches, convert to cm
-        inputUserHeight.value = (val * 2.54).toFixed(1);
+        inputUserHeight.value = parseFloat((val * 2.54).toFixed(2));
       } else if (isNaN(val)) {
-        inputUserHeight.value = "175.0";
+        inputUserHeight.value = "175";
       }
     }
   }
@@ -333,7 +333,7 @@ export function updateHeightInputUnit() {
       valHeightLabel.textContent = "Your True Height (inches):";
       const val = parseFloat(inputValidationHeight.value);
       if (val > 100) { // If it was in cm, convert to inches
-        inputValidationHeight.value = (val / 2.54).toFixed(1);
+        inputValidationHeight.value = parseFloat((val / 2.54).toFixed(2));
       } else if (isNaN(val)) {
         inputValidationHeight.value = "68.9";
       }
@@ -341,9 +341,9 @@ export function updateHeightInputUnit() {
       valHeightLabel.textContent = "Your True Height (cm):";
       const val = parseFloat(inputValidationHeight.value);
       if (val < 100) { // If it was in inches, convert to cm
-        inputValidationHeight.value = (val * 2.54).toFixed(1);
+        inputValidationHeight.value = parseFloat((val * 2.54).toFixed(2));
       } else if (isNaN(val)) {
-        inputValidationHeight.value = "175.0";
+        inputValidationHeight.value = "175";
       }
     }
   }

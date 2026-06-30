@@ -2333,10 +2333,10 @@ function syncWallPerspectiveFactor(newVal) {
   const inputCal = document.getElementById('wall-perspective-input');
   const inputVal = document.getElementById('wall-perspective-input-validation');
   if (inputCal && parseFloat(inputCal.value) !== newVal) {
-    inputCal.value = newVal.toFixed(2);
+    inputCal.value = parseFloat(newVal.toFixed(3));
   }
   if (inputVal && parseFloat(inputVal.value) !== newVal) {
-    inputVal.value = newVal.toFixed(2);
+    inputVal.value = parseFloat(newVal.toFixed(3));
   }
 
   // Adjust cached pixelsPerCm immediately if it exists
@@ -2375,8 +2375,8 @@ if (containerVal) {
   else containerVal.classList.add('hidden');
 }
 
-if (wallPerspectiveInput) wallPerspectiveInput.value = state.wallPerspectiveFactor.toFixed(2);
-if (wallPerspectiveInputValidation) wallPerspectiveInputValidation.value = state.wallPerspectiveFactor.toFixed(2);
+if (wallPerspectiveInput) wallPerspectiveInput.value = parseFloat(state.wallPerspectiveFactor.toFixed(3));
+if (wallPerspectiveInputValidation) wallPerspectiveInputValidation.value = parseFloat(state.wallPerspectiveFactor.toFixed(3));
 
 // Event Listeners for Toggles
 if (toggleWallPerspective) {
@@ -2400,7 +2400,7 @@ if (wallPerspectiveInput) {
     let val = parseFloat(e.target.value);
     if (isNaN(val) || val < 1.00) val = 1.00;
     if (val > 1.25) val = 1.25;
-    e.target.value = val.toFixed(2);
+    e.target.value = parseFloat(val.toFixed(3));
     syncWallPerspectiveFactor(val);
   });
 }
@@ -2413,7 +2413,7 @@ if (wallPerspectiveInputValidation) {
     let val = parseFloat(e.target.value);
     if (isNaN(val) || val < 1.00) val = 1.00;
     if (val > 1.25) val = 1.25;
-    e.target.value = val.toFixed(2);
+    e.target.value = parseFloat(val.toFixed(3));
     syncWallPerspectiveFactor(val);
   });
 }

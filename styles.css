@@ -399,20 +399,25 @@
 }
 
 /* ID style mappings */
-#tab-aruco-btn {
+#tab-aruco-btn,
+#tab-height-btn,
+#tab-validation-btn {
   margin-top: 0;
   padding: 0.4rem;
   font-size: 0.72rem;
+  width: 33.33%;
+}
+
+#tab-aruco-btn {
   background-color: var(--color-scarlet);
-  width: 50%;
 }
 
 #tab-height-btn {
-  margin-top: 0;
-  padding: 0.4rem;
-  font-size: 0.72rem;
   background-color: var(--color-dark-gray);
-  width: 50%;
+}
+
+#tab-validation-btn {
+  background-color: var(--color-dark-gray);
 }
 
 #pos-left-btn, #pos-right-btn {
@@ -442,7 +447,10 @@
   width: auto;
 }
 
-#input-user-height {
+#input-user-height,
+#input-validation-height,
+#wall-perspective-input,
+#wall-perspective-input-validation {
   width: 75px;
   background-color: #111111;
   color: white;
@@ -456,19 +464,31 @@
   transition: all 0.2s ease;
 }
 
-#input-user-height:focus {
+#input-user-height:focus,
+#input-validation-height:focus,
+#wall-perspective-input:focus,
+#wall-perspective-input-validation:focus {
   border-color: #BA0C2F;
   box-shadow: 0 0 8px rgba(186, 12, 47, 0.35);
 }
 
 /* Hide standard number input spinner up/down arrows */
 #input-user-height::-webkit-outer-spin-button,
-#input-user-height::-webkit-inner-spin-button {
+#input-user-height::-webkit-inner-spin-button,
+#input-validation-height::-webkit-outer-spin-button,
+#input-validation-height::-webkit-inner-spin-button,
+#wall-perspective-input::-webkit-outer-spin-button,
+#wall-perspective-input::-webkit-inner-spin-button,
+#wall-perspective-input-validation::-webkit-outer-spin-button,
+#wall-perspective-input-validation::-webkit-inner-spin-button {
   -webkit-appearance: none;
   appearance: none;
   margin: 0;
 }
-#input-user-height {
+#input-user-height,
+#input-validation-height,
+#wall-perspective-input,
+#wall-perspective-input-validation {
   -moz-appearance: textfield;
   appearance: textfield;
   -webkit-appearance: textfield;
@@ -712,6 +732,57 @@ h1 {
 .calibration-panel label {
   font-weight: 500;
   color: #a7b1b7;
+}
+
+/* Premium Custom Switch Container */
+.switch-container {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+  margin-right: 0.15rem;
+}
+
+.switch-container input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #222222;
+  transition: .3s;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #a7b1b7;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+.switch-container input:checked + .switch-slider {
+  background-color: rgba(186, 12, 47, 0.25);
+  border-color: rgba(186, 12, 47, 0.65);
+}
+
+.switch-container input:checked + .switch-slider:before {
+  transform: translateX(18px);
+  background-color: #BA0C2F; /* Scarlet Red */
+  box-shadow: 0 0 8px rgba(186, 12, 47, 0.8);
 }
 
 .slider {
@@ -1523,7 +1594,8 @@ canvas {
   }
   .save-input,
   #subject-name-input,
-  #input-user-height {
+  #input-user-height,
+  #input-validation-height {
     font-size: 16px !important;
   }
   .snapshot-card-delete {
@@ -1762,7 +1834,9 @@ canvas {
 #tab-aruco-btn[style*="background-color: rgb(59, 130, 246)"],
 #tab-aruco-btn[style*="background-color: #3b82f6"],
 #tab-height-btn[style*="background-color: rgb(59, 130, 246)"],
-#tab-height-btn[style*="background-color: #3b82f6"] {
+#tab-height-btn[style*="background-color: #3b82f6"],
+#tab-validation-btn[style*="background-color: rgb(59, 130, 246)"],
+#tab-validation-btn[style*="background-color: #3b82f6"] {
   background-color: #BA0C2F !important;
   color: #ffffff !important;
 }
@@ -1771,7 +1845,8 @@ canvas {
 #unit-inch-btn[style*="background-color"]:hover,
 #unit-cm-btn[style*="background-color"]:hover,
 #tab-aruco-btn[style*="background-color"]:hover,
-#tab-height-btn[style*="background-color"]:hover {
+#tab-height-btn[style*="background-color"]:hover,
+#tab-validation-btn[style*="background-color"]:hover {
   filter: brightness(0.85);
 }
 

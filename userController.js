@@ -1492,7 +1492,11 @@ export async function startCamera() {
 
             // Smooth calibration scale to avoid webcam noise
             const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
-            state.pixelsPerCm = smoothedScale;
+            if (state.wallPerspectiveEnabled) {
+              state.pixelsPerCm = smoothedScale * state.wallPerspectiveFactor;
+            } else {
+              state.pixelsPerCm = smoothedScale;
+            }
             state.calLocked = true;
 
             if (state.activeCalMethod === 'aruco') {
@@ -2271,6 +2275,81 @@ function updateStateValidationHeight() {
 if (inputValidationHeight) {
   inputValidationHeight.addEventListener('input', updateStateValidationHeight);
   updateStateValidationHeight();
+}
+
+const toggleWallPerspective = document.getElementById('toggle-wall-perspective');
+if (toggleWallPerspective) {
+  // Sync checkbox with initial state
+  toggleWallPerspective.checked = state.wallPerspectiveEnabled;
+  
+  const sliderContainer = document.getElementById('wall-perspective-slider-container');
+  if (sliderContainer) {
+    if (state.wallPerspectiveEnabled) {
+      sliderContainer.classList.remove('hidden');
+    } else {
+      sliderContainer.classList.add('hidden');
+    }
+  }
+
+  toggleWallPerspective.addEventListener('change', (e) => {
+    const wasEnabled = state.wallPerspectiveEnabled;
+    const nowEnabled = e.target.checked;
+    state.wallPerspectiveEnabled = nowEnabled;
+    
+    // Toggle container visibility
+    if (sliderContainer) {
+      if (nowEnabled) {
+        sliderContainer.classList.remove('hidden');
+      } else {
+        sliderContainer.classList.add('hidden');
+      }
+    }
+    
+    // Adjust cached pixelsPerCm immediately if it exists
+    if (state.pixelsPerCm && wasEnabled !== nowEnabled) {
+      if (nowEnabled) {
+        state.pixelsPerCm *= state.wallPerspectiveFactor;
+      } else {
+        state.pixelsPerCm /= state.wallPerspectiveFactor;
+      }
+      
+      // Update UI status text if in ArUco mode
+      const arucoStatusText = document.getElementById('aruco-status-text');
+      if (arucoStatusText && state.activeCalMethod === 'aruco') {
+        arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      }
+    }
+  });
+}
+
+const wallPerspectiveSlider = document.getElementById('wall-perspective-slider');
+const wallPerspectiveVal = document.getElementById('wall-perspective-val');
+if (wallPerspectiveSlider) {
+  // Sync initial state to UI
+  wallPerspectiveSlider.value = state.wallPerspectiveFactor;
+  if (wallPerspectiveVal) {
+    wallPerspectiveVal.textContent = `${state.wallPerspectiveFactor.toFixed(2)}x`;
+  }
+
+  wallPerspectiveSlider.addEventListener('input', (e) => {
+    const newVal = parseFloat(e.target.value);
+    const oldVal = state.wallPerspectiveFactor;
+    
+    if (wallPerspectiveVal) {
+      wallPerspectiveVal.textContent = `${newVal.toFixed(2)}x`;
+    }
+    
+    if (state.wallPerspectiveEnabled && state.pixelsPerCm && oldVal > 0) {
+      state.pixelsPerCm = (state.pixelsPerCm / oldVal) * newVal;
+      
+      const arucoStatusText = document.getElementById('aruco-status-text');
+      if (arucoStatusText && state.activeCalMethod === 'aruco') {
+        arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      }
+    }
+    
+    state.wallPerspectiveFactor = newVal;
+  });
 }
 
 // Background isolation click handler

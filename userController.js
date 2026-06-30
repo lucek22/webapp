@@ -186,12 +186,18 @@ const squatStatusVal = document.getElementById('squat-status-val');
 const tabArucoBtn = document.getElementById('tab-aruco-btn');
 const tabHeightBtn = document.getElementById('tab-height-btn');
 const tabPortfolioBtn = document.getElementById('tab-portfolio-btn');
+const tabValidationBtn = document.getElementById('tab-validation-btn');
 
 const panelAruco = document.getElementById('panel-aruco');
 const panelCard = document.getElementById('panel-card');
 const panelHeight = document.getElementById('panel-height');
 const panelPortfolio = document.getElementById('panel-portfolio');
+const panelValidation = document.getElementById('panel-validation');
 const arucoStatusText = document.getElementById('aruco-status-text');
+const validationStatusText = document.getElementById('validation-status-text');
+const validationFeedbackBox = document.getElementById('validation-feedback-box');
+const validationHeightLabel = document.getElementById('validation-height-label');
+const inputValidationHeight = document.getElementById('input-validation-height');
 
 const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
 const btnApplyScale = document.getElementById('btn-apply-scale');
@@ -846,7 +852,7 @@ export function onPoseResults(results) {
     canvasCtx.restore();
   }
 
-  if (state.latestArucoMarker && state.activeCalMethod === 'aruco') {
+  if (state.latestArucoMarker && (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation')) {
     const width = state.canvasWidth || 640;
     const corners = state.latestArucoMarker.corners.map(c => ({
       x: (!state.isUploadedMedia && state.currentFacingMode === "user") ? width - c.x : c.x,
@@ -1321,6 +1327,60 @@ export function onPoseResults(results) {
   if (state.flashOpacity > 0) {
     canvasCtx.fillStyle = `rgba(255, 255, 255, ${state.flashOpacity})`;
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+  }
+
+  // --- REAL-TIME CALIBRATION / VALIDATION CHECK ---
+  if (state.activeCalMethod === 'validation') {
+    const feedbackBox = document.getElementById('validation-feedback-box');
+    const statusText = document.getElementById('validation-status-text');
+    if (feedbackBox && statusText) {
+      if (!state.pixelsPerCm) {
+        statusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
+        feedbackBox.classList.add('hidden');
+      } else {
+        statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+        
+        // Check if there is a person/pose detected and calculated
+        const calculated = typeof calculatePoseMetrics === 'function' ? calculatePoseMetrics(results) : null;
+        if (!calculated || !calculated.liveMetrics) {
+          feedbackBox.classList.remove('hidden');
+          feedbackBox.style.border = "1px dashed rgba(167, 177, 183, 0.4)";
+          feedbackBox.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
+          feedbackBox.style.color = "#a7b1b7";
+          feedbackBox.innerHTML = `👤 Please stand in view of the camera to perform real-time verification...`;
+        } else {
+          feedbackBox.classList.remove('hidden');
+          const liveHeight = calculated.liveMetrics.skeletal_height;
+          const targetHeight = state.validationHeightCm;
+          const diffCm = Math.abs(liveHeight - targetHeight);
+          
+          const calculatedStr = formatSkeletalHeight(liveHeight);
+          const trueStr = formatSkeletalHeight(targetHeight);
+          const diffStr = state.useInches ? `${(diffCm / 2.54).toFixed(1)} in` : `${diffCm.toFixed(1)} cm`;
+          
+          if (diffCm <= 1.0) {
+            feedbackBox.style.border = "1px solid #10b981";
+            feedbackBox.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
+            feedbackBox.style.color = "#10b981";
+            feedbackBox.innerHTML = `
+              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #10b981;">✅ SUCCESS: Calibrated & Positioned Properly!</div>
+              <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
+              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
+            `;
+          } else {
+            feedbackBox.style.border = "1px solid #ec4899";
+            feedbackBox.style.backgroundColor = "rgba(236, 72, 153, 0.1)";
+            feedbackBox.style.color = "#ec4899";
+            feedbackBox.innerHTML = `
+              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #ec4899;">⚠️ POSITION CHECK: Discrepancy Found</div>
+              <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
+              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: <strong style="color: #ec4899;">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
+              <div style="margin-top: 6px; font-size: 11px; color: #a7b1b7;">Please adjust your ArUco marker position or camera alignment.</div>
+            `;
+          }
+        }
+      }
+    }
   }
 
   canvasCtx.restore();
@@ -3127,6 +3187,7 @@ unitInchBtn.addEventListener('click', () => {
   unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
   updateStateInputHeight();
+  updateStateValidationHeight();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -3148,6 +3209,7 @@ unitCmBtn.addEventListener('click', () => {
   unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
   updateStateInputHeight();
+  updateStateValidationHeight();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -3167,14 +3229,14 @@ unitCmBtn.addEventListener('click', () => {
 function switchCalibrationTab(method, activeBtn, activePanel) {
   state.activeCalMethod = method;
   
-  [tabArucoBtn, tabHeightBtn, tabPortfolioBtn].forEach(btn => {
+  [tabArucoBtn, tabHeightBtn, tabPortfolioBtn, tabValidationBtn].forEach(btn => {
     if (btn) {
       btn.classList.toggle('btn-tab-active', btn === activeBtn);
       btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
     }
   });
 
-  [panelAruco, panelCard, panelHeight, panelPortfolio].forEach(panel => {
+  [panelAruco, panelCard, panelHeight, panelPortfolio, panelValidation].forEach(panel => {
     if (panel) {
       if (panel === activePanel) {
         panel.classList.remove('hidden');
@@ -4367,6 +4429,13 @@ export function importPriorPortfolio(report) {
 }
 
 const heightCalBtn = document.getElementById('height-cal-btn');
+
+if (tabValidationBtn) {
+  tabValidationBtn.addEventListener('click', () => {
+    switchCalibrationTab('validation', tabValidationBtn, panelValidation);
+  });
+}
+
 const inputUserHeight = document.getElementById('input-user-height');
 
 heightCalBtn.addEventListener('click', () => {
@@ -4467,78 +4536,162 @@ if (inputUserHeight) {
   updateStateInputHeight();
 }
 
-const toggleWallPerspective = document.getElementById('toggle-wall-perspective');
-if (toggleWallPerspective) {
-  // Sync checkbox with initial state
-  toggleWallPerspective.checked = state.wallPerspectiveEnabled;
-  
-  const sliderContainer = document.getElementById('wall-perspective-slider-container');
-  if (sliderContainer) {
-    if (state.wallPerspectiveEnabled) {
-      sliderContainer.classList.remove('hidden');
+function updateStateValidationHeight() {
+  const inputElem = document.getElementById('input-validation-height');
+  if (!inputElem) return;
+  const inputVal = parseFloat(inputElem.value);
+  if (!isNaN(inputVal)) {
+    if (state.useInches) {
+      state.validationHeightCm = inputVal * 2.54;
     } else {
-      sliderContainer.classList.add('hidden');
+      state.validationHeightCm = inputVal;
     }
   }
+}
 
+if (inputValidationHeight) {
+  inputValidationHeight.addEventListener('input', updateStateValidationHeight);
+  updateStateValidationHeight();
+}
+
+function syncWallPerspectiveEnabled(enabled) {
+  const wasEnabled = state.wallPerspectiveEnabled;
+  state.wallPerspectiveEnabled = enabled;
+
+  // Sync checkboxes
+  const toggleCal = document.getElementById('toggle-wall-perspective');
+  const toggleVal = document.getElementById('toggle-wall-perspective-validation');
+  if (toggleCal) toggleCal.checked = enabled;
+  if (toggleVal) toggleVal.checked = enabled;
+
+  // Sync container visibilities
+  const containerCal = document.getElementById('wall-perspective-container');
+  const containerVal = document.getElementById('wall-perspective-container-validation');
+  if (containerCal) {
+    if (enabled) containerCal.classList.remove('hidden');
+    else containerCal.classList.add('hidden');
+  }
+  if (containerVal) {
+    if (enabled) containerVal.classList.remove('hidden');
+    else containerVal.classList.add('hidden');
+  }
+
+  // Adjust cached pixelsPerCm immediately if it exists
+  if (state.pixelsPerCm && wasEnabled !== enabled) {
+    if (enabled) {
+      state.pixelsPerCm *= state.wallPerspectiveFactor;
+    } else {
+      state.pixelsPerCm /= state.wallPerspectiveFactor;
+    }
+
+    // Update UI status texts
+    const arucoStatusText = document.getElementById('aruco-status-text');
+    if (arucoStatusText && state.activeCalMethod === 'aruco') {
+      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+    }
+    const validationStatusText = document.getElementById('validation-status-text');
+    if (validationStatusText && state.activeCalMethod === 'validation') {
+      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+    }
+  }
+}
+
+function syncWallPerspectiveFactor(newVal) {
+  const oldVal = state.wallPerspectiveFactor;
+  if (isNaN(newVal) || newVal < 1.00 || newVal > 1.25) {
+    return; // Allow temporary invalid states while typing, but do not apply them
+  }
+
+  if (newVal === oldVal) return;
+
+  state.wallPerspectiveFactor = newVal;
+
+  // Sync text inputs
+  const inputCal = document.getElementById('wall-perspective-input');
+  const inputVal = document.getElementById('wall-perspective-input-validation');
+  if (inputCal && parseFloat(inputCal.value) !== newVal) {
+    inputCal.value = parseFloat(newVal.toFixed(3));
+  }
+  if (inputVal && parseFloat(inputVal.value) !== newVal) {
+    inputVal.value = parseFloat(newVal.toFixed(3));
+  }
+
+  // Adjust cached pixelsPerCm immediately if it exists
+  if (state.wallPerspectiveEnabled && state.pixelsPerCm && oldVal > 0) {
+    state.pixelsPerCm = (state.pixelsPerCm / oldVal) * newVal;
+
+    // Update UI status texts
+    const arucoStatusText = document.getElementById('aruco-status-text');
+    if (arucoStatusText && state.activeCalMethod === 'aruco') {
+      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+    }
+    const validationStatusText = document.getElementById('validation-status-text');
+    if (validationStatusText && state.activeCalMethod === 'validation') {
+      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+    }
+  }
+}
+
+// Initial Sync from state on load
+const toggleWallPerspective = document.getElementById('toggle-wall-perspective');
+const toggleWallPerspectiveValidation = document.getElementById('toggle-wall-perspective-validation');
+const wallPerspectiveInput = document.getElementById('wall-perspective-input');
+const wallPerspectiveInputValidation = document.getElementById('wall-perspective-input-validation');
+
+if (toggleWallPerspective) toggleWallPerspective.checked = state.wallPerspectiveEnabled;
+if (toggleWallPerspectiveValidation) toggleWallPerspectiveValidation.checked = state.wallPerspectiveEnabled;
+
+const containerCal = document.getElementById('wall-perspective-container');
+const containerVal = document.getElementById('wall-perspective-container-validation');
+if (containerCal) {
+  if (state.wallPerspectiveEnabled) containerCal.classList.remove('hidden');
+  else containerCal.classList.add('hidden');
+}
+if (containerVal) {
+  if (state.wallPerspectiveEnabled) containerVal.classList.remove('hidden');
+  else containerVal.classList.add('hidden');
+}
+
+if (wallPerspectiveInput) wallPerspectiveInput.value = parseFloat(state.wallPerspectiveFactor.toFixed(3));
+if (wallPerspectiveInputValidation) wallPerspectiveInputValidation.value = parseFloat(state.wallPerspectiveFactor.toFixed(3));
+
+// Event Listeners for Toggles
+if (toggleWallPerspective) {
   toggleWallPerspective.addEventListener('change', (e) => {
-    const wasEnabled = state.wallPerspectiveEnabled;
-    const nowEnabled = e.target.checked;
-    state.wallPerspectiveEnabled = nowEnabled;
-    
-    // Toggle container visibility
-    if (sliderContainer) {
-      if (nowEnabled) {
-        sliderContainer.classList.remove('hidden');
-      } else {
-        sliderContainer.classList.add('hidden');
-      }
-    }
-    
-    // Adjust cached pixelsPerCm immediately if it exists
-    if (state.pixelsPerCm && wasEnabled !== nowEnabled) {
-      if (nowEnabled) {
-        state.pixelsPerCm *= state.wallPerspectiveFactor;
-      } else {
-        state.pixelsPerCm /= state.wallPerspectiveFactor;
-      }
-      
-      // Update UI status text if in ArUco mode
-      const arucoStatusText = document.getElementById('aruco-status-text');
-      if (arucoStatusText && state.activeCalMethod === 'aruco') {
-        arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-      }
-    }
+    syncWallPerspectiveEnabled(e.target.checked);
+  });
+}
+if (toggleWallPerspectiveValidation) {
+  toggleWallPerspectiveValidation.addEventListener('change', (e) => {
+    syncWallPerspectiveEnabled(e.target.checked);
   });
 }
 
-const wallPerspectiveSlider = document.getElementById('wall-perspective-slider');
-const wallPerspectiveVal = document.getElementById('wall-perspective-val');
-if (wallPerspectiveSlider) {
-  // Sync initial state to UI
-  wallPerspectiveSlider.value = state.wallPerspectiveFactor;
-  if (wallPerspectiveVal) {
-    wallPerspectiveVal.textContent = `${state.wallPerspectiveFactor.toFixed(2)}x`;
-  }
-
-  wallPerspectiveSlider.addEventListener('input', (e) => {
-    const newVal = parseFloat(e.target.value);
-    const oldVal = state.wallPerspectiveFactor;
-    
-    if (wallPerspectiveVal) {
-      wallPerspectiveVal.textContent = `${newVal.toFixed(2)}x`;
-    }
-    
-    if (state.wallPerspectiveEnabled && state.pixelsPerCm && oldVal > 0) {
-      state.pixelsPerCm = (state.pixelsPerCm / oldVal) * newVal;
-      
-      const arucoStatusText = document.getElementById('aruco-status-text');
-      if (arucoStatusText && state.activeCalMethod === 'aruco') {
-        arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-      }
-    }
-    
-    state.wallPerspectiveFactor = newVal;
+// Event Listeners for Inputs (real-time keypresses)
+if (wallPerspectiveInput) {
+  wallPerspectiveInput.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    syncWallPerspectiveFactor(val);
+  });
+  wallPerspectiveInput.addEventListener('blur', (e) => {
+    let val = parseFloat(e.target.value);
+    if (isNaN(val) || val < 1.00) val = 1.00;
+    if (val > 1.25) val = 1.25;
+    e.target.value = parseFloat(val.toFixed(3));
+    syncWallPerspectiveFactor(val);
+  });
+}
+if (wallPerspectiveInputValidation) {
+  wallPerspectiveInputValidation.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    syncWallPerspectiveFactor(val);
+  });
+  wallPerspectiveInputValidation.addEventListener('blur', (e) => {
+    let val = parseFloat(e.target.value);
+    if (isNaN(val) || val < 1.00) val = 1.00;
+    if (val > 1.25) val = 1.25;
+    e.target.value = parseFloat(val.toFixed(3));
+    syncWallPerspectiveFactor(val);
   });
 }
 

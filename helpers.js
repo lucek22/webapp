@@ -306,6 +306,7 @@ export const state = {
   activeStream: null,
   activeCalMethod: 'aruco',
   inputHeightCm: 175.006,
+  validationHeightCm: 175.006,
   dbInitialized: false,
   autoActive: false,
   autoState: 'IDLE',
@@ -397,23 +398,46 @@ export function formatLength(cmVal) {
 export function updateHeightInputUnit() {
   const heightInputLabel = document.querySelector('label[for="input-user-height"]');
   const inputUserHeight = document.getElementById('input-user-height');
-  if (!heightInputLabel || !inputUserHeight) return;
+  const valHeightLabel = document.getElementById('validation-height-label');
+  const inputValidationHeight = document.getElementById('input-validation-height');
 
-  if (state.useInches) {
-    heightInputLabel.textContent = "Your Height (inches):";
-    const val = parseFloat(inputUserHeight.value);
-    if (val > 100) { // If it was in cm, convert to inches
-      inputUserHeight.value = (val / 2.54).toFixed(1);
-    } else if (isNaN(val)) {
-      inputUserHeight.value = "68.9";
+  if (heightInputLabel && inputUserHeight) {
+    if (state.useInches) {
+      heightInputLabel.textContent = "Your Height (inches):";
+      const val = parseFloat(inputUserHeight.value);
+      if (val > 100) { // If it was in cm, convert to inches
+        inputUserHeight.value = parseFloat((val / 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputUserHeight.value = "68.9";
+      }
+    } else {
+      heightInputLabel.textContent = "Your Height (cm):";
+      const val = parseFloat(inputUserHeight.value);
+      if (val < 100) { // If it was in inches, convert to cm
+        inputUserHeight.value = parseFloat((val * 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputUserHeight.value = "175";
+      }
     }
-  } else {
-    heightInputLabel.textContent = "Your Height (cm):";
-    const val = parseFloat(inputUserHeight.value);
-    if (val < 100) { // If it was in inches, convert to cm
-      inputUserHeight.value = (val * 2.54).toFixed(1);
-    } else if (isNaN(val)) {
-      inputUserHeight.value = "175.0";
+  }
+
+  if (valHeightLabel && inputValidationHeight) {
+    if (state.useInches) {
+      valHeightLabel.textContent = "Your True Height (inches):";
+      const val = parseFloat(inputValidationHeight.value);
+      if (val > 100) { // If it was in cm, convert to inches
+        inputValidationHeight.value = parseFloat((val / 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputValidationHeight.value = "68.9";
+      }
+    } else {
+      valHeightLabel.textContent = "Your True Height (cm):";
+      const val = parseFloat(inputValidationHeight.value);
+      if (val < 100) { // If it was in inches, convert to cm
+        inputValidationHeight.value = parseFloat((val * 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputValidationHeight.value = "175";
+      }
     }
   }
 }

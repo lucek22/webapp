@@ -55,6 +55,7 @@
           <button id="tab-aruco-btn" class="btn btn-tab-active">ArUco (Auto)</button>
           <button id="tab-height-btn" class="btn btn-tab-inactive">Input Height</button>
           <button id="tab-portfolio-btn" class="btn btn-tab-inactive">Select Player Profile</button>
+          <button id="tab-validation-btn" class="btn btn-tab-inactive">ArUco Validation</button>
         </div>
 
         <!-- Panel 1: ArUco Calibration (Auto) -->
@@ -75,11 +76,10 @@
             </label>
             <label for="toggle-wall-perspective" class="cal-label" style="font-weight: 500; cursor: pointer; margin-bottom: 0; font-size: 0.8rem; user-select: none;">Wall-Mounted ArUco (Stand Beside)</label>
           </div>
-          <div id="wall-perspective-slider-container" class="calibration-row cal-row-center hidden" style="margin-top: 0.5rem; flex-direction: column; gap: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem;">
+          <div id="wall-perspective-container" class="calibration-row cal-row-center hidden" style="margin-top: 0.5rem; flex-direction: column; gap: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem;">
             <div style="display: flex; align-items: center; gap: 0.5rem; justify-content: center; width: 100%;">
-              <label for="wall-perspective-slider" class="cal-label" style="font-size: 0.75rem; margin-bottom: 0;">Correction Factor:</label>
-              <input type="range" id="wall-perspective-slider" class="slider" min="1.00" max="1.25" step="0.01" value="1.10" style="width: 120px;">
-              <span id="wall-perspective-val" style="font-size: 0.75rem; font-weight: bold; width: 2.5rem; text-align: left;" class="text-cyan">1.10x</span>
+              <label for="wall-perspective-input" class="cal-label" style="font-size: 0.75rem; margin-bottom: 0;">Correction Factor:</label>
+              <input type="number" id="wall-perspective-input" min="1.00" max="1.25" step="0.001" value="1.09">
             </div>
             <div style="font-size: 0.7rem; color: #a7b1b7; text-align: center; max-width: 90%; line-height: 1.2;">
               Compensates for depth difference when standing slightly in front of a wall-mounted card.
@@ -116,7 +116,40 @@
           </div>
           <div class="calibration-row cal-row-center">
             <label for="input-user-height">Your Height (inches):</label>
-            <input type="number" id="input-user-height" value="68.9" step="0.1">
+            <input type="number" id="input-user-height" value="68.9" step="0.01">
+          </div>
+        </div>
+        
+        <!-- Panel 4: Validation Calibration (ArUco + True Height Check) -->
+        <div id="panel-validation" class="cal-panel hidden">
+          <div class="calibration-row cal-status-info">
+            <span id="validation-status-text">🔍 Scanning for ArUco and standing pose...</span>
+          </div>
+          <div class="calibration-row cal-status-info">
+            Enter your true height below. We will use the ArUco marker to measure you and verify if it matches within 1cm.
+          </div>
+          <div class="calibration-row cal-row-center">
+            <label for="input-validation-height" id="validation-height-label">Your True Height (inches):</label>
+            <input type="number" id="input-validation-height" value="68.9" step="0.01">
+          </div>
+          <div class="calibration-row cal-row-center" style="margin-top: 0.35rem; gap: 0.5rem;">
+            <label class="switch-container">
+              <input type="checkbox" id="toggle-wall-perspective-validation">
+              <span class="switch-slider"></span>
+            </label>
+            <label for="toggle-wall-perspective-validation" class="cal-label" style="font-weight: 500; cursor: pointer; margin-bottom: 0; font-size: 0.8rem; user-select: none;">Wall-Mounted ArUco (Stand Beside)</label>
+          </div>
+          <div id="wall-perspective-container-validation" class="calibration-row cal-row-center hidden" style="margin-top: 0.5rem; flex-direction: column; gap: 0.35rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; justify-content: center; width: 100%;">
+              <label for="wall-perspective-input-validation" class="cal-label" style="font-size: 0.75rem; margin-bottom: 0;">Correction Factor:</label>
+              <input type="number" id="wall-perspective-input-validation" min="1.00" max="1.25" step="0.001" value="1.09">
+            </div>
+            <div style="font-size: 0.7rem; color: #a7b1b7; text-align: center; max-width: 90%; line-height: 1.2;">
+              Compensates for depth difference when standing slightly in front of a wall-mounted card.
+            </div>
+          </div>
+          <div id="validation-feedback-box" class="calibration-row cal-tip-box text-center hidden" style="border-radius: 6px; padding: 12px; font-weight: 500; font-size: 13px;">
+            <!-- Dynamic feedback -->
           </div>
         </div>
 

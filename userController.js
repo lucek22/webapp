@@ -1373,16 +1373,11 @@ export function onPoseResults(results) {
       } else {
         statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
         
-        // Check if there is a person/pose detected and calculated
-        const calculated = typeof calculatePoseMetrics === 'function' ? calculatePoseMetrics(results) : null;
+        feedbackBox.classList.remove('hidden', 'feedback-info', 'feedback-success', 'feedback-error');
         if (!calculated || !calculated.liveMetrics) {
-          feedbackBox.classList.remove('hidden');
-          feedbackBox.style.border = "1px dashed rgba(167, 177, 183, 0.4)";
-          feedbackBox.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
-          feedbackBox.style.color = "#a7b1b7";
+          feedbackBox.classList.add('feedback-info');
           feedbackBox.innerHTML = `👤 Please stand in view of the camera to perform real-time verification...`;
         } else {
-          feedbackBox.classList.remove('hidden');
           const liveHeight = calculated.liveMetrics.skeletal_height;
           const targetHeight = state.validationHeightCm;
           const diffCm = Math.abs(liveHeight - targetHeight);
@@ -1392,23 +1387,19 @@ export function onPoseResults(results) {
           const diffStr = state.useInches ? `${(diffCm / 2.54).toFixed(1)} in` : `${diffCm.toFixed(1)} cm`;
           
           if (diffCm <= 1.0) {
-            feedbackBox.style.border = "1px solid #10b981";
-            feedbackBox.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
-            feedbackBox.style.color = "#10b981";
+            feedbackBox.classList.add('feedback-success');
             feedbackBox.innerHTML = `
-              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #10b981;">✅ SUCCESS: Calibrated & Positioned Properly!</div>
+              <div class="feedback-title">✅ SUCCESS: Calibrated & Positioned Properly!</div>
               <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
+              <div class="feedback-subtitle">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
             `;
           } else {
-            feedbackBox.style.border = "1px solid #ec4899";
-            feedbackBox.style.backgroundColor = "rgba(236, 72, 153, 0.1)";
-            feedbackBox.style.color = "#ec4899";
+            feedbackBox.classList.add('feedback-error');
             feedbackBox.innerHTML = `
-              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #ec4899;">⚠️ POSITION CHECK: Discrepancy Found</div>
+              <div class="feedback-title">⚠️ POSITION CHECK: Discrepancy Found</div>
               <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: <strong style="color: #ec4899;">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
-              <div style="margin-top: 6px; font-size: 11px; color: #a7b1b7;">Please adjust your ArUco marker position or camera alignment.</div>
+              <div class="feedback-subtitle">Discrepancy: <strong class="text-red">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
+              <div class="feedback-subtitle feedback-instruction">Please adjust your ArUco marker position or camera alignment.</div>
             `;
           }
         }
@@ -2023,7 +2014,8 @@ export async function startCamera() {
 
   const exportCombinedBtn = document.getElementById('btn-export-combined');
   if (exportCombinedBtn) {
-    exportCombinedBtn.style.display = 'none';
+    exportCombinedBtn.classList.add('hidden');
+    exportCombinedBtn.classList.remove('visible-block');
   }
 
   if (btnExportVideo) {
@@ -2249,9 +2241,11 @@ export async function handleUploadedFile(file) {
   const exportCombinedBtn = document.getElementById('btn-export-combined');
   if (exportCombinedBtn) {
     if (isVideo) {
-      exportCombinedBtn.style.display = 'none';
+      exportCombinedBtn.classList.add('hidden');
+      exportCombinedBtn.classList.remove('visible-block');
     } else {
-      exportCombinedBtn.style.display = 'block';
+      exportCombinedBtn.classList.remove('hidden');
+      exportCombinedBtn.classList.add('visible-block');
     }
   }
 
@@ -3336,13 +3330,11 @@ if (btnApplyScale && inputPremeasuredScale) {
     state.calLocked = true;
 
     // Visual feedback glow
-    btnApplyScale.style.backgroundColor = '#10b981';
-    btnApplyScale.style.boxShadow = '0 0 12px #10b981';
+    btnApplyScale.classList.add('btn-success-glow');
     btnApplyScale.textContent = "Scale Applied! ✅";
     
     setTimeout(() => {
-      btnApplyScale.style.backgroundColor = '';
-      btnApplyScale.style.boxShadow = '';
+      btnApplyScale.classList.remove('btn-success-glow');
       btnApplyScale.textContent = "Apply Scale";
     }, 2000);
 
@@ -3762,7 +3754,7 @@ export function startVideoRecording() {
     function triggerDownload(blobToDownload, fileExt, finalDuration) {
       const url = URL.createObjectURL(blobToDownload);
       const a = document.createElement('a');
-      a.style.display = 'none';
+      a.classList.add('hidden');
       a.href = url;
       const subjectInput = document.getElementById('subject-name-input');
       const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
@@ -3890,24 +3882,24 @@ export function updateRecordButtonUI() {
   if (!btnExportVideo) return;
   const isVideo = state.isUploadedMedia && state.uploadedMediaType === 'video';
 
+  btnExportVideo.classList.remove('btn-export-cancel', 'btn-export-recording', 'btn-export-ready', 'recording-pulse');
+
   if (state.isExportingFrameByFrame) {
     btnExportVideo.innerHTML = `
-      <span class="recording-dot" style="background-color: #BA0C2F; animation: pulse 1s infinite;"></span>
+      <span class="recording-dot cancel"></span>
       Cancel Analysis...
     `;
-    btnExportVideo.style.background = 'linear-gradient(135deg, #475569, #334155)';
-    btnExportVideo.classList.add('recording-pulse');
+    btnExportVideo.classList.add('btn-export-cancel', 'recording-pulse');
   } else if (state.isRecording) {
     btnExportVideo.innerHTML = `
       <span class="recording-dot"></span>
       ${isVideo ? 'Exporting Full Video...' : 'Stop & Export Video'}
     `;
-    btnExportVideo.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
-    btnExportVideo.classList.add('recording-pulse');
+    btnExportVideo.classList.add('btn-export-recording', 'recording-pulse');
   } else {
     if (isVideo) {
       btnExportVideo.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-inline">
           <polyline points="8 17 12 21 16 17"></polyline>
           <line x1="12" y1="12" x2="12" y2="21"></line>
           <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
@@ -3916,15 +3908,14 @@ export function updateRecordButtonUI() {
       `;
     } else {
       btnExportVideo.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-inline">
           <circle cx="12" cy="12" r="10"></circle>
           <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
         </svg>
         Record & Export Video
       `;
     }
-    btnExportVideo.style.background = 'linear-gradient(135deg, #ec4899, #818cf8)';
-    btnExportVideo.classList.remove('recording-pulse');
+    btnExportVideo.classList.add('btn-export-ready');
   }
 }
 
@@ -4462,12 +4453,10 @@ export function importPriorPortfolio(report) {
 
   // High-end feedback animation on Import button
   if (btnImportPortfolio) {
-    btnImportPortfolio.style.backgroundColor = '#10b981';
-    btnImportPortfolio.style.boxShadow = '0 0 16px #10b981';
+    btnImportPortfolio.classList.add('btn-success-glow');
     btnImportPortfolio.textContent = "Session Imported Successfully! ✅";
     setTimeout(() => {
-      btnImportPortfolio.style.backgroundColor = '';
-      btnImportPortfolio.style.boxShadow = '';
+      btnImportPortfolio.classList.remove('btn-success-glow');
       btnImportPortfolio.textContent = "Import Prior Portfolio";
     }, 2000);
   }
@@ -5675,7 +5664,7 @@ export async function openProfileDetailsModal(profileId) {
     if (detailName) {
       detailName.innerHTML = `
         ${profile.name || "Anonymous Subject"} 
-        <button class="btn btn-rename-profile" style="background: none; border: none; padding: 2px 4px; color: #888; cursor: pointer; transition: color 0.2s; display: inline-flex; align-items: center; vertical-align: middle;" title="Rename Profile">
+        <button class="btn btn-rename-profile" title="Rename Profile">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 20h9"></path>
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
@@ -5767,7 +5756,7 @@ export async function openProfileDetailsModal(profileId) {
       if (metrics) {
         if (statusEl) {
           statusEl.textContent = "✅ Complete";
-          statusEl.style.color = "#10b981"; // Emerald green
+          statusEl.className = 'text-emerald';
         }
         if (imgSrc) {
           if (imgEl) imgEl.src = imgSrc;
@@ -5778,7 +5767,7 @@ export async function openProfileDetailsModal(profileId) {
       } else {
         if (statusEl) {
           statusEl.textContent = "❌ Missing";
-          statusEl.style.color = "#ef4444"; // Scarlet/red
+          statusEl.className = 'text-red';
         }
         if (containerEl) containerEl.classList.add('hidden');
         if (imgEl) imgEl.src = "";
@@ -5866,12 +5855,11 @@ export async function openProfileDetailsModal(profileId) {
       }
       const suffix = state.useInches ? "in" : "cm";
       return `
-        <div style="display: flex; align-items: center; gap: 4px;">
-          <input type="number" step="0.1" min="0" class="profile-edit-input" 
+        <div class="profile-cell-flex">
+          <input type="number" step="0.1" min="0" class="profile-edit-input single" 
                  data-pose="${poseKey}" data-key="${metricKey}" 
-                 value="${displayVal}" placeholder="--" 
-                 style="width: 60px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
-          <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+                 value="${displayVal}" placeholder="--">
+          <span class="profile-unit-suffix">${suffix}</span>
         </div>
       `;
     };
@@ -5890,22 +5878,20 @@ export async function openProfileDetailsModal(profileId) {
       }
       const suffix = state.useInches ? "in" : "cm";
       return `
-        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 100px;">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <span style="font-size: 0.7rem; color: #aaa; width: 12px;">L:</span>
-            <input type="number" step="0.1" min="0" class="profile-edit-input" 
+        <div class="profile-cell-flex-col">
+          <div class="profile-cell-flex">
+            <span class="profile-side-label">L:</span>
+            <input type="number" step="0.1" min="0" class="profile-edit-input pair" 
                    data-pose="${poseKey}" data-key="${leftMetricKey}" 
-                   value="${displayLeft}" placeholder="--" 
-                   style="width: 50px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
-            <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+                   value="${displayLeft}" placeholder="--">
+            <span class="profile-unit-suffix">${suffix}</span>
           </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <span style="font-size: 0.7rem; color: #aaa; width: 12px;">R:</span>
-            <input type="number" step="0.1" min="0" class="profile-edit-input" 
+          <div class="profile-cell-flex">
+            <span class="profile-side-label">R:</span>
+            <input type="number" step="0.1" min="0" class="profile-edit-input pair" 
                    data-pose="${poseKey}" data-key="${rightMetricKey}" 
-                   value="${displayRight}" placeholder="--" 
-                   style="width: 50px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
-            <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+                   value="${displayRight}" placeholder="--">
+            <span class="profile-unit-suffix">${suffix}</span>
           </div>
         </div>
       `;
@@ -5916,19 +5902,17 @@ export async function openProfileDetailsModal(profileId) {
         return `${valL || 0}° / ${valR || 0}°`;
       }
       return `
-        <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
-          <span style="font-size: 0.75rem; color: #aaa;">L:</span>
-          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input" 
+        <div class="profile-cell-flex-center">
+          <span class="profile-squat-label">L:</span>
+          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input profile-edit-input squat" 
                  data-joint="${jointKey}" data-side="L" 
-                 value="${valL || 0}" 
-                 style="width: 45px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px; border-radius: 3px; font-size: 0.85rem; text-align: center;">
-          <span style="font-size: 0.75rem; color: #888;">°</span>
-          <span style="font-size: 0.75rem; color: #aaa; margin-left: 4px;">R:</span>
-          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input" 
+                 value="${valL || 0}">
+          <span class="profile-deg-suffix">°</span>
+          <span class="profile-squat-label right">R:</span>
+          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input profile-edit-input squat" 
                  data-joint="${jointKey}" data-side="R" 
-                 value="${valR || 0}" 
-                 style="width: 45px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px; border-radius: 3px; font-size: 0.85rem; text-align: center;">
-          <span style="font-size: 0.75rem; color: #888;">°</span>
+                 value="${valR || 0}">
+          <span class="profile-deg-suffix">°</span>
         </div>
       `;
     };
@@ -6061,18 +6045,16 @@ export async function openProfileDetailsModal(profileId) {
     // 3b. Wire up metrics editing button event handlers
     const editBtn = document.getElementById('btn-edit-baseline-metrics');
     if (editBtn) {
+      editBtn.classList.remove('btn-save-metrics', 'btn-edit-metrics');
       if (state.isEditingProfileMetrics) {
         editBtn.innerHTML = '💾 Save Metrics';
-        editBtn.style.background = 'rgba(16, 185, 129, 0.15)';
-        editBtn.style.border = '1px solid rgba(16, 185, 129, 0.4)';
-        editBtn.style.color = '#10b981';
+        editBtn.classList.add('btn-save-metrics');
         
         let cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
         if (!cancelBtn) {
           cancelBtn = document.createElement('button');
           cancelBtn.id = 'btn-cancel-baseline-metrics';
-          cancelBtn.className = 'btn';
-          cancelBtn.style.cssText = 'background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 4px; margin-left: 4px;';
+          cancelBtn.className = 'btn btn-cancel-metrics';
           cancelBtn.innerHTML = '❌ Cancel';
           editBtn.parentNode.appendChild(cancelBtn);
         }
@@ -6151,9 +6133,7 @@ export async function openProfileDetailsModal(profileId) {
         };
       } else {
         editBtn.innerHTML = '✏️ Edit Metrics';
-        editBtn.style.background = 'rgba(0, 229, 255, 0.1)';
-        editBtn.style.border = '1px solid rgba(0, 229, 255, 0.3)';
-        editBtn.style.color = '#00e5ff';
+        editBtn.classList.add('btn-edit-metrics');
         
         const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
         if (cancelBtn) {
@@ -6189,12 +6169,14 @@ export async function openProfileDetailsModal(profileId) {
 
     if (mainVideoPlayer) {
       mainVideoPlayer.src = '';
-      mainVideoPlayer.style.display = 'none';
+      mainVideoPlayer.classList.add('hidden');
+      mainVideoPlayer.classList.remove('visible-block');
     }
     if (videoPlaceholder) {
-      videoPlaceholder.style.display = 'flex';
+      videoPlaceholder.classList.add('visible-flex');
+      videoPlaceholder.classList.remove('hidden');
       videoPlaceholder.innerHTML = `
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="playlist-placeholder-icon"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
         <span>Select a recording from the playlist below to play</span>
       `;
     }
@@ -6206,12 +6188,12 @@ export async function openProfileDetailsModal(profileId) {
       if (savedVideos.length === 0) {
         if (videoPlaceholder) {
           videoPlaceholder.innerHTML = `
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #444;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-            <span style="color: #666;">No video recordings saved for this profile yet.</span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="playlist-placeholder-icon-empty"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            <span class="playlist-empty-text">No video recordings saved for this profile yet.</span>
           `;
         }
         videosListEl.innerHTML = `
-          <div style="color: #555; font-size: 0.8rem; text-align: center; padding: 1.5rem 0;">
+          <div class="playlist-empty-placeholder">
             🎥 Playlist Empty
           </div>
         `;
@@ -6219,7 +6201,6 @@ export async function openProfileDetailsModal(profileId) {
         savedVideos.forEach((video, idx) => {
           const videoRow = document.createElement('div');
           videoRow.className = 'profile-video-row-item';
-          videoRow.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; padding: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; transition: all 0.2s;';
           
           const videoUrl = URL.createObjectURL(video.blob);
           state.modalObjectUrls.push(videoUrl);
@@ -6229,72 +6210,40 @@ export async function openProfileDetailsModal(profileId) {
           const durationStr = video.duration ? `${(video.duration / 1000).toFixed(1)}s` : '--';
           
           videoRow.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; flex-grow: 1; min-width: 0;">
-              <div class="playlist-play-icon" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: #888; flex-shrink: 0; transition: all 0.2s;">
+            <div class="playlist-video-info-container">
+              <div class="playlist-play-icon">
                 <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
               </div>
-              <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex-grow: 1;">
-                <div style="display: flex; align-items: center; gap: 4px; width: 100%;">
-                  <span class="playlist-video-name" style="font-size: 0.8rem; font-weight: 600; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">${video.name || 'Video Capture'}</span>
-                  <button class="btn btn-rename-video" style="background: none; border: none; padding: 2px; color: #666; cursor: pointer; transition: color 0.2s; display: flex; align-items: center;" title="Rename Video">
+              <div class="playlist-video-details">
+                <div class="playlist-video-title-row">
+                  <span class="playlist-video-name">${video.name || 'Video Capture'}</span>
+                  <button class="btn btn-rename-video" title="Rename Video">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   </button>
                 </div>
-                <span style="font-size: 0.7rem; color: #777;">${dateStr} &bull; ${sizeMb} MB &bull; ${durationStr}</span>
+                <span class="playlist-video-meta">${dateStr} &bull; ${sizeMb} MB &bull; ${durationStr}</span>
               </div>
             </div>
-            <div style="display: flex; gap: 4px; flex-shrink: 0;">
-              <button class="btn btn-dl-video" style="padding: 2px 6px; font-size: 0.7rem; background: rgba(212, 160, 23, 0.08); border: 1px solid rgba(212, 160, 23, 0.2); color: #d4a017; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
-                DL
-              </button>
-              <button class="btn btn-del-video" style="padding: 2px 6px; font-size: 0.7rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
-                DEL
-              </button>
+            <div class="playlist-row-actions">
+              <button class="btn btn-dl-video">DL</button>
+              <button class="btn btn-del-video">DEL</button>
             </div>
           `;
-
-          // Hover states
-          videoRow.addEventListener('mouseenter', () => {
-            if (!videoRow.classList.contains('active-playlist-item')) {
-              videoRow.style.background = 'rgba(255,255,255,0.05)';
-              videoRow.style.borderColor = 'rgba(255,255,255,0.1)';
-            }
-          });
-          videoRow.addEventListener('mouseleave', () => {
-            if (!videoRow.classList.contains('active-playlist-item')) {
-              videoRow.style.background = 'rgba(255,255,255,0.02)';
-              videoRow.style.borderColor = 'rgba(255,255,255,0.04)';
-            }
-          });
 
           // Play selection trigger
           const selectVideo = () => {
             const allItems = videosListEl.querySelectorAll('.profile-video-row-item');
-            allItems.forEach(item => {
-              item.classList.remove('active-playlist-item');
-              item.style.background = 'rgba(255,255,255,0.02)';
-              item.style.borderColor = 'rgba(255,255,255,0.04)';
-              const playIcon = item.querySelector('.playlist-play-icon');
-              if (playIcon) {
-                playIcon.style.background = 'rgba(255,255,255,0.05)';
-                playIcon.style.color = '#888';
-              }
-            });
+            allItems.forEach(item => item.classList.remove('active-playlist-item'));
 
             videoRow.classList.add('active-playlist-item');
-            videoRow.style.background = 'rgba(0, 229, 255, 0.08)';
-            videoRow.style.borderColor = 'rgba(0, 229, 255, 0.25)';
-            const playIcon = videoRow.querySelector('.playlist-play-icon');
-            if (playIcon) {
-              playIcon.style.background = 'var(--color-cyan)';
-              playIcon.style.color = '#000';
-            }
 
             if (mainVideoPlayer) {
               mainVideoPlayer.src = videoUrl;
-              mainVideoPlayer.style.display = 'block';
+              mainVideoPlayer.classList.add('visible-block');
+              mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
-                videoPlaceholder.style.display = 'none';
+                videoPlaceholder.classList.add('hidden');
+                videoPlaceholder.classList.remove('visible-flex');
               }
               mainVideoPlayer.play().catch(e => console.log("[VideoPlay] Autoplay blocked:", e));
             }
@@ -6310,18 +6259,13 @@ export async function openProfileDetailsModal(profileId) {
           // Auto pre-select the first video on open
           if (idx === 0) {
             videoRow.classList.add('active-playlist-item');
-            videoRow.style.background = 'rgba(0, 229, 255, 0.05)';
-            videoRow.style.borderColor = 'rgba(0, 229, 255, 0.15)';
-            const pIcon = videoRow.querySelector('.playlist-play-icon');
-            if (pIcon) {
-              pIcon.style.background = 'var(--color-cyan)';
-              pIcon.style.color = '#000';
-            }
             if (mainVideoPlayer) {
               mainVideoPlayer.src = videoUrl;
-              mainVideoPlayer.style.display = 'block';
+              mainVideoPlayer.classList.add('visible-block');
+              mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
-                videoPlaceholder.style.display = 'none';
+                videoPlaceholder.classList.add('hidden');
+                videoPlaceholder.classList.remove('visible-flex');
               }
             }
           }
@@ -6359,7 +6303,7 @@ export async function openProfileDetailsModal(profileId) {
           dlBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const a = document.createElement('a');
-            a.style.display = 'none';
+            a.classList.add('hidden');
             a.href = videoUrl;
             const fileExt = video.fileExt || 'webm';
             const cleanSubjectName = profile.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");

@@ -599,9 +599,9 @@ export function renderDashboard(metrics) {
   const activePoseDisp = document.getElementById('val-active-pose');
   if (activePoseDisp) {
     activePoseDisp.textContent = metrics.pose || "A-Pose";
-    activePoseDisp.classList.remove('text-cyan', 'text-emerald', 'text-violet');
+    activePoseDisp.classList.remove('text-red', 'text-emerald', 'text-violet');
     if (metrics.pose === "T-Pose") {
-      activePoseDisp.classList.add('text-cyan');
+      activePoseDisp.classList.add('text-red');
     } else if (metrics.pose === "Overhead Reach") {
       activePoseDisp.classList.add('text-emerald');
     } else {
@@ -675,6 +675,7 @@ export function drawActiveMediaBackground() {
 
 export function onPoseResults(results) {
   try {
+    let calculated = null;
     state.latestPoseResults = results;
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -688,7 +689,7 @@ export function onPoseResults(results) {
 
   const isStaticImage = state.isUploadedMedia && state.uploadedMediaType === 'image';
   if (isStaticImage && state.lastProcessedScaleFactor === state.pixelsPerCm && state.lastCalculatedResults) {
-    const calculated = state.lastCalculatedResults;
+    calculated = state.lastCalculatedResults;
     const {
       shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
       shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
@@ -971,7 +972,7 @@ export function onPoseResults(results) {
   }
 
   if (typeof calculatePoseMetrics === 'function') {
-    const calculated = calculatePoseMetrics(results);
+    calculated = calculatePoseMetrics(results);
 
     if (calculated) {
       if (isStaticImage) {
@@ -1329,7 +1330,7 @@ export function onPoseResults(results) {
         statusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
         feedbackBox.classList.add('hidden');
       } else {
-        statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+        statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
         
         feedbackBox.classList.remove('hidden', 'feedback-info', 'feedback-success', 'feedback-error');
         if (!calculated || !calculated.liveMetrics) {
@@ -2067,12 +2068,12 @@ export async function startCamera() {
           if (state.currentMode === 'squat') {
             state.latestArucoMarker = null;
             if (arucoStatusText) {
-              arucoStatusText.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
+              arucoStatusText.innerHTML = `<span style="color: #BA0C2F; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
             }
-          } else if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
+          } else if ((state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) && state.activeCalMethod !== 'aruco' && state.activeCalMethod !== 'validation') {
             state.latestArucoMarker = null;
             if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-              arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+              arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
             }
           } else if (typeof detectArucoMarker === 'function') {
             const found = detectArucoMarker(videoElement);
@@ -2095,12 +2096,12 @@ export async function startCamera() {
               state.calLocked = true;
 
               if (state.activeCalMethod === 'aruco') {
-                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               }
             } else {
               if (state.activeCalMethod === 'aruco') {
                 if (state.pixelsPerCm) {
-                  arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                  arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
                 } else {
                   arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
                 }
@@ -2374,12 +2375,12 @@ export function startUploadedMediaLoop() {
         if (state.currentMode === 'squat') {
           state.latestArucoMarker = null;
           if (arucoStatusText) {
-            arucoStatusText.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
+            arucoStatusText.innerHTML = `<span style="color: #BA0C2F; font-weight: 700;">Active Squat Analyzer Mode</span>`;
           }
-        } else if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
+        } else if ((state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) && state.activeCalMethod !== 'aruco' && state.activeCalMethod !== 'validation') {
           state.latestArucoMarker = null;
           if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-            arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+            arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
           }
         } else if (typeof detectArucoMarker === 'function') {
           const found = detectArucoMarker(uploadedVideo);
@@ -2405,7 +2406,7 @@ export function startUploadedMediaLoop() {
               state.calLocked = true;
 
               if (state.activeCalMethod === 'aruco') {
-                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               }
             } else {
               // If it's a tiny detection (likely noise), treat as not found in this frame
@@ -2414,7 +2415,7 @@ export function startUploadedMediaLoop() {
           } else {
             if (state.activeCalMethod === 'aruco') {
               if (state.pixelsPerCm) {
-                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               } else {
                 arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
               }
@@ -2664,7 +2665,7 @@ function openSnapshotModal(id) {
             statusClass = "text-emerald";
           } else if (maxKneeMob >= 75) {
             depthStatus = "Parallel Squat";
-            statusClass = "text-cyan";
+            statusClass = "text-red";
           } else if (maxKneeMob >= 30) {
             depthStatus = "Partial Squat";
             statusClass = "text-amber";
@@ -3234,6 +3235,23 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   if (method === 'height') {
     state.pixelsPerCm = null; // Calculated dynamically in frame loop
     state.calLocked = true;   // Automatically consider locked/calibrated
+  } else if (method === 'validation' || method === 'aruco') {
+    // For validation or aruco tab, keep current pixelsPerCm if already calibrated, or restore from active profile if any
+    if (state.activeProfileId && !state.pixelsPerCm) {
+      const activeProfile = state.allProfiles?.find(p => p.id === state.activeProfileId);
+      const activeSession = activeProfile?.sessions?.find(s => s.id === state.activeSessionId) || activeProfile?.sessions?.[activeProfile.sessions.length - 1];
+      const sessionPixelsPerCm = activeSession?.pixelsPerCm || activeProfile?.pixelsPerCm;
+      if (sessionPixelsPerCm) {
+        state.pixelsPerCm = sessionPixelsPerCm;
+        state.calLocked = true;
+      }
+    }
+    if (!state.pixelsPerCm) {
+      state.pixelsPerCm = null;
+      state.calLocked = false;
+    } else {
+      state.calLocked = true;
+    }
   } else {
     state.pixelsPerCm = null;
     state.calLocked = false;
@@ -3283,7 +3301,7 @@ if (btnApplyScale && inputPremeasuredScale) {
 
     // Update global scale indicators
     if (arucoStatusText) {
-      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
     }
     
     statusElement.textContent = `Scale calibration locked to pasted premeasured factor: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
@@ -4203,7 +4221,7 @@ export function importPriorPortfolio(report) {
       inputPremeasuredScale.value = report.pixelsPerCm.toFixed(2);
     }
     if (arucoStatusText) {
-      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
     }
   } else if (report.summary && report.summary.skeletal_height_cm) {
     console.log("[Portfolio Ingest] Report has skeletal height but no scale factor.");
@@ -4494,11 +4512,11 @@ function syncWallPerspectiveEnabled(enabled) {
     // Update UI status texts
     const arucoStatusText = document.getElementById('aruco-status-text');
     if (arucoStatusText && state.activeCalMethod === 'aruco') {
-      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
     const validationStatusText = document.getElementById('validation-status-text');
     if (validationStatusText && state.activeCalMethod === 'validation') {
-      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
   }
 }
@@ -4530,11 +4548,11 @@ function syncWallPerspectiveFactor(newVal) {
     // Update UI status texts
     const arucoStatusText = document.getElementById('aruco-status-text');
     if (arucoStatusText && state.activeCalMethod === 'aruco') {
-      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
     const validationStatusText = document.getElementById('validation-status-text');
     if (validationStatusText && state.activeCalMethod === 'validation') {
-      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
   }
 }
@@ -4728,7 +4746,7 @@ export function updateSquatDashboardOffline() {
 
   if (squatStatusVal) {
     squatStatusVal.textContent = 'Awaiting Subject';
-    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-cyan', 'text-emerald');
+    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-red', 'text-emerald');
     squatStatusVal.classList.add('text-slate');
   }
 }
@@ -4812,7 +4830,7 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
     statusClass = "text-emerald";
   } else if (maxKneeMob >= 75) {
     depthStatus = "Parallel Squat";
-    statusClass = "text-cyan";
+    statusClass = "text-red";
   } else if (maxKneeMob >= 30) {
     depthStatus = "Partial Squat";
     statusClass = "text-amber";
@@ -4823,7 +4841,7 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
 
   if (squatStatusVal) {
     squatStatusVal.textContent = depthStatus;
-    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-cyan', 'text-emerald');
+    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-red', 'text-emerald');
     squatStatusVal.classList.add(statusClass);
   }
 }
@@ -5645,7 +5663,7 @@ export async function loadProfileIntoState(profileId) {
       state.calLocked = true;
       const arucoStatusText = document.getElementById('aruco-status-text');
       if (arucoStatusText) {
-        arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+        arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
       }
       const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
       if (inputPremeasuredScale) {

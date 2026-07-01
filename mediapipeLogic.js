@@ -4,6 +4,7 @@
 import {
   state,
   smooth,
+  smoothAdaptive,
   calculateAngle,
   getCanvasX,
   formatLength,
@@ -23,7 +24,8 @@ import {
   RIGHT_HEEL,
   LEFT_FOOT_INDEX,
   RIGHT_FOOT_INDEX,
-  FINGER_COLORS
+  FINGER_COLORS,
+  MARKER_PHYSICAL_SIZE_CM
 } from './helpers.js';
 
 // MediaPipe Pose Setup
@@ -81,6 +83,23 @@ pose.onResults((results) => {
 // BIOMECHANICAL CALCULATIONS LOGIC
 // ==========================================
 
+// Biomechanical & Anthropometric Constants (Mitigating Calibration Debt)
+// These constants model standard anthropometric proportions (e.g., from databases like Drillis & Contini)
+// and compensate for systemic monocular depth compression/smoothing in MediaPipe.
+export const BIOMECH_CONSTANTS = {
+  // Scaling factors to estimate head top/crown from known landmarks (shoulder, ear)
+  CROWN_EST_SHOULDER_TO_EAR_RATIO: 0.65,
+  CROWN_EST_EAR_TO_EAR_RATIO: 0.70,
+
+  // Estimation factor to extend wrist-to-index distance into a full hand length (fingertip)
+  // MediaPipe Pose only tracks up to the index finger tip; 1.42x models full hand length.
+  HAND_LENGTH_ESTIMATION_FACTOR: 1.42,
+
+  // Anatomical correction factor for wingspan to compensate for monocular depth compression
+  // and neutral shoulder joint center-of-rotation placement in standard poses.
+  WINGSPAN_ANATOMICAL_CORRECTION_FACTOR: 1.11
+};
+
 /**
  * Extract landmarks, calculate joints in pixels, vertical/skeletal heights, and joint angles.
  * @param {Object} results MediaPipe pose results 
@@ -137,7 +156,10 @@ export function calculatePoseMetrics(results) {
   // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height or 70% of ear-to-ear distance above ear level (maximum to prevent shrugging/posture errors)
   const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
   const ear_to_ear_px = Math.hypot(mirrorX(lm[7].x) - mirrorX(lm[8].x), (lm[7].y - lm[8].y) * height);
-  const ear_to_crown_px = Math.max(shoulder_to_ear_px * 0.65, ear_to_ear_px * 0.70);
+  const ear_to_crown_px = Math.max(
+    shoulder_to_ear_px * BIOMECH_CONSTANTS.CROWN_EST_SHOULDER_TO_EAR_RATIO,
+    ear_to_ear_px * BIOMECH_CONSTANTS.CROWN_EST_EAR_TO_EAR_RATIO
+  );
   const head_top = {
     x: ear_mid.x,
     y: ear_mid.y - ear_to_crown_px
@@ -162,26 +184,6 @@ export function calculatePoseMetrics(results) {
 
   let liveMetrics = null;
   const wl = results.poseWorldLandmarks;
-
-  // Auto-calibrate state.pixelsPerCm using pre-measured portfolio stature if present
-  if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {
-    const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
-    const hip_mid_x = (hip_l.x + hip_r.x) / 2;
-    const hip_mid_y = (hip_l.y + hip_r.y) / 2;
-    const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
-    const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
-                     Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
-                     Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
-    const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
-                     Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
-                     Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
-    const average_leg_px = (leg_l_px + leg_r_px) / 2;
-    const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
-    if (skeletal_height_px > 10) {
-      state.pixelsPerCm = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
-      state.calLocked = true;
-    }
-  }
 
   // Perform 3D calculations if world landmarks are available
   if (wl && wl.length > 0) {
@@ -228,7 +230,10 @@ export function calculatePoseMetrics(results) {
       wl_ear_l.z - wl_ear_r.z
     );
 
-    const ear_to_crown_wl = Math.max(shoulder_to_ear_wl * 0.65, ear_to_ear_wl * 0.70);
+    const ear_to_crown_wl = Math.max(
+      shoulder_to_ear_wl * BIOMECH_CONSTANTS.CROWN_EST_SHOULDER_TO_EAR_RATIO,
+      ear_to_ear_wl * BIOMECH_CONSTANTS.CROWN_EST_EAR_TO_EAR_RATIO
+    );
 
     const wl_head_top = {
       x: wl_ear_mid.x,
@@ -264,30 +269,25 @@ export function calculatePoseMetrics(results) {
     const shoulderW_wl = Math.hypot(wl_shoulder_l.x - wl_shoulder_r.x, wl_shoulder_l.y - wl_shoulder_r.y, wl_shoulder_l.z - wl_shoulder_r.z) * 100;
     const hipW_wl = Math.hypot(wl_hip_l.x - wl_hip_r.x, wl_hip_l.y - wl_hip_r.y, wl_hip_l.z - wl_hip_r.z) * 100;
 
-    const wl_finger_l = wl[19] || wl[LEFT_WRIST];
-    const fingerToToeL_wl = Math.hypot(wl_finger_l.x - wl_toe_l.x, wl_finger_l.y - wl_toe_l.y, wl_finger_l.z - wl_toe_l.z) * 100;
-
-    const wl_finger_r = wl[20] || wl[RIGHT_WRIST];
-    const fingerToToeR_wl = Math.hypot(wl_finger_r.x - wl_toe_r.x, wl_finger_r.y - wl_toe_r.y, wl_finger_r.z - wl_toe_r.z) * 100;
-
     const wl_left_index = wl[19] || wl[LEFT_WRIST];
     const wl_right_index = wl[20] || wl[RIGHT_WRIST];
-    // Posture-independent, segment-summed path for 3D wingspan:
-    // (Left hand + Left forearm + Left upper arm + Shoulder width + Right upper arm + Right forearm + Right hand)
-    // Note: We scale wrist-to-index distance by 1.42x to estimate the full hand length up to the middle fingertip,
+
+    const fingerToToeL_wl = Math.hypot(wl_left_index.x - wl_toe_l.x, wl_left_index.y - wl_toe_l.y, wl_left_index.z - wl_toe_l.z) * 100;
+    const fingerToToeR_wl = Math.hypot(wl_right_index.x - wl_toe_r.x, wl_right_index.y - wl_toe_r.y, wl_right_index.z - wl_toe_r.z) * 100;
+    // Note: We scale wrist-to-index distance by HAND_LENGTH_ESTIMATION_FACTOR to estimate the full hand length up to the middle fingertip,
     // as MediaPipe Pose only tracks up to the index finger knuckle/tip.
-    const hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
-    const hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
-    // Note: We apply an anatomical correction factor of 1.11x to compensate for MediaPipe's systemic 
+    const hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * BIOMECH_CONSTANTS.HAND_LENGTH_ESTIMATION_FACTOR;
+    const hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * BIOMECH_CONSTANTS.HAND_LENGTH_ESTIMATION_FACTOR;
+    // Note: We apply an anatomical correction factor of WINGSPAN_ANATOMICAL_CORRECTION_FACTOR to compensate for MediaPipe's systemic 
     // monocular depth compression/smoothing of outstretched limbs and neutral shoulder joint center-of-rotation placement.
-    const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl) * 1.11;
+    const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl) * BIOMECH_CONSTANTS.WINGSPAN_ANATOMICAL_CORRECTION_FACTOR;
 
     // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
     const wingspan_straight_wl = Math.hypot(
       wl_left_index.x - wl_right_index.x,
       wl_left_index.y - wl_right_index.y,
       wl_left_index.z - wl_right_index.z
-    ) * 100 * 1.42 * 1.11;
+    ) * 100 * BIOMECH_CONSTANTS.HAND_LENGTH_ESTIMATION_FACTOR * BIOMECH_CONSTANTS.WINGSPAN_ANATOMICAL_CORRECTION_FACTOR;
 
     // Skeletal (posture-independent) stature calculation in 3D
     const head_segment_wl = Math.hypot(wl_head_top.x - wl_shoulder_mid.x, wl_head_top.y - wl_shoulder_mid.y, wl_head_top.z - wl_shoulder_mid.z) * 100;
@@ -334,21 +334,45 @@ export function calculatePoseMetrics(results) {
         if (state.activeCalMethod === 'aruco') {
           shouldUpdate3DScale = !!state.latestArucoMarker;
         } else if (state.activeCalMethod === 'validation') {
-          shouldUpdate3DScale = true; // Always allow calculation if person is tracked to show live height validation
+          shouldUpdate3DScale = !!state.latestArucoMarker; // Only update when ArUco is actively detected to prevent depth drift when stepping back
         } else if (state.activeCalMethod === 'card') {
           shouldUpdate3DScale = !state.calLocked || !state.scaleFactor3D;
         }
 
-        // Strictly do not calculate/update scaleFactor3D in ArUco mode unless we actively have a marker detected!
+        // Strictly do not calculate/update scaleFactor3D in ArUco or validation mode unless we actively have a marker detected!
         // This prevents the scale factor from initializing to some incorrect state when starting or when noise occurs.
-        const canCalculate = (state.activeCalMethod === 'aruco') ? !!state.latestArucoMarker : (shouldUpdate3DScale || !state.scaleFactor3D);
+        const canCalculate = (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation') ? !!state.latestArucoMarker : (shouldUpdate3DScale || !state.scaleFactor3D);
 
         if (canCalculate) {
-          // Find real torso length using 2d distance between shoulders and hips compared with the 2D calibration factor
-          const realTorsoLengthCm = torso_segment_px / state.pixelsPerCm;
-          if (torso_segment_wl > 5) {
+          let realTorsoLengthCm;
+          
+          if ((state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation') && state.latestArucoMarker) {
+            const corners = state.latestArucoMarker.corners;
+            const d01 = Math.hypot(corners[0].x - corners[1].x, corners[0].y - corners[1].y);
+            const d12 = Math.hypot(corners[1].x - corners[2].x, corners[1].y - corners[2].y);
+            const d23 = Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y);
+            const d30 = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
+            const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
+
+            if (edgeLengthPx > 25) {
+              // Measure raw pixel torso length against raw pixel ArUco length directly in this frame
+              const torsoToArucoRatio = torso_segment_px / edgeLengthPx;
+              realTorsoLengthCm = torsoToArucoRatio * MARKER_PHYSICAL_SIZE_CM;
+              if (state.wallPerspectiveEnabled && state.wallPerspectiveFactor) {
+                realTorsoLengthCm /= state.wallPerspectiveFactor;
+              }
+            } else {
+              // Fallback to pixelsPerCm
+              realTorsoLengthCm = torso_segment_px / state.pixelsPerCm;
+            }
+          } else {
+            // Card or other mode fallback
+            realTorsoLengthCm = torso_segment_px / state.pixelsPerCm;
+          }
+
+          if (torso_segment_wl > 5 && realTorsoLengthCm) {
             const rawScale3D = realTorsoLengthCm / torso_segment_wl;
-            scaleFactor3D = smooth('scale_factor_3d_aruco', rawScale3D, 8, 0.25);
+            scaleFactor3D = smoothAdaptive('scale_factor_3d_aruco', rawScale3D, 12, 0.05);
             state.scaleFactor3D = scaleFactor3D;
           }
         } else {
@@ -375,7 +399,8 @@ export function calculatePoseMetrics(results) {
 
     if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {
       if (skeletal_height_px > 10) {
-        state.pixelsPerCm = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
+        const rawScale = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
+        state.pixelsPerCm = smooth('portfolio_calibration', rawScale, 15, 0.15);
         state.calLocked = true;
       }
     } else if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
@@ -410,8 +435,8 @@ export function calculatePoseMetrics(results) {
         hipW: smooth('hipW', hipW_wl * scaleFactor3D, 8, 0.25),
         wingspan: smooth('wingspan_distance', wingspan_wl * scaleFactor3D, 8, 0.25),
 
-        skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm, 8, 0.25),
-        live_height: smooth('body_height_live', wl_vertical_height_cm * scaleFactor3D, 8, 0.25),
+        skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smoothAdaptive('body_height_skeletal', skeletal_height_cm, 12, 0.05, 1.0),
+        live_height: smoothAdaptive('body_height_live', wl_vertical_height_cm * scaleFactor3D, 12, 0.05, 1.0),
 
         kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR
       };
@@ -432,6 +457,7 @@ export function calculatePoseMetrics(results) {
           detectedPose = "A-Pose";
         }
       }
+      liveMetrics.pose = detectedPose;
     }
   }
 

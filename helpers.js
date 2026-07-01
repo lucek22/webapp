@@ -272,7 +272,7 @@ const lastEmaValues = {};
 // ==========================================
 // MATH & STRING FORMATTING HELPER FUNCTIONS
 // ==========================================
-export function smooth(key, val, windowSize = 15, emaAlpha = 0.15) {
+export function smooth(key, val, windowSize = 15, emaAlpha = 0.15, maxDelta = null) {
   if (!smoothBuffers[key]) smoothBuffers[key] = [];
   const buf = smoothBuffers[key];
   buf.push(val);
@@ -288,7 +288,63 @@ export function smooth(key, val, windowSize = 15, emaAlpha = 0.15) {
     return median;
   }
   
-  lastEmaValues[key] = emaAlpha * median + (1 - emaAlpha) * lastEmaValues[key];
+  let target = median;
+  if (maxDelta !== null && maxDelta !== undefined) {
+    const diff = target - lastEmaValues[key];
+    if (Math.abs(diff) > maxDelta) {
+      target = lastEmaValues[key] + Math.sign(diff) * maxDelta;
+    }
+  }
+
+  lastEmaValues[key] = emaAlpha * target + (1 - emaAlpha) * lastEmaValues[key];
+  return lastEmaValues[key];
+}
+
+/**
+ * Adaptive smoothing filter that scales filter coefficient (alpha) dynamically:
+ * - Ultra-smooth lock (alpha = 0.015) when value is nearly stable (< 3.0 delta)
+ * - Quick, responsive convergence (alpha = 0.35) when major motion or state transitions occur (> 10.0 delta)
+ * - Seamless linear interpolation between stable and transient states
+ */
+export function smoothAdaptive(key, val, windowSize = 12, baseAlpha = 0.05, maxDelta = null) {
+  if (!smoothBuffers[key]) smoothBuffers[key] = [];
+  const buf = smoothBuffers[key];
+  buf.push(val);
+  if (buf.length > windowSize) buf.shift();
+
+  // 1. Median filtering
+  const sorted = [...buf].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+
+  if (lastEmaValues[key] === undefined) {
+    lastEmaValues[key] = median;
+    return median;
+  }
+
+  const diff = median - lastEmaValues[key];
+  const absDiff = Math.abs(diff);
+
+  // Dynamic Alpha adaptation based on absolute delta
+  let alpha = baseAlpha;
+  if (absDiff < 3.0) {
+    alpha = 0.012; // Ultra-strong noise rejection when stationary (locks within ~1.2%)
+  } else if (absDiff > 10.0) {
+    alpha = 0.35;  // Fast convergence to eliminate lag on entry/exit/major moves
+  } else {
+    // Linear interpolation between the two bounds (3.0 to 10.0)
+    const t = (absDiff - 3.0) / 7.0;
+    alpha = 0.012 + t * (baseAlpha - 0.012);
+  }
+
+  let target = median;
+  if (maxDelta !== null && maxDelta !== undefined) {
+    const currentMaxDelta = absDiff > 10.0 ? maxDelta * 3 : maxDelta;
+    if (absDiff > currentMaxDelta) {
+      target = lastEmaValues[key] + Math.sign(diff) * currentMaxDelta;
+    }
+  }
+
+  lastEmaValues[key] = alpha * target + (1 - alpha) * lastEmaValues[key];
   return lastEmaValues[key];
 }
 
@@ -305,6 +361,16 @@ export function clearSmoothBuffer(key) {
     delete lastEmaValues[key];
   }
 }
+
+export function scaleSmoothBuffer(key, factor) {
+  if (smoothBuffers[key]) {
+    smoothBuffers[key] = smoothBuffers[key].map(v => v * factor);
+  }
+  if (lastEmaValues[key] !== undefined) {
+    lastEmaValues[key] *= factor;
+  }
+}
+
 
 
 export function calculateAngle(p_vertex, p_arm1, p_arm2) {

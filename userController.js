@@ -11,6 +11,7 @@ import {
   MARKER_PHYSICAL_SIZE_CM,
   smooth,
   clearSmoothBuffer,
+  scaleSmoothBuffer,
   getCanvasX,
   formatLength,
   updateHeightInputUnit,
@@ -2087,16 +2088,29 @@ export async function startCamera() {
               const d30 = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
               const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
 
-              const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
-              if (state.wallPerspectiveEnabled) {
-                state.pixelsPerCm = smoothedScale * state.wallPerspectiveFactor;
-              } else {
-                state.pixelsPerCm = smoothedScale;
-              }
-              state.calLocked = true;
+              // Safeguard: Ignore noise / false detections with extremely small edge lengths
+              if (edgeLengthPx > 25) {
+                const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
+                if (state.wallPerspectiveEnabled) {
+                  state.pixelsPerCm = smoothedScale * state.wallPerspectiveFactor;
+                } else {
+                  state.pixelsPerCm = smoothedScale;
+                }
+                state.calLocked = true;
 
-              if (state.activeCalMethod === 'aruco') {
-                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                if (state.activeCalMethod === 'aruco') {
+                  arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                }
+              } else {
+                // If it's a tiny detection (likely noise), treat as not found in this frame
+                state.latestArucoMarker = null;
+                if (state.activeCalMethod === 'aruco') {
+                  if (state.pixelsPerCm) {
+                    arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                  } else {
+                    arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
+                  }
+                }
               }
             } else {
               if (state.activeCalMethod === 'aruco') {
@@ -4501,12 +4515,27 @@ function syncWallPerspectiveEnabled(enabled) {
     else containerVal.classList.add('hidden');
   }
 
-  // Adjust cached pixelsPerCm immediately if it exists
+  // Adjust cached pixelsPerCm and scaleFactor3D immediately if they exist
   if (state.pixelsPerCm && wasEnabled !== enabled) {
+    const scaleRatio = state.wallPerspectiveFactor;
     if (enabled) {
-      state.pixelsPerCm *= state.wallPerspectiveFactor;
+      state.pixelsPerCm *= scaleRatio;
+      if (state.scaleFactor3D) {
+        state.scaleFactor3D /= scaleRatio;
+        scaleSmoothBuffer('scale_factor_3d_aruco', 1 / scaleRatio);
+        scaleSmoothBuffer('scale_factor_3d_height', 1 / scaleRatio);
+        scaleSmoothBuffer('body_height_skeletal', 1 / scaleRatio);
+        scaleSmoothBuffer('body_height_live', 1 / scaleRatio);
+      }
     } else {
-      state.pixelsPerCm /= state.wallPerspectiveFactor;
+      state.pixelsPerCm /= scaleRatio;
+      if (state.scaleFactor3D) {
+        state.scaleFactor3D *= scaleRatio;
+        scaleSmoothBuffer('scale_factor_3d_aruco', scaleRatio);
+        scaleSmoothBuffer('scale_factor_3d_height', scaleRatio);
+        scaleSmoothBuffer('body_height_skeletal', scaleRatio);
+        scaleSmoothBuffer('body_height_live', scaleRatio);
+      }
     }
 
     // Update UI status texts
@@ -4541,9 +4570,18 @@ function syncWallPerspectiveFactor(newVal) {
     inputVal.value = parseFloat(newVal.toFixed(3));
   }
 
-  // Adjust cached pixelsPerCm immediately if it exists
+  // Adjust cached pixelsPerCm and scaleFactor3D immediately if they exist
   if (state.wallPerspectiveEnabled && state.pixelsPerCm && oldVal > 0) {
-    state.pixelsPerCm = (state.pixelsPerCm / oldVal) * newVal;
+    const scaleRatio = newVal / oldVal;
+    state.pixelsPerCm *= scaleRatio;
+
+    if (state.scaleFactor3D) {
+      state.scaleFactor3D /= scaleRatio;
+      scaleSmoothBuffer('scale_factor_3d_aruco', 1 / scaleRatio);
+      scaleSmoothBuffer('scale_factor_3d_height', 1 / scaleRatio);
+      scaleSmoothBuffer('body_height_skeletal', 1 / scaleRatio);
+      scaleSmoothBuffer('body_height_live', 1 / scaleRatio);
+    }
 
     // Update UI status texts
     const arucoStatusText = document.getElementById('aruco-status-text');

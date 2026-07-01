@@ -336,7 +336,8 @@ export const state = {
   mediaRecorder: null,
   scaleFactor3D: null,
   imageSquatL: null,
-  imageSquatR: null
+  imageSquatR: null,
+  imageSquatFrontal: null
 };
 
 const smoothBuffers = {};

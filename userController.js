@@ -190,6 +190,7 @@ const squatStatusVal = document.getElementById('squat-status-val');
 
 const btnSquatSideLeft = document.getElementById('btn-squat-side-left');
 const btnSquatSideRight = document.getElementById('btn-squat-side-right');
+const btnSquatSideFrontal = document.getElementById('btn-squat-side-frontal');
 
 
 // UI Calibration Toggles & Panels
@@ -803,10 +804,21 @@ export function onPoseResults(results) {
         state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
         state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
         state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-      } else {
+      } else if (state.squatTestingSide === 'right') {
         state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
         state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
         state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      } else if (state.squatTestingSide === 'frontal') {
+        if (state.allowFrontalUpdateL) {
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        }
+        if (state.allowFrontalUpdateR) {
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        }
       }
 
       if (state.currentMode === 'squat') {
@@ -1140,10 +1152,21 @@ export function onPoseResults(results) {
         state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
         state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
         state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-      } else {
+      } else if (state.squatTestingSide === 'right') {
         state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
         state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
         state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      } else if (state.squatTestingSide === 'frontal') {
+        if (state.allowFrontalUpdateL) {
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        }
+        if (state.allowFrontalUpdateR) {
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        }
       }
 
       // If in squat mode, update the Overhead Squat dashboard UI
@@ -2200,7 +2223,11 @@ export async function startCamera() {
     videoElement.onplay = () => {
       if (state.currentMode === 'squat') {
         const side = state.squatTestingSide || 'left';
-        statusElement.textContent = `Active squat tracking. Position subject profile view for the ${side.toUpperCase()} side.`;
+        if (side === 'frontal') {
+          statusElement.textContent = `Active squat tracking. Position subject facing front for the FRONTAL view.`;
+        } else {
+          statusElement.textContent = `Active squat tracking. Position subject profile view for the ${side.toUpperCase()} side.`;
+        }
       } else {
         statusElement.textContent = "Active tracking. Present your printed ArUco marker to calibrate scale!";
       }
@@ -3900,7 +3927,7 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
       profile.videos = profile.videos || [];
       
       const labelPrefix = state.currentMode === 'squat' 
-        ? (state.squatTestingSide === 'left' ? "Left Overhead Squat" : "Right Overhead Squat") 
+        ? (state.squatTestingSide === 'left' ? "Left Overhead Squat" : (state.squatTestingSide === 'right' ? "Right Overhead Squat" : "Frontal Overhead Squat")) 
         : "Video Capture";
         
       const videoEntry = {
@@ -4866,9 +4893,15 @@ export function updateSquatSideUI() {
     if (side === 'left') {
       btnSquatSideLeft.classList.add('active-left');
       btnSquatSideRight.classList.remove('active-right');
-    } else {
+      if (btnSquatSideFrontal) btnSquatSideFrontal.classList.remove('active-frontal');
+    } else if (side === 'right') {
       btnSquatSideRight.classList.add('active-right');
       btnSquatSideLeft.classList.remove('active-left');
+      if (btnSquatSideFrontal) btnSquatSideFrontal.classList.remove('active-frontal');
+    } else if (side === 'frontal') {
+      if (btnSquatSideFrontal) btnSquatSideFrontal.classList.add('active-frontal');
+      btnSquatSideLeft.classList.remove('active-left');
+      btnSquatSideRight.classList.remove('active-right');
     }
   }
 
@@ -4882,7 +4915,7 @@ export function updateSquatSideUI() {
         box.classList.add('inactive-side');
         box.classList.remove('active-right');
       }
-    } else {
+    } else if (side === 'right') {
       if (box.classList.contains('right-border')) {
         box.classList.add('active-right');
         box.classList.remove('inactive-side');
@@ -4890,8 +4923,26 @@ export function updateSquatSideUI() {
         box.classList.add('inactive-side');
         box.classList.remove('active-left');
       }
+    } else if (side === 'frontal') {
+      if (box.classList.contains('left-border')) {
+        box.classList.add('active-left');
+        box.classList.remove('inactive-side');
+      }
+      if (box.classList.contains('right-border')) {
+        box.classList.add('active-right');
+        box.classList.remove('inactive-side');
+      }
     }
   });
+
+  const squatAsymmetryRow = document.getElementById('squat-asymmetry-row');
+  if (squatAsymmetryRow) {
+    if (side === 'frontal') {
+      squatAsymmetryRow.classList.remove('hidden');
+    } else {
+      squatAsymmetryRow.classList.add('hidden');
+    }
+  }
 }
 
 export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR) {
@@ -4910,10 +4961,21 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
     state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
     state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
     state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-  } else {
+  } else if (state.squatTestingSide === 'right') {
     state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
     state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
     state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+  } else if (state.squatTestingSide === 'frontal') {
+    if (state.allowFrontalUpdateL) {
+      state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+      state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+      state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+    }
+    if (state.allowFrontalUpdateR) {
+      state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+      state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+      state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+    }
   }
 
   if (state.activeProfileId && JSON.stringify(state.squatPeaks) !== prevPeaks) {
@@ -4951,6 +5013,45 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
     squatStatusVal.textContent = depthStatus;
     squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-cyan', 'text-emerald');
     squatStatusVal.classList.add(statusClass);
+  }
+
+  // Real-time Frontal Asymmetry display in sidebar
+  const squatAsymmetryVal = document.getElementById('squat-asymmetry-val');
+  if (squatAsymmetryVal) {
+    if (state.squatTestingSide === 'frontal') {
+      if (maxKneeMob >= 30) {
+        const kneeDiff = Math.abs(kneeMobL - kneeMobR);
+        const hipDiff = Math.abs(hipMobL - hipMobR);
+        const ankleDiff = Math.abs(ankleMobL - ankleMobR);
+        
+        let maxDiff = 0;
+        let asymmetricJoint = "None";
+        
+        if (kneeDiff > maxDiff) {
+          maxDiff = kneeDiff;
+          asymmetricJoint = `Knee (${kneeDiff}° L/R)`;
+        }
+        if (hipDiff > maxDiff) {
+          maxDiff = hipDiff;
+          asymmetricJoint = `Hip (${hipDiff}° L/R)`;
+        }
+        if (ankleDiff > maxDiff) {
+          maxDiff = ankleDiff;
+          asymmetricJoint = `Ankle (${ankleDiff}° L/R)`;
+        }
+        
+        if (maxDiff > 5) {
+          squatAsymmetryVal.textContent = asymmetricJoint;
+          squatAsymmetryVal.style.color = '#ff9f43'; // Amber
+        } else {
+          squatAsymmetryVal.textContent = 'None';
+          squatAsymmetryVal.style.color = '#10b981'; // Emerald
+        }
+      } else {
+        squatAsymmetryVal.textContent = 'None';
+        squatAsymmetryVal.style.color = '#10b981'; // Emerald
+      }
+    }
   }
 }
 
@@ -5078,6 +5179,8 @@ if (btnModeSquat) {
 if (btnSquatSideLeft) {
   btnSquatSideLeft.addEventListener('click', () => {
     state.squatTestingSide = 'left';
+    state.allowFrontalUpdateL = false;
+    state.allowFrontalUpdateR = false;
     updateSquatSideUI();
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
@@ -5087,6 +5190,20 @@ if (btnSquatSideLeft) {
 if (btnSquatSideRight) {
   btnSquatSideRight.addEventListener('click', () => {
     state.squatTestingSide = 'right';
+    state.allowFrontalUpdateL = false;
+    state.allowFrontalUpdateR = false;
+    updateSquatSideUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    }
+  });
+}
+if (btnSquatSideFrontal) {
+  btnSquatSideFrontal.addEventListener('click', () => {
+    state.squatTestingSide = 'frontal';
+    // Only allow updating left/right peak metrics during a frontal squat if they are currently 0 (missing)
+    state.allowFrontalUpdateL = (!state.squatPeaks || state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0 && state.squatPeaks.ankleL === 0);
+    state.allowFrontalUpdateR = (!state.squatPeaks || state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0 && state.squatPeaks.ankleR === 0);
     updateSquatSideUI();
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
@@ -5146,8 +5263,10 @@ if (btnSaveSquatPeaks) {
         const capturedImg = canvasElement.toDataURL('image/png');
         if (state.squatTestingSide === 'left') {
           state.imageSquatL = capturedImg;
-        } else {
+        } else if (state.squatTestingSide === 'right') {
           state.imageSquatR = capturedImg;
+        } else if (state.squatTestingSide === 'frontal') {
+          state.imageSquatFrontal = capturedImg;
         }
         await autoSyncToActiveProfile();
         
@@ -5684,6 +5803,7 @@ export async function initializeProfilesSelector() {
     setupPreviewClick('detail-preview-container-overhead', 'detail-preview-img-overhead', 'Overhead (Reach)');
     setupPreviewClick('detail-preview-container-squat-l', 'detail-preview-img-squat-l', 'Left Overhead Squat');
     setupPreviewClick('detail-preview-container-squat-r', 'detail-preview-img-squat-r', 'Right Overhead Squat');
+    setupPreviewClick('detail-preview-container-squat-frontal', 'detail-preview-img-squat-frontal', 'Frontal Overhead Squat');
   }
 }
 
@@ -5774,7 +5894,8 @@ export function ensureProfileSessions(profile) {
       imageT: profile.imageT || null,
       imageOverhead: profile.imageOverhead || null,
       imageSquatL: profile.imageSquatL || null,
-      imageSquatR: profile.imageSquatR || null
+      imageSquatR: profile.imageSquatR || null,
+      imageSquatFrontal: profile.imageSquatFrontal || null
     };
     profile.sessions = [baselineSession];
     profile.activeSessionId = baselineSession.id;
@@ -5817,6 +5938,7 @@ export async function loadProfileIntoState(profileId) {
     state.imageOverhead = activeSession.imageOverhead || null;
     state.imageSquatL = activeSession.imageSquatL || null;
     state.imageSquatR = activeSession.imageSquatR || null;
+    state.imageSquatFrontal = activeSession.imageSquatFrontal || null;
     
     state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile, activeSession.id);
 
@@ -5927,6 +6049,7 @@ export async function loadProfileIntoState(profileId) {
               imageOverhead: null,
               imageSquatL: null,
               imageSquatR: null,
+              imageSquatFrontal: null,
               pixelsPerCm: null
             };
             profile.sessions.push(newSession);
@@ -5981,6 +6104,7 @@ export async function autoSyncToActiveProfile() {
     session.imageOverhead = state.imageOverhead;
     session.imageSquatL = state.imageSquatL;
     session.imageSquatR = state.imageSquatR;
+    session.imageSquatFrontal = state.imageSquatFrontal;
     
     // Keep profile-level active session and timestamp synced
     profile.timestamp = Date.now();
@@ -5997,6 +6121,7 @@ export async function autoSyncToActiveProfile() {
     profile.imageOverhead = state.imageOverhead;
     profile.imageSquatL = state.imageSquatL;
     profile.imageSquatR = state.imageSquatR;
+    profile.imageSquatFrontal = state.imageSquatFrontal;
     
     await snapshotStore.saveProfile(profile);
     console.log(`[autoSync] Synced active profile: ${profile.name}, session: ${session.name}`);
@@ -6140,7 +6265,8 @@ export async function openProfileDetailsModal(profileId) {
           imageT: null,
           imageOverhead: null,
           imageSquatL: null,
-          imageSquatR: null
+          imageSquatR: null,
+          imageSquatFrontal: null
         };
 
         profile.sessions.push(newSession);
@@ -6157,6 +6283,7 @@ export async function openProfileDetailsModal(profileId) {
         state.imageOverhead = null;
         state.imageSquatL = null;
         state.imageSquatR = null;
+        state.imageSquatFrontal = null;
 
         await snapshotStore.saveProfile(profile);
         await loadProfileIntoState(profileId);
@@ -6291,13 +6418,14 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    // 5. Pose status cards (now 5 items)
+    // 5. Pose status cards (now 6 items)
     const poses = [
       { key: 'a', metricsKey: 'metricsA', imgKey: 'imageA', title: 'A-Pose (Stature)', color: 'var(--color-scarlet)' },
       { key: 't', metricsKey: 'metricsT', imgKey: 'imageT', title: 'T-Pose (Wingspan)', color: 'var(--color-cyan)' },
       { key: 'overhead', metricsKey: 'metricsOverhead', imgKey: 'imageOverhead', title: 'Overhead (Reach)', color: '#d4a017' },
       { key: 'squat-l', metricsKey: 'squatPeaks', imgKey: 'imageSquatL', title: 'Left Overhead Squat', color: '#9333ea', isSquat: true, squatSide: 'kneeL' },
-      { key: 'squat-r', metricsKey: 'squatPeaks', imgKey: 'imageSquatR', title: 'Right Overhead Squat', color: '#a855f7', isSquat: true, squatSide: 'kneeR' }
+      { key: 'squat-r', metricsKey: 'squatPeaks', imgKey: 'imageSquatR', title: 'Right Overhead Squat', color: '#a855f7', isSquat: true, squatSide: 'kneeR' },
+      { key: 'squat-frontal', metricsKey: 'squatPeaks', imgKey: 'imageSquatFrontal', title: 'Frontal Overhead Squat', color: '#ec4899', isSquat: true, squatSide: 'frontal' }
     ];
 
     poses.forEach(p => {
@@ -6309,9 +6437,14 @@ export async function openProfileDetailsModal(profileId) {
       let imgSrc = null;
       
       if (p.isSquat) {
-        const peakVal = activeSession.squatPeaks ? activeSession.squatPeaks[p.squatSide] : 0;
-        imgSrc = activeSession[p.imgKey];
-        hasData = (peakVal > 0) || !!imgSrc;
+        if (p.squatSide === 'frontal') {
+          imgSrc = activeSession[p.imgKey];
+          hasData = !!imgSrc;
+        } else {
+          const peakVal = activeSession.squatPeaks ? activeSession.squatPeaks[p.squatSide] : 0;
+          imgSrc = activeSession[p.imgKey];
+          hasData = (peakVal > 0) || !!imgSrc;
+        }
       } else {
         hasData = !!activeSession[p.metricsKey];
         imgSrc = activeSession[p.imgKey];
@@ -6701,6 +6834,7 @@ export async function openProfileDetailsModal(profileId) {
             freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
             freshProfileMigrated.imageSquatL = freshActiveSession.imageSquatL;
             freshProfileMigrated.imageSquatR = freshActiveSession.imageSquatR;
+            freshProfileMigrated.imageSquatFrontal = freshActiveSession.imageSquatFrontal;
 
             await snapshotStore.saveProfile(freshProfileMigrated);
             state.allProfiles = await snapshotStore.getAllProfiles();
@@ -6743,6 +6877,39 @@ export async function openProfileDetailsModal(profileId) {
     if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
+
+    // Peak-level Asymmetry Summary rendering
+    const detailSquatAsymmetrySummary = document.getElementById('detail-squat-asymmetry-summary');
+    if (detailSquatAsymmetrySummary) {
+      const hasAnyPeaks = (sPeaks.kneeL > 0 || sPeaks.kneeR > 0 || sPeaks.hipL > 0 || sPeaks.hipR > 0 || sPeaks.ankleL > 0 || sPeaks.ankleR > 0);
+      if (!hasAnyPeaks) {
+        detailSquatAsymmetrySummary.textContent = "Peak Asymmetry: No current squat metrics.";
+        detailSquatAsymmetrySummary.style.color = "#aaa";
+        detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 255, 255, 0.03)";
+        detailSquatAsymmetrySummary.style.background = "rgba(255, 255, 255, 0.01)";
+      } else {
+        const kneeDiff = Math.abs(sPeaks.kneeL - sPeaks.kneeR);
+        const hipDiff = Math.abs(sPeaks.hipL - sPeaks.hipR);
+        const ankleDiff = Math.abs(sPeaks.ankleL - sPeaks.ankleR);
+        
+        let asymmetricJoints = [];
+        if (kneeDiff > 5) asymmetricJoints.push(`Knee (${kneeDiff}°)`);
+        if (hipDiff > 5) asymmetricJoints.push(`Hip (${hipDiff}°)`);
+        if (ankleDiff > 5) asymmetricJoints.push(`Ankle (${ankleDiff}°)`);
+        
+        if (asymmetricJoints.length > 0) {
+          detailSquatAsymmetrySummary.textContent = `Significant Peak Asymmetry: ${asymmetricJoints.join(', ')} L/R difference.`;
+          detailSquatAsymmetrySummary.style.color = "#ff9f43"; // Amber
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 159, 67, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(255, 159, 67, 0.04)";
+        } else {
+          detailSquatAsymmetrySummary.textContent = `Peak Asymmetry: Balanced L/R mobility (all joints within 5°).`;
+          detailSquatAsymmetrySummary.style.color = "#10b981"; // Emerald
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(16, 185, 129, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(16, 185, 129, 0.04)";
+        }
+      }
+    }
 
     // 10. Populate Saved Videos & Interactive Playlist Manager
     if (state.modalObjectUrls) {

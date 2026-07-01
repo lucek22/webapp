@@ -111,8 +111,10 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
       if (state.currentMode === 'squat') {
         if (state.squatTestingSide === 'left') {
           state.imageSquatL = capturedImg;
-        } else {
+        } else if (state.squatTestingSide === 'right') {
           state.imageSquatR = capturedImg;
+        } else {
+          state.imageSquatFrontal = capturedImg;
         }
       } else {
         const poseName = state.frozenMetrics.pose || "A-Pose";

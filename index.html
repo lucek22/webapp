@@ -502,6 +502,10 @@
                 <span id="squat-status-val" class="metric-val text-slate">Awaiting Subject</span>
               </div>
             </div>
+            <div class="metric-row hidden" id="squat-asymmetry-row" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Frontal Asymmetry:</span>
+              <span id="squat-asymmetry-val" style="font-size: 0.85rem; font-weight: 700; color: #10b981;">None</span>
+            </div>
           </div>
         </div>
 
@@ -519,6 +523,7 @@
               <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
                 <button id="btn-squat-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">LEFT</button>
                 <button id="btn-squat-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">RIGHT</button>
+                <button id="btn-squat-side-frontal" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">FRONTAL</button>
               </div>
             </div>
           </div>
@@ -971,6 +976,20 @@
               </div>
             </div>
 
+            <!-- Frontal Overhead Squat -->
+            <div class="pose-status-card" id="detail-card-squat-frontal" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #ec4899; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-F</div>
+                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Frontal Overhead Squat</span>
+                </div>
+                <span class="pose-card-status" id="detail-status-squat-frontal" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+              </div>
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-frontal" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                <img id="detail-preview-img-squat-frontal" src="" alt="Frontal Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              </div>
+            </div>
+
           </div>
 
           <!-- Saved Video Recordings -->
@@ -1117,6 +1136,9 @@
               <span class="squat-peak-detail-lbl" style="font-size: 0.75rem; color: #aaa; display: block; margin-bottom: 4px;">Ankle Dorsi (L/R)</span>
               <span class="squat-peak-detail-val text-scarlet" id="detail-squat-ankle" style="font-size: 1.1rem; font-weight: 700; color: var(--color-scarlet);">0° / 0°</span>
             </div>
+          </div>
+          <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">
+            Peak Asymmetry: No current squat metrics.
           </div>
 
         </div>

@@ -6031,6 +6031,42 @@ export async function openProfileDetailsModal(profileId) {
       await snapshotStore.saveProfile(profile);
     }
 
+    // 1.6 Populate User Selector Dropdown inside Details Modal
+    const userSelect = document.getElementById('profile-detail-user-select');
+    if (userSelect) {
+      userSelect.innerHTML = '';
+      
+      let allProfiles = state.allProfiles || [];
+      if (allProfiles.length === 0) {
+        allProfiles = await snapshotStore.getAllProfiles();
+        state.allProfiles = allProfiles;
+      }
+      
+      allProfiles.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = p.name || `Profile #${p.id}`;
+        if (p.id === profileId) {
+          option.selected = true;
+        }
+        userSelect.appendChild(option);
+      });
+
+      userSelect.onchange = async (e) => {
+        const selectedProfileId = Number(e.target.value);
+        state.activeProfileId = selectedProfileId;
+        
+        // Reset active session ID in state so the newly selected user's default/last session loads cleanly
+        state.activeSessionId = null;
+        
+        // Load the profile into global state & update sidebar dropdown selectors
+        await loadProfileIntoState(selectedProfileId);
+        
+        // Refresh details modal for the selected user
+        openProfileDetailsModal(selectedProfileId);
+      };
+    }
+
     // Determine the active session
     let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
     if (!activeSession) {

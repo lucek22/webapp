@@ -864,12 +864,12 @@
   <div id="profile-details-modal" class="modal">
     <div class="modal-container" style="max-width: 950px; height: auto; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-        <div class="modal-title-wrap" style="display: flex; flex-direction: column; gap: 2px;">
-          <h2 class="modal-title" id="profile-details-title" style="margin: 0;">Subject Profile Summary</h2>
-          <span class="modal-date" id="profile-detail-last-session">Last Session: --</span>
-        </div>
         <div class="session-controls-wrap" style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto; margin-right: 0.5rem; height: 32px;">
-          <label for="profile-detail-session-select" style="font-size: 0.8rem; color: #aaa; font-weight: 500; height: 100%; display: flex; align-items: center; margin: 0;">Session:</label>
+          <label for="profile-detail-user-select" style="font-size: 0.8rem; color: #aaa; font-weight: 500; height: 100%; display: flex; align-items: center; margin: 0;">User:</label>
+          <select id="profile-detail-user-select" style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s; min-width: 150px; height: 100%;">
+            <!-- Options populated dynamically -->
+          </select>
+          <label for="profile-detail-session-select" style="font-size: 0.8rem; color: #aaa; font-weight: 500; height: 100%; display: flex; align-items: center; margin: 0; margin-left: 0.5rem;">Session:</label>
           <select id="profile-detail-session-select" style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s; min-width: 150px; height: 100%;">
             <!-- Options populated dynamically -->
           </select>
@@ -891,8 +891,9 @@
             <div class="profile-avatar-large" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--color-scarlet), var(--color-cyan)); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             </div>
-            <div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
               <h3 id="profile-detail-name" style="margin: 0; font-size: 1.3rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">John Doe</h3>
+              <div id="profile-detail-last-session" style="font-size: 0.8rem; color: #aaa;">Session Date: --</div>
               <span id="profile-detail-scale" style="font-size: 0.8rem; color: var(--color-cyan);">Calibration: Uncalibrated</span>
             </div>
           </div>

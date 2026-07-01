@@ -110,17 +110,25 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
       };
 
       if (state.activeProfileId) {
-        const poseName = state.frozenMetrics.pose || "A-Pose";
         const capturedImg = frozenFrameCanvas.toDataURL('image/png');
-        if (poseName === "A-Pose") {
-          state.metricsA = JSON.parse(JSON.stringify(metricsToSave));
-          state.imageA = capturedImg;
-        } else if (poseName === "T-Pose") {
-          state.metricsT = JSON.parse(JSON.stringify(metricsToSave));
-          state.imageT = capturedImg;
-        } else if (poseName === "Overhead Reach" || poseName === "Overhead Pose") {
-          state.metricsOverhead = JSON.parse(JSON.stringify(metricsToSave));
-          state.imageOverhead = capturedImg;
+        if (state.currentMode === 'squat') {
+          if (state.squatTestingSide === 'left') {
+            state.imageSquatL = capturedImg;
+          } else {
+            state.imageSquatR = capturedImg;
+          }
+        } else {
+          const poseName = state.frozenMetrics.pose || "A-Pose";
+          if (poseName === "A-Pose") {
+            state.metricsA = JSON.parse(JSON.stringify(metricsToSave));
+            state.imageA = capturedImg;
+          } else if (poseName === "T-Pose") {
+            state.metricsT = JSON.parse(JSON.stringify(metricsToSave));
+            state.imageT = capturedImg;
+          } else if (poseName === "Overhead Reach" || poseName === "Overhead Pose") {
+            state.metricsOverhead = JSON.parse(JSON.stringify(metricsToSave));
+            state.imageOverhead = capturedImg;
+          }
         }
         autoSyncToActiveProfile();
       }

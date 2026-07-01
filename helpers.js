@@ -192,6 +192,7 @@ export const state = {
   canvasWidth: 640,
   canvasHeight: 480,
   currentMode: "posture",
+  squatTestingSide: "left",
   squatPeaks: {
     kneeL: 0,
     kneeR: 0,
@@ -253,13 +254,16 @@ export const state = {
   REQ_HOLD_MS: 2500,
   LOCKOUT_MS: 3500,
   activeProfileId: null,
+  activeSessionId: null,
   allProfiles: [],
   isEditingProfileMetrics: false,
   isRecording: false,
 
   recordedChunks: [],
   mediaRecorder: null,
-  scaleFactor3D: null
+  scaleFactor3D: null,
+  imageSquatL: null,
+  imageSquatR: null
 };
 
 const smoothBuffers = {};

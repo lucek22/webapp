@@ -525,6 +525,17 @@
             Captures and locks the maximum flexion angles reached during your squat descent.
           </div>
           
+          <!-- Testing Side Selector -->
+          <div class="squat-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Testing Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-squat-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">LEFT</button>
+                <button id="btn-squat-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+          
           <div class="angle-header-row angle-header-row-spaced">
             <span class="side-header-left">Left Side</span>
             <span class="side-header-right">Right Side</span>
@@ -865,24 +876,36 @@
   <!-- Persistent Profile Details Modal -->
   <div id="profile-details-modal" class="modal">
     <div class="modal-container" style="max-width: 950px; height: auto; max-height: 90vh; display: flex; flex-direction: column;">
-      <div class="modal-header">
-        <div class="modal-title-wrap">
-          <h2 class="modal-title" id="profile-details-title">Subject Profile Summary</h2>
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+        <div class="modal-title-wrap" style="display: flex; flex-direction: column; gap: 2px;">
+          <h2 class="modal-title" id="profile-details-title" style="margin: 0;">Subject Profile Summary</h2>
           <span class="modal-date" id="profile-detail-last-session">Last Session: --</span>
         </div>
-        <button id="btn-close-profile-details" class="modal-close" style="background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        <div class="session-controls-wrap" style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto; margin-right: 0.5rem;">
+          <label for="profile-detail-session-select" style="font-size: 0.8rem; color: #aaa; font-weight: 500;">Session:</label>
+          <select id="profile-detail-session-select" style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s; min-width: 150px;">
+            <!-- Options populated dynamically -->
+          </select>
+          <button id="btn-profile-rename-session" class="btn" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: #ccc; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;" title="Rename Active Session">
+            ✏️ Rename Session
+          </button>
+          <button id="btn-profile-new-session" class="btn" style="background: rgba(186, 12, 47, 0.15); border: 1px solid rgba(186, 12, 47, 0.4); color: var(--color-scarlet); padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+            ➕ New Session
+          </button>
+        </div>
+        <button id="btn-close-profile-details" class="modal-close" style="background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; margin-left: 0;">&times;</button>
       </div>
       <div class="modal-body profile-details-grid" style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 1.5rem; padding: 1.25rem; overflow-y: auto;">
         
         <!-- Column 1: Profile & Poses Status -->
         <div class="profile-details-left" style="display: flex; flex-direction: column; gap: 1rem;">
           <div class="profile-card-header-block" style="display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-            <div class="profile-avatar-large" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--color-scarlet), var(--color-cyan)); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);">
+            <div class="profile-avatar-large" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--color-scarlet), var(--color-gray)); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 0 10px rgba(186, 12, 47, 0.4);">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             </div>
             <div>
               <h3 id="profile-detail-name" style="margin: 0; font-size: 1.3rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">John Doe</h3>
-              <span id="profile-detail-scale" style="font-size: 0.8rem; color: var(--color-cyan);">Calibration: Uncalibrated</span>
+              <span id="profile-detail-scale" style="font-size: 0.8rem; color: var(--color-scarlet);">Calibration: Uncalibrated</span>
             </div>
           </div>
 
@@ -931,6 +954,34 @@
               </div>
             </div>
 
+            <!-- Left Overhead Squat -->
+            <div class="pose-status-card" id="detail-card-squat-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #9333ea; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-L</div>
+                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Overhead Squat</span>
+                </div>
+                <span class="pose-card-status" id="detail-status-squat-l" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+              </div>
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                <img id="detail-preview-img-squat-l" src="" alt="Left Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              </div>
+            </div>
+
+            <!-- Right Overhead Squat -->
+            <div class="pose-status-card" id="detail-card-squat-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-R</div>
+                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Overhead Squat</span>
+                </div>
+                <span class="pose-card-status" id="detail-status-squat-r" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+              </div>
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                <img id="detail-preview-img-squat-r" src="" alt="Right Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              </div>
+            </div>
+
           </div>
 
           <!-- Saved Video Recordings -->
@@ -958,7 +1009,7 @@
           
           <div class="details-section-title" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px;">
             <span>Consolidated Postural Baseline</span>
-            <button id="btn-edit-baseline-metrics" class="btn" style="background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.3); color: #00e5ff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 4px;">✏️ Edit Metrics</button>
+            <button id="btn-edit-baseline-metrics" class="btn" style="background: rgba(186, 12, 47, 0.15); border: 1px solid rgba(186, 12, 47, 0.4); color: var(--color-scarlet); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 4px;">✏️ Edit Metrics</button>
           </div>
           <div class="profile-metrics-comparison-table">
             <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
@@ -1023,7 +1074,7 @@
               <thead>
                 <tr style="border-bottom: 1.5px solid rgba(255,255,255,0.08); text-align: left; color: #aaa;">
                   <th style="padding: 0.4rem 0.25rem; font-weight: 600; width: 45%;">Consolidated Metric</th>
-                  <th style="padding: 0.4rem 0.25rem; font-weight: 600; width: 55%; color: var(--color-cyan);">Definitive Measurement</th>
+                  <th style="padding: 0.4rem 0.25rem; font-weight: 600; width: 55%; color: var(--color-scarlet);">Definitive Measurement</th>
                 </tr>
               </thead>
               <tbody style="color: #eee;">
@@ -1067,15 +1118,15 @@
           <div class="profile-squat-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
             <div class="squat-peak-detail-box" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.6rem; text-align: center;">
               <span class="squat-peak-detail-lbl" style="font-size: 0.75rem; color: #aaa; display: block; margin-bottom: 4px;">Knee Flexion (L/R)</span>
-              <span class="squat-peak-detail-val text-cyan" id="detail-squat-knee" style="font-size: 1.1rem; font-weight: 700; color: var(--color-cyan);">0° / 0°</span>
+              <span class="squat-peak-detail-val text-scarlet" id="detail-squat-knee" style="font-size: 1.1rem; font-weight: 700; color: var(--color-scarlet);">0° / 0°</span>
             </div>
             <div class="squat-peak-detail-box" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.6rem; text-align: center;">
               <span class="squat-peak-detail-lbl" style="font-size: 0.75rem; color: #aaa; display: block; margin-bottom: 4px;">Hip Flexion (L/R)</span>
-              <span class="squat-peak-detail-val text-cyan" id="detail-squat-hip" style="font-size: 1.1rem; font-weight: 700; color: var(--color-cyan);">0° / 0°</span>
+              <span class="squat-peak-detail-val text-scarlet" id="detail-squat-hip" style="font-size: 1.1rem; font-weight: 700; color: var(--color-scarlet);">0° / 0°</span>
             </div>
             <div class="squat-peak-detail-box" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.6rem; text-align: center;">
               <span class="squat-peak-detail-lbl" style="font-size: 0.75rem; color: #aaa; display: block; margin-bottom: 4px;">Ankle Dorsi (L/R)</span>
-              <span class="squat-peak-detail-val text-cyan" id="detail-squat-ankle" style="font-size: 1.1rem; font-weight: 700; color: var(--color-cyan);">0° / 0°</span>
+              <span class="squat-peak-detail-val text-scarlet" id="detail-squat-ankle" style="font-size: 1.1rem; font-weight: 700; color: var(--color-scarlet);">0° / 0°</span>
             </div>
           </div>
 

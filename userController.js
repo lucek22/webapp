@@ -188,6 +188,9 @@ const squatLiveAnkleR = document.getElementById('squat-live-ankle-r');
 
 const squatStatusVal = document.getElementById('squat-status-val');
 
+const btnSquatSideLeft = document.getElementById('btn-squat-side-left');
+const btnSquatSideRight = document.getElementById('btn-squat-side-right');
+
 
 // UI Calibration Toggles & Panels
 const tabArucoBtn = document.getElementById('tab-aruco-btn');
@@ -797,12 +800,15 @@ export function onPoseResults(results) {
       const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
       const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
 
-      state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-      state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-      state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-      state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-      state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-      state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      if (state.squatTestingSide === 'left') {
+        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+      } else {
+        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      }
 
       if (state.currentMode === 'squat') {
         updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR);
@@ -1131,12 +1137,15 @@ export function onPoseResults(results) {
       const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
 
       // Always update peaks state when a valid frame is processed
-      state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-      state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-      state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-      state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-      state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-      state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      if (state.squatTestingSide === 'left') {
+        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+      } else {
+        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      }
 
       // If in squat mode, update the Overhead Squat dashboard UI
       if (state.currentMode === 'squat') {
@@ -2133,7 +2142,12 @@ export async function startCamera() {
       const startTime = Date.now();
       try {
         if (!state.isSnapshotFrozen) {
-          if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
+          if (state.currentMode === 'squat') {
+            state.latestArucoMarker = null;
+            if (arucoStatusText) {
+              arucoStatusText.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
+            }
+          } else if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
             state.latestArucoMarker = null;
             if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
               arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
@@ -2187,7 +2201,12 @@ export async function startCamera() {
 
     // Start processing once stream is playing
     videoElement.onplay = () => {
-      statusElement.textContent = "Active tracking. Present your printed ArUco marker to calibrate scale!";
+      if (state.currentMode === 'squat') {
+        const side = state.squatTestingSide || 'left';
+        statusElement.textContent = `Active squat tracking. Position subject profile view for the ${side.toUpperCase()} side.`;
+      } else {
+        statusElement.textContent = "Active tracking. Present your printed ArUco marker to calibrate scale!";
+      }
       startUiRenderLoop();
       cameraInferenceLoop();
     };
@@ -2428,7 +2447,12 @@ export function startUploadedMediaLoop() {
     const startTime = Date.now();
     try {
       if (!state.isSnapshotFrozen) {
-        if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
+        if (state.currentMode === 'squat') {
+          state.latestArucoMarker = null;
+          if (arucoStatusText) {
+            arucoStatusText.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
+          }
+        } else if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
           state.latestArucoMarker = null;
           if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
             arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
@@ -3776,7 +3800,14 @@ export function startVideoRecording() {
       const subjectInput = document.getElementById('subject-name-input');
       const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
       const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-      a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${fileExt}`;
+      
+      if (state.currentMode === 'squat') {
+        const side = state.squatTestingSide || 'left';
+        a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_overhead_squat.${fileExt}`;
+      } else {
+        a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${fileExt}`;
+      }
+      
       document.body.appendChild(a);
       a.click();
       setTimeout(() => {
@@ -3842,9 +3873,14 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
     const profile = await snapshotStore.getProfile(state.activeProfileId);
     if (profile) {
       profile.videos = profile.videos || [];
+      
+      const labelPrefix = state.currentMode === 'squat' 
+        ? (state.squatTestingSide === 'left' ? "Left Overhead Squat" : "Right Overhead Squat") 
+        : "Video Capture";
+        
       const videoEntry = {
         id: Date.now(),
-        name: `Video Capture (${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })})`,
+        name: `${labelPrefix} (${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })})`,
         blob: blobToDownload,
         timestamp: Date.now(),
         duration: finalDuration,
@@ -4798,6 +4834,41 @@ export function updateSquatDashboardOffline() {
   }
 }
 
+export function updateSquatSideUI() {
+  const side = state.squatTestingSide || 'left';
+  
+  if (btnSquatSideLeft && btnSquatSideRight) {
+    if (side === 'left') {
+      btnSquatSideLeft.classList.add('active-left');
+      btnSquatSideRight.classList.remove('active-right');
+    } else {
+      btnSquatSideRight.classList.add('active-right');
+      btnSquatSideLeft.classList.remove('active-left');
+    }
+  }
+
+  const angleBoxes = document.querySelectorAll('#squat-sidebar-content .angle-box');
+  angleBoxes.forEach(box => {
+    if (side === 'left') {
+      if (box.classList.contains('left-border')) {
+        box.classList.add('active-left');
+        box.classList.remove('inactive-side');
+      } else if (box.classList.contains('right-border')) {
+        box.classList.add('inactive-side');
+        box.classList.remove('active-right');
+      }
+    } else {
+      if (box.classList.contains('right-border')) {
+        box.classList.add('active-right');
+        box.classList.remove('inactive-side');
+      } else if (box.classList.contains('left-border')) {
+        box.classList.add('inactive-side');
+        box.classList.remove('active-left');
+      }
+    }
+  });
+}
+
 export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR) {
   // Update live monitors
   if (squatLiveKneeL) squatLiveKneeL.textContent = `${kneeMobL}°`;
@@ -4809,13 +4880,16 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
 
   const prevPeaks = JSON.stringify(state.squatPeaks);
 
-  // Compare and update peak recorded values in state
-  state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-  state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-  state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-  state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-  state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-  state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+  // Compare and update peak recorded values in state based on selected testing side
+  if (state.squatTestingSide === 'left') {
+    state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+    state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+    state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+  } else {
+    state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+    state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+    state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+  }
 
   if (state.activeProfileId && JSON.stringify(state.squatPeaks) !== prevPeaks) {
     autoSyncToActiveProfileDebounced();
@@ -4965,6 +5039,8 @@ if (btnModeSquat) {
     if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
     if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
     
+    updateSquatSideUI(); // Ensure side selector states are active on sidebar open
+
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
     } else {
@@ -4972,6 +5048,31 @@ if (btnModeSquat) {
     }
   });
 }
+
+// Wire up Testing Side selector buttons
+if (btnSquatSideLeft) {
+  btnSquatSideLeft.addEventListener('click', () => {
+    state.squatTestingSide = 'left';
+    updateSquatSideUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    }
+  });
+}
+if (btnSquatSideRight) {
+  btnSquatSideRight.addEventListener('click', () => {
+    state.squatTestingSide = 'right';
+    updateSquatSideUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    }
+  });
+}
+
+// Initial UI sync for squat side selector (runs immediately upon controller load)
+setTimeout(() => {
+  updateSquatSideUI();
+}, 200);
 
 const btnResetPeaks = document.getElementById('btn-reset-peaks');
 if (btnResetPeaks) {
@@ -5015,26 +5116,30 @@ if (btnSaveSquatPeaks) {
     };
 
     try {
-      // 4. Save standalone isSquatMobility snapshot to IndexedDB gallery
-      await snapshotStore.save(snapshotRecord);
-
-      // 5. If we have an active profile, sync these peaks directly to their portfolio record
+      // 4. If we have an active profile, sync these peaks directly to their portfolio record (skipping general gallery)
       if (state.activeProfileId) {
+        const capturedImg = canvasElement.toDataURL('image/png');
+        if (state.squatTestingSide === 'left') {
+          state.imageSquatL = capturedImg;
+        } else {
+          state.imageSquatR = capturedImg;
+        }
         await autoSyncToActiveProfile();
         
         if (statusElement) {
-          statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to biomechanical gallery and portfolio!`;
+          statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to portfolio!`;
         }
       } else {
-        // If in Guest Mode, alert user to select/create profile to save to portfolio
+        // 5. Save standalone isSquatMobility snapshot to IndexedDB gallery (Guest Mode)
+        await snapshotStore.save(snapshotRecord);
         if (statusElement) {
           statusElement.textContent = `💾 Standalone peak mobility snapshot successfully saved to gallery!`;
         }
         alert("You are currently in Guest Mode. The peak mobility scores have been saved as a standalone snapshot in your offline Gallery, but NOT in a player portfolio. To save these scores to a player portfolio, please select or create a profile first, then click Save Peaks to Portfolio again.");
+        
+        // Redraw the gallery only when saved standalone to gallery (Guest Mode)
+        renderGallery();
       }
-
-      // 6. Redraw the gallery
-      renderGallery();
     } catch (err) {
       console.error("Failed to save squat peak snapshot to IndexedDB:", err);
       alert("Could not save squat peaks snapshot. See developer console for errors.");
@@ -5502,8 +5607,19 @@ export async function initializeProfilesSelector() {
   }
 }
 
-export function compileImportedMetricsFromProfile(profile) {
+export function compileImportedMetricsFromProfile(profile, sessionId = null) {
   if (!profile) return null;
+
+  // Determine the source metrics block (either specific session, active session, or profile top-level fallback)
+  let sourceObj = profile;
+  if (profile.sessions && Array.isArray(profile.sessions) && profile.sessions.length > 0) {
+    const targetId = sessionId || state.activeSessionId || profile.activeSessionId;
+    const session = profile.sessions.find(s => s.id === targetId) || profile.sessions[0];
+    if (session) {
+      sourceObj = session;
+    }
+  }
+
   const compiled = {};
   let hasAny = false;
 
@@ -5514,7 +5630,7 @@ export function compileImportedMetricsFromProfile(profile) {
   ];
 
   // 1. Height and standard segments: prioritize A-pose (stature scan), fallback to T, then Overhead
-  const standardSources = [profile.metricsA, profile.metricsT, profile.metricsOverhead];
+  const standardSources = [sourceObj.metricsA, sourceObj.metricsT, sourceObj.metricsOverhead];
   for (const key of standardSegments) {
     let foundValue = null;
     for (const src of standardSources) {
@@ -5530,7 +5646,7 @@ export function compileImportedMetricsFromProfile(profile) {
   }
 
   // 2. Wingspan: prioritize T-pose (wingspan scan), fallback to A, then Overhead
-  const wingspanSources = [profile.metricsT, profile.metricsA, profile.metricsOverhead];
+  const wingspanSources = [sourceObj.metricsT, sourceObj.metricsA, sourceObj.metricsOverhead];
   let foundWingspan = null;
   for (const src of wingspanSources) {
     if (src && src.wingspan !== null && src.wingspan !== undefined) {
@@ -5544,7 +5660,7 @@ export function compileImportedMetricsFromProfile(profile) {
   }
 
   // 3. Overhead reach (finger to toe): prioritize Overhead pose (reach scan), fallback to A, then T
-  const reachSources = [profile.metricsOverhead, profile.metricsA, profile.metricsT];
+  const reachSources = [sourceObj.metricsOverhead, sourceObj.metricsA, sourceObj.metricsT];
   for (const key of ['fingerToToeL', 'fingerToToeR']) {
     let foundValue = null;
     for (const src of reachSources) {
@@ -5562,21 +5678,67 @@ export function compileImportedMetricsFromProfile(profile) {
   return hasAny ? compiled : null;
 }
 
+export function ensureProfileSessions(profile) {
+  if (!profile) return profile;
+  if (!profile.sessions || !Array.isArray(profile.sessions) || profile.sessions.length === 0) {
+    const baselineSession = {
+      id: "baseline_" + Date.now(),
+      name: "Baseline Session",
+      timestamp: profile.timestamp || Date.now(),
+      pixelsPerCm: profile.pixelsPerCm || null,
+      metricsA: profile.metricsA || null,
+      metricsT: profile.metricsT || null,
+      metricsOverhead: profile.metricsOverhead || null,
+      squatPeaks: profile.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+      imageA: profile.imageA || null,
+      imageT: profile.imageT || null,
+      imageOverhead: profile.imageOverhead || null,
+      imageSquatL: profile.imageSquatL || null,
+      imageSquatR: profile.imageSquatR || null
+    };
+    profile.sessions = [baselineSession];
+    profile.activeSessionId = baselineSession.id;
+  }
+  if (!profile.activeSessionId) {
+    profile.activeSessionId = profile.sessions[profile.sessions.length - 1].id;
+  }
+  return profile;
+}
+
 export async function loadProfileIntoState(profileId) {
   try {
-    const profile = await snapshotStore.getProfile(profileId);
+    let profile = await snapshotStore.getProfile(profileId);
     if (!profile) return;
 
+    const hadSessions = !!profile.sessions && Array.isArray(profile.sessions) && profile.sessions.length > 0;
+    profile = ensureProfileSessions(profile);
+    if (!hadSessions) {
+      await snapshotStore.saveProfile(profile);
+    }
+
     state.activeProfileId = profile.id;
-    state.metricsA = profile.metricsA || null;
-    state.metricsT = profile.metricsT || null;
-    state.metricsOverhead = profile.metricsOverhead || null;
-    state.squatPeaks = profile.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
-    state.imageA = profile.imageA || null;
-    state.imageT = profile.imageT || null;
-    state.imageOverhead = profile.imageOverhead || null;
     
-    state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile);
+    // Find active session
+    let activeSession = profile.sessions.find(s => s.id === state.activeSessionId);
+    if (!activeSession) {
+      activeSession = profile.sessions.find(s => s.id === profile.activeSessionId);
+    }
+    if (!activeSession) {
+      activeSession = profile.sessions[profile.sessions.length - 1];
+    }
+    
+    state.activeSessionId = activeSession.id;
+    state.metricsA = activeSession.metricsA || null;
+    state.metricsT = activeSession.metricsT || null;
+    state.metricsOverhead = activeSession.metricsOverhead || null;
+    state.squatPeaks = activeSession.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+    state.imageA = activeSession.imageA || null;
+    state.imageT = activeSession.imageT || null;
+    state.imageOverhead = activeSession.imageOverhead || null;
+    state.imageSquatL = activeSession.imageSquatL || null;
+    state.imageSquatR = activeSession.imageSquatR || null;
+    
+    state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile, activeSession.id);
 
     const activeHeightCm = state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height;
     if (activeHeightCm) {
@@ -5590,8 +5752,9 @@ export async function loadProfileIntoState(profileId) {
       }
     }
     
-    if (profile.pixelsPerCm) {
-      state.pixelsPerCm = profile.pixelsPerCm;
+    const sessionPixelsPerCm = activeSession.pixelsPerCm || profile.pixelsPerCm;
+    if (sessionPixelsPerCm) {
+      state.pixelsPerCm = sessionPixelsPerCm;
       state.calLocked = true;
       const arucoStatusText = document.getElementById('aruco-status-text');
       if (arucoStatusText) {
@@ -5649,21 +5812,52 @@ export async function loadProfileIntoState(profileId) {
 export async function autoSyncToActiveProfile() {
   if (!state.activeProfileId || !state.dbInitialized) return;
   try {
-    const profile = await snapshotStore.getProfile(state.activeProfileId);
+    let profile = await snapshotStore.getProfile(state.activeProfileId);
     if (!profile) return;
     
+    // Ensure session properties are initialized
+    profile = ensureProfileSessions(profile);
+    
+    // Find active session block
+    let session = profile.sessions.find(s => s.id === state.activeSessionId);
+    if (!session) {
+      session = profile.sessions.find(s => s.id === profile.activeSessionId);
+    }
+    if (!session) {
+      session = profile.sessions[profile.sessions.length - 1];
+    }
+    
+    // Sync current dashboard state into the active session
+    session.timestamp = Date.now();
+    session.pixelsPerCm = state.pixelsPerCm;
+    session.metricsA = state.metricsA;
+    session.metricsT = state.metricsT;
+    session.metricsOverhead = state.metricsOverhead;
+    session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
+    session.imageA = state.imageA;
+    session.imageT = state.imageT;
+    session.imageOverhead = state.imageOverhead;
+    session.imageSquatL = state.imageSquatL;
+    session.imageSquatR = state.imageSquatR;
+    
+    // Keep profile-level active session and timestamp synced
     profile.timestamp = Date.now();
+    profile.activeSessionId = session.id;
+    
+    // Keep legacy flat fields updated on the main profile for redundant backup
     profile.pixelsPerCm = state.pixelsPerCm;
     profile.metricsA = state.metricsA;
     profile.metricsT = state.metricsT;
     profile.metricsOverhead = state.metricsOverhead;
-    profile.squatPeaks = state.squatPeaks;
+    profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
     profile.imageA = state.imageA;
     profile.imageT = state.imageT;
     profile.imageOverhead = state.imageOverhead;
+    profile.imageSquatL = state.imageSquatL;
+    profile.imageSquatR = state.imageSquatR;
     
     await snapshotStore.saveProfile(profile);
-    console.log(`[autoSync] Synced active profile: ${profile.name}`);
+    console.log(`[autoSync] Synced active profile: ${profile.name}, session: ${session.name}`);
     
     state.allProfiles = await snapshotStore.getAllProfiles();
   } catch (err) {
@@ -5685,10 +5879,143 @@ export function autoSyncToActiveProfileDebounced() {
 export async function openProfileDetailsModal(profileId) {
   if (!profileId) return;
   try {
-    const profile = await snapshotStore.getProfile(profileId);
+    let profile = await snapshotStore.getProfile(profileId);
     if (!profile) return;
 
-    // 1. Text elements & Profile Renaming
+    // 1. Silent schema upgrade
+    const originalSessionCount = profile.sessions ? profile.sessions.length : 0;
+    profile = ensureProfileSessions(profile);
+    if (originalSessionCount === 0) {
+      await snapshotStore.saveProfile(profile);
+    }
+
+    // Determine the active session
+    let activeSession = profile.sessions.find(s => s.id === state.activeSessionId);
+    if (!activeSession) {
+      activeSession = profile.sessions.find(s => s.id === profile.activeSessionId);
+    }
+    if (!activeSession) {
+      activeSession = profile.sessions[profile.sessions.length - 1];
+    }
+    state.activeSessionId = activeSession.id;
+
+    // 2. Render Session selector dropdown
+    const sessionSelect = document.getElementById('profile-detail-session-select');
+    if (sessionSelect) {
+      sessionSelect.innerHTML = '';
+      profile.sessions.forEach(sess => {
+        const option = document.createElement('option');
+        option.value = sess.id;
+        option.textContent = sess.name || `Session (${new Date(sess.timestamp).toLocaleDateString()})`;
+        if (sess.id === activeSession.id) {
+          option.selected = true;
+        }
+        sessionSelect.appendChild(option);
+      });
+
+      // Handle session dropdown selection changes
+      sessionSelect.onchange = async (e) => {
+        const selectedSessId = e.target.value;
+        state.activeSessionId = selectedSessId;
+        profile.activeSessionId = selectedSessId;
+        await snapshotStore.saveProfile(profile);
+        
+        // Synchronize active session onto live dashboard
+        await loadProfileIntoState(profileId);
+        
+        // Refresh detail views
+        openProfileDetailsModal(profileId);
+      };
+    }
+
+    // 3. Handle "+ New Session" button clicks
+    const btnNewSession = document.getElementById('btn-profile-new-session');
+    if (btnNewSession) {
+      btnNewSession.onclick = async () => {
+        const sessionName = prompt("Enter a name for the new session (e.g., 'Set 2 - Post-practice'):");
+        if (sessionName === null) return; // evaluator cancelled
+        const trimmedName = sessionName.trim() || `Session ${profile.sessions.length + 1}`;
+
+        const newSession = {
+          id: "session_" + Date.now(),
+          name: trimmedName,
+          timestamp: Date.now(),
+          pixelsPerCm: profile.pixelsPerCm || null, // carry over scale so we don't force re-calibration
+          metricsA: null,
+          metricsT: null,
+          metricsOverhead: null,
+          squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+          imageA: null,
+          imageT: null,
+          imageOverhead: null,
+          imageSquatL: null,
+          imageSquatR: null
+        };
+
+        profile.sessions.push(newSession);
+        profile.activeSessionId = newSession.id;
+        state.activeSessionId = newSession.id;
+
+        // Reset live dashboard metrics
+        state.metricsA = null;
+        state.metricsT = null;
+        state.metricsOverhead = null;
+        state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+        state.imageA = null;
+        state.imageT = null;
+        state.imageOverhead = null;
+        state.imageSquatL = null;
+        state.imageSquatR = null;
+
+        await snapshotStore.saveProfile(profile);
+        await loadProfileIntoState(profileId);
+
+        alert(`New session "${trimmedName}" started! Dashboard metrics are reset for fresh video captures.`);
+        openProfileDetailsModal(profileId);
+      };
+    }
+
+    // 3.5 Handle "Rename Session" button clicks
+    const btnRenameSession = document.getElementById('btn-profile-rename-session');
+    if (btnRenameSession) {
+      btnRenameSession.onclick = async () => {
+        const currentSessionName = activeSession.name || `Session (${new Date(activeSession.timestamp).toLocaleDateString()})`;
+        const newName = prompt("Enter new name for this session:", currentSessionName);
+        if (newName === null) return; // cancelled
+        const trimmedName = newName.trim();
+        if (!trimmedName) {
+          alert("Session name cannot be empty.");
+          return;
+        }
+
+        try {
+          const freshProfile = await snapshotStore.getProfile(profileId);
+          if (freshProfile) {
+            const freshProfileMigrated = ensureProfileSessions(freshProfile);
+            const freshActiveSession = freshProfileMigrated.sessions.find(s => s.id === activeSession.id);
+            if (freshActiveSession) {
+              freshActiveSession.name = trimmedName;
+              await snapshotStore.saveProfile(freshProfileMigrated);
+              
+              // Refresh state list of profiles
+              state.allProfiles = await snapshotStore.getAllProfiles();
+              if (state.activeProfileId === profileId) {
+                // If it is the current active profile, sync state
+                await loadProfileIntoState(profileId);
+              }
+              
+              alert(`Session renamed to "${trimmedName}" successfully!`);
+              openProfileDetailsModal(profileId);
+            }
+          }
+        } catch (err) {
+          console.error("[SessionRename] Failed to rename session:", err);
+          alert("Failed to rename session: " + err.message);
+        }
+      };
+    }
+
+    // 4. Text elements & Profile Renaming
     const detailName = document.getElementById('profile-detail-name');
     const detailScale = document.getElementById('profile-detail-scale');
     const detailLastSession = document.getElementById('profile-detail-last-session');
@@ -5757,35 +6084,49 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
+    const sessionPixelsPerCm = activeSession.pixelsPerCm || profile.pixelsPerCm;
     if (detailScale) {
-      detailScale.textContent = profile.pixelsPerCm 
-        ? `Calibration: ${profile.pixelsPerCm.toFixed(2)} px/cm` 
+      detailScale.textContent = sessionPixelsPerCm 
+        ? `Calibration: ${sessionPixelsPerCm.toFixed(2)} px/cm` 
         : "Calibration: Uncalibrated";
     }
     if (detailLastSession) {
-      if (profile.timestamp) {
-        const options = { year: 'numeric', month: 'long', day: 'numeric' };
-        detailLastSession.textContent = `Last Session: ${new Date(profile.timestamp).toLocaleDateString(undefined, options)}`;
+      const ts = activeSession.timestamp || profile.timestamp;
+      if (ts) {
+        const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        detailLastSession.textContent = `Session Date: ${new Date(ts).toLocaleDateString(undefined, options)}`;
       } else {
-        detailLastSession.textContent = "Last Session: --";
+        detailLastSession.textContent = "Session Date: --";
       }
     }
 
-    // 2. Pose status cards
+    // 5. Pose status cards (now 5 items)
     const poses = [
       { key: 'a', metricsKey: 'metricsA', imgKey: 'imageA', title: 'A-Pose (Stature)', color: 'var(--color-scarlet)' },
       { key: 't', metricsKey: 'metricsT', imgKey: 'imageT', title: 'T-Pose (Wingspan)', color: 'var(--color-cyan)' },
-      { key: 'overhead', metricsKey: 'metricsOverhead', imgKey: 'imageOverhead', title: 'Overhead (Reach)', color: '#d4a017' }
+      { key: 'overhead', metricsKey: 'metricsOverhead', imgKey: 'imageOverhead', title: 'Overhead (Reach)', color: '#d4a017' },
+      { key: 'squat-l', metricsKey: 'squatPeaks', imgKey: 'imageSquatL', title: 'Left Overhead Squat', color: '#9333ea', isSquat: true, squatSide: 'kneeL' },
+      { key: 'squat-r', metricsKey: 'squatPeaks', imgKey: 'imageSquatR', title: 'Right Overhead Squat', color: '#a855f7', isSquat: true, squatSide: 'kneeR' }
     ];
 
     poses.forEach(p => {
       const statusEl = document.getElementById(`detail-status-${p.key}`);
       const imgEl = document.getElementById(`detail-preview-img-${p.key}`);
       const containerEl = document.getElementById(`detail-preview-container-${p.key}`);
-      const metrics = profile[p.metricsKey];
-      const imgSrc = profile[p.imgKey];
+      
+      let hasData = false;
+      let imgSrc = null;
+      
+      if (p.isSquat) {
+        const peakVal = activeSession.squatPeaks ? activeSession.squatPeaks[p.squatSide] : 0;
+        imgSrc = activeSession[p.imgKey];
+        hasData = (peakVal > 0) || !!imgSrc;
+      } else {
+        hasData = !!activeSession[p.metricsKey];
+        imgSrc = activeSession[p.imgKey];
+      }
 
-      if (metrics) {
+      if (hasData) {
         if (statusEl) {
           statusEl.textContent = "✅ Complete";
           statusEl.style.color = "#10b981"; // Emerald green
@@ -5806,10 +6147,10 @@ export async function openProfileDetailsModal(profileId) {
       }
     });
 
-    // 3. Helper functions for table cells
-    const mA = profile.metricsA || {};
-    const mT = profile.metricsT || {};
-    const mO = profile.metricsOverhead || {};
+    // 6. Helper functions for table cells (all binding to activeSession metrics)
+    const mA = activeSession.metricsA || {};
+    const mT = activeSession.metricsT || {};
+    const mO = activeSession.metricsOverhead || {};
 
     const getVal = (poseKey, metricKey, fallbackSources) => {
       let rawVal = null;
@@ -6058,7 +6399,7 @@ export async function openProfileDetailsModal(profileId) {
       tfaO.innerHTML = renderCellPair('overhead', 'forearm_l', 'forearm_r', valL, valR);
     }
 
-    // 3c. Populate Consolidated Final Baselines Table
+    // 7. Populate Consolidated Final Baselines Table (passing active session id)
     const cHeight = document.getElementById('consolidated-val-height');
     const cWingspan = document.getElementById('consolidated-val-wingspan');
     const cReach = document.getElementById('consolidated-val-reach');
@@ -6068,7 +6409,7 @@ export async function openProfileDetailsModal(profileId) {
     const cUpperarm = document.getElementById('consolidated-val-upperarm');
     const cForearm = document.getElementById('consolidated-val-forearm');
 
-    const compiled = compileImportedMetricsFromProfile(profile) || {};
+    const compiled = compileImportedMetricsFromProfile(profile, activeSession.id) || {};
 
     if (cHeight) cHeight.innerHTML = formatSingle(compiled.skeletal_height);
     if (cWingspan) cWingspan.innerHTML = formatSingle(compiled.wingspan);
@@ -6079,7 +6420,7 @@ export async function openProfileDetailsModal(profileId) {
     if (cUpperarm) cUpperarm.innerHTML = formatPair(compiled.upperarm_l, compiled.upperarm_r);
     if (cForearm) cForearm.innerHTML = formatPair(compiled.forearm_l, compiled.forearm_r);
 
-    // 3b. Wire up metrics editing button event handlers
+    // 8. Wire up metrics editing button event handlers (activeSession-scoped)
     const editBtn = document.getElementById('btn-edit-baseline-metrics');
     if (editBtn) {
       if (state.isEditingProfileMetrics) {
@@ -6108,9 +6449,12 @@ export async function openProfileDetailsModal(profileId) {
             const freshProfile = await snapshotStore.getProfile(profileId);
             if (!freshProfile) return;
             
-            if (!freshProfile.metricsA) freshProfile.metricsA = {};
-            if (!freshProfile.metricsT) freshProfile.metricsT = {};
-            if (!freshProfile.metricsOverhead) freshProfile.metricsOverhead = {};
+            const freshProfileMigrated = ensureProfileSessions(freshProfile);
+            const freshActiveSession = freshProfileMigrated.sessions.find(s => s.id === activeSession.id) || freshProfileMigrated.sessions[0];
+            
+            if (!freshActiveSession.metricsA) freshActiveSession.metricsA = {};
+            if (!freshActiveSession.metricsT) freshActiveSession.metricsT = {};
+            if (!freshActiveSession.metricsOverhead) freshActiveSession.metricsOverhead = {};
             
             const inputs = document.querySelectorAll('.profile-edit-input');
             inputs.forEach(input => {
@@ -6119,9 +6463,9 @@ export async function openProfileDetailsModal(profileId) {
               const rawVal = input.value.trim();
               
               let targetMetrics;
-              if (pose === 'a') targetMetrics = freshProfile.metricsA;
-              else if (pose === 't') targetMetrics = freshProfile.metricsT;
-              else if (pose === 'overhead') targetMetrics = freshProfile.metricsOverhead;
+              if (pose === 'a') targetMetrics = freshActiveSession.metricsA;
+              else if (pose === 't') targetMetrics = freshActiveSession.metricsT;
+              else if (pose === 'overhead') targetMetrics = freshActiveSession.metricsOverhead;
               
               if (targetMetrics) {
                 if (rawVal === "") {
@@ -6136,9 +6480,9 @@ export async function openProfileDetailsModal(profileId) {
               }
             });
 
-            // Save squat peaks mobility records
-            if (!freshProfile.squatPeaks) {
-              freshProfile.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+            // Save squat peaks mobility records in session
+            if (!freshActiveSession.squatPeaks) {
+              freshActiveSession.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
             }
             const squatInputs = document.querySelectorAll('.profile-squat-edit-input');
             squatInputs.forEach(input => {
@@ -6153,10 +6497,21 @@ export async function openProfileDetailsModal(profileId) {
                 }
               }
               const key = joint + side; // e.g. kneeL, kneeR, hipL, hipR, ankleL, ankleR
-              freshProfile.squatPeaks[key] = val;
+              freshActiveSession.squatPeaks[key] = val;
             });
             
-            await snapshotStore.saveProfile(freshProfile);
+            // Mirror back to legacy fields for redundancy
+            freshProfileMigrated.metricsA = freshActiveSession.metricsA;
+            freshProfileMigrated.metricsT = freshActiveSession.metricsT;
+            freshProfileMigrated.metricsOverhead = freshActiveSession.metricsOverhead;
+            freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
+            freshProfileMigrated.imageA = freshActiveSession.imageA;
+            freshProfileMigrated.imageT = freshActiveSession.imageT;
+            freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
+            freshProfileMigrated.imageSquatL = freshActiveSession.imageSquatL;
+            freshProfileMigrated.imageSquatR = freshActiveSession.imageSquatR;
+
+            await snapshotStore.saveProfile(freshProfileMigrated);
             state.allProfiles = await snapshotStore.getAllProfiles();
             if (state.activeProfileId === profileId) {
               await loadProfileIntoState(profileId);
@@ -6172,9 +6527,9 @@ export async function openProfileDetailsModal(profileId) {
         };
       } else {
         editBtn.innerHTML = '✏️ Edit Metrics';
-        editBtn.style.background = 'rgba(0, 229, 255, 0.1)';
-        editBtn.style.border = '1px solid rgba(0, 229, 255, 0.3)';
-        editBtn.style.color = '#00e5ff';
+        editBtn.style.background = 'rgba(186, 12, 47, 0.15)';
+        editBtn.style.border = '1px solid rgba(186, 12, 47, 0.4)';
+        editBtn.style.color = 'var(--color-scarlet)';
         
         const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
         if (cancelBtn) {
@@ -6188,17 +6543,17 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    // 4. Squat Peak mobility (with edit inputs support)
+    // 9. Squat Peak mobility (with edit inputs support)
     const dsqKnee = document.getElementById('detail-squat-knee');
     const dsqHip = document.getElementById('detail-squat-hip');
     const dsqAnkle = document.getElementById('detail-squat-ankle');
     
-    const sPeaks = profile.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+    const sPeaks = activeSession.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
     if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
 
-    // 5. Populate Saved Videos & Interactive Playlist Manager
+    // 10. Populate Saved Videos & Interactive Playlist Manager
     if (state.modalObjectUrls) {
       state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
     }
@@ -6417,7 +6772,7 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    // 6. Open the modal
+    // 11. Open the modal
     const profileDetailsModal = document.getElementById('profile-details-modal');
     if (profileDetailsModal) {
       profileDetailsModal.classList.add('active');

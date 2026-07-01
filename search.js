@@ -2,12 +2,19 @@ const fs = require('fs');
 const path = require('path');
 
 const query = process.argv[2];
+const fileArg = process.argv[3] || 'userController.js';
+
 if (!query) {
-  console.log("Usage: node search.js <search_term>");
+  console.log("Usage: node search.js <search_term> [file_name]");
   process.exit(0);
 }
 
-const fileToSearch = path.join(__dirname, 'userController.js');
+const fileToSearch = path.resolve(__dirname, fileArg);
+if (!fs.existsSync(fileToSearch)) {
+  console.error(`File not found: ${fileToSearch}`);
+  process.exit(1);
+}
+
 const content = fs.readFileSync(fileToSearch, 'utf8');
 const lines = content.split('\n');
 

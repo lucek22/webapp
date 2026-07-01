@@ -401,11 +401,12 @@
 /* ID style mappings */
 #tab-aruco-btn,
 #tab-height-btn,
+#tab-portfolio-btn,
 #tab-validation-btn {
   margin-top: 0;
   padding: 0.4rem;
   font-size: 0.72rem;
-  width: 33.33%;
+  width: 25%;
 }
 
 #tab-aruco-btn {
@@ -417,6 +418,10 @@
 }
 
 #tab-validation-btn {
+  background-color: var(--color-dark-gray);
+}
+
+#tab-portfolio-btn {
   background-color: var(--color-dark-gray);
 }
 
@@ -1976,7 +1981,7 @@ canvas {
    SCARLET THEME - ALL ACTIVE/SELECTED BUTTONS
    ========================================================================== */
 
-/* Handles Inches, cm, ArUco (Auto), and Input Height when clicked/selected */
+/* Handles Inches, cm, ArUco (Auto), Input Height, and Select Player Profile when clicked/selected */
 #unit-inch-btn[style*="background-color: rgb(59, 130, 246)"],
 #unit-inch-btn[style*="background-color: #3b82f6"],
 #unit-cm-btn[style*="background-color: rgb(59, 130, 246)"],
@@ -1985,6 +1990,8 @@ canvas {
 #tab-aruco-btn[style*="background-color: #3b82f6"],
 #tab-height-btn[style*="background-color: rgb(59, 130, 246)"],
 #tab-height-btn[style*="background-color: #3b82f6"],
+#tab-portfolio-btn[style*="background-color: rgb(59, 130, 246)"],
+#tab-portfolio-btn[style*="background-color: #3b82f6"],
 #tab-validation-btn[style*="background-color: rgb(59, 130, 246)"],
 #tab-validation-btn[style*="background-color: #3b82f6"] {
   background-color: #BA0C2F !important;
@@ -1996,6 +2003,7 @@ canvas {
 #unit-cm-btn[style*="background-color"]:hover,
 #tab-aruco-btn[style*="background-color"]:hover,
 #tab-height-btn[style*="background-color"]:hover,
+#tab-portfolio-btn[style*="background-color"]:hover,
 #tab-validation-btn[style*="background-color"]:hover {
   filter: brightness(0.85);
 }
@@ -2556,4 +2564,50 @@ div[style*="color: #10b981"] {
     gap: 1rem !important;
   }
 }
+
+/* Side Toggle Button Styles */
+.btn-side-toggle {
+  background: transparent;
+  color: #a7b1b7;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-side-toggle:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+.btn-side-toggle.active-left {
+  background-color: #BA0C2F !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(186, 12, 47, 0.4) !important;
+}
+.btn-side-toggle.active-right {
+  background-color: #06b6d4 !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.4) !important;
+}
+/* Overhead Squat Side Highlights */
+.angle-box {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.angle-box.active-left {
+  border-left: 3px solid #BA0C2F !important;
+  box-shadow: 0 0 12px rgba(186, 12, 47, 0.35) !important;
+  background-color: rgba(186, 12, 47, 0.04) !important;
+}
+.angle-box.active-right {
+  border-left: 3px solid #06b6d4 !important;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.35) !important;
+  background-color: rgba(6, 182, 212, 0.04) !important;
+}
+.angle-box.inactive-side {
+  opacity: 0.45;
+  filter: grayscale(40%);
+  border-left: 3px solid rgba(167, 177, 183, 0.2) !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
 

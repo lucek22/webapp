@@ -5130,15 +5130,7 @@ if (btnSaveSquatPeaks) {
           statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to portfolio!`;
         }
       } else {
-        // 5. Save standalone isSquatMobility snapshot to IndexedDB gallery (Guest Mode)
-        await snapshotStore.save(snapshotRecord);
-        if (statusElement) {
-          statusElement.textContent = `💾 Standalone peak mobility snapshot successfully saved to gallery!`;
-        }
-        alert("You are currently in Guest Mode. The peak mobility scores have been saved as a standalone snapshot in your offline Gallery, but NOT in a player portfolio. To save these scores to a player portfolio, please select or create a profile first, then click Save Peaks to Portfolio again.");
-        
-        // Redraw the gallery only when saved standalone to gallery (Guest Mode)
-        renderGallery();
+        alert("You are currently in Guest Mode. To save these peak mobility scores to a player portfolio, please select or create a profile first, then click Save Peaks to Portfolio again.");
       }
     } catch (err) {
       console.error("Failed to save squat peak snapshot to IndexedDB:", err);
@@ -5421,6 +5413,9 @@ export async function initializeProfilesSelector() {
       if (profileStatusBar) profileStatusBar.classList.add('hidden');
       if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
       if (profileActionRow) profileActionRow.classList.add('hidden');
+      
+      const sessionContainer = document.getElementById('profile-session-select-container');
+      if (sessionContainer) sessionContainer.classList.add('hidden');
     } else if (selectedVal === '') {
       if (profileSelect) profileSelect.value = '';
       if (calProfileSelect) calProfileSelect.value = '';
@@ -5451,6 +5446,9 @@ export async function initializeProfilesSelector() {
       }
       if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
       if (profileActionRow) profileActionRow.classList.add('hidden');
+      
+      const sessionContainer = document.getElementById('profile-session-select-container');
+      if (sessionContainer) sessionContainer.classList.add('hidden');
       
       const arucoStatusText = document.getElementById('aruco-status-text');
       if (arucoStatusText) {
@@ -5657,7 +5655,7 @@ export function compileImportedMetricsFromProfile(profile, sessionId = null) {
   let sourceObj = profile;
   if (profile.sessions && Array.isArray(profile.sessions) && profile.sessions.length > 0) {
     const targetId = sessionId || state.activeSessionId || profile.activeSessionId;
-    const session = profile.sessions.find(s => s.id === targetId) || profile.sessions[0];
+    const session = profile.sessions.find(s => String(s.id) === String(targetId)) || profile.sessions[0];
     if (session) {
       sourceObj = session;
     }
@@ -5762,9 +5760,9 @@ export async function loadProfileIntoState(profileId) {
     state.activeProfileId = profile.id;
     
     // Find active session
-    let activeSession = profile.sessions.find(s => s.id === state.activeSessionId);
+    let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
     if (!activeSession) {
-      activeSession = profile.sessions.find(s => s.id === profile.activeSessionId);
+      activeSession = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
     }
     if (!activeSession) {
       activeSession = profile.sessions[profile.sessions.length - 1];
@@ -5847,6 +5845,68 @@ export async function loadProfileIntoState(profileId) {
     if (profileSelect) profileSelect.value = String(profileId);
     if (calProfileSelect) calProfileSelect.value = String(profileId);
 
+    // Sidebar Session Selector Initialization & Synchronization
+    const sessionContainer = document.getElementById('profile-session-select-container');
+    const sessionSelect = document.getElementById('profile-session-select');
+    if (sessionContainer && sessionSelect) {
+      sessionContainer.classList.remove('hidden');
+      sessionSelect.innerHTML = '';
+      
+      profile.sessions.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name || `Session (${new Date(s.timestamp).toLocaleDateString()})`;
+        if (String(s.id) === String(state.activeSessionId)) {
+          opt.selected = true;
+        }
+        sessionSelect.appendChild(opt);
+      });
+      
+      const newOpt = document.createElement('option');
+      newOpt.value = 'new_session';
+      newOpt.textContent = '➕ Create New Session...';
+      sessionSelect.appendChild(newOpt);
+      
+      sessionSelect.value = state.activeSessionId;
+
+      sessionSelect.onchange = async (e) => {
+        const val = e.target.value;
+        if (val === 'new_session') {
+          const newSessionName = prompt("Enter a name for the new session (e.g., 'Set 2 - Post-practice'):");
+          if (newSessionName !== null) {
+            const nameToUse = newSessionName.trim() || `Session ${profile.sessions.length + 1}`;
+            const newSession = {
+              id: "session_" + Date.now(),
+              name: nameToUse,
+              timestamp: Date.now(),
+              metricsA: null,
+              metricsT: null,
+              metricsOverhead: null,
+              squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+              imageA: null,
+              imageT: null,
+              imageOverhead: null,
+              imageSquatL: null,
+              imageSquatR: null,
+              pixelsPerCm: null
+            };
+            profile.sessions.push(newSession);
+            profile.activeSessionId = newSession.id;
+            state.activeSessionId = newSession.id;
+            await snapshotStore.saveProfile(profile);
+            await loadProfileIntoState(profile.id);
+          } else {
+            sessionSelect.value = state.activeSessionId;
+          }
+        } else {
+          state.activeSessionId = val;
+          profile.activeSessionId = val;
+          await snapshotStore.saveProfile(profile);
+          await loadProfileIntoState(profile.id);
+        }
+      };
+    }
+
   } catch (err) {
     console.error("[loadProfile] Error loading profile into state:", err);
   }
@@ -5862,9 +5922,9 @@ export async function autoSyncToActiveProfile() {
     profile = ensureProfileSessions(profile);
     
     // Find active session block
-    let session = profile.sessions.find(s => s.id === state.activeSessionId);
+    let session = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
     if (!session) {
-      session = profile.sessions.find(s => s.id === profile.activeSessionId);
+      session = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
     }
     if (!session) {
       session = profile.sessions[profile.sessions.length - 1];
@@ -5933,9 +5993,9 @@ export async function openProfileDetailsModal(profileId) {
     }
 
     // Determine the active session
-    let activeSession = profile.sessions.find(s => s.id === state.activeSessionId);
+    let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
     if (!activeSession) {
-      activeSession = profile.sessions.find(s => s.id === profile.activeSessionId);
+      activeSession = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
     }
     if (!activeSession) {
       activeSession = profile.sessions[profile.sessions.length - 1];
@@ -5950,7 +6010,7 @@ export async function openProfileDetailsModal(profileId) {
         const option = document.createElement('option');
         option.value = sess.id;
         option.textContent = sess.name || `Session (${new Date(sess.timestamp).toLocaleDateString()})`;
-        if (sess.id === activeSession.id) {
+        if (String(sess.id) === String(activeSession.id)) {
           option.selected = true;
         }
         sessionSelect.appendChild(option);
@@ -6035,7 +6095,7 @@ export async function openProfileDetailsModal(profileId) {
           const freshProfile = await snapshotStore.getProfile(profileId);
           if (freshProfile) {
             const freshProfileMigrated = ensureProfileSessions(freshProfile);
-            const freshActiveSession = freshProfileMigrated.sessions.find(s => s.id === activeSession.id);
+            const freshActiveSession = freshProfileMigrated.sessions.find(s => String(s.id) === String(activeSession.id));
             if (freshActiveSession) {
               freshActiveSession.name = trimmedName;
               await snapshotStore.saveProfile(freshProfileMigrated);
@@ -6493,7 +6553,7 @@ export async function openProfileDetailsModal(profileId) {
             if (!freshProfile) return;
             
             const freshProfileMigrated = ensureProfileSessions(freshProfile);
-            const freshActiveSession = freshProfileMigrated.sessions.find(s => s.id === activeSession.id) || freshProfileMigrated.sessions[0];
+            const freshActiveSession = freshProfileMigrated.sessions.find(s => String(s.id) === String(activeSession.id)) || freshProfileMigrated.sessions[0];
             
             if (!freshActiveSession.metricsA) freshActiveSession.metricsA = {};
             if (!freshActiveSession.metricsT) freshActiveSession.metricsT = {};

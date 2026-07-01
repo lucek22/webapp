@@ -79,11 +79,16 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
     });
   }
 
-  // 2. Save Current Frozen Snapshot & Biometric Metrics to Offline IndexedDB Gallery
+  // 2. Save Current Frozen Snapshot & Biometric Metrics directly to Active Player Profile
   const btnSaveGallery = document.getElementById('btn-save-gallery');
   if (btnSaveGallery) {
     btnSaveGallery.addEventListener('click', () => {
       if (!state.isSnapshotFrozen || !state.frozenMetrics) return;
+
+      if (!state.activeProfileId) {
+        alert("You are currently in Guest Mode. Please select or create a player profile first to save this snapshot to their session history!");
+        return;
+      }
 
       const nameInput = document.getElementById('snapshot-name-input');
       const label = nameInput ? nameInput.value.trim() : 'Posture Scan';
@@ -102,51 +107,33 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
         span_r_cm
       };
 
-      const snapshotRecord = {
-        name: label,
-        timestamp: Date.now(),
-        image: frozenFrameCanvas.toDataURL('image/png'),
-        metrics: metricsToSave
-      };
-
-      if (state.activeProfileId) {
-        const capturedImg = frozenFrameCanvas.toDataURL('image/png');
-        if (state.currentMode === 'squat') {
-          if (state.squatTestingSide === 'left') {
-            state.imageSquatL = capturedImg;
-          } else {
-            state.imageSquatR = capturedImg;
-          }
+      const capturedImg = frozenFrameCanvas.toDataURL('image/png');
+      if (state.currentMode === 'squat') {
+        if (state.squatTestingSide === 'left') {
+          state.imageSquatL = capturedImg;
         } else {
-          const poseName = state.frozenMetrics.pose || "A-Pose";
-          if (poseName === "A-Pose") {
-            state.metricsA = JSON.parse(JSON.stringify(metricsToSave));
-            state.imageA = capturedImg;
-          } else if (poseName === "T-Pose") {
-            state.metricsT = JSON.parse(JSON.stringify(metricsToSave));
-            state.imageT = capturedImg;
-          } else if (poseName === "Overhead Reach" || poseName === "Overhead Pose") {
-            state.metricsOverhead = JSON.parse(JSON.stringify(metricsToSave));
-            state.imageOverhead = capturedImg;
-          }
+          state.imageSquatR = capturedImg;
         }
-        autoSyncToActiveProfile();
+      } else {
+        const poseName = state.frozenMetrics.pose || "A-Pose";
+        if (poseName === "A-Pose") {
+          state.metricsA = JSON.parse(JSON.stringify(metricsToSave));
+          state.imageA = capturedImg;
+        } else if (poseName === "T-Pose") {
+          state.metricsT = JSON.parse(JSON.stringify(metricsToSave));
+          state.imageT = capturedImg;
+        } else if (poseName === "Overhead Reach" || poseName === "Overhead Pose") {
+          state.metricsOverhead = JSON.parse(JSON.stringify(metricsToSave));
+          state.imageOverhead = capturedImg;
+        }
       }
 
-      snapshotStore.save(snapshotRecord)
-        .then(() => {
-          statusElement.textContent = `💾 Snapshot "${label}" successfully saved to biomechanical gallery!`;
-          if (typeof renderGallery === 'function') {
-            renderGallery();
-          }
-          if (typeof resetAndResume === 'function') {
-            resetAndResume();
-          }
-        })
-        .catch(err => {
-          console.error("Failed to save snapshot to IndexedDB:", err);
-          alert("Could not save snapshot. See developer console for errors.");
-        });
+      autoSyncToActiveProfile();
+
+      statusElement.textContent = `💾 Snapshot "${label}" successfully saved to profile portfolio!`;
+      if (typeof resetAndResume === 'function') {
+        resetAndResume();
+      }
     });
   }
 

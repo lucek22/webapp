@@ -403,49 +403,12 @@ export function drawHandMesh(multiHandLandmarks, multiHandedness) {
 }
 
 function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_inches_str, heel_l, heel_r) {
-  // Vertical indicator line
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(ruler_x, head_top.y);
-  canvasCtx.lineTo(ruler_x, ground_y);
-  canvasCtx.strokeStyle = '#06b6d4';
-  canvasCtx.lineWidth = 2.5;
-  canvasCtx.stroke();
-
-  // Top bracket
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(ruler_x - 10, head_top.y);
-  canvasCtx.lineTo(ruler_x + 10, head_top.y);
-  canvasCtx.stroke();
-
-  // Bottom bracket
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(ruler_x - 10, ground_y);
-  canvasCtx.lineTo(ruler_x + 10, ground_y);
-  canvasCtx.stroke();
-
-  // Text labels along ruler
-  canvasCtx.fillStyle = '#06b6d4';
-  canvasCtx.font = 'bold 11px sans-serif';
-  const rulerLabel = state.useInches ? live_feet_inches_str : `${live_height.toFixed(1)} cm`;
-  canvasCtx.fillText(`Live: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (state.useInches ? 95 : 80), (head_top.y + ground_y) / 2);
-
-  // Connecting indicator line from head to ruler
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(head_top.x, head_top.y);
-  canvasCtx.lineTo(ruler_x, head_top.y);
-  canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-  canvasCtx.setLineDash([4, 4]);
-  canvasCtx.stroke();
-  canvasCtx.setLineDash([]);
-
-  // Connecting indicator line from ground contact center to ruler
-  canvasCtx.beginPath();
-  canvasCtx.moveTo((heel_l.x + heel_r.x)/2, ground_y);
-  canvasCtx.lineTo(ruler_x, ground_y);
-  canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-  canvasCtx.setLineDash([4, 4]);
-  canvasCtx.stroke();
-  canvasCtx.setLineDash([]);
+  // Draw bottom of the feet ground contact point
+  const feet_center = {
+    x: (heel_l.x + heel_r.x) / 2,
+    y: ground_y
+  };
+  drawJoint(feet_center, '#06b6d4');
 }
 
 function drawPoseBadge(poseName) {
@@ -1765,45 +1728,12 @@ function drawFrozenSnapshot() {
     drawJoint(toe_r, '#10b981');
     drawJoint(head_top, '#06b6d4');
 
-    // Draw ruler
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(ruler_x, head_top.y);
-    canvasCtx.lineTo(ruler_x, ground_y);
-    canvasCtx.strokeStyle = '#06b6d4';
-    canvasCtx.lineWidth = 2.5;
-    canvasCtx.stroke();
-
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(ruler_x - 10, head_top.y);
-    canvasCtx.lineTo(ruler_x + 10, head_top.y);
-    canvasCtx.stroke();
-
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(ruler_x - 10, ground_y);
-    canvasCtx.lineTo(ruler_x + 10, ground_y);
-    canvasCtx.stroke();
-
-    canvasCtx.fillStyle = '#06b6d4';
-    canvasCtx.font = 'bold 11px sans-serif';
-    const rulerLabel = state.useInches ? live_feet_inches_str : `${smoothed_live_height.toFixed(1)} cm`;
-    canvasCtx.fillText(`Captured: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (state.useInches ? 115 : 100), (head_top.y + ground_y) / 2);
-
-    // Connecting lines
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(head_top.x, head_top.y);
-    canvasCtx.lineTo(ruler_x, head_top.y);
-    canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-    canvasCtx.setLineDash([4, 4]);
-    canvasCtx.stroke();
-    canvasCtx.setLineDash([]);
-
-    canvasCtx.beginPath();
-    canvasCtx.moveTo((heel_l.x + heel_r.x)/2, ground_y);
-    canvasCtx.lineTo(ruler_x, ground_y);
-    canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-    canvasCtx.setLineDash([4, 4]);
-    canvasCtx.stroke();
-    canvasCtx.setLineDash([]);
+    // Draw bottom of the feet ground contact point
+    const feet_center = {
+      x: (heel_l.x + heel_r.x) / 2,
+      y: ground_y
+    };
+    drawJoint(feet_center, '#06b6d4');
   }
 
   // Draw frozen hand skeletons if available

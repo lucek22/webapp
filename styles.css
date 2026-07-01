@@ -8,17 +8,16 @@
   --color-scarlet-hover: #900A24;
   --color-gray: #666666;
   --color-light-gray: #9ca3af;
-  --color-dark-gray: #1e293b;
-  --color-bg-dark: #0f1626;
+  --color-dark-gray: #1a1a1e;
+  --color-bg-dark: #0c0c0e;
   --color-cyan: #06b6d4;
   --color-emerald: #10b981;
   --color-pink: #ec4899;
   --color-rose: #f43f5e;
   --color-amber: #f59e0b;
-  --color-violet: #d4a017; /* Replaced purple with warm gold */
+  --color-gold: #d4a017;
   --color-magenta: #d946ef;
   --color-blue: #38bdf8;
-  --color-gold: #d4a017;
   --color-gold-dark: #a3720c;
   --color-gold-rgba-04: rgba(212, 160, 23, 0.4);
   --color-gold-rgba-02: rgba(212, 160, 23, 0.2);
@@ -401,7 +400,7 @@
 }
 
 .text-left-color {
-  color: var(--color-cyan) !important;
+  color: var(--color-red) !important;
 }
 
 .text-right-color {
@@ -613,10 +612,10 @@
 #subject-profile-panel {
   margin-top: 0.5rem;
   margin-bottom: 0.25rem;
-  background: rgba(15, 22, 38, 0.4);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(186, 12, 47, 0.2);
   border-radius: 8px;
   padding: 0.75rem;
   display: flex;
@@ -632,7 +631,7 @@
 }
 
 .profile-delete-btn {
-  background: rgba(186, 12, 47, 0.1);
+  background: rgba(255, 255, 255, 0.03);
   color: #ef4444;
   border: 1px solid rgba(186, 12, 47, 0.3);
   border-radius: 4px;
@@ -660,9 +659,9 @@
 
 .profile-search-input {
   width: 100%;
-  background-color: rgba(15, 22, 38, 0.6);
+  background-color: var(--color-dark-gray);
   color: white;
-  border: 1px solid rgba(6, 182, 212, 0.2);
+  border: 1px solid rgba(186, 12, 47, 0.2);
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -672,9 +671,9 @@
 }
 
 .profile-search-input:focus {
-  border-color: var(--color-cyan);
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
-  background-color: rgba(15, 22, 38, 0.85);
+  border-color: var(--color-scarlet);
+  box-shadow: 0 0 10px rgba(186, 12, 47, 0.3);
+  background-color: var(--color-dark-gray);
 }
 
 .profile-controls-row {
@@ -685,9 +684,9 @@
 
 .profile-dropdown {
   width: 100%;
-  background-color: rgba(15, 22, 38, 0.6);
+  background-color: var(--color-dark-gray);
   color: white;
-  border: 1px solid rgba(6, 182, 212, 0.25);
+  border: 1px solid rgba(186, 12, 47, 0.3);
   padding: 0.4rem 0.6rem;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -697,18 +696,18 @@
 }
 
 .profile-dropdown:focus {
-  border-color: var(--color-cyan);
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+  border-color: var(--color-scarlet);
+  box-shadow: 0 0 10px rgba(186, 12, 47, 0.3);
 }
 
 .profile-dropdown option {
-  background-color: #0f172a;
+  background-color: var(--color-dark-gray);
   color: white;
 }
 
 #subject-name-input {
   flex: 1;
-  background-color: rgba(15, 22, 38, 0.6);
+  background-color: var(--color-dark-gray);
   color: white;
   border: 1px solid rgba(186, 12, 47, 0.25);
   padding: 0.4rem 0.6rem;
@@ -720,8 +719,8 @@
 }
 
 #subject-name-input:focus {
-  border-color: var(--color-cyan);
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.25);
+  border-color: var(--color-scarlet);
+  box-shadow: 0 0 8px rgba(186, 12, 47, 0.3);
 }
 
 .compact-btn {
@@ -738,12 +737,26 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--color-grey);
   padding: 0.25rem 0.4rem;
-  background: rgba(6, 182, 212, 0.05);
+  background: rgba(186, 12, 47, 0.05);
   border-radius: 4px;
-  border-left: 3px solid var(--color-cyan);
+  border-left: 3px solid var(--color-scarlet);
   margin-top: 0.15rem;
+}
+
+.btn-view-profile-details {
+  background: rgba(186, 12, 47, 0.1);
+  border: 1px solid rgba(186, 12, 47, 0.3);
+  color: var(--color-scarlet);
+  font-weight: 600;
+}
+
+.btn-view-profile-details:hover {
+  background: rgba(186, 12, 47, 0.2);
+  border-color: rgba(186, 12, 47, 0.5);
+  box-shadow: 0 0 8px rgba(186, 12, 47, 0.25);
+  color: #f87171;
 }
 
 .status-indicator {
@@ -810,7 +823,7 @@
 #val-height-cm {
   font-size: 1.35rem;
   font-weight: 800;
-  color: var(--color-cyan);
+  color: var(--color-red);
   display: block;
   line-height: 1.2;
 }
@@ -824,13 +837,13 @@
 #val-active-pose {
   font-size: 1.1rem;
   font-weight: 800;
-  color: var(--color-violet);
+  color: var(--color-gold);
   display: block;
   line-height: 1.2;
 }
 
 #val-hip-w, #val-wingspan {
-  color: var(--color-violet);
+  color: var(--color-gold);
   font-weight: bold;
 }
 
@@ -845,7 +858,7 @@
 }
 
 #modal-val-height {
-  color: var(--color-cyan);
+  color: var(--color-red);
   font-weight: bold;
 }
 
@@ -860,7 +873,7 @@
 }
 
 #modal-val-pose, #modal-val-hip-w {
-  color: var(--color-violet);
+  color: var(--color-gold);
   font-weight: bold;
 }
 
@@ -1034,8 +1047,8 @@ h1 {
   margin: 0 auto;
   border-radius: 8px;
   overflow: hidden;
-  background-color: #020617;
-  border: 1px solid #1e293b;
+  background-color: #0a0a0c;
+  border: 1px solid #1c1c1f;
   aspect-ratio: 4/3; /* Default placeholder, overridden dynamically by camera stream dimensions */
   background-color: #0b0b0b;
   border: 1px solid #2d2d2d;
@@ -1767,7 +1780,7 @@ canvas {
   padding-bottom: 0.35rem;
 }
 .modal-stats-title svg {
-  color: var(--color-violet) !important;
+  color: var(--color-gold) !important;
 }
 
 .modal-stats-grid {
@@ -2011,7 +2024,7 @@ canvas {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  background-color: rgba(15, 22, 38, 0.8);
+  background-color: rgba(22, 22, 26, 0.85);
   backdrop-filter: blur(8px);
   border-radius: 20px;
   padding: 3px;
@@ -2045,7 +2058,7 @@ canvas {
   transform: translateX(-50%);
   display: flex;
   gap: 10px;
-  background-color: rgba(15, 22, 38, 0.6);
+  background-color: rgba(22, 22, 26, 0.7);
   backdrop-filter: blur(8px);
   padding: 6px;
   border-radius: 8px;
@@ -2061,7 +2074,7 @@ canvas {
   cursor: pointer;
   border: 2px solid transparent;
   transition: all 0.2s ease;
-  background-color: #020617;
+  background-color: #111114;
 }
 
 .thumb-wrapper img {
@@ -2140,18 +2153,15 @@ canvas {
    FULL-BODY STATURE PANEL - SCARLET THEME
    ========================================================================== */
 
-/* 1. Change the cyan card title text ("Full-Body Stature") and its SVG cube icon */
 .panel-section[style*="background: linear-gradient"] .section-title,
 .panel-section[style*="background: linear-gradient"] svg {
   color: #BA0C2F !important;
 }
 
-/* 2. Change the massive cyan numerical value text ("--.- cm") */
 #val-height-cm {
   color: #BA0C2F !important;
 }
 
-/* 3. Re-tint the card's background gradient and outer cyan border to a subtle scarlet glow */
 .panel-section[style*="background: linear-gradient"] {
   background: linear-gradient(135deg, rgba(186, 12, 47, 0.1) 0%, rgba(30, 30, 30, 0.2) 100%) !important;
   border: 1px solid rgba(186, 12, 47, 0.25) !important;
@@ -2161,7 +2171,6 @@ canvas {
    ANATOMICAL WIDTHS & LANDMARKS - SCARLET THEME
    ========================================================================== */
 
-/* 1. Turn the indigo/blue width numbers ("--.- cm") to Scarlet */
 #val-shoulder-w,
 #val-hip-w,
 #val-wingspan {
@@ -2291,6 +2300,9 @@ div[style*="color: #10b981"] {
 .text-cyan {
   color: #06b6d4 !important;
 }
+.text-gold {
+  color: var(--color-gold) !important;
+}
 .text-red {
   color: #f87171 !important;
 }
@@ -2354,7 +2366,7 @@ div[style*="color: #10b981"] {
    ========================================================================== */
 .main-mode-tabs {
   display: flex;
-  background: rgba(15, 22, 38, 0.4);
+  background: rgba(22, 22, 26, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.35rem;
   border-radius: 12px;
@@ -2394,7 +2406,7 @@ div[style*="color: #10b981"] {
 
 /* Squat Guide Box Styles */
 .squat-guide-section {
-  background: rgba(15, 22, 38, 0.3) !important;
+  background: rgba(22, 22, 26, 0.35) !important;
   border: 1px dashed rgba(167, 177, 183, 0.2) !important;
 }
 
@@ -2449,7 +2461,7 @@ div[style*="color: #10b981"] {
   left: 5%;
   width: 90%;
   height: 44px;
-  background: rgba(15, 22, 38, 0.75);
+  background: rgba(22, 22, 26, 0.8);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(186, 12, 47, 0.3); /* Buckeye Scarlet Accent */
@@ -2728,9 +2740,9 @@ div[style*="color: #10b981"] {
   color: #10b981 !important;
 }
 .btn-edit-metrics {
-  background: rgba(0, 229, 255, 0.1) !important;
-  border: 1px solid rgba(0, 229, 255, 0.3) !important;
-  color: #00e5ff !important;
+  background: rgba(186, 12, 47, 0.1) !important;
+  border: 1px solid rgba(186, 12, 47, 0.3) !important;
+  color: var(--color-scarlet) !important;
 }
 .btn-cancel-metrics {
   background: rgba(239, 68, 68, 0.15) !important;
@@ -2771,8 +2783,8 @@ div[style*="color: #10b981"] {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 .profile-video-row-item.active-playlist-item {
-  background: rgba(0, 229, 255, 0.08) !important;
-  border-color: rgba(0, 229, 255, 0.25) !important;
+  background: rgba(186, 12, 47, 0.08) !important;
+  border-color: rgba(186, 12, 47, 0.25) !important;
 }
 
 .playlist-video-info-container {
@@ -2795,7 +2807,7 @@ div[style*="color: #10b981"] {
   transition: all 0.2s !important;
 }
 .active-playlist-item .playlist-play-icon {
-  background: var(--color-cyan) !important;
+  background: var(--color-gold) !important;
   color: #000 !important;
 }
 
@@ -2832,7 +2844,7 @@ div[style*="color: #10b981"] {
   align-items: center !important;
 }
 .btn-rename-video:hover {
-  color: var(--color-cyan) !important;
+  color: var(--color-scarlet) !important;
 }
 .playlist-video-meta {
   font-size: 0.7rem !important;
@@ -2922,12 +2934,12 @@ div[style*="color: #10b981"] {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-scarlet), var(--color-cyan));
+  background: linear-gradient(135deg, var(--color-scarlet), var(--color-gold));
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.03);
 }
 
 .profile-detail-name-text {
@@ -2941,7 +2953,7 @@ div[style*="color: #10b981"] {
 
 .profile-detail-scale-text {
   font-size: 0.8rem;
-  color: var(--color-cyan);
+  color: var(--color-gold);
 }
 
 .details-section-title {
@@ -2967,9 +2979,9 @@ div[style*="color: #10b981"] {
 }
 
 .btn-edit-baseline-metrics {
-  background: rgba(0, 229, 255, 0.1);
-  border: 1px solid rgba(0, 229, 255, 0.3);
-  color: #00e5ff;
+  background: rgba(186, 12, 47, 0.1);
+  border: 1px solid rgba(186, 12, 47, 0.3);
+  color: var(--color-scarlet);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -2980,9 +2992,10 @@ div[style*="color: #10b981"] {
 }
 
 .btn-edit-baseline-metrics:hover {
-  background: rgba(0, 229, 255, 0.2);
-  border-color: rgba(0, 229, 255, 0.5);
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+  background: rgba(186, 12, 47, 0.2);
+  border-color: rgba(186, 12, 47, 0.5);
+  box-shadow: 0 0 8px rgba(186, 12, 47, 0.2);
+  color: #f87171;
 }
 
 .pose-status-cards-container {
@@ -3182,7 +3195,7 @@ div[style*="color: #10b981"] {
   padding: 0.4rem 0.25rem;
   font-weight: 600;
   width: 55%;
-  color: var(--color-cyan);
+  color: var(--color-gold);
 }
 
 .profile-consolidated-tr {
@@ -3225,7 +3238,7 @@ div[style*="color: #10b981"] {
 .squat-peak-detail-val {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--color-cyan);
+  color: var(--color-gold);
 }
 
 .profile-modal-actions {
@@ -3305,13 +3318,14 @@ div[style*="color: #10b981"] {
 }
 
 .profile-detail-session-select:focus {
-  border-color: rgba(6, 182, 212, 0.5);
+  border-color: rgba(186, 12, 47, 0.5);
+  box-shadow: 0 0 8px rgba(186, 12, 47, 0.2);
 }
 
 .btn-profile-new-session {
-  background: rgba(6, 182, 212, 0.15);
-  border: 1px solid rgba(6, 182, 212, 0.4);
-  color: var(--color-cyan);
+  background: rgba(186, 12, 47, 0.1);
+  border: 1px solid rgba(186, 12, 47, 0.3);
+  color: var(--color-scarlet);
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -3324,8 +3338,10 @@ div[style*="color: #10b981"] {
 }
 
 .btn-profile-new-session:hover {
-  background: rgba(6, 182, 212, 0.25);
-  border-color: rgba(6, 182, 212, 0.6);
+  background: rgba(186, 12, 47, 0.2);
+  border-color: rgba(186, 12, 47, 0.5);
+  color: #f87171;
+  box-shadow: 0 0 8px rgba(186, 12, 47, 0.2);
 }
 
 /* Side Toggle Button Styles */

@@ -16,7 +16,6 @@ import {
   updateHeightInputUnit,
   formatSkeletalHeight,
   triggerFlashEffect,
-  drawRoundedRect,
   getDomMeasurementCm
 } from './helpers.js';
 
@@ -456,7 +455,8 @@ function drawPoseBadge(poseName) {
   
   canvasCtx.strokeStyle = accentColor;
   canvasCtx.lineWidth = 1.5;
-  drawRoundedRect(canvasCtx, 0, 0, 160, 38, 6);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(0, 0, 160, 38, 6);
   canvasCtx.fill();
   canvasCtx.stroke();
 
@@ -508,7 +508,8 @@ function drawLiveStatsCard(ctx, calculated) {
   ctx.shadowColor = 'rgba(236, 72, 153, 0.4)';
   ctx.shadowBlur = 10 * scale;
   
-  drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 8 * scale);
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 8 * scale);
   ctx.fill();
   ctx.stroke();
   
@@ -998,7 +999,8 @@ export function onPoseResults(results) {
       canvasCtx.shadowBlur = 8;
       
       // Draw container box
-      drawRoundedRect(canvasCtx, bannerX, bannerY, bannerW, bannerH, 6);
+      canvasCtx.beginPath();
+      canvasCtx.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
       canvasCtx.fill();
       canvasCtx.stroke();
       
@@ -1212,7 +1214,8 @@ export function onPoseResults(results) {
             canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.7)';
             canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.4)';
             canvasCtx.lineWidth = 1.5;
-            drawRoundedRect(canvasCtx, barX, barY, barWidth, barHeight, 8);
+            canvasCtx.beginPath();
+            canvasCtx.roundRect(barX, barY, barWidth, barHeight, 8);
             canvasCtx.fill();
             canvasCtx.stroke();
             
@@ -1224,7 +1227,7 @@ export function onPoseResults(results) {
               grad.addColorStop(1, '#d4a017');
               canvasCtx.fillStyle = grad;
               canvasCtx.beginPath();
-              drawRoundedRect(canvasCtx, barX, barY, fillWidth, barHeight, 8);
+              canvasCtx.roundRect(barX, barY, fillWidth, barHeight, 8);
               canvasCtx.clip();
               canvasCtx.fillRect(barX, barY, fillWidth, barHeight);
               canvasCtx.restore();
@@ -1541,7 +1544,8 @@ export function drawLockoutTransitionOverlay() {
   canvasCtx.shadowColor = 'rgba(212, 160, 23, 0.4)';
   canvasCtx.shadowBlur = 12;
   
-  drawRoundedRect(canvasCtx, panelX, panelY, panelW, panelH, 12);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(panelX, panelY, panelW, panelH, 12);
   canvasCtx.fill();
   canvasCtx.stroke();
   canvasCtx.shadowBlur = 0;
@@ -1581,7 +1585,8 @@ export function drawLockoutTransitionOverlay() {
   const barY = panelY + panelH - 28;
   
   canvasCtx.fillStyle = 'rgba(30, 41, 59, 0.8)';
-  drawRoundedRect(canvasCtx, barX, barY, barW, barH, 4);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(barX, barY, barW, barH, 4);
   canvasCtx.fill();
   
   if (progress > 0) {
@@ -1592,7 +1597,7 @@ export function drawLockoutTransitionOverlay() {
     grad.addColorStop(1, '#d4a017');
     canvasCtx.fillStyle = grad;
     canvasCtx.beginPath();
-    drawRoundedRect(canvasCtx, barX, barY, fillW, barH, 4);
+    canvasCtx.roundRect(barX, barY, fillW, barH, 4);
     canvasCtx.clip();
     canvasCtx.fillRect(barX, barY, fillW, barH);
     canvasCtx.restore();
@@ -1830,7 +1835,8 @@ function drawFrozenSnapshot() {
   canvasCtx.strokeStyle = '#ef4444';
   canvasCtx.lineWidth = 1.5;
   
-  drawRoundedRect(canvasCtx, -100, -15, 200, 30, 6);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(-100, -15, 200, 30, 6);
   canvasCtx.fill();
   canvasCtx.stroke();
   

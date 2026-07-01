@@ -75,127 +75,54 @@ export class SnapshotStore {
     });
   }
 
-  save(snapshot) {
+  _dbRequest(storeName, mode, operation, ...args) {
     return new Promise((resolve, reject) => {
       if (!this.db) {
         reject(new Error("Database not initialized"));
         return;
       }
-      const transaction = this.db.transaction(["snapshots"], "readwrite");
-      const store = transaction.objectStore("snapshots");
-      const request = store.add(snapshot);
+      const transaction = this.db.transaction([storeName], mode);
+      const store = transaction.objectStore(storeName);
+      const request = store[operation](...args);
 
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e.target.error);
     });
+  }
+
+  save(snapshot) {
+    return this._dbRequest("snapshots", "readwrite", "add", snapshot);
   }
 
   getAll() {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["snapshots"], "readonly");
-      const store = transaction.objectStore("snapshots");
-      const request = store.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("snapshots", "readonly", "getAll");
   }
 
   get(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["snapshots"], "readonly");
-      const store = transaction.objectStore("snapshots");
-      const request = store.get(Number(id));
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("snapshots", "readonly", "get", Number(id));
   }
 
   delete(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["snapshots"], "readwrite");
-      const store = transaction.objectStore("snapshots");
-      const request = store.delete(Number(id));
-
-      request.onsuccess = () => resolve();
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("snapshots", "readwrite", "delete", Number(id));
   }
 
   // ==========================================
   // PROFILE PERSISTENCE OPERATIONS
   // ==========================================
   saveProfile(profile) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readwrite");
-      const store = transaction.objectStore("profiles");
-      const request = store.put(profile); // put handles both insert and update
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readwrite", "put", profile);
   }
 
   getProfile(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readonly");
-      const store = transaction.objectStore("profiles");
-      const request = store.get(Number(id));
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readonly", "get", Number(id));
   }
 
   getAllProfiles() {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readonly");
-      const store = transaction.objectStore("profiles");
-      const request = store.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readonly", "getAll");
   }
 
   deleteProfile(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readwrite");
-      const store = transaction.objectStore("profiles");
-      const request = store.delete(Number(id));
-
-      request.onsuccess = () => resolve();
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readwrite", "delete", Number(id));
   }
 }
 
@@ -494,7 +421,3 @@ export function triggerFlashEffect() {
   }, 30);
 }
 
-export function drawRoundedRect(ctx, x, y, width, height, radius) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, width, height, radius);
-}

@@ -213,6 +213,30 @@ const btnImportPortfolio = document.getElementById('btn-import-portfolio');
 const btnExportCombined = document.getElementById('btn-export-combined');
 const btnExportVideo = document.getElementById('btn-export-video');
 
+const SEGMENT_METRICS = [
+  { element: thighLDisp, key: 'thigh_l' },
+  { element: thighRDisp, key: 'thigh_r' },
+  { element: shinLDisp, key: 'shin_l' },
+  { element: shinRDisp, key: 'shin_r' },
+  { element: footLDisp, key: 'foot_l' },
+  { element: footRDisp, key: 'foot_r' },
+  { element: torsoLDisp, key: 'torso_l' },
+  { element: torsoRDisp, key: 'torso_r' },
+  { element: upperarmLDisp, key: 'upperarm_l' },
+  { element: upperarmRDisp, key: 'upperarm_r' },
+  { element: forearmLDisp, key: 'forearm_l' },
+  { element: forearmRDisp, key: 'forearm_r' }
+];
+
+const ANGLE_METRICS = [
+  { element: kneeAngleLDisp, key: 'kneeAngleL' },
+  { element: kneeAngleRDisp, key: 'kneeAngleR' },
+  { element: hipAngleLDisp, key: 'hipAngleL' },
+  { element: hipAngleRDisp, key: 'hipAngleR' },
+  { element: elbowAngleLDisp, key: 'elbowAngleL' },
+  { element: elbowAngleRDisp, key: 'elbowAngleR' }
+];
+
 // ==========================================
 // CANVAS DRAWING COMPONENT UTILITIES
 // ==========================================
@@ -592,19 +616,9 @@ export function renderDashboard(metrics) {
   if (!metrics) return;
 
   // Render Left/Right segment lengths
-  thighLDisp.textContent = formatLength(metrics.thigh_l);
-  thighRDisp.textContent = formatLength(metrics.thigh_r);
-  shinLDisp.textContent = formatLength(metrics.shin_l);
-  shinRDisp.textContent = formatLength(metrics.shin_r);
-  footLDisp.textContent = formatLength(metrics.foot_l);
-  footRDisp.textContent = formatLength(metrics.foot_r);
-  
-  torsoLDisp.textContent = formatLength(metrics.torso_l);
-  torsoRDisp.textContent = formatLength(metrics.torso_r);
-  upperarmLDisp.textContent = formatLength(metrics.upperarm_l);
-  upperarmRDisp.textContent = formatLength(metrics.upperarm_r);
-  forearmLDisp.textContent = formatLength(metrics.forearm_l);
-  forearmRDisp.textContent = formatLength(metrics.forearm_r);
+  SEGMENT_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = formatLength(metrics[m.key]);
+  });
 
   if (fingerToToeDisp) {
     fingerToToeDisp.textContent = `L: ${formatLength(metrics.fingerToToeL)} / R: ${formatLength(metrics.fingerToToeR)}`;
@@ -643,12 +657,9 @@ export function renderDashboard(metrics) {
   }
 
   // Render angles
-  kneeAngleLDisp.textContent = `${metrics.kneeAngleL}°`;
-  kneeAngleRDisp.textContent = `${metrics.kneeAngleR}°`;
-  hipAngleLDisp.textContent = `${metrics.hipAngleL}°`;
-  hipAngleRDisp.textContent = `${metrics.hipAngleR}°`;
-  elbowAngleLDisp.textContent = `${metrics.elbowAngleL}°`;
-  elbowAngleRDisp.textContent = `${metrics.elbowAngleR}°`;
+  ANGLE_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = `${metrics[m.key]}°`;
+  });
 
   // Render Hand Metrics if available
   const fallbackDash = state.useInches ? "--.- in" : "--.- cm";
@@ -2830,20 +2841,20 @@ function openSnapshotModal(id) {
             else if (poseKey === 'Overhead') angles = m.anglesOverhead;
 
             if (angles) {
-              setModalMetric('modal-angle-knee-l', angles.kneeAngleL !== undefined && angles.kneeAngleL !== null ? `${Math.round(angles.kneeAngleL)}°` : "--°");
-              setModalMetric('modal-angle-knee-r', angles.kneeAngleR !== undefined && angles.kneeAngleR !== null ? `${Math.round(angles.kneeAngleR)}°` : "--°");
-              setModalMetric('modal-angle-hip-l', angles.hipAngleL !== undefined && angles.hipAngleL !== null ? `${Math.round(angles.hipAngleL)}°` : "--°");
-              setModalMetric('modal-angle-hip-r', angles.hipAngleR !== undefined && angles.hipAngleR !== null ? `${Math.round(angles.hipAngleR)}°` : "--°");
-              setModalMetric('modal-angle-elbow-l', angles.elbowAngleL !== undefined && angles.elbowAngleL !== null ? `${Math.round(angles.elbowAngleL)}°` : "--°");
-              setModalMetric('modal-angle-elbow-r', angles.elbowAngleR !== undefined && angles.elbowAngleR !== null ? `${Math.round(angles.elbowAngleR)}°` : "--°");
+              ANGLE_METRICS.forEach(am => {
+                if (am.element) {
+                  const val = angles[am.key];
+                  setModalMetric(`modal-${am.element.id}`, (val !== undefined && val !== null) ? `${Math.round(val)}°` : "--°");
+                }
+              });
             } else {
               // Fallback to global metrics if angles object is missing
-              setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-              setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-              setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-              setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-              setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-              setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+              ANGLE_METRICS.forEach(am => {
+                if (am.element) {
+                  const val = m[am.key];
+                  setModalMetric(`modal-${am.element.id}`, val !== undefined ? `${val}°` : "--°");
+                }
+              });
             }
           };
 
@@ -2897,12 +2908,12 @@ function openSnapshotModal(id) {
               else modalPoseElem.classList.add('pose-color-default');
             }
 
-            setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-            setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-            setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-            setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-            setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-            setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+            ANGLE_METRICS.forEach(am => {
+              if (am.element) {
+                const val = m[am.key];
+                setModalMetric(`modal-${am.element.id}`, val !== undefined ? `${val}°` : "--°");
+              }
+            });
           }
         }
 
@@ -2912,19 +2923,11 @@ function openSnapshotModal(id) {
           setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
           setModalMetric('modal-val-wingspan', m.wingspan ? formatLength(m.wingspan) : "--.-");
 
-          setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatLength(m.thigh_l) : "--.-");
-          setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatLength(m.thigh_r) : "--.-");
-          setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatLength(m.shin_l) : "--.-");
-          setModalMetric('modal-val-shin-r', m.shin_r !== undefined ? formatLength(m.shin_r) : "--.-");
-          setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatLength(m.foot_l) : "--.-");
-          setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatLength(m.foot_r) : "--.-");
-
-          setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatLength(m.torso_l) : "--.-");
-          setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatLength(m.torso_r) : "--.-");
-          setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatLength(m.upperarm_l) : "--.-");
-          setModalMetric('modal-val-upperarm-r', m.upperarm_r !== undefined ? formatLength(m.upperarm_r) : "--.-");
-          setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatLength(m.forearm_l) : "--.-");
-          setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatLength(m.forearm_r) : "--.-");
+          SEGMENT_METRICS.forEach(sm => {
+            if (sm.element) {
+              setModalMetric(`modal-${sm.element.id}`, m[sm.key] !== undefined ? formatLength(m[sm.key]) : "--.-");
+            }
+          });
 
           if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
             setModalMetric('modal-val-overhead-reach', `L: ${formatLength(m.fingerToToeL)} / R: ${formatLength(m.fingerToToeR)}`);
@@ -3197,19 +3200,7 @@ function updateSidebarPlaceholders() {
     }
   };
 
-  updatePlaceholder(thighLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(thighRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(shinLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(shinRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(footLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(footRDisp, "--.- cm", "--.- inches");
-  
-  updatePlaceholder(torsoLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(torsoRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(upperarmLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(upperarmRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(forearmLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(forearmRDisp, "--.- cm", "--.- inches");
+  SEGMENT_METRICS.forEach(m => updatePlaceholder(m.element, "--.- cm", "--.- inches"));
 
   updatePlaceholder(fingerToToeDisp, "L: --.- cm / R: --.- cm", "L: --.- inches / R: --.- inches");
   updatePlaceholder(hipWDisp, "--.- cm", "--.- inches");
@@ -4901,18 +4892,9 @@ export function updateDashboardOfflinePlaceholders() {
   const suffix = state.useInches ? "inches" : "cm";
   const place = `--.- ${suffix}`;
 
-  thighLDisp.textContent = place;
-  thighRDisp.textContent = place;
-  shinLDisp.textContent = place;
-  shinRDisp.textContent = place;
-  footLDisp.textContent = place;
-  footRDisp.textContent = place;
-  torsoLDisp.textContent = place;
-  torsoRDisp.textContent = place;
-  upperarmLDisp.textContent = place;
-  upperarmRDisp.textContent = place;
-  forearmLDisp.textContent = place;
-  forearmRDisp.textContent = place;
+  SEGMENT_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = place;
+  });
   
   if (fingerToToeDisp) {
     fingerToToeDisp.textContent = `L: ${place} / R: ${place}`;
@@ -4930,12 +4912,9 @@ export function updateDashboardOfflinePlaceholders() {
     heightFtDisp.textContent = `-'- -" (Stature)`;
   }
   
-  kneeAngleLDisp.textContent = `--°`;
-  kneeAngleRDisp.textContent = `--°`;
-  hipAngleLDisp.textContent = `--°`;
-  hipAngleRDisp.textContent = `--°`;
-  elbowAngleLDisp.textContent = `--°`;
-  elbowAngleRDisp.textContent = `--°`;
+  ANGLE_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = `--°`;
+  });
 }
 
 // BIND OVERHEAD SQUAT INTERFACE LISTENERS
@@ -6439,5 +6418,3 @@ export function closeProfileDetailsModal() {
   }
   state.isEditingProfileMetrics = false;
 }
-
-

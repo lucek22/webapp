@@ -325,7 +325,7 @@ export function calculatePoseMetrics(results) {
         scaleFactor3D = smooth('scale_factor_3d_height', rawScale3D, 8, 0.25);
         state.scaleFactor3D = scaleFactor3D;
       }
-    } else if (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'card') {
+    } else if (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation' || state.activeCalMethod === 'card') {
       if (state.pixelsPerCm) {
         // Only update the 3D scale factor when calibration is active/unlocked.
         // In ArUco mode, only update when the marker is actively detected in the current frame.
@@ -333,6 +333,8 @@ export function calculatePoseMetrics(results) {
         let shouldUpdate3DScale = false;
         if (state.activeCalMethod === 'aruco') {
           shouldUpdate3DScale = !!state.latestArucoMarker;
+        } else if (state.activeCalMethod === 'validation') {
+          shouldUpdate3DScale = true; // Always allow calculation if person is tracked to show live height validation
         } else if (state.activeCalMethod === 'card') {
           shouldUpdate3DScale = !state.calLocked || !state.scaleFactor3D;
         }

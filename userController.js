@@ -495,8 +495,7 @@ function drawLiveStatsCard(ctx, calculated) {
   ctx.shadowBlur = 0;
   
   // Title / Subject Name
-  const subjectInput = document.getElementById('subject-name-input');
-  const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+  const subjectName = getActiveProfileName(false) || "Subject";
   
   let displayName = subjectName.toUpperCase();
   if (displayName.length > 15) {
@@ -1486,9 +1485,8 @@ function captureSnapshot(joints, metrics, results) {
     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     const dateStr = new Date().toLocaleDateString('en-US', options);
     
-    // Retrieve active subject name if typed
-    const subjectInput = document.getElementById('subject-name-input');
-    const subjectName = subjectInput ? subjectInput.value.trim() : '';
+    // Retrieve active subject name from profile or input fallback
+    const subjectName = getActiveProfileName(false);
     
     const poseName = (metrics && metrics.pose) ? metrics.pose : "Posture Scan";
     
@@ -1618,8 +1616,7 @@ export function drawLockoutTransitionOverlay() {
 }
 
 export function saveCombinedSessionSnapshot() {
-  const subjectInput = document.getElementById('subject-name-input');
-  const subjectName = subjectInput ? subjectInput.value.trim() : '';
+  const subjectName = getActiveProfileName(false);
   const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
   const dateStr = new Date().toLocaleDateString('en-US', options);
   
@@ -3247,52 +3244,82 @@ function updateSidebarPlaceholders() {
 setTimeout(updateSidebarPlaceholders, 100);
 
 // Multi-unit system controls (Inches/Cm togglers)
+export function setUnitSystem(useInches) {
+  state.useInches = useInches;
+
+  // 1. Sync class list on main togglers
+  const unitInchBtn = document.getElementById('unit-inch-btn');
+  const unitCmBtn = document.getElementById('unit-cm-btn');
+  if (unitInchBtn && unitCmBtn) {
+    if (useInches) {
+      unitInchBtn.classList.add('active');
+      unitCmBtn.classList.remove('active');
+    } else {
+      unitInchBtn.classList.remove('active');
+      unitCmBtn.classList.add('active');
+    }
+  }
+
+  // 2. Sync class list on modal togglers
+  const modalUnitInchBtn = document.getElementById('modal-unit-inch-btn');
+  const modalUnitCmBtn = document.getElementById('modal-unit-cm-btn');
+  if (modalUnitInchBtn && modalUnitCmBtn) {
+    if (useInches) {
+      modalUnitInchBtn.classList.add('active');
+      modalUnitCmBtn.classList.remove('active');
+    } else {
+      modalUnitInchBtn.classList.remove('active');
+      modalUnitCmBtn.classList.add('active');
+    }
+  }
+
+  // 3. Update related input displays & validations
+  updateHeightInputUnit();
+  updateStateInputHeight();
+  updateStateValidationHeight();
+  updateSidebarPlaceholders();
+
+  // 4. Update live dashboard if frozen or live placeholders
+  if (state.isSnapshotFrozen && state.frozenMetrics) {
+    renderDashboard(state.frozenMetrics);
+  } else {
+    updateDashboardOfflinePlaceholders();
+  }
+
+  // 5. Update gallery if initialized
+  if (state.dbInitialized) {
+    renderGallery();
+  }
+
+  // 6. Update open snapshot modal
+  const modal = document.getElementById('snapshot-modal');
+  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
+    openSnapshotModal(state.activeModalSnapshotId);
+  }
+
+  // 7. Update profile details modal if active
+  const profileDetailsModal = document.getElementById('profile-details-modal');
+  if (profileDetailsModal && profileDetailsModal.classList.contains('active')) {
+    if (state.activeProfileId) {
+      openProfileDetailsModal(state.activeProfileId);
+    }
+  }
+}
+
 const unitInchBtn = document.getElementById('unit-inch-btn');
 const unitCmBtn = document.getElementById('unit-cm-btn');
 
-unitInchBtn.addEventListener('click', () => {
-  state.useInches = true;
-  unitInchBtn.classList.add('active');
-  unitCmBtn.classList.remove('active');
-  updateHeightInputUnit();
-  updateStateInputHeight();
-  updateStateValidationHeight();
-  updateSidebarPlaceholders();
-  if (state.isSnapshotFrozen && state.frozenMetrics) {
-    renderDashboard(state.frozenMetrics);
-  } else {
-    updateDashboardOfflinePlaceholders();
-  }
-  if (state.dbInitialized) {
-    renderGallery();
-  }
-  const modal = document.getElementById('snapshot-modal');
-  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
-    openSnapshotModal(state.activeModalSnapshotId);
-  }
-});
+if (unitInchBtn) {
+  unitInchBtn.addEventListener('click', () => {
+    setUnitSystem(true);
+  });
+}
 
-unitCmBtn.addEventListener('click', () => {
-  state.useInches = false;
-  unitCmBtn.classList.add('active');
-  unitInchBtn.classList.remove('active');
-  updateHeightInputUnit();
-  updateStateInputHeight();
-  updateStateValidationHeight();
-  updateSidebarPlaceholders();
-  if (state.isSnapshotFrozen && state.frozenMetrics) {
-    renderDashboard(state.frozenMetrics);
-  } else {
-    updateDashboardOfflinePlaceholders();
-  }
-  if (state.dbInitialized) {
-    renderGallery();
-  }
-  const modal = document.getElementById('snapshot-modal');
-  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
-    openSnapshotModal(state.activeModalSnapshotId);
-  }
-});
+if (unitCmBtn) {
+  unitCmBtn.addEventListener('click', () => {
+    setUnitSystem(false);
+  });
+}
 
 // Switch calibration tabs
 function switchCalibrationTab(method, activeBtn, activePanel) {
@@ -3615,8 +3642,7 @@ export function exportCombinedAssessmentCard() {
   ctx.lineTo(card_x + card_w - 15 * scale, card_y + 38 * scale);
   ctx.stroke();
 
-  const subjectInput = document.getElementById('subject-name-input');
-  const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+  const subjectName = getActiveProfileName(false) || "Subject";
   ctx.fillStyle = '#ffffff';
   ctx.font = `bold ${Math.max(10, Math.round(11 * scale))}px sans-serif`;
   ctx.textAlign = 'left';
@@ -3797,8 +3823,7 @@ export function startVideoRecording() {
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      const subjectInput = document.getElementById('subject-name-input');
-      const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+      const subjectName = getActiveProfileName(false) || "Subject";
       const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
       
       if (state.currentMode === 'squat') {
@@ -5332,6 +5357,8 @@ export async function initializeProfilesSelector() {
   const btnCloseProfileDetails = document.getElementById('btn-close-profile-details');
   const btnCloseProfileDetailsFooter = document.getElementById('btn-close-profile-details-footer');
   const btnProfileExportJson = document.getElementById('btn-profile-export-json');
+  const modalUnitInchBtn = document.getElementById('modal-unit-inch-btn');
+  const modalUnitCmBtn = document.getElementById('modal-unit-cm-btn');
 
   if (!profileSelect) return;
 
@@ -5601,6 +5628,18 @@ export async function initializeProfilesSelector() {
   if (btnProfileExportJson) {
     btnProfileExportJson.addEventListener('click', () => {
       compileAndDownloadCombinedSession();
+    });
+  }
+
+  if (modalUnitInchBtn) {
+    modalUnitInchBtn.addEventListener('click', () => {
+      setUnitSystem(true);
+    });
+  }
+
+  if (modalUnitCmBtn) {
+    modalUnitCmBtn.addEventListener('click', () => {
+      setUnitSystem(false);
     });
   }
 
@@ -6029,6 +6068,19 @@ export async function openProfileDetailsModal(profileId) {
         // Refresh detail views
         openProfileDetailsModal(profileId);
       };
+    }
+
+    // 2.5 Synchronize unit switcher classes inside details modal
+    const modalUnitInchBtn = document.getElementById('modal-unit-inch-btn');
+    const modalUnitCmBtn = document.getElementById('modal-unit-cm-btn');
+    if (modalUnitInchBtn && modalUnitCmBtn) {
+      if (state.useInches) {
+        modalUnitInchBtn.classList.add('active');
+        modalUnitCmBtn.classList.remove('active');
+      } else {
+        modalUnitInchBtn.classList.remove('active');
+        modalUnitCmBtn.classList.add('active');
+      }
     }
 
     // 3. Handle "+ New Session" button clicks

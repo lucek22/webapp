@@ -938,24 +938,7 @@ export function onPoseResults(results) {
   // 2. Perform Biomechanical mathematical updates
   let hasValidPerson = false;
   if (results.poseLandmarks) {
-    const lm = results.poseLandmarks;
-    const keyIndices = [11, 12, 23, 24, 25, 26, 27, 28]; // shoulders, hips, knees, ankles
-    let totalVisibility = 0;
-    let highVisCount = 0;
-    for (const idx of keyIndices) {
-      if (lm[idx]) {
-        const vis = lm[idx].visibility || 0;
-        totalVisibility += vis;
-        if (vis > 0.55) {
-          highVisCount++;
-        }
-      }
-    }
-    const avgVis = totalVisibility / keyIndices.length;
-    // Real person check: more lenient to allow upper-body tracking when sitting or partially cut off
-    if (highVisCount >= 3 || avgVis >= 0.3) {
-      hasValidPerson = true;
-    }
+    hasValidPerson = true;
   }
 
   if (!hasValidPerson) {

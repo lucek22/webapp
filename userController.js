@@ -5605,6 +5605,49 @@ export async function initializeProfilesSelector() {
       compileAndDownloadCombinedSession();
     });
   }
+
+  // 12. Initialize Image Lightbox Modal for expanding preview pictures
+  const lightboxModal = document.getElementById('image-lightbox-modal');
+  const btnCloseLightbox = document.getElementById('btn-close-lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxTitle = document.getElementById('lightbox-title');
+
+  if (lightboxModal && btnCloseLightbox && lightboxImg) {
+    const closeLightbox = () => {
+      lightboxModal.classList.remove('active');
+    };
+
+    btnCloseLightbox.addEventListener('click', closeLightbox);
+    
+    // Close lightbox on clicking backdrop
+    lightboxModal.addEventListener('click', (e) => {
+      if (e.target === lightboxModal) {
+        closeLightbox();
+      }
+    });
+
+    const setupPreviewClick = (containerId, imgId, titleText) => {
+      const container = document.getElementById(containerId);
+      const img = document.getElementById(imgId);
+      if (container && img) {
+        container.addEventListener('click', () => {
+          if (img.src && !container.classList.contains('hidden')) {
+            lightboxImg.src = img.src;
+            if (lightboxTitle) {
+              lightboxTitle.textContent = titleText;
+            }
+            lightboxModal.classList.add('active');
+          }
+        });
+      }
+    };
+
+    setupPreviewClick('detail-preview-container-a', 'detail-preview-img-a', 'A-Pose (Stature)');
+    setupPreviewClick('detail-preview-container-t', 'detail-preview-img-t', 'T-Pose (Wingspan)');
+    setupPreviewClick('detail-preview-container-overhead', 'detail-preview-img-overhead', 'Overhead (Reach)');
+    setupPreviewClick('detail-preview-container-squat-l', 'detail-preview-img-squat-l', 'Left Overhead Squat');
+    setupPreviewClick('detail-preview-container-squat-r', 'detail-preview-img-squat-r', 'Right Overhead Squat');
+  }
 }
 
 export function compileImportedMetricsFromProfile(profile, sessionId = null) {

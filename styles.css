@@ -2610,4 +2610,49 @@ div[style*="color: #10b981"] {
   background-color: transparent !important;
 }
 
+/* Pose Card Preview Box Interactive Expand styles */
+.pose-card-preview-container {
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s ease-in-out;
+}
+.pose-card-preview-container:hover {
+  transform: translateY(-2px);
+  border-color: rgba(186, 12, 47, 0.45) !important;
+  box-shadow: 0 4px 15px rgba(186, 12, 47, 0.2) !important;
+}
+.pose-card-preview-container img {
+  transition: transform 0.25s ease-in-out;
+}
+.pose-card-preview-container:hover img {
+  transform: scale(1.03);
+}
+/* Overlay expand hint on hover */
+.pose-card-preview-container::after {
+  content: "🔍 Click to Expand";
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.pose-card-preview-container:hover::after {
+  opacity: 1;
+}
+
+/* Lightbox active scale-up animation */
+#image-lightbox-modal.active #lightbox-container {
+  transform: scale(1) !important;
+}
+
 

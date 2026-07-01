@@ -6636,3 +6636,256 @@ export function closeProfileDetailsModal() {
   }
   state.isEditingProfileMetrics = false;
 }
+
+// =====================================================================
+// SCARLET VIDEO RECORDING COMPONENT (HIGH-DEFINITION SIDE-BY-SIDE GRID)
+// Placed at the bottom to prevent interfering with biomechanical loops
+// =====================================================================
+
+let scarletMediaRecorder = null;
+let scarletRecordedChunks = [];
+let scarletIsRecording = false;
+let scarletRecordingCanvas = null;
+let scarletRecordingCtx = null;
+let scarletAnimationId = null;
+
+function initScarletRecorder() {
+  const recordBtn = document.getElementById('record-btn');
+  const canvasOverlay = document.getElementById('overlay');
+  const videoElement = document.querySelector('video');
+
+  if (!recordBtn || !canvasOverlay || !videoElement) {
+    setTimeout(initScarletRecorder, 500);
+    return;
+  }
+
+  function renderRecordingFrame() {
+    if (!scarletIsRecording) return;
+
+    // Grid Layout Dimensions: 640px camera stream + 400px wider dashboard grid sidebar = 1040x480 video canvas
+    const feedWidth = canvasOverlay.width || 640;
+    const feedHeight = canvasOverlay.height || 480;
+    const metricsWidth = 400; 
+    
+    if (scarletRecordingCanvas.width !== (feedWidth + metricsWidth) || scarletRecordingCanvas.height !== feedHeight) {
+      scarletRecordingCanvas.width = feedWidth + metricsWidth;
+      scarletRecordingCanvas.height = feedHeight;
+    }
+
+    // Force crisp anti-aliasing rendering options to clean up text pixelation
+    scarletRecordingCtx.imageSmoothingEnabled = true;
+    scarletRecordingCtx.imageSmoothingQuality = 'high';
+
+    // Base background setup
+    scarletRecordingCtx.fillStyle = "#121212"; 
+    scarletRecordingCtx.fillRect(0, 0, scarletRecordingCanvas.width, scarletRecordingCanvas.height);
+
+    // 1. DRAW LEFT SIDE: Live Video Feed
+    const isYoloActive = (typeof state !== 'undefined' && state?.yoloModeActive);
+    const facingMode = (typeof state !== 'undefined' ? state?.currentFacingMode : 'user');
+
+    if (!isYoloActive) {
+      scarletRecordingCtx.save();
+      if (facingMode === "user" && videoElement.classList.contains('mirror-x')) {
+        scarletRecordingCtx.translate(feedWidth, 0);
+        scarletRecordingCtx.scale(-1, 1);
+      }
+      scarletRecordingCtx.drawImage(videoElement, 0, 0, feedWidth, feedHeight);
+      scarletRecordingCtx.restore();
+    }
+
+    // 2. OVERLAY SKELETON: MediaPipe lines
+    scarletRecordingCtx.drawImage(canvasOverlay, 0, 0, feedWidth, feedHeight);
+
+    // 3. DRAW RIGHT SIDE: Cleaned Grid UI Sidebar Panel
+    const xStart = feedWidth;
+    
+    // Solid Sidebar Background Fill
+    scarletRecordingCtx.fillStyle = "#1A1A1A"; 
+    scarletRecordingCtx.fillRect(xStart, 0, metricsWidth, feedHeight);
+    
+    // Scarlet Red Border Separation Line
+    scarletRecordingCtx.strokeStyle = "#BA0C2F"; 
+    scarletRecordingCtx.lineWidth = 4;
+    scarletRecordingCtx.beginPath();
+    scarletRecordingCtx.moveTo(xStart, 0);
+    scarletRecordingCtx.lineTo(xStart, feedHeight);
+    scarletRecordingCtx.stroke();
+
+    // Side Header block text
+    scarletRecordingCtx.fillStyle = "#BA0C2F";
+    scarletRecordingCtx.font = "bold 18px 'Segoe UI', Helvetica, sans-serif";
+    scarletRecordingCtx.fillText("SCARLET BIOMECHANICS", xStart + 24, 38);
+    
+    scarletRecordingCtx.fillStyle = "#888888";
+    scarletRecordingCtx.font = "11px 'Segoe UI', Helvetica, sans-serif";
+    scarletRecordingCtx.fillText("REAL-TIME ANALYTICS SESSION GRID", xStart + 25, 56);
+    
+    // Divider line below header
+    scarletRecordingCtx.strokeStyle = "#2D2D2D";
+    scarletRecordingCtx.lineWidth = 1;
+    scarletRecordingCtx.beginPath();
+    scarletRecordingCtx.moveTo(xStart + 20, 70);
+    scarletRecordingCtx.lineTo(xStart + metricsWidth - 20, 70);
+    scarletRecordingCtx.stroke();
+
+    // Helper to draw modern full-width cards (used for Stature metrics)
+    const drawFullWidthCard = (title, displayElement, cardY, accentColor = "#008542") => {
+      const valueText = displayElement?.textContent || "0.0 cm";
+      const cardWidth = metricsWidth - 40;
+      const cardHeight = 44;
+      const cardX = xStart + 20;
+
+      scarletRecordingCtx.fillStyle = "#242424";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(cardX, cardY, cardWidth, cardHeight, 6);
+      else scarletRecordingCtx.rect(cardX, cardY, cardWidth, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = accentColor;
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(cardX, cardY, 5, cardHeight, [6, 0, 0, 6]);
+      else scarletRecordingCtx.fillRect(cardX, cardY, 5, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#E0E0E0";
+      scarletRecordingCtx.font = "500 13px 'Segoe UI', Helvetica, sans-serif";
+      scarletRecordingCtx.fillText(title, cardX + 18, cardY + 26);
+
+      scarletRecordingCtx.fillStyle = accentColor;
+      scarletRecordingCtx.font = "bold 15px monospace";
+      scarletRecordingCtx.textAlign = "right";
+      scarletRecordingCtx.fillText(valueText, cardX + cardWidth - 15, cardY + 27);
+      scarletRecordingCtx.textAlign = "left";
+    };
+
+    // Helper to draw clean dual columns side-by-side (Left / Right variables combined horizontally)
+    const drawDualColumnRow = (leftTitle, leftElement, rightTitle, rightElement, rowY) => {
+      const cardWidth = (metricsWidth - 50) / 2; // Split space into two equal halves with gap spacing
+      const cardHeight = 44;
+      
+      // LEFT COMPONENT COLUMN
+      const leftX = xStart + 20;
+      const leftVal = leftElement?.textContent || "0.0°";
+      
+      scarletRecordingCtx.fillStyle = "#242424";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(leftX, rowY, cardWidth, cardHeight, 6);
+      else scarletRecordingCtx.rect(leftX, rowY, cardWidth, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#FFD700"; // Yellow Gold Indicator Strip
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(leftX, rowY, 5, cardHeight, [6, 0, 0, 6]);
+      else scarletRecordingCtx.fillRect(leftX, rowY, 5, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#E0E0E0";
+      scarletRecordingCtx.font = "500 12px 'Segoe UI', Helvetica, sans-serif";
+      scarletRecordingCtx.fillText(leftTitle, leftX + 14, rowY + 26);
+
+      scarletRecordingCtx.fillStyle = "#FFD700";
+      scarletRecordingCtx.font = "bold 14px monospace";
+      scarletRecordingCtx.textAlign = "right";
+      scarletRecordingCtx.fillText(leftVal, leftX + cardWidth - 10, rowY + 27);
+      scarletRecordingCtx.textAlign = "left";
+
+      // RIGHT COMPONENT COLUMN
+      const rightX = leftX + cardWidth + 10;
+      const rightVal = rightElement?.textContent || "0.0°";
+
+      scarletRecordingCtx.fillStyle = "#242424";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(rightX, rowY, cardWidth, cardHeight, 6);
+      else scarletRecordingCtx.rect(rightX, rowY, cardWidth, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#FFD700";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(rightX, rowY, 5, cardHeight, [6, 0, 0, 6]);
+      else scarletRecordingCtx.fillRect(rightX, rowY, 5, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#E0E0E0";
+      scarletRecordingCtx.font = "500 12px 'Segoe UI', Helvetica, sans-serif";
+      scarletRecordingCtx.fillText(rightTitle, rightX + 14, rowY + 26);
+
+      scarletRecordingCtx.fillStyle = "#FFD700";
+      scarletRecordingCtx.font = "bold 14px monospace";
+      scarletRecordingCtx.textAlign = "right";
+      scarletRecordingCtx.fillText(rightVal, rightX + cardWidth - 10, rowY + 27);
+      scarletRecordingCtx.textAlign = "left";
+    };
+
+    // Safely pull element states
+    const getEl = (variableName) => typeof variableName !== 'undefined' ? variableName : null;
+
+    // Render metrics vertically optimized using side-by-side grid containers
+    drawFullWidthCard("Stature (Metric):", getEl(heightCmDisp), 85, "#008542");
+    drawFullWidthCard("Stature (Stature):", getEl(heightFtDisp), 139, "#008542");
+    
+    // Draw joints split horizontally across columns to maximize viewport layout bounds
+    drawDualColumnRow("Left Knee:", getEl(kneeAngleLDisp), "Right Knee:", getEl(kneeAngleRDisp), 205);
+    drawDualColumnRow("Left Hip:", getEl(hipAngleLDisp), "Right Hip:", getEl(hipAngleRDisp), 261);
+    drawDualColumnRow("Left Elbow:", getEl(elbowAngleLDisp), "Right Elbow:", getEl(elbowAngleRDisp), 317);
+
+    // Loop frame renders smoothly
+    scarletAnimationId = requestAnimationFrame(renderRecordingFrame);
+  }
+
+  recordBtn.addEventListener('click', () => {
+    if (!scarletIsRecording) {
+      if (!scarletRecordingCanvas) {
+        scarletRecordingCanvas = document.createElement('canvas');
+        scarletRecordingCtx = scarletRecordingCanvas.getContext('2d');
+      }
+
+      scarletRecordedChunks = [];
+      scarletIsRecording = true;
+      
+      renderRecordingFrame();
+
+      const stream = scarletRecordingCanvas.captureStream(30); 
+      let options = { mimeType: 'video/webm; codecs=vp9' };
+      try {
+        scarletMediaRecorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        scarletMediaRecorder = new MediaRecorder(stream);
+      }
+
+      scarletMediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) scarletRecordedChunks.push(e.data);
+      };
+
+      scarletMediaRecorder.onstop = () => {
+        const blob = new Blob(scarletRecordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `Scarlet-HD-GridDashboard-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      };
+
+      scarletMediaRecorder.start(100);
+      
+      recordBtn.textContent = '🛑 Stop Recording Video';
+      recordBtn.style.backgroundColor = '#BA0C2F'; 
+      
+    } else {
+      scarletIsRecording = false;
+      if (scarletAnimationId) cancelAnimationFrame(scarletAnimationId);
+      if (scarletMediaRecorder && scarletMediaRecorder.state !== 'inactive') scarletMediaRecorder.stop();
+      
+      recordBtn.textContent = 'Start Recording Video';
+      recordBtn.style.backgroundColor = '#008542'; 
+    }
+  });
+}
+
+window.addEventListener('load', initScarletRecorder);

@@ -40,7 +40,7 @@ export function showDiagnosticError(text) {
 export class SnapshotStore {
   constructor() {
     this.dbName = "ScarletBiomechanics";
-    this.dbVersion = 1;
+    this.dbVersion = 2;
     this.db = null;
   }
 
@@ -67,6 +67,9 @@ export class SnapshotStore {
         const db = event.target.result;
         if (!db.objectStoreNames.contains("snapshots")) {
           db.createObjectStore("snapshots", { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains("profiles")) {
+          db.createObjectStore("profiles", { keyPath: "id", autoIncrement: true });
         }
       };
     });
@@ -125,6 +128,69 @@ export class SnapshotStore {
       }
       const transaction = this.db.transaction(["snapshots"], "readwrite");
       const store = transaction.objectStore("snapshots");
+      const request = store.delete(Number(id));
+
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  // ==========================================
+  // PROFILE PERSISTENCE OPERATIONS
+  // ==========================================
+  saveProfile(profile) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readwrite");
+      const store = transaction.objectStore("profiles");
+      const request = store.put(profile); // put handles both insert and update
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  getProfile(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readonly");
+      const store = transaction.objectStore("profiles");
+      const request = store.get(Number(id));
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  getAllProfiles() {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readonly");
+      const store = transaction.objectStore("profiles");
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  deleteProfile(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readwrite");
+      const store = transaction.objectStore("profiles");
       const request = store.delete(Number(id));
 
       request.onsuccess = () => resolve();
@@ -198,10 +264,26 @@ export const MARKER_PHYSICAL_SIZE_CM = 20.0;
 export const state = {
   canvasWidth: 640,
   canvasHeight: 480,
+  currentMode: "posture",
+  squatTestingSide: "left",
+  squatPeaks: {
+    kneeL: 0,
+    kneeR: 0,
+    hipL: 0,
+    hipR: 0,
+    ankleL: 0,
+    ankleR: 0
+  },
+  isUploadedMedia: false,
+  uploadedMediaType: null,
+  latestPoseResults: null,
+  activeModalSnapshotId: null,
   pixelsPerCm: null,
   calLocked: false,
   useInches: true,
   currentFacingMode: "user",
+  wallPerspectiveEnabled: false,
+  wallPerspectiveFactor: 1.09, // Increases px/cm scale, decreasing calculated height to correct for being closer to the camera when standing beside wall-mounted ArUco
   calBoxSize: 150,
   calBoxX: 320,
   calBoxY: 240,
@@ -225,6 +307,7 @@ export const state = {
   activeStream: null,
   activeCalMethod: 'aruco',
   inputHeightCm: 175.006,
+  validationHeightCm: 175.006,
   dbInitialized: false,
   autoActive: false,
   autoState: 'IDLE',
@@ -237,11 +320,23 @@ export const state = {
   metricsA: null,
   metricsT: null,
   metricsOverhead: null,
+  importedPortfolioMetrics: null,
   imageA: null,
   imageT: null,
   imageOverhead: null,
   REQ_HOLD_MS: 2500,
-  LOCKOUT_MS: 3500
+  LOCKOUT_MS: 3500,
+  activeProfileId: null,
+  activeSessionId: null,
+  allProfiles: [],
+  isEditingProfileMetrics: false,
+  isRecording: false,
+
+  recordedChunks: [],
+  mediaRecorder: null,
+  scaleFactor3D: null,
+  imageSquatL: null,
+  imageSquatR: null
 };
 
 const smoothBuffers = {};
@@ -270,6 +365,20 @@ export function smooth(key, val, windowSize = 15, emaAlpha = 0.15) {
   return lastEmaValues[key];
 }
 
+export function clearSmoothBuffer(key) {
+  if (key === '*') {
+    for (const k in smoothBuffers) {
+      delete smoothBuffers[k];
+    }
+    for (const k in lastEmaValues) {
+      delete lastEmaValues[k];
+    }
+  } else {
+    delete smoothBuffers[key];
+    delete lastEmaValues[key];
+  }
+}
+
 
 export function calculateAngle(p_vertex, p_arm1, p_arm2) {
   const v1 = { x: p_arm1.x - p_vertex.x, y: p_arm1.y - p_vertex.y };
@@ -288,10 +397,16 @@ export function calculateAngle(p_vertex, p_arm1, p_arm2) {
 
 export function getCanvasX(normX) {
   const width = state.canvasWidth || 640;
+  if (state.isUploadedMedia) {
+    return normX * width;
+  }
   return state.currentFacingMode === "user" ? (1.0 - normX) * width : normX * width;
 }
 
 export function formatLength(cmVal) {
+  if (cmVal === null || cmVal === undefined || isNaN(cmVal)) {
+    return state.useInches ? "--.- inches" : "--.- cm";
+  }
   if (state.useInches) {
     return `${(cmVal / 2.54).toFixed(1)} inches`;
   } else {
@@ -302,23 +417,46 @@ export function formatLength(cmVal) {
 export function updateHeightInputUnit() {
   const heightInputLabel = document.querySelector('label[for="input-user-height"]');
   const inputUserHeight = document.getElementById('input-user-height');
-  if (!heightInputLabel || !inputUserHeight) return;
+  const valHeightLabel = document.getElementById('validation-height-label');
+  const inputValidationHeight = document.getElementById('input-validation-height');
 
-  if (state.useInches) {
-    heightInputLabel.textContent = "Your Height (inches):";
-    const val = parseFloat(inputUserHeight.value);
-    if (val > 100) { // If it was in cm, convert to inches
-      inputUserHeight.value = (val / 2.54).toFixed(1);
-    } else if (isNaN(val)) {
-      inputUserHeight.value = "68.9";
+  if (heightInputLabel && inputUserHeight) {
+    if (state.useInches) {
+      heightInputLabel.textContent = "Your Height (inches):";
+      const val = parseFloat(inputUserHeight.value);
+      if (val > 100) { // If it was in cm, convert to inches
+        inputUserHeight.value = parseFloat((val / 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputUserHeight.value = "68.9";
+      }
+    } else {
+      heightInputLabel.textContent = "Your Height (cm):";
+      const val = parseFloat(inputUserHeight.value);
+      if (val < 100) { // If it was in inches, convert to cm
+        inputUserHeight.value = parseFloat((val * 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputUserHeight.value = "175";
+      }
     }
-  } else {
-    heightInputLabel.textContent = "Your Height (cm):";
-    const val = parseFloat(inputUserHeight.value);
-    if (val < 100) { // If it was in inches, convert to cm
-      inputUserHeight.value = (val * 2.54).toFixed(1);
-    } else if (isNaN(val)) {
-      inputUserHeight.value = "175.0";
+  }
+
+  if (valHeightLabel && inputValidationHeight) {
+    if (state.useInches) {
+      valHeightLabel.textContent = "Your True Height (inches):";
+      const val = parseFloat(inputValidationHeight.value);
+      if (val > 100) { // If it was in cm, convert to inches
+        inputValidationHeight.value = parseFloat((val / 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputValidationHeight.value = "68.9";
+      }
+    } else {
+      valHeightLabel.textContent = "Your True Height (cm):";
+      const val = parseFloat(inputValidationHeight.value);
+      if (val < 100) { // If it was in inches, convert to cm
+        inputValidationHeight.value = parseFloat((val * 2.54).toFixed(2));
+      } else if (isNaN(val)) {
+        inputValidationHeight.value = "175";
+      }
     }
   }
 }
@@ -343,7 +481,7 @@ export function getDomMeasurementCm(elementId) {
   const num = parseFloat(text);
   if (isNaN(num)) return null;
   
-  if (text.endsWith('in')) {
+  if (text.endsWith('in') || text.endsWith('inches') || text.includes('inch')) {
     return num * 2.54;
   }
   return num;

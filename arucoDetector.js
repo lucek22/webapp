@@ -32,15 +32,17 @@ const offscreenCtx = offscreenCanvas.getContext('2d');
 export function detectArucoMarker(videoElem) {
   if (!arucoDetector) return null;
   
+  const width = videoElem.videoWidth || videoElem.naturalWidth || 640;
+  const height = videoElem.videoHeight || videoElem.naturalHeight || 480;
+  
+  if (offscreenCanvas.width !== width || offscreenCanvas.height !== height) {
+    offscreenCanvas.width = width;
+    offscreenCanvas.height = height;
+  }
+  
   try {
-    const w = videoElem.videoWidth || 640;
-    const h = videoElem.videoHeight || 480;
-    if (offscreenCanvas.width !== w || offscreenCanvas.height !== h) {
-      offscreenCanvas.width = w;
-      offscreenCanvas.height = h;
-    }
-    offscreenCtx.drawImage(videoElem, 0, 0, w, h);
-    const imageData = offscreenCtx.getImageData(0, 0, w, h);
+    offscreenCtx.drawImage(videoElem, 0, 0, width, height);
+    const imageData = offscreenCtx.getImageData(0, 0, width, height);
     const markers = arucoDetector.detect(imageData);
     
     for (const marker of markers) {

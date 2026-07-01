@@ -69,10 +69,6 @@ export function setupMediaPipeCallbacks(onPoseResultsCb, drawHandMeshCb) {
 hands.onResults((results) => {
   state.latestHandResults = results;
   updateHandTracking(results);
-  
-  if (!state.isSnapshotFrozen && drawHandMesh) {
-    drawHandMesh(results.multiHandLandmarks, results.multiHandedness);
-  }
 });
 
 pose.onResults((results) => {
@@ -94,6 +90,16 @@ export function calculatePoseMetrics(results) {
   if (!results.poseLandmarks) return null;
 
   const lm = results.poseLandmarks;
+
+  // Safety check: Make sure all required landmarks exist in the poseLandmarks array
+  const requiredIndices = [7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+  for (const idx of requiredIndices) {
+    if (!lm[idx]) {
+      console.warn(`Missing required landmark index ${idx} in calculatePoseMetrics`);
+      return null;
+    }
+  }
+
   const mirrorX = getCanvasX;
   const height = state.canvasHeight || 480;
 
@@ -146,6 +152,8 @@ export function calculatePoseMetrics(results) {
   const hipAngleR = calculateAngle(hip_r, shoulder_r, knee_r);
   const elbowAngleL = calculateAngle(elbow_l, shoulder_l, wrist_l);
   const elbowAngleR = calculateAngle(elbow_r, shoulder_r, wrist_r);
+  const ankleAngleL = calculateAngle(ankle_l, knee_l, toe_l);
+  const ankleAngleR = calculateAngle(ankle_r, knee_r, toe_r);
 
   // Vertical height ground plane
   const foot_l_bottom = Math.max(heel_l.y, toe_l.y);
@@ -154,6 +162,26 @@ export function calculatePoseMetrics(results) {
 
   let liveMetrics = null;
   const wl = results.poseWorldLandmarks;
+
+  // Auto-calibrate state.pixelsPerCm using pre-measured portfolio stature if present
+  if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {
+    const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
+    const hip_mid_x = (hip_l.x + hip_r.x) / 2;
+    const hip_mid_y = (hip_l.y + hip_r.y) / 2;
+    const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
+    const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
+                     Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
+                     Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
+    const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
+                     Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
+                     Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
+    const average_leg_px = (leg_l_px + leg_r_px) / 2;
+    const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
+    if (skeletal_height_px > 10) {
+      state.pixelsPerCm = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
+      state.calLocked = true;
+    }
+  }
 
   // Perform 3D calculations if world landmarks are available
   if (wl && wl.length > 0) {
@@ -343,7 +371,12 @@ export function calculatePoseMetrics(results) {
     state.lastVerticalHeightPx = vertical_height_px;
     state.lastSkeletalHeightPx = skeletal_height_px;
 
-    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+    if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {
+      if (skeletal_height_px > 10) {
+        state.pixelsPerCm = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
+        state.calLocked = true;
+      }
+    } else if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
       const rawScale = skeletal_height_px / state.inputHeightCm;
       state.pixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
     }
@@ -399,8 +432,7 @@ export function calculatePoseMetrics(results) {
       }
       liveMetrics.pose = detectedPose;
     }
-  } else if (state.pixelsPerCm || state.activeCalMethod === 'height') {
-    // 2D Fallback Calculations (in case 3D world landmarks are not available in current environment)
+  } else if (state.pixelsPerCm || state.activeCalMethod === 'height') {    // 2D Fallback Calculations (in case 3D world landmarks are not available in current environment)
     // Left segment calculations
     const thigh_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y);
     const shin_l_px = Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y);
@@ -531,6 +563,7 @@ export function calculatePoseMetrics(results) {
     shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
     head_top, ground_y, all_landmarks,
     kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+    ankleAngleL, ankleAngleR,
     liveMetrics
   };
 }
@@ -571,6 +604,8 @@ export function updateHandTracking(results) {
     document.getElementById('val-fingertip-r-4')
   ];
 
+  const height = state.canvasHeight || 480;
+
   if (multiLandmarks && multiHandedness) {
     multiLandmarks.forEach((landmarks, index) => {
       const handedness = multiHandedness[index];
@@ -579,7 +614,7 @@ export function updateHandTracking(results) {
       if (side === 'Left') leftDetected = true;
       if (side === 'Right') rightDetected = true;
 
-      const height = state.canvasHeight || 480;
+
       const wrist = { x: getCanvasX(landmarks[0].x), y: landmarks[0].y * height };
       const thumbTip = { x: getCanvasX(landmarks[4].x), y: landmarks[4].y * height };
       const indexTip = { x: getCanvasX(landmarks[8].x), y: landmarks[8].y * height };
@@ -587,8 +622,8 @@ export function updateHandTracking(results) {
       const ringTip = { x: getCanvasX(landmarks[16].x), y: landmarks[16].y * height };
       const pinkyTip = { x: getCanvasX(landmarks[20].x), y: landmarks[20].y * height };
 
-      let pinchSpanStr = state.useInches ? "--.- in" : "--.- cm";
-      let handSpanStr = state.useInches ? "--.- in" : "--.- cm";
+      let pinchSpanStr = state.useInches ? "--.- inches" : "--.- cm";
+      let handSpanStr = state.useInches ? "--.- inches" : "--.- cm";
 
       if (state.pixelsPerCm) {
         const pinchPx = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
@@ -642,6 +677,8 @@ export function updateHandTracking(results) {
     });
   }
 
+  const resetText = state.useInches ? "--.- inches" : "--.- cm";
+
   // If left/right hands are not detected, reset their fingertip displays to Offline
   const fallbackStr = state.useInches ? "--.- in" : "--.- cm";
   if (!leftDetected) {
@@ -651,8 +688,8 @@ export function updateHandTracking(results) {
       handStatusLDisp.classList.add('text-slate');
       handStatusLDisp.classList.remove('text-emerald');
     }
-    if (pinchLDisp) pinchLDisp.textContent = fallbackStr;
-    if (spanLDisp) spanLDisp.textContent = fallbackStr;
+    if (pinchLDisp) pinchLDisp.textContent = resetText;
+    if (spanLDisp) spanLDisp.textContent = resetText;
     fingertipLDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";
@@ -668,8 +705,8 @@ export function updateHandTracking(results) {
       handStatusRDisp.classList.add('text-slate');
       handStatusRDisp.classList.remove('text-emerald');
     }
-    if (pinchRDisp) pinchRDisp.textContent = fallbackStr;
-    if (spanRDisp) spanRDisp.textContent = fallbackStr;
+    if (pinchRDisp) pinchRDisp.textContent = resetText;
+    if (spanRDisp) spanRDisp.textContent = resetText;
     fingertipRDisps.forEach(disp => {
       if (disp) {
         disp.textContent = "Offline";

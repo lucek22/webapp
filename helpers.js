@@ -40,7 +40,7 @@ export function showDiagnosticError(text) {
 export class SnapshotStore {
   constructor() {
     this.dbName = "ScarletBiomechanics";
-    this.dbVersion = 1;
+    this.dbVersion = 2;
     this.db = null;
   }
 
@@ -67,6 +67,9 @@ export class SnapshotStore {
         const db = event.target.result;
         if (!db.objectStoreNames.contains("snapshots")) {
           db.createObjectStore("snapshots", { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains("profiles")) {
+          db.createObjectStore("profiles", { keyPath: "id", autoIncrement: true });
         }
       };
     });
@@ -125,6 +128,69 @@ export class SnapshotStore {
       }
       const transaction = this.db.transaction(["snapshots"], "readwrite");
       const store = transaction.objectStore("snapshots");
+      const request = store.delete(Number(id));
+
+      request.onsuccess = () => resolve();
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  // ==========================================
+  // PROFILE PERSISTENCE OPERATIONS
+  // ==========================================
+  saveProfile(profile) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readwrite");
+      const store = transaction.objectStore("profiles");
+      const request = store.put(profile); // put handles both insert and update
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  getProfile(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readonly");
+      const store = transaction.objectStore("profiles");
+      const request = store.get(Number(id));
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  getAllProfiles() {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readonly");
+      const store = transaction.objectStore("profiles");
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+
+  deleteProfile(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+      const transaction = this.db.transaction(["profiles"], "readwrite");
+      const store = transaction.objectStore("profiles");
       const request = store.delete(Number(id));
 
       request.onsuccess = () => resolve();
@@ -198,6 +264,20 @@ export const MARKER_PHYSICAL_SIZE_CM = 20.0;
 export const state = {
   canvasWidth: 640,
   canvasHeight: 480,
+  currentMode: "posture",
+  squatTestingSide: "left",
+  squatPeaks: {
+    kneeL: 0,
+    kneeR: 0,
+    hipL: 0,
+    hipR: 0,
+    ankleL: 0,
+    ankleR: 0
+  },
+  isUploadedMedia: false,
+  uploadedMediaType: null,
+  latestPoseResults: null,
+  activeModalSnapshotId: null,
   pixelsPerCm: null,
   calLocked: false,
   useInches: true,
@@ -240,12 +320,23 @@ export const state = {
   metricsA: null,
   metricsT: null,
   metricsOverhead: null,
+  importedPortfolioMetrics: null,
   imageA: null,
   imageT: null,
   imageOverhead: null,
   REQ_HOLD_MS: 2500,
   LOCKOUT_MS: 3500,
-  scaleFactor3D: null
+  activeProfileId: null,
+  activeSessionId: null,
+  allProfiles: [],
+  isEditingProfileMetrics: false,
+  isRecording: false,
+
+  recordedChunks: [],
+  mediaRecorder: null,
+  scaleFactor3D: null,
+  imageSquatL: null,
+  imageSquatR: null
 };
 
 const smoothBuffers = {};
@@ -306,10 +397,16 @@ export function calculateAngle(p_vertex, p_arm1, p_arm2) {
 
 export function getCanvasX(normX) {
   const width = state.canvasWidth || 640;
+  if (state.isUploadedMedia) {
+    return normX * width;
+  }
   return state.currentFacingMode === "user" ? (1.0 - normX) * width : normX * width;
 }
 
 export function formatLength(cmVal) {
+  if (cmVal === null || cmVal === undefined || isNaN(cmVal)) {
+    return state.useInches ? "--.- inches" : "--.- cm";
+  }
   if (state.useInches) {
     return `${(cmVal / 2.54).toFixed(1)} inches`;
   } else {
@@ -384,7 +481,7 @@ export function getDomMeasurementCm(elementId) {
   const num = parseFloat(text);
   if (isNaN(num)) return null;
   
-  if (text.endsWith('in')) {
+  if (text.endsWith('in') || text.endsWith('inches') || text.includes('inch')) {
     return num * 2.54;
   }
   return num;

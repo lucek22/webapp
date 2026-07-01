@@ -12,7 +12,8 @@ import {
   resetAndResume,
   onPoseResults,
   drawHandMesh,
-  frozenFrameCanvas
+  frozenFrameCanvas,
+  initializeProfilesSelector
 } from './userController.js';
 
 // 1. Initialize persistent offline database store
@@ -20,6 +21,7 @@ snapshotStore.init()
   .then(() => {
     state.dbInitialized = true;
     renderGallery();
+    initializeProfilesSelector();
   })
   .catch(err => {
     console.error("IndexedDB store initialization failed:", err);

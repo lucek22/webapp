@@ -486,6 +486,7 @@ function drawPoseBadge(poseName) {
 }
 
 function drawLiveStatsCard(ctx, calculated) {
+  if (state.activeCalMethod === 'height') return;
   if (!calculated || !calculated.liveMetrics) return;
   const liveMetrics = calculated.liveMetrics;
 

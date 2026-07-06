@@ -174,7 +174,7 @@ export function calculatePoseMetrics(results) {
   const ground_y = (foot_l_bottom + foot_r_bottom) / 2;
 
   let liveMetrics = null;
-  const wl = results.poseWorldLandmarks;
+  const wl = results.poseWorldLandmarks || results.ea || results.za || results.pose_world_landmarks;
 
   // Auto-calibrate state.pixelsPerCm using pre-measured portfolio stature if present
   if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {

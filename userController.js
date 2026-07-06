@@ -820,10 +820,14 @@ export function onPoseResults(results) {
           state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
           state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
         }
+        
+        // Cache jointsOverhead directly from analyzed static frame results
+        state.jointsOverhead = JSON.parse(JSON.stringify(calculated));
+        state.imageSquatFrontal = state.uploadedMediaUrl || (results && results.image && results.image.src) || state.imageSquatFrontal;
       }
 
       if (state.currentMode === 'squat') {
-        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR);
+        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated);
       }
     }
 
@@ -1027,9 +1031,9 @@ export function onPoseResults(results) {
     const calculated = calculatePoseMetrics(results);
 
     if (calculated) {
+      state.lastCalculatedResults = calculated;
       if (isStaticImage) {
         state.lastProcessedScaleFactor = state.pixelsPerCm;
-        state.lastCalculatedResults = calculated;
       }
 
       const {
@@ -1172,7 +1176,7 @@ export function onPoseResults(results) {
 
       // If in squat mode, update the Overhead Squat dashboard UI
       if (state.currentMode === 'squat') {
-        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR);
+        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated);
       }
 
       // Draw real-time biometrics to dashboard and ruler if calibrated
@@ -4940,13 +4944,58 @@ export function updateSquatSideUI() {
   if (squatAsymmetryRow) {
     if (side === 'frontal') {
       squatAsymmetryRow.classList.remove('hidden');
+      const labelEl = squatAsymmetryRow.querySelector('.metric-lbl');
+      if (labelEl) {
+        labelEl.textContent = 'Knee Cave-In:';
+      }
     } else {
       squatAsymmetryRow.classList.add('hidden');
     }
   }
 }
 
-export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR) {
+export function calculateValgusFromJoints(joints) {
+  let pctL = 0;
+  let pctR = 0;
+  if (!joints) return { pctL, pctR };
+  
+  const { knee_l, knee_r, ankle_l, ankle_r } = joints;
+  if (knee_l && knee_r && ankle_l && ankle_r) {
+    const B = {
+      x: ankle_r.x - ankle_l.x,
+      y: ankle_r.y - ankle_l.y
+    };
+    const S_L = {
+      x: knee_l.x - ankle_l.x,
+      y: knee_l.y - ankle_l.y
+    };
+    const S_R = {
+      x: knee_r.x - ankle_r.x,
+      y: knee_r.y - ankle_r.y
+    };
+
+    const lenB = Math.sqrt(B.x * B.x + B.y * B.y);
+
+    const lenS_L = Math.sqrt(S_L.x * S_L.x + S_L.y * S_L.y);
+    if (lenB > 0.0001 && lenS_L > 0.0001) {
+      const dotL = B.x * S_L.x + B.y * S_L.y;
+      const cosThetaL = Math.max(-1, Math.min(1, dotL / (lenB * lenS_L)));
+      const thetaL_deg = Math.acos(cosThetaL) * (180 / Math.PI);
+      pctL = Math.abs(90 - thetaL_deg);
+    }
+
+    const lenS_R = Math.sqrt(S_R.x * S_R.x + S_R.y * S_R.y);
+    if (lenB > 0.0001 && lenS_R > 0.0001) {
+      const dotR = B.x * S_R.x + B.y * S_R.y;
+      const cosThetaR = Math.max(-1, Math.min(1, dotR / (lenB * lenS_R)));
+      const thetaR_deg = Math.acos(cosThetaR) * (180 / Math.PI);
+      pctR = Math.abs(90 - thetaR_deg);
+    }
+  }
+  return { pctL, pctR };
+}
+
+export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated) {
   // Update live monitors
   if (squatLiveKneeL) squatLiveKneeL.textContent = `${kneeMobL}°`;
   if (squatLiveKneeR) squatLiveKneeR.textContent = `${kneeMobR}°`;
@@ -4976,6 +5025,23 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
       state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
       state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
       state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+    }
+  }
+
+  // Calculate real-time Knee Alignment (deviation from perpendicular to ankle-to-ankle line) in degrees if in frontal mode
+  let pctL = 0; // stores left deviation in degrees
+  let pctR = 0; // stores right deviation in degrees
+  if (state.squatTestingSide === 'frontal' && calculated) {
+    const valgus = calculateValgusFromJoints(calculated);
+    pctL = valgus.pctL;
+    pctR = valgus.pctR;
+
+    // Track peak deviations in degrees only during active squat movement (knee flexion >= 30 degrees)
+    if (kneeMobL >= 30) {
+      state.squatPeaks.maxKneeCaveL = Math.max(state.squatPeaks.maxKneeCaveL || 0, pctL);
+    }
+    if (kneeMobR >= 30) {
+      state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, pctR);
     }
   }
 
@@ -5016,37 +5082,26 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
     squatStatusVal.classList.add(statusClass);
   }
 
-  // Real-time Frontal Asymmetry display in sidebar
+  // Real-time Frontal Knee Cave-In display in sidebar
   const squatAsymmetryVal = document.getElementById('squat-asymmetry-val');
   if (squatAsymmetryVal) {
     if (state.squatTestingSide === 'frontal') {
       if (maxKneeMob >= 30) {
-        const kneeDiff = Math.abs(kneeMobL - kneeMobR);
-        const hipDiff = Math.abs(hipMobL - hipMobR);
-        const ankleDiff = Math.abs(ankleMobL - ankleMobR);
-        
-        let maxDiff = 0;
-        let asymmetricJoint = "None";
-        
-        if (kneeDiff > maxDiff) {
-          maxDiff = kneeDiff;
-          asymmetricJoint = `Knee (${kneeDiff}° L/R)`;
-        }
-        if (hipDiff > maxDiff) {
-          maxDiff = hipDiff;
-          asymmetricJoint = `Hip (${hipDiff}° L/R)`;
-        }
-        if (ankleDiff > maxDiff) {
-          maxDiff = ankleDiff;
-          asymmetricJoint = `Ankle (${ankleDiff}° L/R)`;
-        }
-        
-        if (maxDiff > 5) {
-          squatAsymmetryVal.textContent = asymmetricJoint;
-          squatAsymmetryVal.style.color = '#ff9f43'; // Amber
-        } else {
+        const maxPct = Math.max(pctL, pctR);
+        const valStr = `${maxPct.toFixed(1)}°`;
+
+        if (maxPct < 3.0) {
           squatAsymmetryVal.textContent = 'None';
           squatAsymmetryVal.style.color = '#10b981'; // Emerald
+        } else if (maxPct <= 8.0) {
+          squatAsymmetryVal.textContent = `Mild (${valStr})`;
+          squatAsymmetryVal.style.color = '#ffb300'; // Yellow-Amber
+        } else if (maxPct <= 15.0) {
+          squatAsymmetryVal.textContent = `Moderate (${valStr})`;
+          squatAsymmetryVal.style.color = '#ff9f43'; // Amber
+        } else {
+          squatAsymmetryVal.textContent = `Severe (${valStr})`;
+          squatAsymmetryVal.style.color = '#ef4444'; // Scarlet
         }
       } else {
         squatAsymmetryVal.textContent = 'None';
@@ -5063,8 +5118,11 @@ export function resetSquatPeaks() {
     hipL: 0,
     hipR: 0,
     ankleL: 0,
-    ankleR: 0
+    ankleR: 0,
+    maxKneeCaveL: 0,
+    maxKneeCaveR: 0
   };
+  state.jointsOverhead = null;
 
   if (state.activeProfileId) {
     autoSyncToActiveProfile();
@@ -5268,6 +5326,10 @@ if (btnSaveSquatPeaks) {
           state.imageSquatR = capturedImg;
         } else if (state.squatTestingSide === 'frontal') {
           state.imageSquatFrontal = capturedImg;
+          // Capture and save the full skeletal joint coordinates for the Overhead Squat image when it is taken
+          if (state.lastCalculatedResults) {
+            state.jointsOverhead = JSON.parse(JSON.stringify(state.lastCalculatedResults));
+          }
         }
         await autoSyncToActiveProfile();
         
@@ -5896,7 +5958,8 @@ export function ensureProfileSessions(profile) {
       imageOverhead: profile.imageOverhead || null,
       imageSquatL: profile.imageSquatL || null,
       imageSquatR: profile.imageSquatR || null,
-      imageSquatFrontal: profile.imageSquatFrontal || null
+      imageSquatFrontal: profile.imageSquatFrontal || null,
+      jointsOverhead: profile.jointsOverhead || null
     };
     profile.sessions = [baselineSession];
     profile.activeSessionId = baselineSession.id;
@@ -5940,6 +6003,7 @@ export async function loadProfileIntoState(profileId) {
     state.imageSquatL = activeSession.imageSquatL || null;
     state.imageSquatR = activeSession.imageSquatR || null;
     state.imageSquatFrontal = activeSession.imageSquatFrontal || null;
+    state.jointsOverhead = activeSession.jointsOverhead || null;
     
     state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile, activeSession.id);
 
@@ -6051,6 +6115,7 @@ export async function loadProfileIntoState(profileId) {
               imageSquatL: null,
               imageSquatR: null,
               imageSquatFrontal: null,
+              jointsOverhead: null,
               pixelsPerCm: null
             };
             profile.sessions.push(newSession);
@@ -6106,6 +6171,7 @@ export async function autoSyncToActiveProfile() {
     session.imageSquatL = state.imageSquatL;
     session.imageSquatR = state.imageSquatR;
     session.imageSquatFrontal = state.imageSquatFrontal;
+    session.jointsOverhead = state.jointsOverhead;
     
     // Keep profile-level active session and timestamp synced
     profile.timestamp = Date.now();
@@ -6123,6 +6189,7 @@ export async function autoSyncToActiveProfile() {
     profile.imageSquatL = state.imageSquatL;
     profile.imageSquatR = state.imageSquatR;
     profile.imageSquatFrontal = state.imageSquatFrontal;
+    profile.jointsOverhead = state.jointsOverhead;
     
     await snapshotStore.saveProfile(profile);
     console.log(`[autoSync] Synced active profile: ${profile.name}, session: ${session.name}`);
@@ -6267,7 +6334,8 @@ export async function openProfileDetailsModal(profileId) {
           imageOverhead: null,
           imageSquatL: null,
           imageSquatR: null,
-          imageSquatFrontal: null
+          imageSquatFrontal: null,
+          jointsOverhead: null
         };
 
         profile.sessions.push(newSession);
@@ -6285,6 +6353,7 @@ export async function openProfileDetailsModal(profileId) {
         state.imageSquatL = null;
         state.imageSquatR = null;
         state.imageSquatFrontal = null;
+        state.jointsOverhead = null;
 
         await snapshotStore.saveProfile(profile);
         await loadProfileIntoState(profileId);
@@ -6836,6 +6905,7 @@ export async function openProfileDetailsModal(profileId) {
             freshProfileMigrated.imageSquatL = freshActiveSession.imageSquatL;
             freshProfileMigrated.imageSquatR = freshActiveSession.imageSquatR;
             freshProfileMigrated.imageSquatFrontal = freshActiveSession.imageSquatFrontal;
+            freshProfileMigrated.jointsOverhead = freshActiveSession.jointsOverhead || null;
 
             await snapshotStore.saveProfile(freshProfileMigrated);
             state.allProfiles = await snapshotStore.getAllProfiles();
@@ -6875,36 +6945,56 @@ export async function openProfileDetailsModal(profileId) {
     const dsqAnkle = document.getElementById('detail-squat-ankle');
     
     const sPeaks = activeSession.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+    // Safe Migration/Reset: Since the absolute maximum possible angular deviation from perpendicular is 90.0 degrees,
+    // any legacy peak values > 90.0 are leftover centimeter/inch records and are automatically reset to 0.
+    if (sPeaks.maxKneeCaveL > 90.0) sPeaks.maxKneeCaveL = 0;
+    if (sPeaks.maxKneeCaveR > 90.0) sPeaks.maxKneeCaveR = 0;
+
     if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
 
-    // Peak-level Asymmetry Summary rendering
+    // Peak-level Knee Cave-In Summary rendering (strictly calculated only from the taken Overhead Squat image)
     const detailSquatAsymmetrySummary = document.getElementById('detail-squat-asymmetry-summary');
     if (detailSquatAsymmetrySummary) {
-      const hasAnyPeaks = (sPeaks.kneeL > 0 || sPeaks.kneeR > 0 || sPeaks.hipL > 0 || sPeaks.hipR > 0 || sPeaks.ankleL > 0 || sPeaks.ankleR > 0);
-      if (!hasAnyPeaks) {
-        detailSquatAsymmetrySummary.textContent = "Peak Asymmetry: No current squat metrics.";
+      let maxCaveL = 0;
+      let maxCaveR = 0;
+      let calculatedFromImage = false;
+
+      if (activeSession.jointsOverhead) {
+        const valgus = calculateValgusFromJoints(activeSession.jointsOverhead);
+        maxCaveL = valgus.pctL;
+        maxCaveR = valgus.pctR;
+        calculatedFromImage = true;
+      }
+
+      if (!calculatedFromImage) {
+        detailSquatAsymmetrySummary.textContent = "Knee Alignment Tracking: No overhead squat image taken yet.";
         detailSquatAsymmetrySummary.style.color = "#aaa";
         detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 255, 255, 0.03)";
         detailSquatAsymmetrySummary.style.background = "rgba(255, 255, 255, 0.01)";
       } else {
-        const kneeDiff = Math.abs(sPeaks.kneeL - sPeaks.kneeR);
-        const hipDiff = Math.abs(sPeaks.hipL - sPeaks.hipR);
-        const ankleDiff = Math.abs(sPeaks.ankleL - sPeaks.ankleR);
+        const lStr = `${maxCaveL.toFixed(1)}°`;
+        const rStr = `${maxCaveR.toFixed(1)}°`;
         
-        let asymmetricJoints = [];
-        if (kneeDiff > 5) asymmetricJoints.push(`Knee (${kneeDiff}°)`);
-        if (hipDiff > 5) asymmetricJoints.push(`Hip (${hipDiff}°)`);
-        if (ankleDiff > 5) asymmetricJoints.push(`Ankle (${ankleDiff}°)`);
-        
-        if (asymmetricJoints.length > 0) {
-          detailSquatAsymmetrySummary.textContent = `Significant Peak Asymmetry: ${asymmetricJoints.join(', ')} L/R difference.`;
+        const peakMaxCave = Math.max(maxCaveL, maxCaveR);
+        if (peakMaxCave > 15.0) {
+          detailSquatAsymmetrySummary.textContent = `Knee Alignment Alert: Severe deviation from perpendicular detected (L: ${lStr}, R: ${rStr}). Focus on knee stability and hip strength.`;
+          detailSquatAsymmetrySummary.style.color = "#ef4444"; // Scarlet
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(239, 68, 68, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(239, 68, 68, 0.04)";
+        } else if (peakMaxCave > 8.0) {
+          detailSquatAsymmetrySummary.textContent = `Knee Alignment Warning: Moderate deviation from perpendicular detected (L: ${lStr}, R: ${rStr}). Focus on keeping knees aligned over feet.`;
           detailSquatAsymmetrySummary.style.color = "#ff9f43"; // Amber
           detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 159, 67, 0.2)";
           detailSquatAsymmetrySummary.style.background = "rgba(255, 159, 67, 0.04)";
+        } else if (peakMaxCave >= 3.0) {
+          detailSquatAsymmetrySummary.textContent = `Knee Alignment Warning: Mild deviation from perpendicular detected (L: ${lStr}, R: ${rStr}). Focus on keeping knees tracking straight.`;
+          detailSquatAsymmetrySummary.style.color = "#ffb300"; // Yellow-Amber
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 179, 0, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(255, 179, 0, 0.04)";
         } else {
-          detailSquatAsymmetrySummary.textContent = `Peak Asymmetry: Balanced L/R mobility (all joints within 5°).`;
+          detailSquatAsymmetrySummary.textContent = `Excellent Knee Alignment: Both knees are perfectly perpendicular to the ankle baseline (L: ${lStr}, R: ${rStr}).`;
           detailSquatAsymmetrySummary.style.color = "#10b981"; // Emerald
           detailSquatAsymmetrySummary.style.borderColor = "rgba(16, 185, 129, 0.2)";
           detailSquatAsymmetrySummary.style.background = "rgba(16, 185, 129, 0.04)";

@@ -445,6 +445,7 @@ export function calculatePoseMetrics(results) {
           detectedPose = "A-Pose";
         }
       }
+      liveMetrics.pose = detectedPose;
     }
   }
 

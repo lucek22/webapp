@@ -286,9 +286,10 @@ export function drawFullSkeletalMesh(landmarks) {
 }
 
 export function drawHandMesh(multiHandLandmarks, multiHandedness) {
-  if (!multiHandLandmarks) return;
+  if (!multiHandLandmarks || !Array.isArray(multiHandLandmarks)) return;
 
   multiHandLandmarks.forEach((landmarks, handIdx) => {
+    if (!landmarks || !Array.isArray(landmarks) || landmarks.length < 21) return;
     const handedness = multiHandedness ? multiHandedness[handIdx] : null;
     const isLeft = handedness ? handedness.label === 'Left' : true;
     const sidePrefix = isLeft ? 'L' : 'R';

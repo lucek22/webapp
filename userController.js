@@ -60,6 +60,10 @@ const landmarkDirectory = document.getElementById('landmark-directory');
 canvasElement.width = 640;
 canvasElement.height = 480;
 
+state.activeModalVideoProcessing = false;
+state.isModalVideoInferenceLoopRunning = false;
+
+
 // Initialize Landmark Directory (33 Pose Landmarks + 10 Hand Fingertips) on load
 if (landmarkDirectory) {
   LANDMARK_NAMES.forEach((name, idx) => {
@@ -221,41 +225,41 @@ const btnExportVideo = document.getElementById('btn-export-video');
 // CANVAS DRAWING COMPONENT UTILITIES
 // ==========================================
 
-function drawJoint(point, color) {
-  canvasCtx.beginPath();
-  canvasCtx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
-  canvasCtx.fillStyle = color;
-  canvasCtx.fill();
-  canvasCtx.strokeStyle = 'white';
-  canvasCtx.lineWidth = 1.5;
-  canvasCtx.stroke();
+function drawJoint(point, color, ctx = canvasCtx) {
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }
 
-function drawBone(p1, p2, color) {
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(p1.x, p1.y);
-  canvasCtx.lineTo(p2.x, p2.y);
-  canvasCtx.strokeStyle = color;
-  canvasCtx.lineWidth = 3.5;
-  canvasCtx.stroke();
+function drawBone(p1, p2, color, ctx = canvasCtx) {
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
 }
 
-export function drawFullSkeletalMesh(landmarks) {
+export function drawFullSkeletalMesh(landmarks, ctx = canvasCtx) {
   if (!landmarks || landmarks.length < 33) return;
 
   // 1. Draw thin, semi-transparent skeletal mesh connections
-  canvasCtx.beginPath();
+  ctx.beginPath();
   POSE_CONNECTIONS.forEach(([i, j]) => {
     const p1 = landmarks[i];
     const p2 = landmarks[j];
     if (p1 && p2) {
-      canvasCtx.moveTo(p1.x, p1.y);
-      canvasCtx.lineTo(p2.x, p2.y);
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
     }
   });
-  canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.45)'; // Sleek translucent indigo vector line
-  canvasCtx.lineWidth = 1.5;
-  canvasCtx.stroke();
+  ctx.strokeStyle = 'rgba(99, 102, 241, 0.45)'; // Sleek translucent indigo vector line
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 
   // 2. Draw all 33 pose landmark nodes with color-coded glowing aesthetics
   landmarks.forEach((p, idx) => {
@@ -275,14 +279,90 @@ export function drawFullSkeletalMesh(landmarks) {
     }
 
     // Render glowing nodes
-    canvasCtx.beginPath();
-    canvasCtx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
-    canvasCtx.fillStyle = color;
-    canvasCtx.fill();
-    canvasCtx.strokeStyle = '#ffffff';
-    canvasCtx.lineWidth = 1.0;
-    canvasCtx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.0;
+    ctx.stroke();
   });
+}
+
+function drawAngleBadge(ctx, point, value, color) {
+  if (!point || value === undefined || value === null || isNaN(value)) return;
+
+  ctx.save();
+  ctx.font = 'bold 11px sans-serif';
+  const text = `${Math.round(value)}°`;
+  const paddingX = 6;
+  const paddingY = 4;
+  const textWidth = ctx.measureText(text).width;
+  const bgW = textWidth + paddingX * 2;
+  const bgH = 14 + paddingY * 2;
+
+  // Render offset to the side of the joint
+  const offsetX = 15;
+  const offsetY = -10;
+  const badgeX = point.x + offsetX;
+  const badgeY = point.y + offsetY;
+
+  // Badge background (dark glassmorphism)
+  ctx.fillStyle = 'rgba(15, 22, 38, 0.85)';
+  ctx.strokeStyle = color || '#00e5ff';
+  ctx.lineWidth = 1.5;
+
+  // Drop shadow/glow
+  ctx.shadowColor = color || '#00e5ff';
+  ctx.shadowBlur = 4;
+
+  drawRoundedRect(ctx, badgeX, badgeY, bgW, bgH, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  // Draw text
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, badgeX + paddingX, badgeY + paddingY);
+  ctx.restore();
+}
+
+function drawValgusBadge(ctx, point, value) {
+  if (!point || value === undefined || value === null || isNaN(value)) return;
+  
+  ctx.save();
+  ctx.font = 'bold 10px sans-serif';
+  const text = `VALGUS: ${value.toFixed(1)}°`;
+  const paddingX = 6;
+  const paddingY = 4;
+  const textWidth = ctx.measureText(text).width;
+  const bgW = textWidth + paddingX * 2;
+  const bgH = 12 + paddingY * 2;
+
+  // Draw below the knee
+  const offsetX = -bgW / 2;
+  const offsetY = 15;
+  const badgeX = point.x + offsetX;
+  const badgeY = point.y + offsetY;
+
+  ctx.fillStyle = 'rgba(15, 22, 38, 0.9)';
+  ctx.strokeStyle = '#BA0C2F'; // Scarlet/Crimson glow for valgus alert
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#BA0C2F';
+  ctx.shadowBlur = 6;
+
+  drawRoundedRect(ctx, badgeX, badgeY, bgW, bgH, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ef4444'; // Bright scarlet red
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, badgeX + paddingX, badgeY + paddingY + 1);
+  ctx.restore();
 }
 
 export function drawHandMesh(multiHandLandmarks, multiHandedness) {
@@ -470,12 +550,12 @@ function drawLiveStatsCard(ctx, calculated) {
   if (!calculated || !calculated.liveMetrics) return;
   const liveMetrics = calculated.liveMetrics;
 
-  const scale = canvasElement.width / 640;
+  const scale = ctx.canvas.width / 640;
   
   // Card dimensions
   const cardW = 190 * scale;
   const cardH = 168 * scale;
-  const cardX = canvasElement.width - cardW - 20 * scale;
+  const cardX = ctx.canvas.width - cardW - 20 * scale;
   const cardY = 20 * scale;
 
   ctx.save();
@@ -702,7 +782,15 @@ export function drawActiveMediaBackground() {
 export function onPoseResults(results) {
   try {
     state.latestPoseResults = results;
+
+    // Routing intercept: if we are processing a video inside the details modal, route to drawModalVideoPoseOverlay
+    if (state.activeModalVideoProcessing) {
+      drawModalVideoPoseOverlay(results);
+      return;
+    }
+
     canvasCtx.save();
+
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   // Draw background video/webcam frame if YOLO background masking is NOT active
@@ -1121,6 +1209,7 @@ export function onPoseResults(results) {
       drawBone(heel_r, toe_r, '#10b981'); 
 
       // Joint Nodes
+      // Joint Nodes
       drawJoint(shoulder_l, '#d4a017');
       drawJoint(shoulder_r, '#d4a017');
       drawJoint(elbow_l, '#d946ef');
@@ -1136,6 +1225,29 @@ export function onPoseResults(results) {
       drawJoint(toe_l, '#10b981');
       drawJoint(toe_r, '#10b981');
 
+      // --- NEW: DIGITAL FLOATING BADGES & VALGUS ALERTS ---
+      drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
+      drawAngleBadge(canvasCtx, hip_l, hipAngleL, '#d4a017');
+      drawAngleBadge(canvasCtx, ankle_l, ankleAngleL, '#06b6d4');
+
+      drawAngleBadge(canvasCtx, knee_r, kneeAngleR, '#10b981');
+      drawAngleBadge(canvasCtx, hip_r, hipAngleR, '#d4a017');
+      drawAngleBadge(canvasCtx, ankle_r, ankleAngleR, '#06b6d4');
+
+      // Frontal Knee Valgus Badge
+      const valgus = calculateValgusFromJoints(calculated);
+      const kneeMobL = 180 - (kneeAngleL || 180);
+      const kneeMobR = 180 - (kneeAngleR || 180);
+      if (kneeMobL >= 15 && valgus.pctL > 4.0) {
+        drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
+      }
+      if (kneeMobR >= 15 && valgus.pctR > 4.0) {
+        drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+      }
+
+      // Draw live stats HUD card unconditionally of calibration
+      drawLiveStatsCard(canvasCtx, calculated);
+
       // Update real-time measurements display
       kneeAngleLDisp.textContent = `${kneeAngleL}°`;
       kneeAngleRDisp.textContent = `${kneeAngleR}°`;
@@ -1145,8 +1257,6 @@ export function onPoseResults(results) {
       elbowAngleRDisp.textContent = `${elbowAngleR}°`;
 
       // Overhead Squat Mobility calculations
-      const kneeMobL = 180 - (kneeAngleL || 180);
-      const kneeMobR = 180 - (kneeAngleR || 180);
       const hipMobL = 180 - (hipAngleL || 180);
       const hipMobR = 180 - (hipAngleR || 180);
       const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
@@ -1206,9 +1316,6 @@ export function onPoseResults(results) {
         if (liveMetrics.pose && !isVideo) {
           drawPoseBadge(liveMetrics.pose);
         }
-
-        // Draw live stats HUD overlay on top-right of canvas
-        drawLiveStatsCard(canvasCtx, calculated);
 
         // Active Sequential Pose hold tracking
         if (state.autoActive && state.lockoutTimerMs === 0) {
@@ -6380,6 +6487,40 @@ export async function initializeProfilesSelector() {
     btnCloseProfileDetailsFooter.addEventListener('click', closeProfileDetailsModal);
   }
 
+  const mainVideoPlayer = document.getElementById('profile-details-video-player');
+  if (mainVideoPlayer) {
+    mainVideoPlayer.addEventListener('play', () => {
+      state.activeModalVideoProcessing = true;
+      const canvas = document.getElementById('profile-details-video-canvas');
+      if (canvas) {
+        canvas.style.display = 'block';
+      }
+      startModalVideoInferenceLoop();
+    });
+
+    mainVideoPlayer.addEventListener('pause', () => {
+      // Keep state.activeModalVideoProcessing = true so that seeks or late frames are routed to modal canvas
+    });
+
+    mainVideoPlayer.addEventListener('ended', () => {
+      // Keep state.activeModalVideoProcessing = true to maintain routing intercept
+    });
+
+    mainVideoPlayer.addEventListener('seeked', () => {
+      if (state.activeModalVideoProcessing && (mainVideoPlayer.paused || mainVideoPlayer.ended)) {
+        pose.send({ image: mainVideoPlayer }).catch(e => {});
+      }
+    });
+
+    // Also trigger pose send when video is loaded or changed so the first frame gets a skeleton immediately
+    mainVideoPlayer.addEventListener('loadeddata', () => {
+      if (state.activeModalVideoProcessing) {
+        pose.send({ image: mainVideoPlayer }).catch(e => {});
+      }
+    });
+  }
+
+
   if (btnProfileExportJson) {
     btnProfileExportJson.addEventListener('click', () => {
       compileAndDownloadCombinedSession();
@@ -6420,10 +6561,11 @@ export async function initializeProfilesSelector() {
 
     const setupPreviewClick = (containerId, imgId, titleText) => {
       const container = document.getElementById(containerId);
-      const img = document.getElementById(imgId);
-      if (container && img) {
+      if (container) {
         container.addEventListener('click', () => {
-          if (img.src && !container.classList.contains('hidden')) {
+          // Dynamically query the image currently inside the container, supporting rebuilt innerHTML img elements
+          const img = container.querySelector('img');
+          if (img && img.src && !container.classList.contains('hidden')) {
             lightboxImg.src = img.src;
             if (lightboxTitle) {
               lightboxTitle.textContent = titleText;
@@ -6804,6 +6946,8 @@ export function autoSyncToActiveProfileDebounced() {
 export async function openProfileDetailsModal(profileId) {
   if (!profileId) return;
 
+  state.activeModalVideoProcessing = true; // Set active flag on modal open to route results
+
   if (state.modalObjectUrls) {
     state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
   }
@@ -7145,12 +7289,111 @@ export async function openProfileDetailsModal(profileId) {
             const videoUrl = URL.createObjectURL(sVideo.blob);
             state.modalObjectUrls.push(videoUrl);
 
-            const videoEl = document.createElement('video');
-            videoEl.src = videoUrl;
-            videoEl.controls = true;
-            videoEl.playsInline = true;
-            videoEl.style.cssText = 'width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);';
-            containerEl.appendChild(videoEl);
+            // Container for interactive preview
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'premium-video-preview-card';
+            cardWrapper.style.cssText = 'position: relative; width: 100%; max-height: 120px; aspect-ratio: 16/9; overflow: hidden; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: #000; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);';
+
+            // Muted, non-interactive video thumbnail seeked to 0.5s to act as a poster frame
+            const previewVideo = document.createElement('video');
+            previewVideo.src = videoUrl;
+            previewVideo.muted = true;
+            previewVideo.playsInline = true;
+            previewVideo.style.cssText = 'width: 100%; height: 100%; object-fit: cover; filter: brightness(0.65) contrast(1.05); transition: all 0.3s ease; pointer-events: none;';
+            
+            // Wait for metadata to load, then seek to 0.5s for a nice poster frame
+            previewVideo.addEventListener('loadedmetadata', () => {
+              previewVideo.currentTime = Math.min(0.5, previewVideo.duration / 2);
+            });
+
+            // Glowing cyan scale-on-hover play button labeled "Play with Overlay"
+            const playOverlay = document.createElement('div');
+            playOverlay.className = 'play-overlay-button';
+            playOverlay.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(15, 22, 38, 0.45); backdrop-filter: blur(1px); transition: all 0.3s ease;';
+
+            // Play Icon SVG (cyan with glow)
+            const playIconSvg = `
+              <div class="glowing-play-circle" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #00e5ff; display: flex; align-items: center; justify-content: center; color: #00e5ff; background: rgba(0, 229, 255, 0.05); box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+              <span style="font-size: 10px; font-weight: 700; color: #00e5ff; letter-spacing: 0.5px; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,229,255,0.4);">Play with Overlay</span>
+            `;
+            playOverlay.innerHTML = playIconSvg;
+
+            cardWrapper.appendChild(previewVideo);
+            cardWrapper.appendChild(playOverlay);
+            containerEl.appendChild(cardWrapper);
+
+            // Hover interactions
+            cardWrapper.addEventListener('mouseenter', () => {
+              cardWrapper.style.borderColor = 'rgba(0, 229, 255, 0.4)';
+              cardWrapper.style.boxShadow = '0 0 12px rgba(0, 229, 255, 0.2)';
+              previewVideo.style.filter = 'brightness(0.8) scale(1.04)';
+              const circle = playOverlay.querySelector('.glowing-play-circle');
+              if (circle) {
+                circle.style.transform = 'scale(1.15)';
+                circle.style.background = '#00e5ff';
+                circle.style.color = '#000';
+                circle.style.boxShadow = '0 0 15px rgba(0, 229, 255, 0.6)';
+              }
+            });
+
+            cardWrapper.addEventListener('mouseleave', () => {
+              cardWrapper.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+              cardWrapper.style.boxShadow = 'none';
+              previewVideo.style.filter = 'brightness(0.65) contrast(1.05)';
+              const circle = playOverlay.querySelector('.glowing-play-circle');
+              if (circle) {
+                circle.style.transform = 'scale(1)';
+                circle.style.background = 'rgba(0, 229, 255, 0.05)';
+                circle.style.color = '#00e5ff';
+                circle.style.boxShadow = '0 0 10px rgba(0, 229, 255, 0.2)';
+              }
+            });
+
+            // Bind click handler to select and play inside central player
+            cardWrapper.addEventListener('click', (e) => {
+              e.stopPropagation();
+              
+              const mainVideoPlayer = document.getElementById('profile-details-video-player');
+              const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
+              
+              // 1. Find corresponding playlist item & click it (triggers selectVideo, syncing player and highlighting playlist item)
+              const playlistRow = document.querySelector(`.profile-video-row-item[data-video-id="${sVideo.id}"]`);
+              if (playlistRow) {
+                playlistRow.click();
+              } else {
+                // Fallback direct binding if playlist item is not found (should not happen)
+                if (mainVideoPlayer) {
+                  const canvas = document.getElementById('profile-details-video-canvas');
+                  if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  }
+                  mainVideoPlayer.src = videoUrl;
+                  mainVideoPlayer.style.display = 'block';
+                  if (videoPlaceholder) {
+                    videoPlaceholder.style.display = 'none';
+                  }
+                  mainVideoPlayer.play().catch(err => console.log("[VideoPlay] Autoplay blocked:", err));
+                }
+              }
+
+              // 2. Smoothly scroll central player container into view
+              const playerContainer = document.getElementById('profile-details-video-player-container');
+              if (playerContainer) {
+                playerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Flash the player border to draw user attention premium-style
+                playerContainer.style.borderColor = '#00e5ff';
+                playerContainer.style.boxShadow = '0 0 15px rgba(0, 229, 255, 0.35)';
+                setTimeout(() => {
+                  playerContainer.style.borderColor = 'rgba(255,255,255,0.08)';
+                  playerContainer.style.boxShadow = 'none';
+                }, 1200);
+              }
+            });
           } else if (imgSrc) {
             const myImgEl = document.createElement('img');
             myImgEl.src = imgSrc;
@@ -7834,6 +8077,7 @@ export async function openProfileDetailsModal(profileId) {
         savedVideos.forEach((video, idx) => {
           const videoRow = document.createElement('div');
           videoRow.className = 'profile-video-row-item';
+          videoRow.setAttribute('data-video-id', video.id);
           videoRow.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; padding: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; transition: all 0.2s;';
           
           const videoUrl = URL.createObjectURL(video.blob);
@@ -7906,6 +8150,11 @@ export async function openProfileDetailsModal(profileId) {
             }
 
             if (mainVideoPlayer) {
+              const canvas = document.getElementById('profile-details-video-canvas');
+              if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+              }
               mainVideoPlayer.src = videoUrl;
               mainVideoPlayer.style.display = 'block';
               if (videoPlaceholder) {
@@ -8046,6 +8295,166 @@ export function closeProfileDetailsModal() {
     state.modalObjectUrls = [];
   }
   state.isEditingProfileMetrics = false;
+
+  // Clean up modal player video, canvas, and reset inference loop state
+  const mainVideoPlayer = document.getElementById('profile-details-video-player');
+  if (mainVideoPlayer) {
+    mainVideoPlayer.pause();
+    mainVideoPlayer.src = "";
+  }
+
+  state.activeModalVideoProcessing = false;
+  state.isModalVideoInferenceLoopRunning = false;
+
+  const canvas = document.getElementById('profile-details-video-canvas');
+  if (canvas) {
+    canvas.style.display = 'none';
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 }
+
+export function startModalVideoInferenceLoop() {
+  if (state.isModalVideoInferenceLoopRunning) return;
+  state.isModalVideoInferenceLoopRunning = true;
+
+  async function modalVideoInferenceLoop() {
+    const video = document.getElementById('profile-details-video-player');
+    if (!state.activeModalVideoProcessing || !video || video.paused || video.ended) {
+      state.isModalVideoInferenceLoopRunning = false;
+      return;
+    }
+
+    const startTime = Date.now();
+    try {
+      await pose.send({ image: video });
+    } catch (err) {
+      console.warn("[ModalVideoInference] MediaPipe parsing error:", err);
+    }
+
+    const elapsed = Date.now() - startTime;
+    const delay = Math.max(50 - elapsed, 1); // target ~20fps (50ms per frame) to prevent CPU starvation
+    if (state.activeModalVideoProcessing) {
+      setTimeout(modalVideoInferenceLoop, delay);
+    } else {
+      state.isModalVideoInferenceLoopRunning = false;
+    }
+  }
+
+  modalVideoInferenceLoop();
+}
+
+export function drawModalVideoPoseOverlay(results) {
+  const video = document.getElementById('profile-details-video-player');
+  const canvas = document.getElementById('profile-details-video-canvas');
+  if (!video || !canvas) return;
+
+  // Ensure canvas is visible whenever we are actively processing and drawing modal video poses
+  if (canvas.style.display !== 'block') {
+    canvas.style.display = 'block';
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Sync canvas size to natural video dimensions
+  if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  }
+
+  // Clear previous frame completely
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Temporary state overrides for scale-invariant pose metric calculation
+  const oldWidth = state.canvasWidth;
+  const oldHeight = state.canvasHeight;
+  const oldIsUploaded = state.isUploadedMedia;
+
+  state.canvasWidth = video.videoWidth;
+  state.canvasHeight = video.videoHeight;
+  state.isUploadedMedia = true; // Avoid horizontal mirroring on saved modal playlist videos
+
+  const calculated = calculatePoseMetrics(results);
+
+  // Restore state parameters immediately
+  state.canvasWidth = oldWidth;
+  state.canvasHeight = oldHeight;
+  state.isUploadedMedia = oldIsUploaded;
+
+  if (!calculated) return;
+
+  const {
+    shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+    shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+    kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+    ankleAngleL, ankleAngleR
+  } = calculated;
+
+  // Draw full skeletal mesh
+  drawFullSkeletalMesh(calculated.all_landmarks, ctx);
+
+  // Draw skeletal bones
+  drawBone(shoulder_l, shoulder_r, '#d4a017', ctx); 
+  drawBone(hip_l, hip_r, '#d4a017', ctx); 
+  drawBone(shoulder_l, hip_l, '#38bdf8', ctx); 
+  drawBone(shoulder_r, hip_r, '#38bdf8', ctx); 
+
+  // Left Arm & Leg
+  drawBone(shoulder_l, elbow_l, '#ec4899', ctx); 
+  drawBone(elbow_l, wrist_l, '#f43f5e', ctx); 
+  drawBone(hip_l, knee_l, '#d4a017', ctx); 
+  drawBone(knee_l, ankle_l, '#06b6d4', ctx); 
+  drawBone(ankle_l, heel_l, '#10b981', ctx); 
+  drawBone(heel_l, toe_l, '#10b981', ctx); 
+
+  // Right Arm & Leg
+  drawBone(shoulder_r, elbow_r, '#ec4899', ctx); 
+  drawBone(elbow_r, wrist_r, '#f43f5e', ctx); 
+  drawBone(hip_r, knee_r, '#d4a017', ctx); 
+  drawBone(knee_r, ankle_r, '#06b6d4', ctx); 
+  drawBone(ankle_r, heel_r, '#10b981', ctx); 
+  drawBone(heel_r, toe_r, '#10b981', ctx); 
+
+  // Joint Nodes
+  drawJoint(shoulder_l, '#d4a017', ctx);
+  drawJoint(shoulder_r, '#d4a017', ctx);
+  drawJoint(elbow_l, '#d946ef', ctx);
+  drawJoint(elbow_r, '#d946ef', ctx);
+  drawJoint(wrist_l, '#f43f5e', ctx);
+  drawJoint(wrist_r, '#f43f5e', ctx);
+  drawJoint(hip_l, '#d4a017', ctx);
+  drawJoint(hip_r, '#d4a017', ctx);
+  drawJoint(knee_l, '#10b981', ctx);
+  drawJoint(knee_r, '#10b981', ctx);
+  drawJoint(ankle_l, '#06b6d4', ctx);
+  drawJoint(ankle_r, '#06b6d4', ctx);
+  drawJoint(toe_l, '#10b981', ctx);
+  drawJoint(toe_r, '#10b981', ctx);
+
+  // Digital Floating Badges
+  drawAngleBadge(ctx, knee_l, kneeAngleL, '#10b981');
+  drawAngleBadge(ctx, hip_l, hipAngleL, '#d4a017');
+  drawAngleBadge(ctx, ankle_l, ankleAngleL, '#06b6d4');
+
+  drawAngleBadge(ctx, knee_r, kneeAngleR, '#10b981');
+  drawAngleBadge(ctx, hip_r, hipAngleR, '#d4a017');
+  drawAngleBadge(ctx, ankle_r, ankleAngleR, '#06b6d4');
+
+  // Knee Valgus check and warning
+  const valgus = calculateValgusFromJoints(calculated);
+  const kneeMobL = 180 - (kneeAngleL || 180);
+  const kneeMobR = 180 - (kneeAngleR || 180);
+  if (kneeMobL >= 15 && valgus.pctL > 4.0) {
+    drawValgusBadge(ctx, knee_l, valgus.pctL);
+  }
+  if (kneeMobR >= 15 && valgus.pctR > 4.0) {
+    drawValgusBadge(ctx, knee_r, valgus.pctR);
+  }
+
+  // Live Stats HUD Card
+  drawLiveStatsCard(ctx, calculated);
+}
+
 
 

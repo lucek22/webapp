@@ -272,7 +272,12 @@ export const state = {
     hipL: 0,
     hipR: 0,
     ankleL: 0,
-    ankleR: 0
+    ankleR: 0,
+    maxKneeCaveL: 0,
+    maxKneeCaveR: 0,
+    valgusFirstTimestamp: null,
+    valgusPeakTimestamp: null,
+    valgusPeakScore: 0
   },
   isUploadedMedia: false,
   uploadedMediaType: null,
@@ -337,7 +342,11 @@ export const state = {
   scaleFactor3D: null,
   imageSquatL: null,
   imageSquatR: null,
-  imageSquatFrontal: null
+  imageSquatFrontal: null,
+  videoSquatL: null,
+  videoSquatR: null,
+  videoSquatFrontal: null,
+  videos: []
 };
 
 const smoothBuffers = {};

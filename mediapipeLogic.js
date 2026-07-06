@@ -26,35 +26,32 @@ import {
   FINGER_COLORS
 } from './helpers.js';
 
-// MediaPipe Pose Setup
-export const pose = new Pose({
+// MediaPipe Holistic Setup (exported as pose for backward compatibility and minimal churn)
+export const pose = new Holistic({
   locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
   }
 });
 
-// Configure Pose options (with built-in neural segmentation mask for background isolation)
+// Configure Holistic options (combines pose and hands tracking in a single optimized pass)
 pose.setOptions({
   modelComplexity: 1,
   smoothLandmarks: true,
   enableSegmentation: true,
+  refineFaceLandmarks: false,
   minDetectionConfidence: 0.5,
   minTrackingConfidence: 0.5
 });
 
-// MediaPipe Hands Setup
-export const hands = new Hands({
-  locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+// Dummy hands object with no-op send function to prevent errors from sequential send loops
+export const hands = {
+  send: async () => {
+    // No-op: Holistic processes both hands and pose in a single unified execution!
+  },
+  onResults: () => {
+    // No-op: Callback registration is handled by our unified holistic listener
   }
-});
-
-hands.setOptions({
-  maxNumHands: 2,
-  modelComplexity: 1,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
-});
+};
 
 // Callbacks registered dynamically
 let onPoseResults = null;
@@ -65,13 +62,29 @@ export function setupMediaPipeCallbacks(onPoseResultsCb, drawHandMeshCb) {
   drawHandMesh = drawHandMeshCb;
 }
 
-// Register model callbacks
-hands.onResults((results) => {
-  state.latestHandResults = results;
-  updateHandTracking(results);
-});
-
+// Register unified holistic results callback
 pose.onResults((results) => {
+  // Map holistic hand landmarks to the structure expected by updateHandTracking/drawHandMesh
+  const multiHandLandmarks = [];
+  const multiHandedness = [];
+
+  if (results.leftHandLandmarks) {
+    multiHandLandmarks.push(results.leftHandLandmarks);
+    multiHandedness.push({ label: 'Left', score: 0.99 });
+  }
+  if (results.rightHandLandmarks) {
+    multiHandLandmarks.push(results.rightHandLandmarks);
+    multiHandedness.push({ label: 'Right', score: 0.99 });
+  }
+
+  const handResults = {
+    multiHandLandmarks,
+    multiHandedness
+  };
+
+  state.latestHandResults = handResults;
+  updateHandTracking(handResults);
+
   if (onPoseResults) {
     onPoseResults(results);
   }

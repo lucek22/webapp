@@ -16,7 +16,6 @@ import {
   updateHeightInputUnit,
   formatSkeletalHeight,
   triggerFlashEffect,
-  drawRoundedRect,
   getDomMeasurementCm
 } from './helpers.js';
 
@@ -216,6 +215,30 @@ const btnImportPortfolio = document.getElementById('btn-import-portfolio');
 const btnExportCombined = document.getElementById('btn-export-combined');
 const btnExportVideo = document.getElementById('btn-export-video');
 
+const SEGMENT_METRICS = [
+  { element: thighLDisp, key: 'thigh_l' },
+  { element: thighRDisp, key: 'thigh_r' },
+  { element: shinLDisp, key: 'shin_l' },
+  { element: shinRDisp, key: 'shin_r' },
+  { element: footLDisp, key: 'foot_l' },
+  { element: footRDisp, key: 'foot_r' },
+  { element: torsoLDisp, key: 'torso_l' },
+  { element: torsoRDisp, key: 'torso_r' },
+  { element: upperarmLDisp, key: 'upperarm_l' },
+  { element: upperarmRDisp, key: 'upperarm_r' },
+  { element: forearmLDisp, key: 'forearm_l' },
+  { element: forearmRDisp, key: 'forearm_r' }
+];
+
+const ANGLE_METRICS = [
+  { element: kneeAngleLDisp, key: 'kneeAngleL' },
+  { element: kneeAngleRDisp, key: 'kneeAngleR' },
+  { element: hipAngleLDisp, key: 'hipAngleL' },
+  { element: hipAngleRDisp, key: 'hipAngleR' },
+  { element: elbowAngleLDisp, key: 'elbowAngleL' },
+  { element: elbowAngleRDisp, key: 'elbowAngleR' }
+];
+
 // ==========================================
 // CANVAS DRAWING COMPONENT UTILITIES
 // ==========================================
@@ -380,49 +403,12 @@ export function drawHandMesh(multiHandLandmarks, multiHandedness) {
 }
 
 function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_inches_str, heel_l, heel_r) {
-  // Vertical indicator line
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(ruler_x, head_top.y);
-  canvasCtx.lineTo(ruler_x, ground_y);
-  canvasCtx.strokeStyle = '#06b6d4';
-  canvasCtx.lineWidth = 2.5;
-  canvasCtx.stroke();
-
-  // Top bracket
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(ruler_x - 10, head_top.y);
-  canvasCtx.lineTo(ruler_x + 10, head_top.y);
-  canvasCtx.stroke();
-
-  // Bottom bracket
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(ruler_x - 10, ground_y);
-  canvasCtx.lineTo(ruler_x + 10, ground_y);
-  canvasCtx.stroke();
-
-  // Text labels along ruler
-  canvasCtx.fillStyle = '#06b6d4';
-  canvasCtx.font = 'bold 11px sans-serif';
-  const rulerLabel = state.useInches ? live_feet_inches_str : `${live_height.toFixed(1)} cm`;
-  canvasCtx.fillText(`Live: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (state.useInches ? 95 : 80), (head_top.y + ground_y) / 2);
-
-  // Connecting indicator line from head to ruler
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(head_top.x, head_top.y);
-  canvasCtx.lineTo(ruler_x, head_top.y);
-  canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-  canvasCtx.setLineDash([4, 4]);
-  canvasCtx.stroke();
-  canvasCtx.setLineDash([]);
-
-  // Connecting indicator line from ground contact center to ruler
-  canvasCtx.beginPath();
-  canvasCtx.moveTo((heel_l.x + heel_r.x)/2, ground_y);
-  canvasCtx.lineTo(ruler_x, ground_y);
-  canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-  canvasCtx.setLineDash([4, 4]);
-  canvasCtx.stroke();
-  canvasCtx.setLineDash([]);
+  // Draw bottom of the feet ground contact point
+  const feet_center = {
+    x: (heel_l.x + heel_r.x) / 2,
+    y: ground_y
+  };
+  drawJoint(feet_center, '#06b6d4');
 }
 
 function drawPoseBadge(poseName) {
@@ -435,7 +421,8 @@ function drawPoseBadge(poseName) {
   
   canvasCtx.strokeStyle = accentColor;
   canvasCtx.lineWidth = 1.5;
-  drawRoundedRect(canvasCtx, 0, 0, 160, 38, 6);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(0, 0, 160, 38, 6);
   canvasCtx.fill();
   canvasCtx.stroke();
 
@@ -487,7 +474,8 @@ function drawLiveStatsCard(ctx, calculated) {
   ctx.shadowColor = 'rgba(236, 72, 153, 0.4)';
   ctx.shadowBlur = 10 * scale;
   
-  drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 8 * scale);
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 8 * scale);
   ctx.fill();
   ctx.stroke();
   
@@ -595,19 +583,9 @@ export function renderDashboard(metrics) {
   if (!metrics) return;
 
   // Render Left/Right segment lengths
-  thighLDisp.textContent = formatLength(metrics.thigh_l);
-  thighRDisp.textContent = formatLength(metrics.thigh_r);
-  shinLDisp.textContent = formatLength(metrics.shin_l);
-  shinRDisp.textContent = formatLength(metrics.shin_r);
-  footLDisp.textContent = formatLength(metrics.foot_l);
-  footRDisp.textContent = formatLength(metrics.foot_r);
-  
-  torsoLDisp.textContent = formatLength(metrics.torso_l);
-  torsoRDisp.textContent = formatLength(metrics.torso_r);
-  upperarmLDisp.textContent = formatLength(metrics.upperarm_l);
-  upperarmRDisp.textContent = formatLength(metrics.upperarm_r);
-  forearmLDisp.textContent = formatLength(metrics.forearm_l);
-  forearmRDisp.textContent = formatLength(metrics.forearm_r);
+  SEGMENT_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = formatLength(metrics[m.key]);
+  });
 
   if (fingerToToeDisp) {
     fingerToToeDisp.textContent = `L: ${formatLength(metrics.fingerToToeL)} / R: ${formatLength(metrics.fingerToToeR)}`;
@@ -621,9 +599,9 @@ export function renderDashboard(metrics) {
   const activePoseDisp = document.getElementById('val-active-pose');
   if (activePoseDisp) {
     activePoseDisp.textContent = metrics.pose || "A-Pose";
-    activePoseDisp.classList.remove('text-cyan', 'text-emerald', 'text-violet');
+    activePoseDisp.classList.remove('text-red', 'text-emerald', 'text-violet');
     if (metrics.pose === "T-Pose") {
-      activePoseDisp.classList.add('text-cyan');
+      activePoseDisp.classList.add('text-red');
     } else if (metrics.pose === "Overhead Reach") {
       activePoseDisp.classList.add('text-emerald');
     } else {
@@ -646,12 +624,9 @@ export function renderDashboard(metrics) {
   }
 
   // Render angles
-  kneeAngleLDisp.textContent = `${metrics.kneeAngleL}°`;
-  kneeAngleRDisp.textContent = `${metrics.kneeAngleR}°`;
-  hipAngleLDisp.textContent = `${metrics.hipAngleL}°`;
-  hipAngleRDisp.textContent = `${metrics.hipAngleR}°`;
-  elbowAngleLDisp.textContent = `${metrics.elbowAngleL}°`;
-  elbowAngleRDisp.textContent = `${metrics.elbowAngleR}°`;
+  ANGLE_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = `${metrics[m.key]}°`;
+  });
 
   // Render Hand Metrics if available
   const fallbackDash = state.useInches ? "--.- in" : "--.- cm";
@@ -700,6 +675,7 @@ export function drawActiveMediaBackground() {
 
 export function onPoseResults(results) {
   try {
+    let calculated = null;
     state.latestPoseResults = results;
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -713,7 +689,7 @@ export function onPoseResults(results) {
 
   const isStaticImage = state.isUploadedMedia && state.uploadedMediaType === 'image';
   if (isStaticImage && state.lastProcessedScaleFactor === state.pixelsPerCm && state.lastCalculatedResults) {
-    const calculated = state.lastCalculatedResults;
+    calculated = state.lastCalculatedResults;
     const {
       shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
       shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
@@ -926,24 +902,7 @@ export function onPoseResults(results) {
   // 2. Perform Biomechanical mathematical updates
   let hasValidPerson = false;
   if (results.poseLandmarks) {
-    const lm = results.poseLandmarks;
-    const keyIndices = [11, 12, 23, 24, 25, 26, 27, 28]; // shoulders, hips, knees, ankles
-    let totalVisibility = 0;
-    let highVisCount = 0;
-    for (const idx of keyIndices) {
-      if (lm[idx]) {
-        const vis = lm[idx].visibility || 0;
-        totalVisibility += vis;
-        if (vis > 0.55) {
-          highVisCount++;
-        }
-      }
-    }
-    const avgVis = totalVisibility / keyIndices.length;
-    // Real person check: more lenient to allow upper-body tracking when sitting or partially cut off
-    if (highVisCount >= 3 || avgVis >= 0.3) {
-      hasValidPerson = true;
-    }
+    hasValidPerson = true;
   }
 
   if (!hasValidPerson) {
@@ -993,7 +952,8 @@ export function onPoseResults(results) {
       canvasCtx.shadowBlur = 8;
       
       // Draw container box
-      drawRoundedRect(canvasCtx, bannerX, bannerY, bannerW, bannerH, 6);
+      canvasCtx.beginPath();
+      canvasCtx.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
       canvasCtx.fill();
       canvasCtx.stroke();
       
@@ -1012,7 +972,7 @@ export function onPoseResults(results) {
   }
 
   if (typeof calculatePoseMetrics === 'function') {
-    const calculated = calculatePoseMetrics(results);
+    calculated = calculatePoseMetrics(results);
 
     if (calculated) {
       if (isStaticImage) {
@@ -1210,7 +1170,8 @@ export function onPoseResults(results) {
             canvasCtx.fillStyle = 'rgba(15, 22, 38, 0.7)';
             canvasCtx.strokeStyle = 'rgba(212, 160, 23, 0.4)';
             canvasCtx.lineWidth = 1.5;
-            drawRoundedRect(canvasCtx, barX, barY, barWidth, barHeight, 8);
+            canvasCtx.beginPath();
+            canvasCtx.roundRect(barX, barY, barWidth, barHeight, 8);
             canvasCtx.fill();
             canvasCtx.stroke();
             
@@ -1222,7 +1183,7 @@ export function onPoseResults(results) {
               grad.addColorStop(1, '#d4a017');
               canvasCtx.fillStyle = grad;
               canvasCtx.beginPath();
-              drawRoundedRect(canvasCtx, barX, barY, fillWidth, barHeight, 8);
+              canvasCtx.roundRect(barX, barY, fillWidth, barHeight, 8);
               canvasCtx.clip();
               canvasCtx.fillRect(barX, barY, fillWidth, barHeight);
               canvasCtx.restore();
@@ -1369,18 +1330,13 @@ export function onPoseResults(results) {
         statusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
         feedbackBox.classList.add('hidden');
       } else {
-        statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+        statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
         
-        // Check if there is a person/pose detected and calculated
-        const calculated = typeof calculatePoseMetrics === 'function' ? calculatePoseMetrics(results) : null;
+        feedbackBox.classList.remove('hidden', 'feedback-info', 'feedback-success', 'feedback-error');
         if (!calculated || !calculated.liveMetrics) {
-          feedbackBox.classList.remove('hidden');
-          feedbackBox.style.border = "1px dashed rgba(167, 177, 183, 0.4)";
-          feedbackBox.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
-          feedbackBox.style.color = "#a7b1b7";
+          feedbackBox.classList.add('feedback-info');
           feedbackBox.innerHTML = `👤 Please stand in view of the camera to perform real-time verification...`;
         } else {
-          feedbackBox.classList.remove('hidden');
           const liveHeight = calculated.liveMetrics.skeletal_height;
           const targetHeight = state.validationHeightCm;
           const diffCm = Math.abs(liveHeight - targetHeight);
@@ -1390,23 +1346,19 @@ export function onPoseResults(results) {
           const diffStr = state.useInches ? `${(diffCm / 2.54).toFixed(1)} in` : `${diffCm.toFixed(1)} cm`;
           
           if (diffCm <= 1.0) {
-            feedbackBox.style.border = "1px solid #10b981";
-            feedbackBox.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
-            feedbackBox.style.color = "#10b981";
+            feedbackBox.classList.add('feedback-success');
             feedbackBox.innerHTML = `
-              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #10b981;">✅ SUCCESS: Calibrated & Positioned Properly!</div>
+              <div class="feedback-title">✅ SUCCESS: Calibrated & Positioned Properly!</div>
               <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
+              <div class="feedback-subtitle">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
             `;
           } else {
-            feedbackBox.style.border = "1px solid #ec4899";
-            feedbackBox.style.backgroundColor = "rgba(236, 72, 153, 0.1)";
-            feedbackBox.style.color = "#ec4899";
+            feedbackBox.classList.add('feedback-error');
             feedbackBox.innerHTML = `
-              <div class="font-bold" style="font-size: 14px; margin-bottom: 6px; color: #ec4899;">⚠️ POSITION CHECK: Discrepancy Found</div>
+              <div class="feedback-title">⚠️ POSITION CHECK: Discrepancy Found</div>
               <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div style="font-size: 11px; margin-top: 4px; opacity: 0.9;">Discrepancy: <strong style="color: #ec4899;">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
-              <div style="margin-top: 6px; font-size: 11px; color: #a7b1b7;">Please adjust your ArUco marker position or camera alignment.</div>
+              <div class="feedback-subtitle">Discrepancy: <strong class="text-red">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
+              <div class="feedback-subtitle feedback-instruction">Please adjust your ArUco marker position or camera alignment.</div>
             `;
           }
         }
@@ -1548,7 +1500,8 @@ export function drawLockoutTransitionOverlay() {
   canvasCtx.shadowColor = 'rgba(212, 160, 23, 0.4)';
   canvasCtx.shadowBlur = 12;
   
-  drawRoundedRect(canvasCtx, panelX, panelY, panelW, panelH, 12);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(panelX, panelY, panelW, panelH, 12);
   canvasCtx.fill();
   canvasCtx.stroke();
   canvasCtx.shadowBlur = 0;
@@ -1588,7 +1541,8 @@ export function drawLockoutTransitionOverlay() {
   const barY = panelY + panelH - 28;
   
   canvasCtx.fillStyle = 'rgba(30, 41, 59, 0.8)';
-  drawRoundedRect(canvasCtx, barX, barY, barW, barH, 4);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(barX, barY, barW, barH, 4);
   canvasCtx.fill();
   
   if (progress > 0) {
@@ -1599,7 +1553,7 @@ export function drawLockoutTransitionOverlay() {
     grad.addColorStop(1, '#d4a017');
     canvasCtx.fillStyle = grad;
     canvasCtx.beginPath();
-    drawRoundedRect(canvasCtx, barX, barY, fillW, barH, 4);
+    canvasCtx.roundRect(barX, barY, fillW, barH, 4);
     canvasCtx.clip();
     canvasCtx.fillRect(barX, barY, fillW, barH);
     canvasCtx.restore();
@@ -1775,45 +1729,12 @@ function drawFrozenSnapshot() {
     drawJoint(toe_r, '#10b981');
     drawJoint(head_top, '#06b6d4');
 
-    // Draw ruler
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(ruler_x, head_top.y);
-    canvasCtx.lineTo(ruler_x, ground_y);
-    canvasCtx.strokeStyle = '#06b6d4';
-    canvasCtx.lineWidth = 2.5;
-    canvasCtx.stroke();
-
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(ruler_x - 10, head_top.y);
-    canvasCtx.lineTo(ruler_x + 10, head_top.y);
-    canvasCtx.stroke();
-
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(ruler_x - 10, ground_y);
-    canvasCtx.lineTo(ruler_x + 10, ground_y);
-    canvasCtx.stroke();
-
-    canvasCtx.fillStyle = '#06b6d4';
-    canvasCtx.font = 'bold 11px sans-serif';
-    const rulerLabel = state.useInches ? live_feet_inches_str : `${smoothed_live_height.toFixed(1)} cm`;
-    canvasCtx.fillText(`Captured: ${rulerLabel}`, ruler_x > 320 ? ruler_x + 15 : ruler_x - (state.useInches ? 115 : 100), (head_top.y + ground_y) / 2);
-
-    // Connecting lines
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(head_top.x, head_top.y);
-    canvasCtx.lineTo(ruler_x, head_top.y);
-    canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-    canvasCtx.setLineDash([4, 4]);
-    canvasCtx.stroke();
-    canvasCtx.setLineDash([]);
-
-    canvasCtx.beginPath();
-    canvasCtx.moveTo((heel_l.x + heel_r.x)/2, ground_y);
-    canvasCtx.lineTo(ruler_x, ground_y);
-    canvasCtx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
-    canvasCtx.setLineDash([4, 4]);
-    canvasCtx.stroke();
-    canvasCtx.setLineDash([]);
+    // Draw bottom of the feet ground contact point
+    const feet_center = {
+      x: (heel_l.x + heel_r.x) / 2,
+      y: ground_y
+    };
+    drawJoint(feet_center, '#06b6d4');
   }
 
   // Draw frozen hand skeletons if available
@@ -1837,7 +1758,8 @@ function drawFrozenSnapshot() {
   canvasCtx.strokeStyle = '#ef4444';
   canvasCtx.lineWidth = 1.5;
   
-  drawRoundedRect(canvasCtx, -100, -15, 200, 30, 6);
+  canvasCtx.beginPath();
+  canvasCtx.roundRect(-100, -15, 200, 30, 6);
   canvasCtx.fill();
   canvasCtx.stroke();
   
@@ -2021,7 +1943,8 @@ export async function startCamera() {
 
   const exportCombinedBtn = document.getElementById('btn-export-combined');
   if (exportCombinedBtn) {
-    exportCombinedBtn.style.display = 'none';
+    exportCombinedBtn.classList.add('hidden');
+    exportCombinedBtn.classList.remove('visible-block');
   }
 
   if (btnExportVideo) {
@@ -2145,12 +2068,12 @@ export async function startCamera() {
           if (state.currentMode === 'squat') {
             state.latestArucoMarker = null;
             if (arucoStatusText) {
-              arucoStatusText.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
+              arucoStatusText.innerHTML = `<span style="color: #BA0C2F; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
             }
-          } else if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
+          } else if ((state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) && state.activeCalMethod !== 'aruco' && state.activeCalMethod !== 'validation') {
             state.latestArucoMarker = null;
             if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-              arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+              arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
             }
           } else if (typeof detectArucoMarker === 'function') {
             const found = detectArucoMarker(videoElement);
@@ -2173,12 +2096,12 @@ export async function startCamera() {
               state.calLocked = true;
 
               if (state.activeCalMethod === 'aruco') {
-                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               }
             } else {
               if (state.activeCalMethod === 'aruco') {
                 if (state.pixelsPerCm) {
-                  arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                  arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
                 } else {
                   arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
                 }
@@ -2257,9 +2180,11 @@ export async function handleUploadedFile(file) {
   const exportCombinedBtn = document.getElementById('btn-export-combined');
   if (exportCombinedBtn) {
     if (isVideo) {
-      exportCombinedBtn.style.display = 'none';
+      exportCombinedBtn.classList.add('hidden');
+      exportCombinedBtn.classList.remove('visible-block');
     } else {
-      exportCombinedBtn.style.display = 'block';
+      exportCombinedBtn.classList.remove('hidden');
+      exportCombinedBtn.classList.add('visible-block');
     }
   }
 
@@ -2450,12 +2375,12 @@ export function startUploadedMediaLoop() {
         if (state.currentMode === 'squat') {
           state.latestArucoMarker = null;
           if (arucoStatusText) {
-            arucoStatusText.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
+            arucoStatusText.innerHTML = `<span style="color: #BA0C2F; font-weight: 700;">Active Squat Analyzer Mode</span>`;
           }
-        } else if (state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) {
+        } else if ((state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) && state.activeCalMethod !== 'aruco' && state.activeCalMethod !== 'validation') {
           state.latestArucoMarker = null;
           if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-            arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
+            arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
           }
         } else if (typeof detectArucoMarker === 'function') {
           const found = detectArucoMarker(uploadedVideo);
@@ -2481,7 +2406,7 @@ export function startUploadedMediaLoop() {
               state.calLocked = true;
 
               if (state.activeCalMethod === 'aruco') {
-                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               }
             } else {
               // If it's a tiny detection (likely noise), treat as not found in this frame
@@ -2490,7 +2415,7 @@ export function startUploadedMediaLoop() {
           } else {
             if (state.activeCalMethod === 'aruco') {
               if (state.pixelsPerCm) {
-                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
               } else {
                 arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
               }
@@ -2740,7 +2665,7 @@ function openSnapshotModal(id) {
             statusClass = "text-emerald";
           } else if (maxKneeMob >= 75) {
             depthStatus = "Parallel Squat";
-            statusClass = "text-cyan";
+            statusClass = "text-red";
           } else if (maxKneeMob >= 30) {
             depthStatus = "Partial Squat";
             statusClass = "text-amber";
@@ -2854,20 +2779,20 @@ function openSnapshotModal(id) {
             else if (poseKey === 'Overhead') angles = m.anglesOverhead;
 
             if (angles) {
-              setModalMetric('modal-angle-knee-l', angles.kneeAngleL !== undefined && angles.kneeAngleL !== null ? `${Math.round(angles.kneeAngleL)}°` : "--°");
-              setModalMetric('modal-angle-knee-r', angles.kneeAngleR !== undefined && angles.kneeAngleR !== null ? `${Math.round(angles.kneeAngleR)}°` : "--°");
-              setModalMetric('modal-angle-hip-l', angles.hipAngleL !== undefined && angles.hipAngleL !== null ? `${Math.round(angles.hipAngleL)}°` : "--°");
-              setModalMetric('modal-angle-hip-r', angles.hipAngleR !== undefined && angles.hipAngleR !== null ? `${Math.round(angles.hipAngleR)}°` : "--°");
-              setModalMetric('modal-angle-elbow-l', angles.elbowAngleL !== undefined && angles.elbowAngleL !== null ? `${Math.round(angles.elbowAngleL)}°` : "--°");
-              setModalMetric('modal-angle-elbow-r', angles.elbowAngleR !== undefined && angles.elbowAngleR !== null ? `${Math.round(angles.elbowAngleR)}°` : "--°");
+              ANGLE_METRICS.forEach(am => {
+                if (am.element) {
+                  const val = angles[am.key];
+                  setModalMetric(`modal-${am.element.id}`, (val !== undefined && val !== null) ? `${Math.round(val)}°` : "--°");
+                }
+              });
             } else {
               // Fallback to global metrics if angles object is missing
-              setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-              setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-              setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-              setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-              setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-              setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+              ANGLE_METRICS.forEach(am => {
+                if (am.element) {
+                  const val = m[am.key];
+                  setModalMetric(`modal-${am.element.id}`, val !== undefined ? `${val}°` : "--°");
+                }
+              });
             }
           };
 
@@ -2921,12 +2846,12 @@ function openSnapshotModal(id) {
               else modalPoseElem.classList.add('pose-color-default');
             }
 
-            setModalMetric('modal-angle-knee-l', m.kneeAngleL !== undefined ? `${m.kneeAngleL}°` : "--°");
-            setModalMetric('modal-angle-knee-r', m.kneeAngleR !== undefined ? `${m.kneeAngleR}°` : "--°");
-            setModalMetric('modal-angle-hip-l', m.hipAngleL !== undefined ? `${m.hipAngleL}°` : "--°");
-            setModalMetric('modal-angle-hip-r', m.hipAngleR !== undefined ? `${m.hipAngleR}°` : "--°");
-            setModalMetric('modal-angle-elbow-l', m.elbowAngleL !== undefined ? `${m.elbowAngleL}°` : "--°");
-            setModalMetric('modal-angle-elbow-r', m.elbowAngleR !== undefined ? `${m.elbowAngleR}°` : "--°");
+            ANGLE_METRICS.forEach(am => {
+              if (am.element) {
+                const val = m[am.key];
+                setModalMetric(`modal-${am.element.id}`, val !== undefined ? `${val}°` : "--°");
+              }
+            });
           }
         }
 
@@ -2936,19 +2861,11 @@ function openSnapshotModal(id) {
           setModalMetric('modal-val-height', formatSkeletalHeight(m.skeletal_height));
           setModalMetric('modal-val-wingspan', m.wingspan ? formatLength(m.wingspan) : "--.-");
 
-          setModalMetric('modal-val-thigh-l', m.thigh_l !== undefined ? formatLength(m.thigh_l) : "--.-");
-          setModalMetric('modal-val-thigh-r', m.thigh_r !== undefined ? formatLength(m.thigh_r) : "--.-");
-          setModalMetric('modal-val-shin-l', m.shin_l !== undefined ? formatLength(m.shin_l) : "--.-");
-          setModalMetric('modal-val-shin-r', m.shin_r !== undefined ? formatLength(m.shin_r) : "--.-");
-          setModalMetric('modal-val-foot-l', m.foot_l !== undefined ? formatLength(m.foot_l) : "--.-");
-          setModalMetric('modal-val-foot-r', m.foot_r !== undefined ? formatLength(m.foot_r) : "--.-");
-
-          setModalMetric('modal-val-torso-l', m.torso_l !== undefined ? formatLength(m.torso_l) : "--.-");
-          setModalMetric('modal-val-torso-r', m.torso_r !== undefined ? formatLength(m.torso_r) : "--.-");
-          setModalMetric('modal-val-upperarm-l', m.upperarm_l !== undefined ? formatLength(m.upperarm_l) : "--.-");
-          setModalMetric('modal-val-upperarm-r', m.upperarm_r !== undefined ? formatLength(m.upperarm_r) : "--.-");
-          setModalMetric('modal-val-forearm-l', m.forearm_l !== undefined ? formatLength(m.forearm_l) : "--.-");
-          setModalMetric('modal-val-forearm-r', m.forearm_r !== undefined ? formatLength(m.forearm_r) : "--.-");
+          SEGMENT_METRICS.forEach(sm => {
+            if (sm.element) {
+              setModalMetric(`modal-${sm.element.id}`, m[sm.key] !== undefined ? formatLength(m[sm.key]) : "--.-");
+            }
+          });
 
           if (m.fingerToToeL !== undefined && m.fingerToToeR !== undefined) {
             setModalMetric('modal-val-overhead-reach', `L: ${formatLength(m.fingerToToeL)} / R: ${formatLength(m.fingerToToeR)}`);
@@ -3221,19 +3138,7 @@ function updateSidebarPlaceholders() {
     }
   };
 
-  updatePlaceholder(thighLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(thighRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(shinLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(shinRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(footLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(footRDisp, "--.- cm", "--.- inches");
-  
-  updatePlaceholder(torsoLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(torsoRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(upperarmLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(upperarmRDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(forearmLDisp, "--.- cm", "--.- inches");
-  updatePlaceholder(forearmRDisp, "--.- cm", "--.- inches");
+  SEGMENT_METRICS.forEach(m => updatePlaceholder(m.element, "--.- cm", "--.- inches"));
 
   updatePlaceholder(fingerToToeDisp, "L: --.- cm / R: --.- cm", "L: --.- inches / R: --.- inches");
   updatePlaceholder(hipWDisp, "--.- cm", "--.- inches");
@@ -3330,6 +3235,23 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   if (method === 'height') {
     state.pixelsPerCm = null; // Calculated dynamically in frame loop
     state.calLocked = true;   // Automatically consider locked/calibrated
+  } else if (method === 'validation' || method === 'aruco') {
+    // For validation or aruco tab, keep current pixelsPerCm if already calibrated, or restore from active profile if any
+    if (state.activeProfileId && !state.pixelsPerCm) {
+      const activeProfile = state.allProfiles?.find(p => p.id === state.activeProfileId);
+      const activeSession = activeProfile?.sessions?.find(s => s.id === state.activeSessionId) || activeProfile?.sessions?.[activeProfile.sessions.length - 1];
+      const sessionPixelsPerCm = activeSession?.pixelsPerCm || activeProfile?.pixelsPerCm;
+      if (sessionPixelsPerCm) {
+        state.pixelsPerCm = sessionPixelsPerCm;
+        state.calLocked = true;
+      }
+    }
+    if (!state.pixelsPerCm) {
+      state.pixelsPerCm = null;
+      state.calLocked = false;
+    } else {
+      state.calLocked = true;
+    }
   } else {
     state.pixelsPerCm = null;
     state.calLocked = false;
@@ -3369,19 +3291,17 @@ if (btnApplyScale && inputPremeasuredScale) {
     state.calLocked = true;
 
     // Visual feedback glow
-    btnApplyScale.style.backgroundColor = '#10b981';
-    btnApplyScale.style.boxShadow = '0 0 12px #10b981';
+    btnApplyScale.classList.add('btn-success-glow');
     btnApplyScale.textContent = "Scale Applied! ✅";
     
     setTimeout(() => {
-      btnApplyScale.style.backgroundColor = '';
-      btnApplyScale.style.boxShadow = '';
+      btnApplyScale.classList.remove('btn-success-glow');
       btnApplyScale.textContent = "Apply Scale";
     }, 2000);
 
     // Update global scale indicators
     if (arucoStatusText) {
-      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
     }
     
     statusElement.textContent = `Scale calibration locked to pasted premeasured factor: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
@@ -3795,7 +3715,7 @@ export function startVideoRecording() {
     function triggerDownload(blobToDownload, fileExt, finalDuration) {
       const url = URL.createObjectURL(blobToDownload);
       const a = document.createElement('a');
-      a.style.display = 'none';
+      a.classList.add('hidden');
       a.href = url;
       const subjectInput = document.getElementById('subject-name-input');
       const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
@@ -3935,24 +3855,24 @@ export function updateRecordButtonUI() {
   if (!btnExportVideo) return;
   const isVideo = state.isUploadedMedia && state.uploadedMediaType === 'video';
 
+  btnExportVideo.classList.remove('btn-export-cancel', 'btn-export-recording', 'btn-export-ready', 'recording-pulse');
+
   if (state.isExportingFrameByFrame) {
     btnExportVideo.innerHTML = `
-      <span class="recording-dot" style="background-color: #BA0C2F; animation: pulse 1s infinite;"></span>
+      <span class="recording-dot cancel"></span>
       Cancel Analysis...
     `;
-    btnExportVideo.style.background = 'linear-gradient(135deg, #475569, #334155)';
-    btnExportVideo.classList.add('recording-pulse');
+    btnExportVideo.classList.add('btn-export-cancel', 'recording-pulse');
   } else if (state.isRecording) {
     btnExportVideo.innerHTML = `
       <span class="recording-dot"></span>
       ${isVideo ? 'Exporting Full Video...' : 'Stop & Export Video'}
     `;
-    btnExportVideo.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
-    btnExportVideo.classList.add('recording-pulse');
+    btnExportVideo.classList.add('btn-export-recording', 'recording-pulse');
   } else {
     if (isVideo) {
       btnExportVideo.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-inline">
           <polyline points="8 17 12 21 16 17"></polyline>
           <line x1="12" y1="12" x2="12" y2="21"></line>
           <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
@@ -3961,15 +3881,14 @@ export function updateRecordButtonUI() {
       `;
     } else {
       btnExportVideo.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="btn-icon-inline">
           <circle cx="12" cy="12" r="10"></circle>
           <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
         </svg>
         Record & Export Video
       `;
     }
-    btnExportVideo.style.background = 'linear-gradient(135deg, #ec4899, #818cf8)';
-    btnExportVideo.classList.remove('recording-pulse');
+    btnExportVideo.classList.add('btn-export-ready');
   }
 }
 
@@ -4302,7 +4221,7 @@ export function importPriorPortfolio(report) {
       inputPremeasuredScale.value = report.pixelsPerCm.toFixed(2);
     }
     if (arucoStatusText) {
-      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
     }
   } else if (report.summary && report.summary.skeletal_height_cm) {
     console.log("[Portfolio Ingest] Report has skeletal height but no scale factor.");
@@ -4507,12 +4426,10 @@ export function importPriorPortfolio(report) {
 
   // High-end feedback animation on Import button
   if (btnImportPortfolio) {
-    btnImportPortfolio.style.backgroundColor = '#10b981';
-    btnImportPortfolio.style.boxShadow = '0 0 16px #10b981';
+    btnImportPortfolio.classList.add('btn-success-glow');
     btnImportPortfolio.textContent = "Session Imported Successfully! ✅";
     setTimeout(() => {
-      btnImportPortfolio.style.backgroundColor = '';
-      btnImportPortfolio.style.boxShadow = '';
+      btnImportPortfolio.classList.remove('btn-success-glow');
       btnImportPortfolio.textContent = "Import Prior Portfolio";
     }, 2000);
   }
@@ -4595,11 +4512,11 @@ function syncWallPerspectiveEnabled(enabled) {
     // Update UI status texts
     const arucoStatusText = document.getElementById('aruco-status-text');
     if (arucoStatusText && state.activeCalMethod === 'aruco') {
-      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
     const validationStatusText = document.getElementById('validation-status-text');
     if (validationStatusText && state.activeCalMethod === 'validation') {
-      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
   }
 }
@@ -4631,11 +4548,11 @@ function syncWallPerspectiveFactor(newVal) {
     // Update UI status texts
     const arucoStatusText = document.getElementById('aruco-status-text');
     if (arucoStatusText && state.activeCalMethod === 'aruco') {
-      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
     const validationStatusText = document.getElementById('validation-status-text');
     if (validationStatusText && state.activeCalMethod === 'validation') {
-      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-cyan">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
+      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
     }
   }
 }
@@ -4829,7 +4746,7 @@ export function updateSquatDashboardOffline() {
 
   if (squatStatusVal) {
     squatStatusVal.textContent = 'Awaiting Subject';
-    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-cyan', 'text-emerald');
+    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-red', 'text-emerald');
     squatStatusVal.classList.add('text-slate');
   }
 }
@@ -4913,7 +4830,7 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
     statusClass = "text-emerald";
   } else if (maxKneeMob >= 75) {
     depthStatus = "Parallel Squat";
-    statusClass = "text-cyan";
+    statusClass = "text-red";
   } else if (maxKneeMob >= 30) {
     depthStatus = "Partial Squat";
     statusClass = "text-amber";
@@ -4924,7 +4841,7 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
 
   if (squatStatusVal) {
     squatStatusVal.textContent = depthStatus;
-    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-cyan', 'text-emerald');
+    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-red', 'text-emerald');
     squatStatusVal.classList.add(statusClass);
   }
 }
@@ -4975,18 +4892,9 @@ export function updateDashboardOfflinePlaceholders() {
   const suffix = state.useInches ? "inches" : "cm";
   const place = `--.- ${suffix}`;
 
-  thighLDisp.textContent = place;
-  thighRDisp.textContent = place;
-  shinLDisp.textContent = place;
-  shinRDisp.textContent = place;
-  footLDisp.textContent = place;
-  footRDisp.textContent = place;
-  torsoLDisp.textContent = place;
-  torsoRDisp.textContent = place;
-  upperarmLDisp.textContent = place;
-  upperarmRDisp.textContent = place;
-  forearmLDisp.textContent = place;
-  forearmRDisp.textContent = place;
+  SEGMENT_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = place;
+  });
   
   if (fingerToToeDisp) {
     fingerToToeDisp.textContent = `L: ${place} / R: ${place}`;
@@ -5004,12 +4912,9 @@ export function updateDashboardOfflinePlaceholders() {
     heightFtDisp.textContent = `-'- -" (Stature)`;
   }
   
-  kneeAngleLDisp.textContent = `--°`;
-  kneeAngleRDisp.textContent = `--°`;
-  hipAngleLDisp.textContent = `--°`;
-  hipAngleRDisp.textContent = `--°`;
-  elbowAngleLDisp.textContent = `--°`;
-  elbowAngleRDisp.textContent = `--°`;
+  ANGLE_METRICS.forEach(m => {
+    if (m.element) m.element.textContent = `--°`;
+  });
 }
 
 // BIND OVERHEAD SQUAT INTERFACE LISTENERS
@@ -5799,7 +5704,7 @@ export async function loadProfileIntoState(profileId) {
       state.calLocked = true;
       const arucoStatusText = document.getElementById('aruco-status-text');
       if (arucoStatusText) {
-        arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-cyan">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
+        arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
       }
       const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
       if (inputPremeasuredScale) {
@@ -6126,7 +6031,7 @@ export async function openProfileDetailsModal(profileId) {
     if (detailName) {
       detailName.innerHTML = `
         ${profile.name || "Anonymous Subject"} 
-        <button class="btn btn-rename-profile" style="background: none; border: none; padding: 2px 4px; color: #888; cursor: pointer; transition: color 0.2s; display: inline-flex; align-items: center; vertical-align: middle;" title="Rename Profile">
+        <button class="btn btn-rename-profile" title="Rename Profile">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 20h9"></path>
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
@@ -6232,7 +6137,7 @@ export async function openProfileDetailsModal(profileId) {
       if (hasData) {
         if (statusEl) {
           statusEl.textContent = "✅ Complete";
-          statusEl.style.color = "#10b981"; // Emerald green
+          statusEl.className = 'text-emerald';
         }
         if (imgSrc) {
           if (imgEl) imgEl.src = imgSrc;
@@ -6243,7 +6148,7 @@ export async function openProfileDetailsModal(profileId) {
       } else {
         if (statusEl) {
           statusEl.textContent = "❌ Missing";
-          statusEl.style.color = "#ef4444"; // Scarlet/red
+          statusEl.className = 'text-red';
         }
         if (containerEl) containerEl.classList.add('hidden');
         if (imgEl) imgEl.src = "";
@@ -6331,12 +6236,11 @@ export async function openProfileDetailsModal(profileId) {
       }
       const suffix = state.useInches ? "in" : "cm";
       return `
-        <div style="display: flex; align-items: center; gap: 4px;">
-          <input type="number" step="0.1" min="0" class="profile-edit-input" 
+        <div class="profile-cell-flex">
+          <input type="number" step="0.1" min="0" class="profile-edit-input single" 
                  data-pose="${poseKey}" data-key="${metricKey}" 
-                 value="${displayVal}" placeholder="--" 
-                 style="width: 60px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
-          <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+                 value="${displayVal}" placeholder="--">
+          <span class="profile-unit-suffix">${suffix}</span>
         </div>
       `;
     };
@@ -6355,22 +6259,20 @@ export async function openProfileDetailsModal(profileId) {
       }
       const suffix = state.useInches ? "in" : "cm";
       return `
-        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 100px;">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <span style="font-size: 0.7rem; color: #aaa; width: 12px;">L:</span>
-            <input type="number" step="0.1" min="0" class="profile-edit-input" 
+        <div class="profile-cell-flex-col">
+          <div class="profile-cell-flex">
+            <span class="profile-side-label">L:</span>
+            <input type="number" step="0.1" min="0" class="profile-edit-input pair" 
                    data-pose="${poseKey}" data-key="${leftMetricKey}" 
-                   value="${displayLeft}" placeholder="--" 
-                   style="width: 50px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
-            <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+                   value="${displayLeft}" placeholder="--">
+            <span class="profile-unit-suffix">${suffix}</span>
           </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <span style="font-size: 0.7rem; color: #aaa; width: 12px;">R:</span>
-            <input type="number" step="0.1" min="0" class="profile-edit-input" 
+          <div class="profile-cell-flex">
+            <span class="profile-side-label">R:</span>
+            <input type="number" step="0.1" min="0" class="profile-edit-input pair" 
                    data-pose="${poseKey}" data-key="${rightMetricKey}" 
-                   value="${displayRight}" placeholder="--" 
-                   style="width: 50px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px 4px; border-radius: 3px; font-size: 0.8rem; text-align: center;">
-            <span style="font-size: 0.7rem; color: #888;">${suffix}</span>
+                   value="${displayRight}" placeholder="--">
+            <span class="profile-unit-suffix">${suffix}</span>
           </div>
         </div>
       `;
@@ -6381,19 +6283,17 @@ export async function openProfileDetailsModal(profileId) {
         return `${valL || 0}° / ${valR || 0}°`;
       }
       return `
-        <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
-          <span style="font-size: 0.75rem; color: #aaa;">L:</span>
-          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input" 
+        <div class="profile-cell-flex-center">
+          <span class="profile-squat-label">L:</span>
+          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input profile-edit-input squat" 
                  data-joint="${jointKey}" data-side="L" 
-                 value="${valL || 0}" 
-                 style="width: 45px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px; border-radius: 3px; font-size: 0.85rem; text-align: center;">
-          <span style="font-size: 0.75rem; color: #888;">°</span>
-          <span style="font-size: 0.75rem; color: #aaa; margin-left: 4px;">R:</span>
-          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input" 
+                 value="${valL || 0}">
+          <span class="profile-deg-suffix">°</span>
+          <span class="profile-squat-label right">R:</span>
+          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input profile-edit-input squat" 
                  data-joint="${jointKey}" data-side="R" 
-                 value="${valR || 0}" 
-                 style="width: 45px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 2px; border-radius: 3px; font-size: 0.85rem; text-align: center;">
-          <span style="font-size: 0.75rem; color: #888;">°</span>
+                 value="${valR || 0}">
+          <span class="profile-deg-suffix">°</span>
         </div>
       `;
     };
@@ -6526,18 +6426,16 @@ export async function openProfileDetailsModal(profileId) {
     // 8. Wire up metrics editing button event handlers (activeSession-scoped)
     const editBtn = document.getElementById('btn-edit-baseline-metrics');
     if (editBtn) {
+      editBtn.classList.remove('btn-save-metrics', 'btn-edit-metrics');
       if (state.isEditingProfileMetrics) {
         editBtn.innerHTML = '💾 Save Metrics';
-        editBtn.style.background = 'rgba(16, 185, 129, 0.15)';
-        editBtn.style.border = '1px solid rgba(16, 185, 129, 0.4)';
-        editBtn.style.color = '#10b981';
+        editBtn.classList.add('btn-save-metrics');
         
         let cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
         if (!cancelBtn) {
           cancelBtn = document.createElement('button');
           cancelBtn.id = 'btn-cancel-baseline-metrics';
-          cancelBtn.className = 'btn';
-          cancelBtn.style.cssText = 'background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 4px; margin-left: 4px;';
+          cancelBtn.className = 'btn btn-cancel-metrics';
           cancelBtn.innerHTML = '❌ Cancel';
           editBtn.parentNode.appendChild(cancelBtn);
         }
@@ -6630,9 +6528,7 @@ export async function openProfileDetailsModal(profileId) {
         };
       } else {
         editBtn.innerHTML = '✏️ Edit Metrics';
-        editBtn.style.background = 'rgba(186, 12, 47, 0.15)';
-        editBtn.style.border = '1px solid rgba(186, 12, 47, 0.4)';
-        editBtn.style.color = 'var(--color-scarlet)';
+        editBtn.classList.add('btn-edit-metrics');
         
         const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
         if (cancelBtn) {
@@ -6668,12 +6564,14 @@ export async function openProfileDetailsModal(profileId) {
 
     if (mainVideoPlayer) {
       mainVideoPlayer.src = '';
-      mainVideoPlayer.style.display = 'none';
+      mainVideoPlayer.classList.add('hidden');
+      mainVideoPlayer.classList.remove('visible-block');
     }
     if (videoPlaceholder) {
-      videoPlaceholder.style.display = 'flex';
+      videoPlaceholder.classList.add('visible-flex');
+      videoPlaceholder.classList.remove('hidden');
       videoPlaceholder.innerHTML = `
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="playlist-placeholder-icon"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
         <span>Select a recording from the playlist below to play</span>
       `;
     }
@@ -6685,12 +6583,12 @@ export async function openProfileDetailsModal(profileId) {
       if (savedVideos.length === 0) {
         if (videoPlaceholder) {
           videoPlaceholder.innerHTML = `
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #444;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-            <span style="color: #666;">No video recordings saved for this profile yet.</span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="playlist-placeholder-icon-empty"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            <span class="playlist-empty-text">No video recordings saved for this profile yet.</span>
           `;
         }
         videosListEl.innerHTML = `
-          <div style="color: #555; font-size: 0.8rem; text-align: center; padding: 1.5rem 0;">
+          <div class="playlist-empty-placeholder">
             🎥 Playlist Empty
           </div>
         `;
@@ -6698,7 +6596,6 @@ export async function openProfileDetailsModal(profileId) {
         savedVideos.forEach((video, idx) => {
           const videoRow = document.createElement('div');
           videoRow.className = 'profile-video-row-item';
-          videoRow.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; padding: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; transition: all 0.2s;';
           
           const videoUrl = URL.createObjectURL(video.blob);
           state.modalObjectUrls.push(videoUrl);
@@ -6708,72 +6605,40 @@ export async function openProfileDetailsModal(profileId) {
           const durationStr = video.duration ? `${(video.duration / 1000).toFixed(1)}s` : '--';
           
           videoRow.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; flex-grow: 1; min-width: 0;">
-              <div class="playlist-play-icon" style="width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: #888; flex-shrink: 0; transition: all 0.2s;">
+            <div class="playlist-video-info-container">
+              <div class="playlist-play-icon">
                 <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
               </div>
-              <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex-grow: 1;">
-                <div style="display: flex; align-items: center; gap: 4px; width: 100%;">
-                  <span class="playlist-video-name" style="font-size: 0.8rem; font-weight: 600; color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">${video.name || 'Video Capture'}</span>
-                  <button class="btn btn-rename-video" style="background: none; border: none; padding: 2px; color: #666; cursor: pointer; transition: color 0.2s; display: flex; align-items: center;" title="Rename Video">
+              <div class="playlist-video-details">
+                <div class="playlist-video-title-row">
+                  <span class="playlist-video-name">${video.name || 'Video Capture'}</span>
+                  <button class="btn btn-rename-video" title="Rename Video">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                   </button>
                 </div>
-                <span style="font-size: 0.7rem; color: #777;">${dateStr} &bull; ${sizeMb} MB &bull; ${durationStr}</span>
+                <span class="playlist-video-meta">${dateStr} &bull; ${sizeMb} MB &bull; ${durationStr}</span>
               </div>
             </div>
-            <div style="display: flex; gap: 4px; flex-shrink: 0;">
-              <button class="btn btn-dl-video" style="padding: 2px 6px; font-size: 0.7rem; background: rgba(212, 160, 23, 0.08); border: 1px solid rgba(212, 160, 23, 0.2); color: #d4a017; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
-                DL
-              </button>
-              <button class="btn btn-del-video" style="padding: 2px 6px; font-size: 0.7rem; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
-                DEL
-              </button>
+            <div class="playlist-row-actions">
+              <button class="btn btn-dl-video">DL</button>
+              <button class="btn btn-del-video">DEL</button>
             </div>
           `;
-
-          // Hover states
-          videoRow.addEventListener('mouseenter', () => {
-            if (!videoRow.classList.contains('active-playlist-item')) {
-              videoRow.style.background = 'rgba(255,255,255,0.05)';
-              videoRow.style.borderColor = 'rgba(255,255,255,0.1)';
-            }
-          });
-          videoRow.addEventListener('mouseleave', () => {
-            if (!videoRow.classList.contains('active-playlist-item')) {
-              videoRow.style.background = 'rgba(255,255,255,0.02)';
-              videoRow.style.borderColor = 'rgba(255,255,255,0.04)';
-            }
-          });
 
           // Play selection trigger
           const selectVideo = () => {
             const allItems = videosListEl.querySelectorAll('.profile-video-row-item');
-            allItems.forEach(item => {
-              item.classList.remove('active-playlist-item');
-              item.style.background = 'rgba(255,255,255,0.02)';
-              item.style.borderColor = 'rgba(255,255,255,0.04)';
-              const playIcon = item.querySelector('.playlist-play-icon');
-              if (playIcon) {
-                playIcon.style.background = 'rgba(255,255,255,0.05)';
-                playIcon.style.color = '#888';
-              }
-            });
+            allItems.forEach(item => item.classList.remove('active-playlist-item'));
 
             videoRow.classList.add('active-playlist-item');
-            videoRow.style.background = 'rgba(0, 229, 255, 0.08)';
-            videoRow.style.borderColor = 'rgba(0, 229, 255, 0.25)';
-            const playIcon = videoRow.querySelector('.playlist-play-icon');
-            if (playIcon) {
-              playIcon.style.background = 'var(--color-cyan)';
-              playIcon.style.color = '#000';
-            }
 
             if (mainVideoPlayer) {
               mainVideoPlayer.src = videoUrl;
-              mainVideoPlayer.style.display = 'block';
+              mainVideoPlayer.classList.add('visible-block');
+              mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
-                videoPlaceholder.style.display = 'none';
+                videoPlaceholder.classList.add('hidden');
+                videoPlaceholder.classList.remove('visible-flex');
               }
               mainVideoPlayer.play().catch(e => console.log("[VideoPlay] Autoplay blocked:", e));
             }
@@ -6789,18 +6654,13 @@ export async function openProfileDetailsModal(profileId) {
           // Auto pre-select the first video on open
           if (idx === 0) {
             videoRow.classList.add('active-playlist-item');
-            videoRow.style.background = 'rgba(0, 229, 255, 0.05)';
-            videoRow.style.borderColor = 'rgba(0, 229, 255, 0.15)';
-            const pIcon = videoRow.querySelector('.playlist-play-icon');
-            if (pIcon) {
-              pIcon.style.background = 'var(--color-cyan)';
-              pIcon.style.color = '#000';
-            }
             if (mainVideoPlayer) {
               mainVideoPlayer.src = videoUrl;
-              mainVideoPlayer.style.display = 'block';
+              mainVideoPlayer.classList.add('visible-block');
+              mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
-                videoPlaceholder.style.display = 'none';
+                videoPlaceholder.classList.add('hidden');
+                videoPlaceholder.classList.remove('visible-flex');
               }
             }
           }
@@ -6838,7 +6698,7 @@ export async function openProfileDetailsModal(profileId) {
           dlBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const a = document.createElement('a');
-            a.style.display = 'none';
+            a.classList.add('hidden');
             a.href = videoUrl;
             const fileExt = video.fileExt || 'webm';
             const cleanSubjectName = profile.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
@@ -6898,4 +6758,255 @@ export function closeProfileDetailsModal() {
   state.isEditingProfileMetrics = false;
 }
 
+// =====================================================================
+// SCARLET VIDEO RECORDING COMPONENT (HIGH-DEFINITION SIDE-BY-SIDE GRID)
+// Placed at the bottom to prevent interfering with biomechanical loops
+// =====================================================================
 
+let scarletMediaRecorder = null;
+let scarletRecordedChunks = [];
+let scarletIsRecording = false;
+let scarletRecordingCanvas = null;
+let scarletRecordingCtx = null;
+let scarletAnimationId = null;
+
+function initScarletRecorder() {
+  const recordBtn = document.getElementById('record-btn');
+  const canvasOverlay = document.getElementById('overlay');
+  const videoElement = document.querySelector('video');
+
+  if (!recordBtn || !canvasOverlay || !videoElement) {
+    setTimeout(initScarletRecorder, 500);
+    return;
+  }
+
+  function renderRecordingFrame() {
+    if (!scarletIsRecording) return;
+
+    // Grid Layout Dimensions: 640px camera stream + 400px wider dashboard grid sidebar = 1040x480 video canvas
+    const feedWidth = canvasOverlay.width || 640;
+    const feedHeight = canvasOverlay.height || 480;
+    const metricsWidth = 400; 
+    
+    if (scarletRecordingCanvas.width !== (feedWidth + metricsWidth) || scarletRecordingCanvas.height !== feedHeight) {
+      scarletRecordingCanvas.width = feedWidth + metricsWidth;
+      scarletRecordingCanvas.height = feedHeight;
+    }
+
+    // Force crisp anti-aliasing rendering options to clean up text pixelation
+    scarletRecordingCtx.imageSmoothingEnabled = true;
+    scarletRecordingCtx.imageSmoothingQuality = 'high';
+
+    // Base background setup
+    scarletRecordingCtx.fillStyle = "#121212"; 
+    scarletRecordingCtx.fillRect(0, 0, scarletRecordingCanvas.width, scarletRecordingCanvas.height);
+
+    // 1. DRAW LEFT SIDE: Live Video Feed
+    const isYoloActive = (typeof state !== 'undefined' && state?.yoloModeActive);
+    const facingMode = (typeof state !== 'undefined' ? state?.currentFacingMode : 'user');
+
+    if (!isYoloActive) {
+      scarletRecordingCtx.save();
+      if (facingMode === "user" && videoElement.classList.contains('mirror-x')) {
+        scarletRecordingCtx.translate(feedWidth, 0);
+        scarletRecordingCtx.scale(-1, 1);
+      }
+      scarletRecordingCtx.drawImage(videoElement, 0, 0, feedWidth, feedHeight);
+      scarletRecordingCtx.restore();
+    }
+
+    // 2. OVERLAY SKELETON: MediaPipe lines
+    scarletRecordingCtx.drawImage(canvasOverlay, 0, 0, feedWidth, feedHeight);
+
+    // 3. DRAW RIGHT SIDE: Cleaned Grid UI Sidebar Panel
+    const xStart = feedWidth;
+    
+    // Solid Sidebar Background Fill
+    scarletRecordingCtx.fillStyle = "#1A1A1A"; 
+    scarletRecordingCtx.fillRect(xStart, 0, metricsWidth, feedHeight);
+    
+    // Scarlet Red Border Separation Line
+    scarletRecordingCtx.strokeStyle = "#BA0C2F"; 
+    scarletRecordingCtx.lineWidth = 4;
+    scarletRecordingCtx.beginPath();
+    scarletRecordingCtx.moveTo(xStart, 0);
+    scarletRecordingCtx.lineTo(xStart, feedHeight);
+    scarletRecordingCtx.stroke();
+
+    // Side Header block text
+    scarletRecordingCtx.fillStyle = "#BA0C2F";
+    scarletRecordingCtx.font = "bold 18px 'Segoe UI', Helvetica, sans-serif";
+    scarletRecordingCtx.fillText("SCARLET BIOMECHANICS", xStart + 24, 38);
+    
+    scarletRecordingCtx.fillStyle = "#888888";
+    scarletRecordingCtx.font = "11px 'Segoe UI', Helvetica, sans-serif";
+    scarletRecordingCtx.fillText("REAL-TIME ANALYTICS SESSION GRID", xStart + 25, 56);
+    
+    // Divider line below header
+    scarletRecordingCtx.strokeStyle = "#2D2D2D";
+    scarletRecordingCtx.lineWidth = 1;
+    scarletRecordingCtx.beginPath();
+    scarletRecordingCtx.moveTo(xStart + 20, 70);
+    scarletRecordingCtx.lineTo(xStart + metricsWidth - 20, 70);
+    scarletRecordingCtx.stroke();
+
+    // Helper to draw modern full-width cards (used for Stature metrics)
+    const drawFullWidthCard = (title, displayElement, cardY, accentColor = "#008542") => {
+      const valueText = displayElement?.textContent || "0.0 cm";
+      const cardWidth = metricsWidth - 40;
+      const cardHeight = 44;
+      const cardX = xStart + 20;
+
+      scarletRecordingCtx.fillStyle = "#242424";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(cardX, cardY, cardWidth, cardHeight, 6);
+      else scarletRecordingCtx.rect(cardX, cardY, cardWidth, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = accentColor;
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(cardX, cardY, 5, cardHeight, [6, 0, 0, 6]);
+      else scarletRecordingCtx.fillRect(cardX, cardY, 5, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#E0E0E0";
+      scarletRecordingCtx.font = "500 13px 'Segoe UI', Helvetica, sans-serif";
+      scarletRecordingCtx.fillText(title, cardX + 18, cardY + 26);
+
+      scarletRecordingCtx.fillStyle = accentColor;
+      scarletRecordingCtx.font = "bold 15px monospace";
+      scarletRecordingCtx.textAlign = "right";
+      scarletRecordingCtx.fillText(valueText, cardX + cardWidth - 15, cardY + 27);
+      scarletRecordingCtx.textAlign = "left";
+    };
+
+    // Helper to draw clean dual columns side-by-side (Left / Right variables combined horizontally)
+    const drawDualColumnRow = (leftTitle, leftElement, rightTitle, rightElement, rowY) => {
+      const cardWidth = (metricsWidth - 50) / 2; // Split space into two equal halves with gap spacing
+      const cardHeight = 44;
+      
+      // LEFT COMPONENT COLUMN
+      const leftX = xStart + 20;
+      const leftVal = leftElement?.textContent || "0.0°";
+      
+      scarletRecordingCtx.fillStyle = "#242424";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(leftX, rowY, cardWidth, cardHeight, 6);
+      else scarletRecordingCtx.rect(leftX, rowY, cardWidth, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#FFD700"; // Yellow Gold Indicator Strip
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(leftX, rowY, 5, cardHeight, [6, 0, 0, 6]);
+      else scarletRecordingCtx.fillRect(leftX, rowY, 5, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#E0E0E0";
+      scarletRecordingCtx.font = "500 12px 'Segoe UI', Helvetica, sans-serif";
+      scarletRecordingCtx.fillText(leftTitle, leftX + 14, rowY + 26);
+
+      scarletRecordingCtx.fillStyle = "#FFD700";
+      scarletRecordingCtx.font = "bold 14px monospace";
+      scarletRecordingCtx.textAlign = "right";
+      scarletRecordingCtx.fillText(leftVal, leftX + cardWidth - 10, rowY + 27);
+      scarletRecordingCtx.textAlign = "left";
+
+      // RIGHT COMPONENT COLUMN
+      const rightX = leftX + cardWidth + 10;
+      const rightVal = rightElement?.textContent || "0.0°";
+
+      scarletRecordingCtx.fillStyle = "#242424";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(rightX, rowY, cardWidth, cardHeight, 6);
+      else scarletRecordingCtx.rect(rightX, rowY, cardWidth, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#FFD700";
+      scarletRecordingCtx.beginPath();
+      if (scarletRecordingCtx.roundRect) scarletRecordingCtx.roundRect(rightX, rowY, 5, cardHeight, [6, 0, 0, 6]);
+      else scarletRecordingCtx.fillRect(rightX, rowY, 5, cardHeight);
+      scarletRecordingCtx.fill();
+
+      scarletRecordingCtx.fillStyle = "#E0E0E0";
+      scarletRecordingCtx.font = "500 12px 'Segoe UI', Helvetica, sans-serif";
+      scarletRecordingCtx.fillText(rightTitle, rightX + 14, rowY + 26);
+
+      scarletRecordingCtx.fillStyle = "#FFD700";
+      scarletRecordingCtx.font = "bold 14px monospace";
+      scarletRecordingCtx.textAlign = "right";
+      scarletRecordingCtx.fillText(rightVal, rightX + cardWidth - 10, rowY + 27);
+      scarletRecordingCtx.textAlign = "left";
+    };
+
+    // Safely pull element states
+    const getEl = (variableName) => typeof variableName !== 'undefined' ? variableName : null;
+
+    // Render metrics vertically optimized using side-by-side grid containers
+    drawFullWidthCard("Stature (Metric):", getEl(heightCmDisp), 85, "#008542");
+    drawFullWidthCard("Stature (Stature):", getEl(heightFtDisp), 139, "#008542");
+    
+    // Draw joints split horizontally across columns to maximize viewport layout bounds
+    drawDualColumnRow("Left Knee:", getEl(kneeAngleLDisp), "Right Knee:", getEl(kneeAngleRDisp), 205);
+    drawDualColumnRow("Left Hip:", getEl(hipAngleLDisp), "Right Hip:", getEl(hipAngleRDisp), 261);
+    drawDualColumnRow("Left Elbow:", getEl(elbowAngleLDisp), "Right Elbow:", getEl(elbowAngleRDisp), 317);
+
+    // Loop frame renders smoothly
+    scarletAnimationId = requestAnimationFrame(renderRecordingFrame);
+  }
+
+  recordBtn.addEventListener('click', () => {
+    if (!scarletIsRecording) {
+      if (!scarletRecordingCanvas) {
+        scarletRecordingCanvas = document.createElement('canvas');
+        scarletRecordingCtx = scarletRecordingCanvas.getContext('2d');
+      }
+
+      scarletRecordedChunks = [];
+      scarletIsRecording = true;
+      
+      renderRecordingFrame();
+
+      const stream = scarletRecordingCanvas.captureStream(30); 
+      let options = { mimeType: 'video/webm; codecs=vp9' };
+      try {
+        scarletMediaRecorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        scarletMediaRecorder = new MediaRecorder(stream);
+      }
+
+      scarletMediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) scarletRecordedChunks.push(e.data);
+      };
+
+      scarletMediaRecorder.onstop = () => {
+        const blob = new Blob(scarletRecordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `Scarlet-HD-GridDashboard-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      };
+
+      scarletMediaRecorder.start(100);
+      
+      recordBtn.textContent = '🛑 Stop Recording Video';
+      recordBtn.style.backgroundColor = '#BA0C2F'; 
+      
+    } else {
+      scarletIsRecording = false;
+      if (scarletAnimationId) cancelAnimationFrame(scarletAnimationId);
+      if (scarletMediaRecorder && scarletMediaRecorder.state !== 'inactive') scarletMediaRecorder.stop();
+      
+      recordBtn.textContent = 'Start Recording Video';
+      recordBtn.style.backgroundColor = '#008542'; 
+    }
+  });
+}
+
+window.addEventListener('load', initScarletRecorder);

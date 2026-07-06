@@ -325,7 +325,7 @@ export function calculatePoseMetrics(results) {
         scaleFactor3D = smooth('scale_factor_3d_height', rawScale3D, 8, 0.25);
         state.scaleFactor3D = scaleFactor3D;
       }
-    } else if (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'card') {
+    } else if (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation' || state.activeCalMethod === 'card') {
       if (state.pixelsPerCm) {
         // Only update the 3D scale factor when calibration is active/unlocked.
         // In ArUco mode, only update when the marker is actively detected in the current frame.
@@ -333,6 +333,8 @@ export function calculatePoseMetrics(results) {
         let shouldUpdate3DScale = false;
         if (state.activeCalMethod === 'aruco') {
           shouldUpdate3DScale = !!state.latestArucoMarker;
+        } else if (state.activeCalMethod === 'validation') {
+          shouldUpdate3DScale = true; // Always allow calculation if person is tracked to show live height validation
         } else if (state.activeCalMethod === 'card') {
           shouldUpdate3DScale = !state.calLocked || !state.scaleFactor3D;
         }
@@ -430,132 +432,7 @@ export function calculatePoseMetrics(results) {
           detectedPose = "A-Pose";
         }
       }
-      liveMetrics.pose = detectedPose;
     }
-  } else if (state.pixelsPerCm || state.activeCalMethod === 'height') {    // 2D Fallback Calculations (in case 3D world landmarks are not available in current environment)
-    // Left segment calculations
-    const thigh_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y);
-    const shin_l_px = Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y);
-    const foot_l_px = Math.hypot(ankle_l.x - toe_l.x, ankle_l.y - toe_l.y);
-    const torso_l_px = Math.hypot(shoulder_l.x - hip_l.x, shoulder_l.y - hip_l.y);
-    const upperarm_l_px = Math.hypot(shoulder_l.x - elbow_l.x, shoulder_l.y - elbow_l.y);
-    const forearm_l_px = Math.hypot(elbow_l.x - wrist_l.x, elbow_l.y - wrist_l.y);
-
-    // Right segment calculations
-    const thigh_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y);
-    const shin_r_px = Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y);
-    const foot_r_px = Math.hypot(ankle_r.x - toe_r.x, ankle_r.y - toe_r.y);
-    const torso_r_px = Math.hypot(shoulder_r.x - hip_r.x, shoulder_r.y - hip_r.y);
-    const upperarm_r_px = Math.hypot(shoulder_r.x - elbow_r.x, shoulder_r.y - elbow_r.y);
-    const forearm_r_px = Math.hypot(elbow_r.x - wrist_r.x, elbow_r.y - wrist_r.y);
-
-    const shoulderW_px = Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y);
-    const hipW_px = Math.hypot(hip_l.x - hip_r.x, hip_l.y - hip_r.y);
-
-    // Left Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
-    const finger_l = state.latestLeftMiddleTip || all_landmarks[19] || wrist_l;
-    const fingerToToeL_px = Math.hypot(finger_l.x - toe_l.x, finger_l.y - toe_l.y);
-
-    // Right Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
-    const finger_r = state.latestRightMiddleTip || all_landmarks[20] || wrist_r;
-    const fingerToToeR_px = Math.hypot(finger_r.x - toe_r.x, finger_r.y - toe_r.y);
-
-    // Vertical height using lowest foot contacts (heels/toes) as the ground plane
-    const vertical_height_px = Math.abs(ground_y - head_top.y);
-    state.lastVerticalHeightPx = vertical_height_px; // Save for input-based calibration
-
-    // Anatomical (Skeletal) posture-independent stature calculation
-    const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
-    const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
-    
-    const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
-                     Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
-                     Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
-                     
-    const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
-                     Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
-                     Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
-                     
-    const average_leg_px = (leg_l_px + leg_r_px) / 2;
-    const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
-    state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
-
-    let activePixelsPerCm = state.pixelsPerCm;
-    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
-      const rawScale = skeletal_height_px / state.inputHeightCm;
-      activePixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
-      state.pixelsPerCm = activePixelsPerCm;
-    } else if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
-      activePixelsPerCm = skeletal_height_px / state.metricsA.skeletal_height;
-    }
-
-    let skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
-    const live_height_cm = vertical_height_px / activePixelsPerCm;
-
-    if (state.activeCalMethod === 'height' && state.inputHeightCm) {
-      skeletal_height_cm = state.inputHeightCm;
-    }
-
-    // Calculate Wingspan using posture-independent segment-summed path (shoulders + upperarms + forearms + hands)
-    // Note: We scale wrist-to-index distance by 1.42x if falling back to Pose index landmark (Hands model offline),
-    // since the Pose index landmark is shorter than the actual middle fingertip.
-    const left_hand_is_fallback = !state.latestLeftMiddleTip;
-    const hand_l_px = Math.hypot(wrist_l.x - finger_l.x, wrist_l.y - finger_l.y) * (left_hand_is_fallback ? 1.42 : 1.0);
-
-    const right_hand_is_fallback = !state.latestRightMiddleTip;
-    const hand_r_px = Math.hypot(wrist_r.x - finger_r.x, wrist_r.y - finger_r.y) * (right_hand_is_fallback ? 1.42 : 1.0);
-
-    // Apply the same 1.11x compensation factor to align with 3D and correct for MediaPipe skeletal deficits
-    const wingspan_px = (upperarm_l_px + forearm_l_px + hand_l_px + shoulderW_px + upperarm_r_px + forearm_r_px + hand_r_px) * 1.11;
-    const wingspan_cm = wingspan_px / activePixelsPerCm;
-
-    // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
-    const straight_wingspan_px = Math.hypot(finger_l.x - finger_r.x, finger_l.y - finger_r.y) * (left_hand_is_fallback || right_hand_is_fallback ? 1.42 : 1.0) * 1.11;
-    const straight_wingspan_cm = straight_wingspan_px / activePixelsPerCm;
-
-    liveMetrics = {
-      thigh_l: smooth('thigh_l', thigh_l_px / activePixelsPerCm),
-      thigh_r: smooth('thigh_r', thigh_r_px / activePixelsPerCm),
-      shin_l: smooth('shin_l', shin_l_px / activePixelsPerCm),
-      shin_r: smooth('shin_r', shin_r_px / activePixelsPerCm),
-      foot_l: smooth('foot_l', foot_l_px / activePixelsPerCm),
-      foot_r: smooth('foot_r', foot_r_px / activePixelsPerCm),
-      
-      torso_l: smooth('torso_l', torso_l_px / activePixelsPerCm),
-      torso_r: smooth('torso_r', torso_r_px / activePixelsPerCm),
-      upperarm_l: smooth('upperarm_l', upperarm_l_px / activePixelsPerCm),
-      upperarm_r: smooth('upperarm_r', upperarm_r_px / activePixelsPerCm),
-      forearm_l: smooth('forearm_l', forearm_l_px / activePixelsPerCm),
-      forearm_r: smooth('forearm_r', forearm_r_px / activePixelsPerCm),
-
-      fingerToToeL: smooth('finger_to_toe_l', fingerToToeL_px / activePixelsPerCm),
-      fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_px / activePixelsPerCm),
-      shoulderW: smooth('shoulderW', shoulderW_px / activePixelsPerCm),
-      hipW: smooth('hipW', hipW_px / activePixelsPerCm),
-      wingspan: smooth('wingspan_distance', wingspan_cm),
-
-      skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm),
-      live_height: smooth('body_height_live', live_height_cm),
-
-      kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR
-    };
-
-    let detectedPose = "A-Pose";
-    if (liveMetrics.skeletal_height > 0) {
-      const wingspanStraightCm = smooth('wingspan_straight', straight_wingspan_cm);
-      const wingspanRatio = wingspanStraightCm / liveMetrics.skeletal_height;
-      const avgFingerToToe = (liveMetrics.fingerToToeL + liveMetrics.fingerToToeR) / 2;
-      const fingerToToeRatio = avgFingerToToe / liveMetrics.skeletal_height;
-
-      if (wingspanRatio > 0.83) {
-        detectedPose = "T-Pose";
-      } else if (fingerToToeRatio > 1.20) {
-        detectedPose = "Overhead Reach";
-      } else {
-        detectedPose = "A-Pose";
-      }
-    }
-    liveMetrics.pose = detectedPose;
   }
 
   return {

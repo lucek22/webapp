@@ -14,11 +14,6 @@
   <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/cv.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/damianofalcioni/js-aruco2@master/src/aruco.js"></script>
 
-  <!-- WebM Metadata, Seekpoints Index, and Cues Generator (ts-ebml) -->
-  <script src="https://cdn.jsdelivr.net/npm/ts-ebml@3.0.2/dist/EBML.js"></script>
-  <!-- WebM Duration Fixer (fallback) -->
-  <script src="https://cdn.jsdelivr.net/npm/fix-webm-duration/fix-webm-duration.js"></script>
-
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/x-icon" href="https://www.osu.edu/favicon.ico">
 </head>
@@ -194,6 +189,9 @@
       </div>
       
       <button id="start-btn" class="btn-start">Start Biomechanical Tracking</button>
+      <button id="record-btn" class="unit-btn" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Start Recording Video
+      </button>
       <button id="upload-media-btn" class="unit-btn" style="margin-top: 0.5rem;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
         Upload Image / Video File
@@ -238,11 +236,11 @@
         </div>
         
         <div id="profile-status-bar" class="profile-status-bar hidden">
-          <span class="status-indicator"></span> Active Profile: <strong id="active-profile-name" class="text-cyan">Guest Mode</strong>
+          <span class="status-indicator"></span> Active Profile: <strong id="active-profile-name" class="text-gold">Guest Mode</strong>
         </div>
         
         <div id="profile-action-row" class="profile-action-row hidden" style="margin-top: 0.25rem;">
-          <button id="btn-view-profile-details" class="btn" style="width: 100%; font-size: 0.75rem; padding: 0.4rem; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); color: var(--color-cyan); display: flex; align-items: center; justify-content: center; gap: 4px; border-radius: 4px; transition: all 0.2s;">
+          <button id="btn-view-profile-details" class="btn btn-view-profile-details" style="width: 100%; font-size: 0.75rem; padding: 0.4rem;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 2px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             View Profile Details
           </button>
@@ -862,79 +860,79 @@
 
   <!-- Persistent Profile Details Modal -->
   <div id="profile-details-modal" class="modal">
-    <div class="modal-container" style="max-width: 950px; height: auto; max-height: 90vh; display: flex; flex-direction: column;">
-      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-        <div class="modal-title-wrap" style="display: flex; flex-direction: column; gap: 2px;">
-          <h2 class="modal-title" id="profile-details-title" style="margin: 0;">Subject Profile Summary</h2>
+    <div class="modal-container profile-modal-container">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <h2 class="modal-title" id="profile-details-title">Subject Profile Summary</h2>
           <span class="modal-date" id="profile-detail-last-session">Last Session: --</span>
         </div>
-        <div class="session-controls-wrap" style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto; margin-right: 0.5rem;">
-          <label for="profile-detail-session-select" style="font-size: 0.8rem; color: #aaa; font-weight: 500;">Session:</label>
-          <select id="profile-detail-session-select" style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s; min-width: 150px;">
+        <div class="session-controls-wrap">
+          <label for="profile-detail-session-select" class="profile-detail-session-label">Session:</label>
+          <select id="profile-detail-session-select" class="profile-detail-session-select">
             <!-- Options populated dynamically -->
           </select>
-          <button id="btn-profile-new-session" class="btn" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); color: var(--color-cyan); padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+          <button id="btn-profile-new-session" class="btn btn-profile-new-session">
             ➕ New Session
           </button>
         </div>
-        <button id="btn-close-profile-details" class="modal-close" style="background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; margin-left: 0;">&times;</button>
+        <button id="btn-close-profile-details" class="modal-close modal-close-btn">&times;</button>
       </div>
-      <div class="modal-body profile-details-grid" style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 1.5rem; padding: 1.25rem; overflow-y: auto;">
+      <div class="modal-body profile-details-grid">
         
         <!-- Column 1: Profile & Poses Status -->
-        <div class="profile-details-left" style="display: flex; flex-direction: column; gap: 1rem;">
-          <div class="profile-card-header-block" style="display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-            <div class="profile-avatar-large" style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--color-scarlet), var(--color-cyan)); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);">
+        <div class="profile-details-left">
+          <div class="profile-card-header-block">
+            <div class="profile-avatar-large">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             </div>
             <div>
-              <h3 id="profile-detail-name" style="margin: 0; font-size: 1.3rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">John Doe</h3>
-              <span id="profile-detail-scale" style="font-size: 0.8rem; color: var(--color-cyan);">Calibration: Uncalibrated</span>
+              <h3 id="profile-detail-name" class="profile-detail-name-text">John Doe</h3>
+              <span id="profile-detail-scale" class="profile-detail-scale-text">Calibration: Uncalibrated</span>
             </div>
           </div>
 
-          <div class="details-section-title" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; margin-top: 0.25rem;">Posture Scans Status</div>
-          <div class="pose-status-cards-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="details-section-title">Posture Scans Status</div>
+          <div class="pose-status-cards-container">
             
             <!-- A-Pose -->
-            <div class="pose-status-card" id="detail-card-a" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-scarlet); color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">A</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">A-Pose (Stature)</span>
+            <div class="pose-status-card" id="detail-card-a">
+              <div class="pose-card-main">
+                <div class="pose-card-info-wrap">
+                  <div class="pose-card-icon bg-scarlet">A</div>
+                  <span class="pose-card-title">A-Pose (Stature)</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-a" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <span class="pose-card-status" id="detail-status-a">❌ Missing</span>
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-a" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-a" src="" alt="A-Pose Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-a">
+                <img id="detail-preview-img-a" src="" alt="A-Pose Preview" class="pose-card-preview-img">
               </div>
             </div>
 
             <!-- T-Pose -->
-            <div class="pose-status-card" id="detail-card-t" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-cyan); color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">T</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">T-Pose (Wingspan)</span>
+            <div class="pose-status-card" id="detail-card-t">
+              <div class="pose-card-main">
+                <div class="pose-card-info-wrap">
+                  <div class="pose-card-icon bg-cyan">T</div>
+                  <span class="pose-card-title">T-Pose (Wingspan)</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-t" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <span class="pose-card-status" id="detail-status-t">❌ Missing</span>
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-t" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-t" src="" alt="T-Pose Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-t">
+                <img id="detail-preview-img-t" src="" alt="T-Pose Preview" class="pose-card-preview-img">
               </div>
             </div>
 
             <!-- Overhead Pose -->
-            <div class="pose-status-card" id="detail-card-overhead" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #d4a017; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">O</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Overhead (Reach)</span>
+            <div class="pose-status-card" id="detail-card-overhead">
+              <div class="pose-card-main">
+                <div class="pose-card-info-wrap">
+                  <div class="pose-card-icon bg-gold">O</div>
+                  <span class="pose-card-title">Overhead (Reach)</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-overhead" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <span class="pose-card-status" id="detail-status-overhead">❌ Missing</span>
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-overhead" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-overhead" src="" alt="Overhead Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-overhead">
+                <img id="detail-preview-img-overhead" src="" alt="Overhead Preview" class="pose-card-preview-img">
               </div>
             </div>
 
@@ -969,19 +967,19 @@
           </div>
 
           <!-- Saved Video Recordings -->
-          <div class="details-section-title" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; margin-top: 1rem;">Saved Video Recordings</div>
-          <div id="profile-details-videos-container" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+          <div class="details-section-title">Saved Video Recordings</div>
+          <div id="profile-details-videos-container" class="profile-details-videos-container">
             <!-- Central Video Player Display Area (Fixed 16:9 aspect ratio) -->
-            <div id="profile-details-video-player-container" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;">
-              <video id="profile-details-video-player" controls style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
-              <div id="profile-details-video-placeholder" style="color: #888; font-size: 0.85rem; text-align: center; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div id="profile-details-video-player-container" class="profile-details-video-player-container">
+              <video id="profile-details-video-player" controls class="profile-details-video-player"></video>
+              <div id="profile-details-video-placeholder" class="profile-details-video-placeholder">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
                 <span>Select a recording from the playlist below to play</span>
               </div>
             </div>
 
             <!-- Playlist Scroll Container -->
-            <div id="profile-details-videos-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem;">
+            <div id="profile-details-videos-list" class="profile-details-videos-list">
               <!-- Playlist items populated dynamically -->
             </div>
           </div>
@@ -989,140 +987,141 @@
         </div>
 
         <!-- Column 2: Consolidated Metrics Grid & Tables -->
-        <div class="profile-details-right" style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="profile-details-right">
           
-          <div class="details-section-title" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px;">
+          <div class="details-section-title flex-row">
             <span>Consolidated Postural Baseline</span>
-            <button id="btn-edit-baseline-metrics" class="btn" style="background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.3); color: #00e5ff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 4px;">✏️ Edit Metrics</button>
+            <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">✏️ Edit Metrics</button>
           </div>
           <div class="profile-metrics-comparison-table">
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <table class="profile-details-table">
               <thead>
-                <tr style="border-bottom: 2px solid rgba(255,255,255,0.1); text-align: left; color: #aaa;">
-                  <th style="padding: 0.5rem 0.25rem; font-weight: 600;">Biometric Metric</th>
-                  <th style="padding: 0.5rem 0.25rem; font-weight: 600;">A-Pose</th>
-                  <th style="padding: 0.5rem 0.25rem; font-weight: 600;">T-Pose</th>
-                  <th style="padding: 0.5rem 0.25rem; font-weight: 600;">Overhead</th>
+                <tr class="profile-details-table-header-row">
+                  <th class="profile-details-th">Biometric Metric</th>
+                  <th class="profile-details-th">A-Pose</th>
+                  <th class="profile-details-th">T-Pose</th>
+                  <th class="profile-details-th">Overhead</th>
                 </tr>
               </thead>
-              <tbody style="color: #eee;">
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 0.4rem 0.25rem; color: #bbb; font-weight: 500;">Stature Height</td>
-                  <td id="detail-table-height-a" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-height-t" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-height-overhead" style="padding: 0.4rem 0.25rem;">--</td>
+              <tbody class="profile-details-tbody">
+                <tr class="profile-details-tr">
+                  <td class="profile-details-td-label">Stature Height</td>
+                  <td id="detail-table-height-a" class="profile-details-td-val">--</td>
+                  <td id="detail-table-height-t" class="profile-details-td-val">--</td>
+                  <td id="detail-table-height-overhead" class="profile-details-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 0.4rem 0.25rem; color: #bbb; font-weight: 500;">Wingspan / Reach</td>
-                  <td id="detail-table-wingspan-a" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-wingspan-t" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-wingspan-overhead" style="padding: 0.4rem 0.25rem;">--</td>
+                <tr class="profile-details-tr">
+                  <td class="profile-details-td-label">Wingspan / Reach</td>
+                  <td id="detail-table-wingspan-a" class="profile-details-td-val">--</td>
+                  <td id="detail-table-wingspan-t" class="profile-details-td-val">--</td>
+                  <td id="detail-table-wingspan-overhead" class="profile-details-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 0.4rem 0.25rem; color: #bbb; font-weight: 500;">Torso Length (L/R)</td>
-                  <td id="detail-table-torso-a" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-torso-t" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-torso-overhead" style="padding: 0.4rem 0.25rem;">--</td>
+                <tr class="profile-details-tr">
+                  <td class="profile-details-td-label">Torso Length (L/R)</td>
+                  <td id="detail-table-torso-a" class="profile-details-td-val">--</td>
+                  <td id="detail-table-torso-t" class="profile-details-td-val">--</td>
+                  <td id="detail-table-torso-overhead" class="profile-details-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 0.4rem 0.25rem; color: #bbb; font-weight: 500;">Thigh Length (L/R)</td>
-                  <td id="detail-table-thigh-a" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-thigh-t" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-thigh-overhead" style="padding: 0.4rem 0.25rem;">--</td>
+                <tr class="profile-details-tr">
+                  <td class="profile-details-td-label">Thigh Length (L/R)</td>
+                  <td id="detail-table-thigh-a" class="profile-details-td-val">--</td>
+                  <td id="detail-table-thigh-t" class="profile-details-td-val">--</td>
+                  <td id="detail-table-thigh-overhead" class="profile-details-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 0.4rem 0.25rem; color: #bbb; font-weight: 500;">Shank Length (L/R)</td>
-                  <td id="detail-table-shin-a" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-shin-t" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-shin-overhead" style="padding: 0.4rem 0.25rem;">--</td>
+                <tr class="profile-details-tr">
+                  <td class="profile-details-td-label">Shank Length (L/R)</td>
+                  <td id="detail-table-shin-a" class="profile-details-td-val">--</td>
+                  <td id="detail-table-shin-t" class="profile-details-td-val">--</td>
+                  <td id="detail-table-shin-overhead" class="profile-details-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 0.4rem 0.25rem; color: #bbb; font-weight: 500;">Upper Arm (L/R)</td>
-                  <td id="detail-table-upperarm-a" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-upperarm-t" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-upperarm-overhead" style="padding: 0.4rem 0.25rem;">--</td>
+                <tr class="profile-details-tr">
+                  <td class="profile-details-td-label">Upper Arm (L/R)</td>
+                  <td id="detail-table-upperarm-a" class="profile-details-td-val">--</td>
+                  <td id="detail-table-upperarm-t" class="profile-details-td-val">--</td>
+                  <td id="detail-table-upperarm-overhead" class="profile-details-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                  <td style="padding: 0.4rem 0.25rem; color: #bbb; font-weight: 500;">Forearm (L/R)</td>
-                  <td id="detail-table-forearm-a" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-forearm-t" style="padding: 0.4rem 0.25rem;">--</td>
-                  <td id="detail-table-forearm-overhead" style="padding: 0.4rem 0.25rem;">--</td>
+                <tr class="profile-details-tr">
+                  <td class="profile-details-td-label">Forearm (L/R)</td>
+                  <td id="detail-table-forearm-a" class="profile-details-td-val">--</td>
+                  <td id="detail-table-forearm-t" class="profile-details-td-val">--</td>
+                  <td id="detail-table-forearm-overhead" class="profile-details-td-val">--</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div class="details-section-title" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; margin-top: 1rem;">Consolidated Athlete Baselines (Final)</div>
-          <div class="profile-consolidated-metrics-table" style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; margin-top: 0.5rem;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+          <div class="details-section-title">Consolidated Athlete Baselines (Final)</div>
+          <div class="profile-consolidated-metrics-table">
+            <table class="profile-details-table">
               <thead>
-                <tr style="border-bottom: 1.5px solid rgba(255,255,255,0.08); text-align: left; color: #aaa;">
-                  <th style="padding: 0.4rem 0.25rem; font-weight: 600; width: 45%;">Consolidated Metric</th>
-                  <th style="padding: 0.4rem 0.25rem; font-weight: 600; width: 55%; color: var(--color-scarlet);">Definitive Measurement</th>
+                <tr class="profile-consolidated-header-row">
+                  <th class="profile-consolidated-th-1">Consolidated Metric</th>
+                  <th class="profile-consolidated-th-2">Definitive Measurement</th>
                 </tr>
               </thead>
-              <tbody style="color: #eee;">
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Stature Height</td>
-                  <td id="consolidated-val-height" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+              <tbody class="profile-details-tbody">
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Stature Height</td>
+                  <td id="consolidated-val-height" class="profile-consolidated-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Wingspan</td>
-                  <td id="consolidated-val-wingspan" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Wingspan</td>
+                  <td id="consolidated-val-wingspan" class="profile-consolidated-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Overhead Reach (L/R)</td>
-                  <td id="consolidated-val-reach" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Overhead Reach (L/R)</td>
+                  <td id="consolidated-val-reach" class="profile-consolidated-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Torso Length (L/R)</td>
-                  <td id="consolidated-val-torso" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Torso Length (L/R)</td>
+                  <td id="consolidated-val-torso" class="profile-consolidated-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Thigh Length (L/R)</td>
-                  <td id="consolidated-val-thigh" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Thigh Length (L/R)</td>
+                  <td id="consolidated-val-thigh" class="profile-consolidated-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Shank Length (L/R)</td>
-                  <td id="consolidated-val-shin" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Shank Length (L/R)</td>
+                  <td id="consolidated-val-shin" class="profile-consolidated-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Upper Arm (L/R)</td>
-                  <td id="consolidated-val-upperarm" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Upper Arm (L/R)</td>
+                  <td id="consolidated-val-upperarm" class="profile-consolidated-td-val">--</td>
                 </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                  <td style="padding: 0.35rem 0.25rem; color: #bbb; font-weight: 500;">Forearm (L/R)</td>
-                  <td id="consolidated-val-forearm" style="padding: 0.35rem 0.25rem; font-weight: 600; color: #fff;">--</td>
+                <tr class="profile-consolidated-tr">
+                  <td class="profile-consolidated-td-label">Forearm (L/R)</td>
+                  <td id="consolidated-val-forearm" class="profile-consolidated-td-val">--</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div class="details-section-title" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; margin-top: 1rem;">Overhead Squat Mobility Peak Records</div>
-          <div class="profile-squat-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
-            <div class="squat-peak-detail-box" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.6rem; text-align: center;">
-              <span class="squat-peak-detail-lbl" style="font-size: 0.75rem; color: #aaa; display: block; margin-bottom: 4px;">Knee Flexion (L/R)</span>
-              <span class="squat-peak-detail-val text-scarlet" id="detail-squat-knee" style="font-size: 1.1rem; font-weight: 700; color: var(--color-scarlet);">0° / 0°</span>
+          <div class="details-section-title">Overhead Squat Mobility Peak Records</div>
+          <div class="profile-squat-peaks-grid">
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Knee Flexion (L/R)</span>
+              <span class="squat-peak-detail-val" id="detail-squat-knee">0° / 0°</span>
             </div>
-            <div class="squat-peak-detail-box" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.6rem; text-align: center;">
-              <span class="squat-peak-detail-lbl" style="font-size: 0.75rem; color: #aaa; display: block; margin-bottom: 4px;">Hip Flexion (L/R)</span>
-              <span class="squat-peak-detail-val text-scarlet" id="detail-squat-hip" style="font-size: 1.1rem; font-weight: 700; color: var(--color-scarlet);">0° / 0°</span>
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Hip Flexion (L/R)</span>
+              <span class="squat-peak-detail-val" id="detail-squat-hip">0° / 0°</span>
             </div>
-            <div class="squat-peak-detail-box" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.6rem; text-align: center;">
-              <span class="squat-peak-detail-lbl" style="font-size: 0.75rem; color: #aaa; display: block; margin-bottom: 4px;">Ankle Dorsi (L/R)</span>
-              <span class="squat-peak-detail-val text-scarlet" id="detail-squat-ankle" style="font-size: 1.1rem; font-weight: 700; color: var(--color-scarlet);">0° / 0°</span>
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Ankle Dorsi (L/R)</span>
+              <span class="squat-peak-detail-val" id="detail-squat-ankle">0° / 0°</span>
             </div>
           </div>
 
         </div>
 
       </div>
-      <div class="modal-actions" style="border-top: 1px solid rgba(255,255,255,0.08); padding: 0.75rem 1.25rem; display: flex; justify-content: flex-end; gap: 0.75rem; background: rgba(0,0,0,0.2);">
-        <button id="btn-profile-export-json" class="btn" style="background: linear-gradient(135deg, #d4a017, #f59e0b); border: none; color: #000; padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+      <div class="modal-actions profile-modal-actions">
+        <button id="btn-profile-export-json" class="btn btn-export-json">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           Export Consolidated JSON
         </button>
-        <button id="btn-close-profile-details-footer" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s;">Close Details</button>
+        <button id="btn-close-profile-details-footer" class="btn btn-close-details">Close Details</button>
+      </div>
       </div>
     </div>
   </div>

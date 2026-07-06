@@ -575,9 +575,9 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
             Reset Peak Metrics
           </button>
-          <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            Save Peaks to Portfolio
+          <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Record Squat Assessment
           </button>
         </div>
 
@@ -913,7 +913,10 @@
                   <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-scarlet); color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">A</div>
                   <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">A-Pose (Stature)</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-a" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-a" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-a" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
               </div>
               <div class="pose-card-preview-container hidden" id="detail-preview-container-a" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
                 <img id="detail-preview-img-a" src="" alt="A-Pose Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
@@ -927,7 +930,10 @@
                   <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-cyan); color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">T</div>
                   <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">T-Pose (Wingspan)</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-t" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-t" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-t" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
               </div>
               <div class="pose-card-preview-container hidden" id="detail-preview-container-t" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
                 <img id="detail-preview-img-t" src="" alt="T-Pose Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
@@ -941,7 +947,10 @@
                   <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #d4a017; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">O</div>
                   <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Overhead (Reach)</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-overhead" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-overhead" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-overhead" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
               </div>
               <div class="pose-card-preview-container hidden" id="detail-preview-container-overhead" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
                 <img id="detail-preview-img-overhead" src="" alt="Overhead Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
@@ -955,7 +964,10 @@
                   <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #9333ea; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-L</div>
                   <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Overhead Squat</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-squat-l" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-squat-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
               </div>
               <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
                 <img id="detail-preview-img-squat-l" src="" alt="Left Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
@@ -969,7 +981,10 @@
                   <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-R</div>
                   <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Overhead Squat</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-squat-r" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-squat-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
               </div>
               <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
                 <img id="detail-preview-img-squat-r" src="" alt="Right Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
@@ -983,7 +998,10 @@
                   <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #ec4899; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-F</div>
                   <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Frontal Overhead Squat</span>
                 </div>
-                <span class="pose-card-status" id="detail-status-squat-frontal" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-squat-frontal" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-frontal" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
               </div>
               <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-frontal" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
                 <img id="detail-preview-img-squat-frontal" src="" alt="Frontal Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">

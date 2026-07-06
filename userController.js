@@ -246,10 +246,10 @@ const ANGLE_METRICS = [
 function drawJoint(point, color) {
   canvasCtx.beginPath();
   canvasCtx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
-  canvasCtx.fillStyle = color;
+  canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
   canvasCtx.fill();
-  canvasCtx.strokeStyle = 'white';
-  canvasCtx.lineWidth = 1.5;
+  canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
+  canvasCtx.lineWidth = 2.0;
   canvasCtx.stroke();
 }
 
@@ -260,6 +260,57 @@ function drawBone(p1, p2, color) {
   canvasCtx.strokeStyle = color;
   canvasCtx.lineWidth = 3.5;
   canvasCtx.stroke();
+}
+
+function drawSkeletalFramework(joints) {
+  if (!joints) return;
+  const {
+    shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+    shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+    head_top
+  } = joints;
+
+  // 1. Draw Bones
+  drawBone(shoulder_l, shoulder_r, '#FFFFFF'); 
+  drawBone(hip_l, hip_r, '#FFFFFF'); 
+  drawBone(shoulder_l, hip_l, '#FFFFFF'); 
+  drawBone(shoulder_r, hip_r, '#FFFFFF'); 
+
+  // Left Arm & Leg
+  drawBone(shoulder_l, elbow_l, '#FFFFFF'); 
+  drawBone(elbow_l, wrist_l, '#FFFFFF'); 
+  drawBone(hip_l, knee_l, '#FFFFFF'); 
+  drawBone(knee_l, ankle_l, '#FFFFFF'); 
+  drawBone(ankle_l, heel_l, '#FFFFFF'); 
+  drawBone(heel_l, toe_l, '#FFFFFF'); 
+
+  // Right Arm & Leg
+  drawBone(shoulder_r, elbow_r, '#FFFFFF'); 
+  drawBone(elbow_r, wrist_r, '#FFFFFF'); 
+  drawBone(hip_r, knee_r, '#FFFFFF'); 
+  drawBone(knee_r, ankle_r, '#FFFFFF'); 
+  drawBone(ankle_r, heel_r, '#FFFFFF'); 
+  drawBone(heel_r, toe_r, '#FFFFFF'); 
+
+  // 2. Draw Joints (Always renders as vibrant glowing white with a dark border)
+  drawJoint(shoulder_l);
+  drawJoint(shoulder_r);
+  drawJoint(elbow_l);
+  drawJoint(elbow_r);
+  drawJoint(wrist_l);
+  drawJoint(wrist_r);
+  drawJoint(hip_l);
+  drawJoint(hip_r);
+  drawJoint(knee_l);
+  drawJoint(knee_r);
+  drawJoint(ankle_l);
+  drawJoint(ankle_r);
+  drawJoint(toe_l);
+  drawJoint(toe_r);
+  
+  if (head_top) {
+    drawJoint(head_top);
+  }
 }
 
 export function drawFullSkeletalMesh(landmarks) {
@@ -279,30 +330,17 @@ export function drawFullSkeletalMesh(landmarks) {
   canvasCtx.lineWidth = 1.5;
   canvasCtx.stroke();
 
-  // 2. Draw all 33 pose landmark nodes with color-coded glowing aesthetics
+  // 2. Draw all 33 pose landmark nodes in vibrant white with high-contrast outlines
   landmarks.forEach((p, idx) => {
     if (!p) return;
-    
-    let color = '#6366f1'; // Default Indigo
-    if (idx <= 10) {
-      color = '#ec4899'; // Head/Face landmarks: Bright Pink
-    } else if (idx === 11 || idx === 13 || idx === 15 || idx === 17 || idx === 19 || idx === 21) {
-      color = '#06b6d4'; // Left Arm: Neon Cyan
-    } else if (idx === 12 || idx === 14 || idx === 16 || idx === 18 || idx === 20 || idx === 22) {
-      color = '#d4a017'; // Right Arm: Neon Warm Gold
-    } else if (idx === 23 || idx === 25 || idx === 27 || idx === 29 || idx === 31) {
-      color = '#10b981'; // Left Leg/Foot: Neon Emerald
-    } else if (idx === 24 || idx === 26 || idx === 28 || idx === 30 || idx === 32) {
-      color = '#f59e0b'; // Right Leg/Foot: Neon Amber
-    }
 
     // Render glowing nodes
     canvasCtx.beginPath();
     canvasCtx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
-    canvasCtx.fillStyle = color;
+    canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
     canvasCtx.fill();
-    canvasCtx.strokeStyle = '#ffffff';
-    canvasCtx.lineWidth = 1.0;
+    canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
+    canvasCtx.lineWidth = 1.5;
     canvasCtx.stroke();
   });
 }
@@ -354,25 +392,21 @@ export function drawHandMesh(multiHandLandmarks, multiHandedness) {
       if (idx === 0) {
         canvasCtx.beginPath();
         canvasCtx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
-        canvasCtx.fillStyle = '#6366f1';
+        canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
         canvasCtx.fill();
-        canvasCtx.strokeStyle = '#ffffff';
-        canvasCtx.lineWidth = 1.0;
+        canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
+        canvasCtx.lineWidth = 1.5;
         canvasCtx.stroke();
         return;
       }
 
-      let color = '#6366f1';
-      if (idx >= 1 && idx <= 3) color = FINGER_COLORS.thumb;
-      else if (idx >= 5 && idx <= 7) color = FINGER_COLORS.index;
-      else if (idx >= 9 && idx <= 11) color = FINGER_COLORS.middle;
-      else if (idx >= 13 && idx <= 15) color = FINGER_COLORS.ring;
-      else if (idx >= 17 && idx <= 19) color = FINGER_COLORS.pinky;
-
       canvasCtx.beginPath();
       canvasCtx.arc(pt.x, pt.y, 2.5, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = color;
+      canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
       canvasCtx.fill();
+      canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
+      canvasCtx.lineWidth = 1.0;
+      canvasCtx.stroke();
     });
 
     const tips = [
@@ -388,15 +422,15 @@ export function drawHandMesh(multiHandLandmarks, multiHandedness) {
       
       canvasCtx.beginPath();
       canvasCtx.arc(pt.x, pt.y, 7, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = tip.color + '40';
+      canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.25)'; // Subtle glowing white outer halo
       canvasCtx.fill();
 
       canvasCtx.beginPath();
       canvasCtx.arc(pt.x, pt.y, 3.5, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = tip.color;
+      canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
       canvasCtx.fill();
-      canvasCtx.strokeStyle = '#ffffff';
-      canvasCtx.lineWidth = 1.0;
+      canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
+      canvasCtx.lineWidth = 1.5;
       canvasCtx.stroke();
     });
   });
@@ -408,7 +442,7 @@ function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_i
     x: (heel_l.x + heel_r.x) / 2,
     y: ground_y
   };
-  drawJoint(feet_center, '#06b6d4');
+  drawJoint(feet_center, '#FFFFFF');
 }
 
 function drawPoseBadge(poseName) {
@@ -702,47 +736,12 @@ export function onPoseResults(results) {
     // Draw standard skeletal mesh elements
     drawFullSkeletalMesh(all_landmarks);
 
-    // --- DRAW NEON SKELETAL MARKERS ---
-    drawBone(shoulder_l, shoulder_r, '#d4a017'); 
-    drawBone(hip_l, hip_r, '#d4a017'); 
-    drawBone(shoulder_l, hip_l, '#38bdf8'); 
-    drawBone(shoulder_r, hip_r, '#38bdf8'); 
-
-    // Left Arm & Leg
-    drawBone(shoulder_l, elbow_l, '#ec4899'); 
-    drawBone(elbow_l, wrist_l, '#f43f5e'); 
-    drawBone(hip_l, knee_l, '#d4a017'); 
-    drawBone(knee_l, ankle_l, '#06b6d4'); 
-    drawBone(ankle_l, heel_l, '#10b981'); 
-    drawBone(heel_l, toe_l, '#10b981'); 
-
-    // Right Arm & Leg
-    drawBone(shoulder_r, elbow_r, '#ec4899'); 
-    drawBone(elbow_r, wrist_r, '#f43f5e'); 
-    drawBone(hip_r, knee_r, '#d4a017'); 
-    drawBone(knee_r, ankle_r, '#06b6d4'); 
-    drawBone(ankle_r, heel_r, '#10b981'); 
-    drawBone(heel_r, toe_r, '#10b981'); 
-
-    // Joint Nodes
-    drawJoint(shoulder_l, '#d4a017');
-    drawJoint(shoulder_r, '#d4a017');
-    drawJoint(elbow_l, '#d946ef');
-    drawJoint(elbow_r, '#d946ef');
-    drawJoint(wrist_l, '#f43f5e');
-    drawJoint(wrist_r, '#f43f5e');
-    drawJoint(hip_l, '#d4a017');
-    drawJoint(hip_r, '#d4a017');
-    drawJoint(knee_l, '#10b981');
-    drawJoint(knee_r, '#10b981');
-    drawJoint(ankle_l, '#06b6d4');
-    drawJoint(ankle_r, '#06b6d4');
-    drawJoint(toe_l, '#10b981');
-    drawJoint(toe_r, '#10b981');
+    // Draw skeletal bones and joint points
+    drawSkeletalFramework(calculated);
 
     if (state.pixelsPerCm && liveMetrics) {
       // Draw head top indicator node
-      drawJoint(head_top, '#06b6d4');
+      drawJoint(head_top, '#FFFFFF');
 
       // Position ruler
       const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
@@ -1039,46 +1038,8 @@ export function onPoseResults(results) {
       // Draw standard skeletal mesh elements
       drawFullSkeletalMesh(all_landmarks);
 
-      // --- DRAW NEON SKELETAL MARKERS ---
-      // Shoulder and Hip spans
-      drawBone(shoulder_l, shoulder_r, '#d4a017'); 
-      drawBone(hip_l, hip_r, '#d4a017'); 
-      
-      // Torso Lines
-      drawBone(shoulder_l, hip_l, '#38bdf8'); 
-      drawBone(shoulder_r, hip_r, '#38bdf8'); 
-
-      // Left Arm & Leg
-      drawBone(shoulder_l, elbow_l, '#ec4899'); 
-      drawBone(elbow_l, wrist_l, '#f43f5e'); 
-      drawBone(hip_l, knee_l, '#d4a017'); 
-      drawBone(knee_l, ankle_l, '#06b6d4'); 
-      drawBone(ankle_l, heel_l, '#10b981'); 
-      drawBone(heel_l, toe_l, '#10b981'); 
-
-      // Right Arm & Leg
-      drawBone(shoulder_r, elbow_r, '#ec4899'); 
-      drawBone(elbow_r, wrist_r, '#f43f5e'); 
-      drawBone(hip_r, knee_r, '#d4a017'); 
-      drawBone(knee_r, ankle_r, '#06b6d4'); 
-      drawBone(ankle_r, heel_r, '#10b981'); 
-      drawBone(heel_r, toe_r, '#10b981'); 
-
-      // Joint Nodes
-      drawJoint(shoulder_l, '#d4a017');
-      drawJoint(shoulder_r, '#d4a017');
-      drawJoint(elbow_l, '#d946ef');
-      drawJoint(elbow_r, '#d946ef');
-      drawJoint(wrist_l, '#f43f5e');
-      drawJoint(wrist_r, '#f43f5e');
-      drawJoint(hip_l, '#d4a017');
-      drawJoint(hip_r, '#d4a017');
-      drawJoint(knee_l, '#10b981');
-      drawJoint(knee_r, '#10b981');
-      drawJoint(ankle_l, '#06b6d4');
-      drawJoint(ankle_r, '#06b6d4');
-      drawJoint(toe_l, '#10b981');
-      drawJoint(toe_r, '#10b981');
+      // Draw skeletal bones and joint points
+      drawSkeletalFramework(calculated);
 
       // Update real-time measurements display
       kneeAngleLDisp.textContent = `${kneeAngleL}°`;
@@ -1129,7 +1090,7 @@ export function onPoseResults(results) {
         const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
 
         // Draw head top indicator node
-        drawJoint(head_top, '#06b6d4');
+        drawJoint(head_top, '#FFFFFF');
 
         // Draw the live ruler graphics
         drawRulerGraphics(ruler_x, head_top, ground_y, liveMetrics.live_height, live_feet_inches_str, heel_l, heel_r);
@@ -1692,42 +1653,8 @@ function drawFrozenSnapshot() {
     // Draw the full skeletal mesh
     drawFullSkeletalMesh(all_landmarks);
 
-    // Draw bones
-    drawBone(shoulder_l, shoulder_r, '#d4a017'); 
-    drawBone(hip_l, hip_r, '#d4a017'); 
-    drawBone(shoulder_l, hip_l, '#38bdf8'); 
-    drawBone(shoulder_r, hip_r, '#38bdf8'); 
-
-    drawBone(shoulder_l, elbow_l, '#ec4899'); 
-    drawBone(elbow_l, wrist_l, '#f43f5e'); 
-    drawBone(hip_l, knee_l, '#d4a017'); 
-    drawBone(knee_l, ankle_l, '#06b6d4'); 
-    drawBone(ankle_l, heel_l, '#10b981'); 
-    drawBone(heel_l, toe_l, '#10b981'); 
-
-    drawBone(shoulder_r, elbow_r, '#ec4899'); 
-    drawBone(elbow_r, wrist_r, '#f43f5e'); 
-    drawBone(hip_r, knee_r, '#d4a017'); 
-    drawBone(knee_r, ankle_r, '#06b6d4'); 
-    drawBone(ankle_r, heel_r, '#10b981'); 
-    drawBone(heel_r, toe_r, '#10b981'); 
-
-    // Draw joints
-    drawJoint(shoulder_l, '#6366f1');
-    drawJoint(shoulder_r, '#6366f1');
-    drawJoint(elbow_l, '#d946ef');
-    drawJoint(elbow_r, '#d946ef');
-    drawJoint(wrist_l, '#f43f5e');
-    drawJoint(wrist_r, '#f43f5e');
-    drawJoint(hip_l, '#d4a017');
-    drawJoint(hip_r, '#d4a017');
-    drawJoint(knee_l, '#10b981');
-    drawJoint(knee_r, '#10b981');
-    drawJoint(ankle_l, '#06b6d4');
-    drawJoint(ankle_r, '#06b6d4');
-    drawJoint(toe_l, '#10b981');
-    drawJoint(toe_r, '#10b981');
-    drawJoint(head_top, '#06b6d4');
+    // Draw skeletal bones and joint points
+    drawSkeletalFramework(state.frozenJoints);
 
     // Draw bottom of the feet ground contact point
     const feet_center = {
@@ -3467,7 +3394,7 @@ export function exportCombinedAssessmentCard() {
     const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
 
     ctx.save();
-    ctx.strokeStyle = '#06b6d4';
+    ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = Math.max(1.5, 2.5 * scale);
     ctx.beginPath();
     ctx.moveTo(ruler_x, head_top.y);

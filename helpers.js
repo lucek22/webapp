@@ -235,6 +235,8 @@ export const state = {
   latestLeftMiddleTip: null,
   latestRightMiddleTip: null,
   activeStream: null,
+  cameraDevices: [],
+  activeCameraIndex: -1,
   activeCalMethod: 'height',
   inputHeightCm: 175.006,
   validationHeightCm: 175.006,

@@ -4677,7 +4677,7 @@ export async function initializeProfilesSelector() {
       
       const sessionContainer = document.getElementById('profile-session-select-container');
       if (sessionContainer) sessionContainer.classList.add('hidden');
-
+    } else {
       if (profileSelect) profileSelect.value = selectedVal;
       if (calProfileSelect) calProfileSelect.value = selectedVal;
 

@@ -291,16 +291,15 @@ export function calculatePoseMetrics(results) {
     // as MediaPipe Pose only tracks up to the index finger knuckle/tip.
     const hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
     const hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
-    // Note: We apply an anatomical correction factor of 1.11x to compensate for MediaPipe's systemic 
-    // monocular depth compression/smoothing of outstretched limbs and neutral shoulder joint center-of-rotation placement.
-    const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl) * 1.11;
+    // Note: We no longer apply the 1.11x correction factor, as 3D world landmarks have proved accurate enough without it.
+    const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl);
 
     // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
     const wingspan_straight_wl = Math.hypot(
       wl_left_index.x - wl_right_index.x,
       wl_left_index.y - wl_right_index.y,
       wl_left_index.z - wl_right_index.z
-    ) * 100 * 1.42 * 1.11;
+    ) * 100 * 1.42;
 
     // Skeletal (posture-independent) stature calculation in 3D
     const head_segment_wl = Math.hypot(wl_head_top.x - wl_shoulder_mid.x, wl_head_top.y - wl_shoulder_mid.y, wl_head_top.z - wl_shoulder_mid.z) * 100;

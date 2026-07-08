@@ -1331,12 +1331,6 @@ export function cancelAutoSequence() {
   state.currentGroupId = null;
   state.frozenAutoJoints = null;
   state.frozenAutoMetrics = null;
-  state.metricsA = null;
-  state.metricsT = null;
-  state.metricsOverhead = null;
-  state.imageA = null;
-  state.imageT = null;
-  state.imageOverhead = null;
   
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
@@ -4032,6 +4026,9 @@ if (autoSequenceBtn) {
     state.metricsA = null;
     state.metricsT = null;
     state.metricsOverhead = null;
+    state.imageA = null;
+    state.imageT = null;
+    state.imageOverhead = null;
 
     autoSequenceBtn.textContent = "Cancel Auto Sequence";
     autoSequenceBtn.classList.add('active-cancel');
@@ -4180,7 +4177,7 @@ export function resetSquatPeaks() {
   };
 
   if (state.activeProfileId) {
-    autoSyncToActiveProfile();
+    autoSyncToActiveProfile(true);
   }
 
   if (squatPeakKneeL) squatPeakKneeL.textContent = '0°';
@@ -4352,7 +4349,7 @@ if (btnSaveSquatPeaks) {
         } else {
           state.imageSquatR = capturedImg;
         }
-        await autoSyncToActiveProfile();
+        await autoSyncToActiveProfile(true);
         
         if (statusElement) {
           statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to portfolio!`;
@@ -5128,7 +5125,7 @@ export async function loadProfileIntoState(profileId) {
   }
 }
 
-export async function autoSyncToActiveProfile() {
+export async function autoSyncToActiveProfile(onlySquat = false) {
   if (!state.activeProfileId || !state.dbInitialized) return;
   try {
     let profile = await snapshotStore.getProfile(state.activeProfileId);
@@ -5146,34 +5143,46 @@ export async function autoSyncToActiveProfile() {
       session = profile.sessions[profile.sessions.length - 1];
     }
     
-    // Sync current dashboard state into the active session
+    // Sync current dashboard state into the active session with non-null guards to prevent accidental deletion
     session.timestamp = Date.now();
-    session.pixelsPerCm = state.pixelsPerCm;
-    session.metricsA = state.metricsA;
-    session.metricsT = state.metricsT;
-    session.metricsOverhead = state.metricsOverhead;
-    session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
-    session.imageA = state.imageA;
-    session.imageT = state.imageT;
-    session.imageOverhead = state.imageOverhead;
-    session.imageSquatL = state.imageSquatL;
-    session.imageSquatR = state.imageSquatR;
+    if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) session.pixelsPerCm = state.pixelsPerCm;
+    
+    if (!onlySquat) {
+      if (state.metricsA !== null && state.metricsA !== undefined) session.metricsA = state.metricsA;
+      if (state.metricsT !== null && state.metricsT !== undefined) session.metricsT = state.metricsT;
+      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) session.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== null && state.imageA !== undefined) session.imageA = state.imageA;
+      if (state.imageT !== null && state.imageT !== undefined) session.imageT = state.imageT;
+      if (state.imageOverhead !== null && state.imageOverhead !== undefined) session.imageOverhead = state.imageOverhead;
+    }
+    
+    if (state.imageSquatL !== null && state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;
+    if (state.imageSquatR !== null && state.imageSquatR !== undefined) session.imageSquatR = state.imageSquatR;
+    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
+      session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
+    }
     
     // Keep profile-level active session and timestamp synced
     profile.timestamp = Date.now();
     profile.activeSessionId = session.id;
     
     // Keep legacy flat fields updated on the main profile for redundant backup
-    profile.pixelsPerCm = state.pixelsPerCm;
-    profile.metricsA = state.metricsA;
-    profile.metricsT = state.metricsT;
-    profile.metricsOverhead = state.metricsOverhead;
-    profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
-    profile.imageA = state.imageA;
-    profile.imageT = state.imageT;
-    profile.imageOverhead = state.imageOverhead;
-    profile.imageSquatL = state.imageSquatL;
-    profile.imageSquatR = state.imageSquatR;
+    if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) profile.pixelsPerCm = state.pixelsPerCm;
+    
+    if (!onlySquat) {
+      if (state.metricsA !== null && state.metricsA !== undefined) profile.metricsA = state.metricsA;
+      if (state.metricsT !== null && state.metricsT !== undefined) profile.metricsT = state.metricsT;
+      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) profile.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== null && state.imageA !== undefined) profile.imageA = state.imageA;
+      if (state.imageT !== null && state.imageT !== undefined) profile.imageT = state.imageT;
+      if (state.imageOverhead !== null && state.imageOverhead !== undefined) profile.imageOverhead = state.imageOverhead;
+    }
+    
+    if (state.imageSquatL !== null && state.imageSquatL !== undefined) profile.imageSquatL = state.imageSquatL;
+    if (state.imageSquatR !== null && state.imageSquatR !== undefined) profile.imageSquatR = state.imageSquatR;
+    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
+      profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
+    }
     
     await snapshotStore.saveProfile(profile);
     console.log(`[autoSync] Synced active profile: ${profile.name}, session: ${session.name}`);
@@ -5191,7 +5200,7 @@ export function autoSyncToActiveProfileDebounced() {
     clearTimeout(syncTimeout);
   }
   syncTimeout = setTimeout(() => {
-    autoSyncToActiveProfile();
+    autoSyncToActiveProfile(true);
   }, 1500);
 }
 

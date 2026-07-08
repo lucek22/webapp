@@ -128,7 +128,11 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
         }
       }
 
-      autoSyncToActiveProfile();
+      if (state.currentMode === 'squat') {
+        autoSyncToActiveProfile(true);
+      } else {
+        autoSyncToActiveProfile();
+      }
 
       statusElement.textContent = `💾 Snapshot "${label}" successfully saved to profile portfolio!`;
       if (typeof resetAndResume === 'function') {

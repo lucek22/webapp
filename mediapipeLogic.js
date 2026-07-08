@@ -104,11 +104,11 @@ export function calculatePoseMetrics(results) {
 
   const lm = results.poseLandmarks;
 
-  // Safety check: Make sure all required landmarks exist in the poseLandmarks array
-  const requiredIndices = [7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+  // Safety check: Require only the critical structural joints (shoulders, hips, knees, ankles)
+  const requiredIndices = [11, 12, 23, 24, 25, 26, 27, 28];
   for (const idx of requiredIndices) {
     if (!lm[idx]) {
-      console.warn(`Missing required landmark index ${idx} in calculatePoseMetrics`);
+      console.warn(`Missing critical required landmark index ${idx} in calculatePoseMetrics`);
       return null;
     }
   }
@@ -116,25 +116,28 @@ export function calculatePoseMetrics(results) {
   const mirrorX = getCanvasX;
   const height = state.canvasHeight || 480;
 
-  // Resolve normalized coordinates to pixels (LEFT)
+  // Resolve normalized coordinates to pixels (LEFT) - CRITICAL JOINTS
   const shoulder_l = { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * height };
-  const elbow_l = { x: mirrorX(lm[LEFT_ELBOW].x), y: lm[LEFT_ELBOW].y * height };
-  const wrist_l = { x: mirrorX(lm[LEFT_WRIST].x), y: lm[LEFT_WRIST].y * height };
   const hip_l = { x: mirrorX(lm[LEFT_HIP].x), y: lm[LEFT_HIP].y * height };
   const knee_l = { x: mirrorX(lm[LEFT_KNEE].x), y: lm[LEFT_KNEE].y * height };
   const ankle_l = { x: mirrorX(lm[LEFT_ANKLE].x), y: lm[LEFT_ANKLE].y * height };
-  const heel_l = { x: mirrorX(lm[LEFT_HEEL].x), y: lm[LEFT_HEEL].y * height };
-  const toe_l = { x: mirrorX(lm[LEFT_FOOT_INDEX].x), y: lm[LEFT_FOOT_INDEX].y * height };
 
-  // Resolve normalized coordinates to pixels (RIGHT)
+  // Resolve normalized coordinates to pixels (RIGHT) - CRITICAL JOINTS
   const shoulder_r = { x: mirrorX(lm[RIGHT_SHOULDER].x), y: lm[RIGHT_SHOULDER].y * height };
-  const elbow_r = { x: mirrorX(lm[RIGHT_ELBOW].x), y: lm[RIGHT_ELBOW].y * height };
-  const wrist_r = { x: mirrorX(lm[RIGHT_WRIST].x), y: lm[RIGHT_WRIST].y * height };
   const hip_r = { x: mirrorX(lm[RIGHT_HIP].x), y: lm[RIGHT_HIP].y * height };
   const knee_r = { x: mirrorX(lm[RIGHT_KNEE].x), y: lm[RIGHT_KNEE].y * height };
   const ankle_r = { x: mirrorX(lm[RIGHT_ANKLE].x), y: lm[RIGHT_ANKLE].y * height };
-  const heel_r = { x: mirrorX(lm[RIGHT_HEEL].x), y: lm[RIGHT_HEEL].y * height };
-  const toe_r = { x: mirrorX(lm[RIGHT_FOOT_INDEX].x), y: lm[RIGHT_FOOT_INDEX].y * height };
+
+  // Resolve normalized coordinates to pixels (OPTIONAL JOINTS WITH ANATOMICAL FALLBACKS)
+  const elbow_l = lm[13] ? { x: mirrorX(lm[13].x), y: lm[13].y * height } : { ...shoulder_l };
+  const wrist_l = lm[15] ? { x: mirrorX(lm[15].x), y: lm[15].y * height } : { ...elbow_l };
+  const heel_l = lm[29] ? { x: mirrorX(lm[29].x), y: lm[29].y * height } : { ...ankle_l };
+  const toe_l = lm[31] ? { x: mirrorX(lm[31].x), y: lm[31].y * height } : { ...ankle_l };
+
+  const elbow_r = lm[14] ? { x: mirrorX(lm[14].x), y: lm[14].y * height } : { ...shoulder_r };
+  const wrist_r = lm[16] ? { x: mirrorX(lm[16].x), y: lm[16].y * height } : { ...elbow_r };
+  const heel_r = lm[30] ? { x: mirrorX(lm[30].x), y: lm[30].y * height } : { ...ankle_r };
+  const toe_r = lm[32] ? { x: mirrorX(lm[32].x), y: lm[32].y * height } : { ...ankle_r };
 
   // --- CALCULATE HEAD TOP ---
   const shoulder_mid = {
@@ -143,20 +146,33 @@ export function calculatePoseMetrics(results) {
   };
   const hip_mid_x = (hip_l.x + hip_r.x) / 2;
   const hip_mid_y = (hip_l.y + hip_r.y) / 2;
-  const ear_mid = {
-    x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
-    y: (lm[7].y * height + lm[8].y * height) / 2
-  };
-  // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height or 70% of ear-to-ear distance above ear level (maximum to prevent shrugging/posture errors)
-  const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
-  const ear_to_ear_px = Math.hypot(mirrorX(lm[7].x) - mirrorX(lm[8].x), (lm[7].y - lm[8].y) * height);
-  const ear_to_crown_px = Math.max(shoulder_to_ear_px * 0.65, ear_to_ear_px * 0.70);
+
+  let ear_mid;
+  let ear_to_crown_px;
+  const shoulder_width_px = Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y);
+
+  if (lm[7] && lm[8]) {
+    ear_mid = {
+      x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
+      y: (lm[7].y * height + lm[8].y * height) / 2
+    };
+    const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
+    const ear_to_ear_px = Math.hypot(mirrorX(lm[7].x) - mirrorX(lm[8].x), (lm[7].y - lm[8].y) * height);
+    ear_to_crown_px = Math.max(shoulder_to_ear_px * 0.65, ear_to_ear_px * 0.70);
+  } else if (lm[0]) {
+    ear_mid = { x: mirrorX(lm[0].x), y: lm[0].y * height };
+    ear_to_crown_px = shoulder_width_px * 0.25;
+  } else {
+    ear_mid = { x: shoulder_mid.x, y: shoulder_mid.y - shoulder_width_px * 0.4 };
+    ear_to_crown_px = shoulder_width_px * 0.2;
+  }
+
   const head_top = {
     x: ear_mid.x,
     y: ear_mid.y - ear_to_crown_px
   };
 
-  const all_landmarks = lm.map(l => ({ x: mirrorX(l.x), y: l.y * height }));
+  const all_landmarks = lm.map(l => l ? { x: mirrorX(l.x), y: l.y * height } : { x: 0, y: 0 });
 
   // --- CALCULATE REAL-TIME FLEXION ANGLES ---
   const kneeAngleL = calculateAngle(knee_l, hip_l, ankle_l);
@@ -198,24 +214,28 @@ export function calculatePoseMetrics(results) {
 
   // Perform 3D calculations if world landmarks are available
   if (wl && wl.length > 0) {
+    // Critical world landmarks
     const wl_shoulder_l = wl[LEFT_SHOULDER];
     const wl_shoulder_r = wl[RIGHT_SHOULDER];
-    const wl_ear_l = wl[7];
-    const wl_ear_r = wl[8];
     const wl_hip_l = wl[LEFT_HIP];
     const wl_hip_r = wl[RIGHT_HIP];
     const wl_knee_l = wl[LEFT_KNEE];
     const wl_knee_r = wl[RIGHT_KNEE];
     const wl_ankle_l = wl[LEFT_ANKLE];
     const wl_ankle_r = wl[RIGHT_ANKLE];
-    const wl_heel_l = wl[LEFT_HEEL];
-    const wl_heel_r = wl[RIGHT_HEEL];
-    const wl_toe_l = wl[LEFT_FOOT_INDEX];
-    const wl_toe_r = wl[RIGHT_FOOT_INDEX];
-    const wl_elbow_l = wl[LEFT_ELBOW];
-    const wl_elbow_r = wl[RIGHT_ELBOW];
-    const wl_wrist_l = wl[LEFT_WRIST];
-    const wl_wrist_r = wl[RIGHT_WRIST];
+
+    if (wl_shoulder_l && wl_shoulder_r && wl_hip_l && wl_hip_r && wl_knee_l && wl_knee_r && wl_ankle_l && wl_ankle_r) {
+      // Optional world landmarks with graceful fallbacks
+      const wl_ear_l = wl[7] || wl[0] || wl_shoulder_l;
+      const wl_ear_r = wl[8] || wl[0] || wl_shoulder_r;
+      const wl_elbow_l = wl[LEFT_ELBOW] || wl_shoulder_l;
+      const wl_elbow_r = wl[RIGHT_ELBOW] || wl_shoulder_r;
+      const wl_wrist_l = wl[LEFT_WRIST] || wl_elbow_l;
+      const wl_wrist_r = wl[RIGHT_WRIST] || wl_elbow_r;
+      const wl_heel_l = wl[LEFT_HEEL] || wl_ankle_l;
+      const wl_heel_r = wl[RIGHT_HEEL] || wl_ankle_r;
+      const wl_toe_l = wl[LEFT_FOOT_INDEX] || wl_ankle_l;
+      const wl_toe_r = wl[RIGHT_FOOT_INDEX] || wl_ankle_r;
 
     const wl_shoulder_mid = {
       x: (wl_shoulder_l.x + wl_shoulder_r.x) / 2,
@@ -446,6 +466,131 @@ export function calculatePoseMetrics(results) {
       }
       liveMetrics.pose = detectedPose;
     }
+    }
+  } else if (state.pixelsPerCm || state.activeCalMethod === 'height') {    // 2D Fallback Calculations (in case 3D world landmarks are not available in current environment)
+    // Left segment calculations
+    const thigh_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y);
+    const shin_l_px = Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y);
+    const foot_l_px = Math.hypot(ankle_l.x - toe_l.x, ankle_l.y - toe_l.y);
+    const torso_l_px = Math.hypot(shoulder_l.x - hip_l.x, shoulder_l.y - hip_l.y);
+    const upperarm_l_px = Math.hypot(shoulder_l.x - elbow_l.x, shoulder_l.y - elbow_l.y);
+    const forearm_l_px = Math.hypot(elbow_l.x - wrist_l.x, elbow_l.y - wrist_l.y);
+
+    // Right segment calculations
+    const thigh_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y);
+    const shin_r_px = Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y);
+    const foot_r_px = Math.hypot(ankle_r.x - toe_r.x, ankle_r.y - toe_r.y);
+    const torso_r_px = Math.hypot(shoulder_r.x - hip_r.x, shoulder_r.y - hip_r.y);
+    const upperarm_r_px = Math.hypot(shoulder_r.x - elbow_r.x, shoulder_r.y - elbow_r.y);
+    const forearm_r_px = Math.hypot(elbow_r.x - wrist_r.x, elbow_r.y - wrist_r.y);
+
+    const shoulderW_px = Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y);
+    const hipW_px = Math.hypot(hip_l.x - hip_r.x, hip_l.y - hip_r.y);
+
+    // Left Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
+    const finger_l = state.latestLeftMiddleTip || all_landmarks[19] || wrist_l;
+    const fingerToToeL_px = Math.hypot(finger_l.x - toe_l.x, finger_l.y - toe_l.y);
+
+    // Right Finger to Toe (middle fingertip or index fallback or wrist fallback to foot index/toe landmark)
+    const finger_r = state.latestRightMiddleTip || all_landmarks[20] || wrist_r;
+    const fingerToToeR_px = Math.hypot(finger_r.x - toe_r.x, finger_r.y - toe_r.y);
+
+    // Vertical height using lowest foot contacts (heels/toes) as the ground plane
+    const vertical_height_px = Math.abs(ground_y - head_top.y);
+    state.lastVerticalHeightPx = vertical_height_px; // Save for input-based calibration
+
+    // Anatomical (Skeletal) posture-independent stature calculation
+    const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
+    const torso_segment_px = Math.hypot(shoulder_mid.x - hip_mid_x, shoulder_mid.y - hip_mid_y);
+    
+    const leg_l_px = Math.hypot(hip_l.x - knee_l.x, hip_l.y - knee_l.y) + 
+                     Math.hypot(knee_l.x - ankle_l.x, knee_l.y - ankle_l.y) + 
+                     Math.hypot(ankle_l.x - heel_l.x, ankle_l.y - heel_l.y);
+                     
+    const leg_r_px = Math.hypot(hip_r.x - knee_r.x, hip_r.y - knee_r.y) + 
+                     Math.hypot(knee_r.x - ankle_r.x, knee_r.y - ankle_r.y) + 
+                     Math.hypot(ankle_r.x - heel_r.x, ankle_r.y - heel_r.y);
+                     
+    const average_leg_px = (leg_l_px + leg_r_px) / 2;
+    const skeletal_height_px = head_segment_px + torso_segment_px + average_leg_px;
+    state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
+
+    let activePixelsPerCm = state.pixelsPerCm;
+    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+      const rawScale = skeletal_height_px / state.inputHeightCm;
+      activePixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
+      state.pixelsPerCm = activePixelsPerCm;
+    } else if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
+      activePixelsPerCm = skeletal_height_px / state.metricsA.skeletal_height;
+    }
+
+    let skeletal_height_cm = skeletal_height_px / activePixelsPerCm;
+    const live_height_cm = vertical_height_px / activePixelsPerCm;
+
+    if (state.activeCalMethod === 'height' && state.inputHeightCm) {
+      skeletal_height_cm = state.inputHeightCm;
+    }
+
+    // Calculate Wingspan using posture-independent segment-summed path (shoulders + upperarms + forearms + hands)
+    // Note: We scale wrist-to-index distance by 1.42x if falling back to Pose index landmark (Hands model offline),
+    // since the Pose index landmark is shorter than the actual middle fingertip.
+    const left_hand_is_fallback = !state.latestLeftMiddleTip;
+    const hand_l_px = Math.hypot(wrist_l.x - finger_l.x, wrist_l.y - finger_l.y) * (left_hand_is_fallback ? 1.42 : 1.0);
+
+    const right_hand_is_fallback = !state.latestRightMiddleTip;
+    const hand_r_px = Math.hypot(wrist_r.x - finger_r.x, wrist_r.y - finger_r.y) * (right_hand_is_fallback ? 1.42 : 1.0);
+
+    // Apply the same 1.11x compensation factor to align with 3D and correct for MediaPipe skeletal deficits
+    const wingspan_px = (upperarm_l_px + forearm_l_px + hand_l_px + shoulderW_px + upperarm_r_px + forearm_r_px + hand_r_px) * 1.11;
+    const wingspan_cm = wingspan_px / activePixelsPerCm;
+
+    // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
+    const straight_wingspan_px = Math.hypot(finger_l.x - finger_r.x, finger_l.y - finger_r.y) * (left_hand_is_fallback || right_hand_is_fallback ? 1.42 : 1.0) * 1.11;
+    const straight_wingspan_cm = straight_wingspan_px / activePixelsPerCm;
+
+    liveMetrics = {
+      thigh_l: smooth('thigh_l', thigh_l_px / activePixelsPerCm),
+      thigh_r: smooth('thigh_r', thigh_r_px / activePixelsPerCm),
+      shin_l: smooth('shin_l', shin_l_px / activePixelsPerCm),
+      shin_r: smooth('shin_r', shin_r_px / activePixelsPerCm),
+      foot_l: smooth('foot_l', foot_l_px / activePixelsPerCm),
+      foot_r: smooth('foot_r', foot_r_px / activePixelsPerCm),
+      
+      torso_l: smooth('torso_l', torso_l_px / activePixelsPerCm),
+      torso_r: smooth('torso_r', torso_r_px / activePixelsPerCm),
+      upperarm_l: smooth('upperarm_l', upperarm_l_px / activePixelsPerCm),
+      upperarm_r: smooth('upperarm_r', upperarm_r_px / activePixelsPerCm),
+      forearm_l: smooth('forearm_l', forearm_l_px / activePixelsPerCm),
+      forearm_r: smooth('forearm_r', forearm_r_px / activePixelsPerCm),
+
+      fingerToToeL: smooth('finger_to_toe_l', fingerToToeL_px / activePixelsPerCm),
+      fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_px / activePixelsPerCm),
+      shoulderW: smooth('shoulderW', shoulderW_px / activePixelsPerCm),
+      hipW: smooth('hipW', hipW_px / activePixelsPerCm),
+      wingspan: smooth('wingspan_distance', wingspan_cm),
+
+      skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm),
+      live_height: smooth('body_height_live', live_height_cm),
+
+      kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR
+    };
+
+    let detectedPose = "A-Pose";
+    if (liveMetrics.skeletal_height > 0) {
+      const wingspanStraightCm = smooth('wingspan_straight', straight_wingspan_cm);
+      const wingspanRatio = wingspanStraightCm / liveMetrics.skeletal_height;
+      const avgFingerToToe = (liveMetrics.fingerToToeL + liveMetrics.fingerToToeR) / 2;
+      const fingerToToeRatio = avgFingerToToe / liveMetrics.skeletal_height;
+
+      if (wingspanRatio > 0.83) {
+        detectedPose = "T-Pose";
+      } else if (fingerToToeRatio > 1.20) {
+        detectedPose = "Overhead Reach";
+      } else {
+        detectedPose = "A-Pose";
+      }
+    }
+    liveMetrics.pose = detectedPose;
   }
 
   return {

@@ -1046,7 +1046,7 @@ canvas {
   height: 100%;
   z-index: 2;
   pointer-events: auto; /* Allow clicking and dragging the calibration box */
-  touch-action: none; /* Prevent scrolling the page while dragging on the canvas on touchscreens */
+  touch-action: auto; /* Allow scrolling the page on touchscreens, dragging is handled in JS */
 }
 
 /* ==========================================================================

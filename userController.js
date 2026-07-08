@@ -2624,7 +2624,7 @@ canvasElement.addEventListener('touchstart', (e) => {
       e.preventDefault();
     }
   }
-});
+}, { passive: false });
 
 canvasElement.addEventListener('touchmove', (e) => {
   if (isDragging && e.touches.length === 1) {
@@ -2642,7 +2642,7 @@ canvasElement.addEventListener('touchmove', (e) => {
     state.calBoxY = Math.max(state.calBoxSize/2, Math.min(height - state.calBoxSize/2, canvasMouseY - dragStartY));
     e.preventDefault();
   }
-});
+}, { passive: false });
 
 window.addEventListener('touchend', () => {
   isDragging = false;

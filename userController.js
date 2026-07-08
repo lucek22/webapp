@@ -2259,484 +2259,10 @@ startButton.addEventListener('click', startCamera);
 // UPLOADED MEDIA INTEGRATION
 // ==========================================
 
-export function showImportDestinationModal(file) {
-  return new Promise((resolve) => {
-    // 1. Create overlay backdrop
-    const backdrop = document.createElement('div');
-    backdrop.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(10, 10, 15, 0.7);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      font-family: 'Inter', sans-serif;
-    `;
-
-    // Calculate file size in MB
-    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-
-    // 2. Create modal card container
-    const card = document.createElement('div');
-    card.style.cssText = `
-      background: rgba(20, 20, 30, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      width: 500px;
-      max-width: 90%;
-      padding: 28px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-      transform: scale(0.92);
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      color: #fff;
-    `;
-
-    // 3. Create content
-    card.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; text-align: center;">
-        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #818cf8, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">📥 Import Video Recording</h2>
-        <p style="font-size: 13px; color: #9ca3af; margin: 0; word-break: break-all;">${file.name} (${fileSizeMB} MB)</p>
-      </div>
-      
-      <p style="font-size: 14px; font-weight: 600; color: #e5e7eb; margin: 0 0 14px 0;">Select destination for this recording:</p>
-      
-      <div id="import-options-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
-        <!-- Option 1: Saved Video Recordings Playlist -->
-        <div class="import-opt-card" data-value="playlist" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📂 Saved Video Recordings Playlist</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Adds video to subject's saved playlist without updating active test slots.</div>
-          </div>
-        </div>
-
-        <!-- Option 2: Left Overhead Squat -->
-        <div class="import-opt-card" data-value="squat-l" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Left Overhead Squat Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Left sagittal view squat slot and calculates peak mobility stats.</div>
-          </div>
-        </div>
-
-        <!-- Option 3: Right Overhead Squat -->
-        <div class="import-opt-card" data-value="squat-r" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Right Overhead Squat Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Right sagittal view squat slot and calculates peak mobility stats.</div>
-          </div>
-        </div>
-
-        <!-- Option 4: Frontal Overhead Squat -->
-        <div class="import-opt-card" data-value="squat-frontal" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Frontal Overhead Squat Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Frontal view squat slot and calculates peak knee cave-in stats.</div>
-          </div>
-        </div>
-
-        <!-- Option 5: Analyze Video (No save) -->
-        <div class="import-opt-card" data-value="analyze-only" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📺 Analyze Video (Don't Save)</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Loads transiently on the viewport for temporary analysis without database commit.</div>
-          </div>
-        </div>
-      </div>
-
-      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
-        <button id="import-btn-cancel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); color: #9ca3af; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">Cancel</button>
-        <button id="import-btn-confirm" disabled style="background: rgba(255, 255, 255, 0.03); border: none; color: rgba(255, 255, 255, 0.35); padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: not-allowed; transition: all 0.2s ease;">Confirm Import</button>
-      </div>
-    `;
-
-    backdrop.appendChild(card);
-    document.body.appendChild(backdrop);
-
-    // Fade in
-    setTimeout(() => {
-      backdrop.style.opacity = '1';
-      card.style.transform = 'scale(1)';
-    }, 10);
-
-    let selectedValue = null;
-    const optionCards = card.querySelectorAll('.import-opt-card');
-    const confirmBtn = card.querySelector('#import-btn-confirm');
-    const cancelBtn = card.querySelector('#import-btn-cancel');
-
-    // Add interactivity to option cards
-    optionCards.forEach((optCard) => {
-      // Hover effects
-      optCard.addEventListener('mouseenter', () => {
-        if (selectedValue !== optCard.dataset.value) {
-          optCard.style.background = 'rgba(255, 255, 255, 0.06)';
-          optCard.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-        }
-      });
-      optCard.addEventListener('mouseleave', () => {
-        if (selectedValue !== optCard.dataset.value) {
-          optCard.style.background = 'rgba(255, 255, 255, 0.02)';
-          optCard.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-        }
-      });
-
-      // Click handler
-      optCard.addEventListener('click', () => {
-        selectedValue = optCard.dataset.value;
-
-        // Update all options' styling
-        optionCards.forEach((otherCard) => {
-          const radio = otherCard.querySelector('.import-radio');
-          const dot = otherCard.querySelector('.import-radio-dot');
-          if (otherCard.dataset.value === selectedValue) {
-            otherCard.style.background = 'rgba(129, 140, 248, 0.12)';
-            otherCard.style.borderColor = '#818cf8';
-            otherCard.style.boxShadow = '0 0 12px rgba(129, 140, 248, 0.2)';
-            radio.style.borderColor = '#818cf8';
-            radio.style.background = '#818cf8';
-            dot.style.display = 'block';
-          } else {
-            otherCard.style.background = 'rgba(255, 255, 255, 0.02)';
-            otherCard.style.borderColor = 'rgba(255, 255, 255, 0.06)';
-            otherCard.style.boxShadow = 'none';
-            radio.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-            radio.style.background = 'transparent';
-            dot.style.display = 'none';
-          }
-        });
-
-        // Enable confirm button
-        confirmBtn.removeAttribute('disabled');
-        confirmBtn.style.background = 'linear-gradient(135deg, #818cf8, #ec4899)';
-        confirmBtn.style.color = '#fff';
-        confirmBtn.style.cursor = 'pointer';
-        confirmBtn.style.boxShadow = '0 4px 12px rgba(129, 140, 248, 0.25)';
-      });
-    });
-
-    // Close function
-    function closeWithResult(result) {
-      backdrop.style.opacity = '0';
-      card.style.transform = 'scale(0.92)';
-      setTimeout(() => {
-        backdrop.remove();
-        resolve(result);
-      }, 300);
-    }
-
-    confirmBtn.addEventListener('click', () => {
-      if (selectedValue) {
-        closeWithResult(selectedValue);
-      }
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      closeWithResult(null);
-    });
-
-    // Close on backdrop click (cancel)
-    backdrop.addEventListener('click', (e) => {
-      if (e.target === backdrop) {
-        closeWithResult(null);
-      }
-    });
-  });
-}
-
-export async function saveImportedVideoToProfile(file, target, durationSec) {
-  try {
-    if (!state.activeProfileId) return null;
-    const profile = await snapshotStore.getProfile(state.activeProfileId);
-    if (!profile) return null;
-
-    profile.videos = profile.videos || [];
-    
-    // Determine the label based on target
-    let labelPrefix = "Imported Video";
-    if (target === 'squat-l') labelPrefix = "Left Overhead Squat";
-    else if (target === 'squat-r') labelPrefix = "Right Overhead Squat";
-    else if (target === 'squat-frontal') labelPrefix = "Frontal Overhead Squat";
-    else if (target === 'playlist') labelPrefix = "Imported Recording";
-
-    const fileExt = file.name.split('.').pop() || 'mp4';
-
-    const videoEntry = {
-      id: Date.now(),
-      name: `${labelPrefix} (${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })})`,
-      blob: file, // File is a subclass of Blob, so it saves perfectly in IndexedDB
-      timestamp: Date.now(),
-      duration: durationSec,
-      fileExt: fileExt
-    };
-
-    profile.videos.push(videoEntry);
-    state.videos = profile.videos;
-
-    // Link video to active session if it's a squat target
-    const profileMigrated = ensureProfileSessions(profile);
-    const activeSessionId = state.activeSessionId || profileMigrated.activeSessionId || (profileMigrated.sessions && profileMigrated.sessions[0] ? profileMigrated.sessions[0].id : null);
-    if (activeSessionId) {
-      const activeSession = profileMigrated.sessions.find(s => String(s.id) === String(activeSessionId));
-      if (activeSession) {
-        if (target === 'squat-l') {
-          activeSession.videoSquatL = videoEntry;
-          state.videoSquatL = videoEntry;
-        } else if (target === 'squat-r') {
-          activeSession.videoSquatR = videoEntry;
-          state.videoSquatR = videoEntry;
-        } else if (target === 'squat-frontal') {
-          activeSession.videoSquatFrontal = videoEntry;
-          state.videoSquatFrontal = videoEntry;
-        }
-      }
-    }
-
-    await snapshotStore.saveProfile(profileMigrated);
-    
-    // Update local cache
-    state.allProfiles = await snapshotStore.getAllProfiles();
-    if (state.activeProfileId === profile.id) {
-      await loadProfileIntoState(profile.id);
-    }
-    
-    console.log(`[VideoImport] Successfully imported video to profile: ${profile.name}, target: ${target}`);
-    return videoEntry;
-  } catch (err) {
-    console.error("[VideoImport] Failed to save imported video:", err);
-    alert("Could not save the imported video to profile database.");
-    return null;
-  }
-}
-
-export function showAnalysisProgressOverlay(percent) {
-  const viewport = document.querySelector('.viewport');
-  if (!viewport) return;
-
-  let overlay = document.getElementById('analysis-progress-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'analysis-progress-overlay';
-    overlay.className = 'export-progress-overlay'; // Reuses existing styles!
-    overlay.innerHTML = `
-      <div class="export-progress-card">
-        <div class="export-progress-spinner">
-          <svg class="spinner-svg" viewBox="0 0 50 50">
-            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
-          </svg>
-        </div>
-        <div class="export-progress-title">Biomechanical Video Scan</div>
-        <div class="export-progress-subtitle">Extracting peak athletic mobility...</div>
-        <div class="export-progress-bar-container">
-          <div class="export-progress-bar-fill" id="analysis-progress-fill" style="width: 0%;"></div>
-        </div>
-        <div class="export-progress-text" id="analysis-progress-text">0% Scan Completed</div>
-        <div class="export-progress-warning">
-          Please wait while our computer vision model parses the imported video frames for joint peaks and range of motion stats.
-        </div>
-      </div>
-    `;
-    viewport.appendChild(overlay);
-  }
-
-  // Update percentages
-  const fill = document.getElementById('analysis-progress-fill');
-  const text = document.getElementById('analysis-progress-text');
-  if (fill) fill.style.width = `${percent}%`;
-  if (text) text.textContent = `${Math.round(percent)}% Scan Completed`;
-}
-
-export function hideAnalysisProgressOverlay() {
-  const overlay = document.getElementById('analysis-progress-overlay');
-  if (overlay) {
-    overlay.remove();
-  }
-}
-
-export async function scanVideoForSquatPeaks(targetSide, durationSec) {
-  if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || !uploadedVideo) {
-    return;
-  }
-
-  console.log(`[PeakAnalysis] Starting frame analysis for side: ${targetSide}, duration: ${durationSec}s`);
-  
-  // Set flag to prevent background loop collision
-  state.isExportingFrameByFrame = true;
-  updateRecordButtonUI();
-
-  // Temporarily pause main video play
-  uploadedVideo.pause();
-
-  // Store original video play rates & looping
-  const wasLooping = uploadedVideo.loop;
-  const wasPlaybackRate = uploadedVideo.playbackRate;
-
-  uploadedVideo.loop = false;
-  uploadedVideo.playbackRate = 1.0;
-
-  // Initialize progress bar
-  showAnalysisProgressOverlay(0);
-
-  // Reset the specific target side's peak values so we scan from a clean state
-  if (targetSide === 'squat-l') {
-    state.squatPeaks.kneeL = 0;
-    state.squatPeaks.hipL = 0;
-    state.squatPeaks.ankleL = 0;
-  } else if (targetSide === 'squat-r') {
-    state.squatPeaks.kneeR = 0;
-    state.squatPeaks.hipR = 0;
-    state.squatPeaks.ankleR = 0;
-  } else if (targetSide === 'squat-frontal') {
-    state.squatPeaks.maxKneeCaveL = 0;
-    state.squatPeaks.maxKneeCaveR = 0;
-    state.squatPeaks.valgusFirstTimestamp = null;
-    state.squatPeaks.valgusPeakTimestamp = null;
-    state.squatPeaks.valgusPeakScore = 0;
-  }
-
-  const fps = 10; // 10 samples per second is extremely high resolution for slow-moving squats and super fast
-  const step = 1 / fps;
-  let currentTime = 0;
-
-  // Promise-based seek helper
-  function seekVideoTo(time) {
-    return new Promise((resolve) => {
-      let resolved = false;
-      function onSeeked() {
-        if (!resolved) {
-          resolved = true;
-          uploadedVideo.removeEventListener('seeked', onSeeked);
-          resolve();
-        }
-      }
-      uploadedVideo.addEventListener('seeked', onSeeked);
-      uploadedVideo.currentTime = time;
-      
-      // Safety timeout
-      setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          uploadedVideo.removeEventListener('seeked', onSeeked);
-          resolve();
-        }
-      }, 1000);
-    });
-  }
-
-  try {
-    while (currentTime <= durationSec && state.isExportingFrameByFrame) {
-      // 1. Seek playhead to currentTime
-      await seekVideoTo(currentTime);
-
-      // 2. Erase previous cache frames
-      state.latestPoseResults = null;
-      state.latestHandResults = null;
-
-      // 3. Process video frame via MediaPipe models
-      try {
-        await pose.send({ image: uploadedVideo });
-      } catch (err) {
-        console.warn(`[PeakAnalysis] MediaPipe parsing error at t=${currentTime.toFixed(2)}s:`, err);
-      }
-
-      // 4. Update the HUD progress
-      const progressPercent = Math.min(100, (currentTime / durationSec) * 100);
-      showAnalysisProgressOverlay(progressPercent);
-      statusElement.textContent = `⚙️ Parsing joint coordinates... ${progressPercent.toFixed(0)}%`;
-
-      // 5. Step forward
-      currentTime += step;
-    }
-
-    // Final scan of the absolute end of the video
-    if (currentTime - step < durationSec && state.isExportingFrameByFrame) {
-      await seekVideoTo(durationSec);
-      state.latestPoseResults = null;
-      try {
-        await pose.send({ image: uploadedVideo });
-      } catch (e) {}
-    }
-
-    // 6. Complete and clean up
-    if (state.isExportingFrameByFrame) {
-      // Reset playhead to the beginning
-      await seekVideoTo(0);
-      
-      hideAnalysisProgressOverlay();
-      state.isExportingFrameByFrame = false;
-      updateRecordButtonUI();
-
-      // Commit the updated peak metrics to the player database
-      await autoSyncToActiveProfile();
-
-      // Update sidebar visual displays
-      updateSquatSideUI();
-      updateSquatDashboardOffline();
-
-      // Restore original video state
-      uploadedVideo.loop = wasLooping;
-      uploadedVideo.playbackRate = wasPlaybackRate;
-      
-      // Restart standard loop
-      uploadedVideo.play().catch(err => console.error("[PeakAnalysis] Play resume failed:", err));
-      
-      statusElement.textContent = "✅ Video import & peak analysis complete! Peak mobility stats have been updated.";
-    }
-  } catch (err) {
-    console.error("[PeakAnalysis] Background scan failed:", err);
-    statusElement.textContent = "❌ Biomechanical background scan failed.";
-    hideAnalysisProgressOverlay();
-    state.isExportingFrameByFrame = false;
-    updateRecordButtonUI();
-    
-    // Restore original video state
-    uploadedVideo.loop = wasLooping;
-    uploadedVideo.playbackRate = wasPlaybackRate;
-    uploadedVideo.play().catch(e => {});
-  }
-}
-
 export async function handleUploadedFile(file) {
   if (!file) return;
 
   const isVideo = file.type.startsWith('video/');
-  
-  if (isVideo) {
-    if (!state.activeProfileId) {
-      alert("Please select or create a player profile in the dashboard first to import video recordings!");
-      return;
-    }
-
-    const selectedTarget = await showImportDestinationModal(file);
-    if (!selectedTarget) {
-      console.log("[VideoImport] User cancelled video import.");
-      return;
-    }
-
-    // Store target temporarily
-    state.pendingImportTarget = selectedTarget;
-  }
-
   state.isUploadedMedia = true;
   state.uploadedMediaType = isVideo ? 'video' : 'image';
   state.latestPoseResults = null;
@@ -2825,7 +2351,8 @@ export async function handleUploadedFile(file) {
       uploadedVideo.muted = true;
       uploadedVideo.loop = true;
       
-      uploadedVideo.onloadedmetadata = async () => {
+      uploadedVideo.onloadedmetadata = () => {
+        uploadedVideo.play();
         state.canvasWidth = uploadedVideo.videoWidth || 640;
         state.canvasHeight = uploadedVideo.videoHeight || 480;
         canvasElement.width = state.canvasWidth;
@@ -2845,56 +2372,7 @@ export async function handleUploadedFile(file) {
         state.calBoxX = state.canvasWidth / 2;
         state.calBoxY = state.canvasHeight / 2;
 
-        const importTarget = state.pendingImportTarget;
-        if (importTarget && importTarget !== 'analyze-only') {
-          // Clear it immediately to prevent duplicate runs
-          state.pendingImportTarget = null;
-
-          statusElement.textContent = "📥 Saving imported video to profile...";
-          
-          // 1. Save video entry to the profile database
-          const durationSec = uploadedVideo.duration || 0;
-          await saveImportedVideoToProfile(file, importTarget, durationSec);
-
-          // 2. If it's a squat destination, run background peak scan
-          if (importTarget === 'squat-l' || importTarget === 'squat-r' || importTarget === 'squat-frontal') {
-            // Set state to squat mode and correct testing side
-            state.currentMode = 'squat';
-            if (importTarget === 'squat-l') {
-              state.squatTestingSide = 'left';
-              state.allowFrontalUpdateL = false;
-              state.allowFrontalUpdateR = false;
-            } else if (importTarget === 'squat-r') {
-              state.squatTestingSide = 'right';
-              state.allowFrontalUpdateL = false;
-              state.allowFrontalUpdateR = false;
-            } else if (importTarget === 'squat-frontal') {
-              state.squatTestingSide = 'frontal';
-              // Allow updating left/right peak metrics during a frontal squat if they are currently 0 (missing)
-              state.allowFrontalUpdateL = (!state.squatPeaks || state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0 && state.squatPeaks.ankleL === 0);
-              state.allowFrontalUpdateR = (!state.squatPeaks || state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0 && state.squatPeaks.ankleR === 0);
-            }
-
-            // Sync the active mode and side selectors in the UI
-            if (btnModeSquat) btnModeSquat.classList.add('active');
-            if (btnModePosture) btnModePosture.classList.remove('active');
-            if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
-            if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
-            updateSquatSideUI();
-
-            // Run the background scan
-            await scanVideoForSquatPeaks(importTarget, durationSec);
-          } else {
-            // Just a playlist import, start standard playback
-            uploadedVideo.play();
-            statusElement.textContent = "Uploaded video active in playlist.";
-          }
-        } else {
-          // Normal transient run or cancel, just play
-          state.pendingImportTarget = null;
-          uploadedVideo.play();
-          statusElement.textContent = "Uploaded video active. Syncing with computer vision models...";
-        }
+        statusElement.textContent = "Uploaded video active. Syncing with computer vision models...";
       };
 
       uploadedVideo.onplay = () => {
@@ -4466,36 +3944,10 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
         fileExt: fileExt
       };
       profile.videos.push(videoEntry);
-      state.videos = profile.videos;
-
-      // Link video to active session
-      const profileMigrated = ensureProfileSessions(profile);
-      const activeSessionId = state.activeSessionId || profileMigrated.activeSessionId || (profileMigrated.sessions && profileMigrated.sessions[0] ? profileMigrated.sessions[0].id : null);
-      if (activeSessionId) {
-        const activeSession = profileMigrated.sessions.find(s => String(s.id) === String(activeSessionId));
-        if (activeSession) {
-          if (state.currentMode === 'squat') {
-            if (state.squatTestingSide === 'left') {
-              activeSession.videoSquatL = videoEntry;
-              state.videoSquatL = videoEntry;
-            } else if (state.squatTestingSide === 'right') {
-              activeSession.videoSquatR = videoEntry;
-              state.videoSquatR = videoEntry;
-            } else {
-              activeSession.videoSquatFrontal = videoEntry;
-              state.videoSquatFrontal = videoEntry;
-            }
-          }
-        }
-      }
-
-      await snapshotStore.saveProfile(profileMigrated);
+      await snapshotStore.saveProfile(profile);
       
       // Update local cache
       state.allProfiles = await snapshotStore.getAllProfiles();
-      if (state.activeProfileId === profile.id) {
-        await loadProfileIntoState(profile.id);
-      }
       
       console.log(`[VideoSave] Successfully saved video to profile: ${profile.name}`);
       statusElement.textContent = `🎥 Video saved directly to "${profile.name}"'s portfolio and downloaded locally!`;
@@ -5584,34 +5036,12 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
     pctL = valgus.pctL;
     pctR = valgus.pctR;
 
-    const isVideo = state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo;
-    const currentVideoTime = isVideo ? uploadedVideo.currentTime : null;
-
     // Track peak deviations in degrees only during active squat movement (knee flexion >= 30 degrees)
-    if (kneeMobL >= 30 || kneeMobR >= 30) {
-      if (kneeMobL >= 30) {
-        state.squatPeaks.maxKneeCaveL = Math.max(state.squatPeaks.maxKneeCaveL || 0, pctL);
-      }
-      if (kneeMobR >= 30) {
-        state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, pctR);
-      }
-
-      const maxVal = Math.max(pctL, pctR);
-
-      if (isVideo && currentVideoTime !== null) {
-        // Valgus first appearance: deviation > 8.0 degrees is considered valgus
-        if (maxVal > 8.0) {
-          if (state.squatPeaks.valgusFirstTimestamp === undefined || state.squatPeaks.valgusFirstTimestamp === null) {
-            state.squatPeaks.valgusFirstTimestamp = currentVideoTime;
-          }
-        }
-
-        // Track the peak valgus score and corresponding timestamp
-        if (maxVal > (state.squatPeaks.valgusPeakScore || 0)) {
-          state.squatPeaks.valgusPeakScore = maxVal;
-          state.squatPeaks.valgusPeakTimestamp = currentVideoTime;
-        }
-      }
+    if (kneeMobL >= 30) {
+      state.squatPeaks.maxKneeCaveL = Math.max(state.squatPeaks.maxKneeCaveL || 0, pctL);
+    }
+    if (kneeMobR >= 30) {
+      state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, pctR);
     }
   }
 
@@ -5690,10 +5120,7 @@ export function resetSquatPeaks() {
     ankleL: 0,
     ankleR: 0,
     maxKneeCaveL: 0,
-    maxKneeCaveR: 0,
-    valgusFirstTimestamp: null,
-    valgusPeakTimestamp: null,
-    valgusPeakScore: 0
+    maxKneeCaveR: 0
   };
   state.jointsOverhead = null;
 
@@ -6532,10 +5959,7 @@ export function ensureProfileSessions(profile) {
       imageSquatL: profile.imageSquatL || null,
       imageSquatR: profile.imageSquatR || null,
       imageSquatFrontal: profile.imageSquatFrontal || null,
-      jointsOverhead: profile.jointsOverhead || null,
-      videoSquatL: profile.videoSquatL || null,
-      videoSquatR: profile.videoSquatR || null,
-      videoSquatFrontal: profile.videoSquatFrontal || null
+      jointsOverhead: profile.jointsOverhead || null
     };
     profile.sessions = [baselineSession];
     profile.activeSessionId = baselineSession.id;
@@ -6558,7 +5982,6 @@ export async function loadProfileIntoState(profileId) {
     }
 
     state.activeProfileId = profile.id;
-    state.videos = profile.videos || [];
     
     // Find active session
     let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
@@ -6580,9 +6003,6 @@ export async function loadProfileIntoState(profileId) {
     state.imageSquatL = activeSession.imageSquatL || null;
     state.imageSquatR = activeSession.imageSquatR || null;
     state.imageSquatFrontal = activeSession.imageSquatFrontal || null;
-    state.videoSquatL = activeSession.videoSquatL || null;
-    state.videoSquatR = activeSession.videoSquatR || null;
-    state.videoSquatFrontal = activeSession.videoSquatFrontal || null;
     state.jointsOverhead = activeSession.jointsOverhead || null;
     
     state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile, activeSession.id);
@@ -6695,9 +6115,6 @@ export async function loadProfileIntoState(profileId) {
               imageSquatL: null,
               imageSquatR: null,
               imageSquatFrontal: null,
-              videoSquatL: null,
-              videoSquatR: null,
-              videoSquatFrontal: null,
               jointsOverhead: null,
               pixelsPerCm: null
             };
@@ -6754,15 +6171,11 @@ export async function autoSyncToActiveProfile() {
     session.imageSquatL = state.imageSquatL;
     session.imageSquatR = state.imageSquatR;
     session.imageSquatFrontal = state.imageSquatFrontal;
-    session.videoSquatL = state.videoSquatL;
-    session.videoSquatR = state.videoSquatR;
-    session.videoSquatFrontal = state.videoSquatFrontal;
     session.jointsOverhead = state.jointsOverhead;
     
     // Keep profile-level active session and timestamp synced
     profile.timestamp = Date.now();
     profile.activeSessionId = session.id;
-    profile.videos = state.videos || [];
     
     // Keep legacy flat fields updated on the main profile for redundant backup
     profile.pixelsPerCm = state.pixelsPerCm;
@@ -6776,9 +6189,6 @@ export async function autoSyncToActiveProfile() {
     profile.imageSquatL = state.imageSquatL;
     profile.imageSquatR = state.imageSquatR;
     profile.imageSquatFrontal = state.imageSquatFrontal;
-    profile.videoSquatL = state.videoSquatL;
-    profile.videoSquatR = state.videoSquatR;
-    profile.videoSquatFrontal = state.videoSquatFrontal;
     profile.jointsOverhead = state.jointsOverhead;
     
     await snapshotStore.saveProfile(profile);
@@ -6803,12 +6213,6 @@ export function autoSyncToActiveProfileDebounced() {
 
 export async function openProfileDetailsModal(profileId) {
   if (!profileId) return;
-
-  if (state.modalObjectUrls) {
-    state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
-  }
-  state.modalObjectUrls = [];
-
   try {
     let profile = await snapshotStore.getProfile(profileId);
     if (!profile) return;
@@ -6818,10 +6222,6 @@ export async function openProfileDetailsModal(profileId) {
     profile = ensureProfileSessions(profile);
     if (originalSessionCount === 0) {
       await snapshotStore.saveProfile(profile);
-    }
-
-    if (state.activeProfileId === profileId) {
-      state.videos = profile.videos || [];
     }
 
     // 1.6 Populate User Selector Dropdown inside Details Modal
@@ -6935,9 +6335,6 @@ export async function openProfileDetailsModal(profileId) {
           imageSquatL: null,
           imageSquatR: null,
           imageSquatFrontal: null,
-          videoSquatL: null,
-          videoSquatR: null,
-          videoSquatFrontal: null,
           jointsOverhead: null
         };
 
@@ -7107,27 +6504,20 @@ export async function openProfileDetailsModal(profileId) {
       const containerEl = document.getElementById(`detail-preview-container-${p.key}`);
       
       let hasData = false;
-      let imgSrc = activeSession[p.imgKey] || null;
-      let hasVideo = false;
-
+      let imgSrc = null;
+      
       if (p.isSquat) {
-        const videoKey = p.key === 'squat-l' ? 'videoSquatL' : (p.key === 'squat-r' ? 'videoSquatR' : 'videoSquatFrontal');
-        const sVideo = activeSession[videoKey];
-        hasVideo = !!(sVideo && sVideo.blob);
-
-        let hasPeaks = false;
-        if (activeSession.squatPeaks) {
-          if (p.key === 'squat-l') {
-            hasPeaks = (activeSession.squatPeaks.kneeL > 0 || activeSession.squatPeaks.kneeLTime > 0 || activeSession.squatPeaks.hipL > 0 || activeSession.squatPeaks.ankleL > 0);
-          } else if (p.key === 'squat-r') {
-            hasPeaks = (activeSession.squatPeaks.kneeR > 0 || activeSession.squatPeaks.kneeRTime > 0 || activeSession.squatPeaks.hipR > 0 || activeSession.squatPeaks.ankleR > 0);
-          } else if (p.key === 'squat-frontal') {
-            hasPeaks = (activeSession.squatPeaks.maxKneeCaveL > 0 || activeSession.squatPeaks.maxKneeCaveR > 0);
-          }
+        if (p.squatSide === 'frontal') {
+          imgSrc = activeSession[p.imgKey];
+          hasData = !!imgSrc;
+        } else {
+          const peakVal = activeSession.squatPeaks ? activeSession.squatPeaks[p.squatSide] : 0;
+          imgSrc = activeSession[p.imgKey];
+          hasData = (peakVal > 0) || !!imgSrc;
         }
-        hasData = !!imgSrc || hasVideo || hasPeaks;
       } else {
-        hasData = !!imgSrc || !!activeSession[p.metricsKey];
+        hasData = !!activeSession[p.metricsKey];
+        imgSrc = activeSession[p.imgKey];
       }
 
       if (hasData) {
@@ -7135,111 +6525,11 @@ export async function openProfileDetailsModal(profileId) {
           statusEl.textContent = "✅ Complete";
           statusEl.style.color = "#10b981"; // Emerald green
         }
-        if (containerEl) {
-          containerEl.classList.remove('hidden');
-          containerEl.innerHTML = ''; // Clear existing element
-
-          if (p.isSquat && hasVideo) {
-            const videoKey = p.key === 'squat-l' ? 'videoSquatL' : (p.key === 'squat-r' ? 'videoSquatR' : 'videoSquatFrontal');
-            const sVideo = activeSession[videoKey];
-            const videoUrl = URL.createObjectURL(sVideo.blob);
-            state.modalObjectUrls.push(videoUrl);
-
-            const videoEl = document.createElement('video');
-            videoEl.src = videoUrl;
-            videoEl.controls = true;
-            videoEl.playsInline = true;
-            videoEl.style.cssText = 'width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);';
-            containerEl.appendChild(videoEl);
-          } else if (imgSrc) {
-            const myImgEl = document.createElement('img');
-            myImgEl.src = imgSrc;
-            myImgEl.alt = `${p.title} Preview`;
-            myImgEl.style.cssText = 'width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block; border-radius: 4px;';
-            containerEl.appendChild(myImgEl);
-          } else {
-            containerEl.classList.add('hidden');
-          }
-        }
-
-        // Show delete button
-        const deleteBtn = document.getElementById(`btn-delete-pose-${p.key}`);
-        if (deleteBtn) {
-          deleteBtn.classList.remove('hidden');
-          deleteBtn.onclick = async (e) => {
-            e.stopPropagation();
-            if (!confirm(`Are you sure you want to permanently delete all data (image, video, metrics) for ${p.title}? This cannot be undone.`)) {
-              return;
-            }
-            try {
-              const freshProfile = await snapshotStore.getProfile(profileId);
-              if (!freshProfile) return;
-              
-              const freshProfileMigrated = ensureProfileSessions(freshProfile);
-              const freshActiveSession = freshProfileMigrated.sessions.find(s => String(s.id) === String(activeSession.id)) || freshProfileMigrated.sessions[0];
-              
-              // 1. Clear the image
-              freshActiveSession[p.imgKey] = null;
-              
-              // 2. Pose-specific clearing
-              if (p.isSquat) {
-                // Clear video reference and filter from playlist
-                const videoKey = p.key === 'squat-l' ? 'videoSquatL' : (p.key === 'squat-r' ? 'videoSquatR' : 'videoSquatFrontal');
-                const sVideo = freshActiveSession[videoKey];
-                if (sVideo) {
-                  freshProfileMigrated.videos = (freshProfileMigrated.videos || []).filter(v => v.id !== sVideo.id);
-                  freshActiveSession[videoKey] = null;
-                }
-                
-                // Clear peaks
-                if (freshActiveSession.squatPeaks) {
-                  if (p.key === 'squat-l') {
-                    freshActiveSession.squatPeaks.kneeL = 0;
-                    freshActiveSession.squatPeaks.kneeLTime = 0;
-                    freshActiveSession.squatPeaks.hipL = 0;
-                    freshActiveSession.squatPeaks.ankleL = 0;
-                  } else if (p.key === 'squat-r') {
-                    freshActiveSession.squatPeaks.kneeR = 0;
-                    freshActiveSession.squatPeaks.kneeRTime = 0;
-                    freshActiveSession.squatPeaks.hipR = 0;
-                    freshActiveSession.squatPeaks.ankleR = 0;
-                  } else if (p.key === 'squat-frontal') {
-                    freshActiveSession.squatPeaks.maxKneeCaveL = 0;
-                    freshActiveSession.squatPeaks.maxKneeCaveR = 0;
-                    freshActiveSession.jointsOverhead = null;
-                  }
-                }
-              } else {
-                // Clear metrics
-                freshActiveSession[p.metricsKey] = null;
-              }
-              
-              // 3. Mirror to legacy fields for backwards compatibility
-              freshProfileMigrated.metricsA = freshActiveSession.metricsA;
-              freshProfileMigrated.metricsT = freshActiveSession.metricsT;
-              freshProfileMigrated.metricsOverhead = freshActiveSession.metricsOverhead;
-              freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
-              freshProfileMigrated.imageA = freshActiveSession.imageA;
-              freshProfileMigrated.imageT = freshActiveSession.imageT;
-              freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
-              freshProfileMigrated.imageSquatL = freshActiveSession.imageSquatL;
-              freshProfileMigrated.imageSquatR = freshActiveSession.imageSquatR;
-              freshProfileMigrated.imageSquatFrontal = freshActiveSession.imageSquatFrontal;
-              freshProfileMigrated.jointsOverhead = freshActiveSession.jointsOverhead || null;
-              
-              await snapshotStore.saveProfile(freshProfileMigrated);
-              state.allProfiles = await snapshotStore.getAllProfiles();
-              if (state.activeProfileId === profileId) {
-                await loadProfileIntoState(profileId);
-              }
-              
-              alert(`${p.title} data deleted successfully.`);
-              openProfileDetailsModal(profileId);
-            } catch (err) {
-              console.error(`[DeletePoseData] Failed to delete data for ${p.key}:`, err);
-              alert("Failed to delete posture data: " + err.message);
-            }
-          };
+        if (imgSrc) {
+          if (imgEl) imgEl.src = imgSrc;
+          if (containerEl) containerEl.classList.remove('hidden');
+        } else {
+          if (containerEl) containerEl.classList.add('hidden');
         }
       } else {
         if (statusEl) {
@@ -7248,13 +6538,6 @@ export async function openProfileDetailsModal(profileId) {
         }
         if (containerEl) containerEl.classList.add('hidden');
         if (imgEl) imgEl.src = "";
-
-        // Hide delete button
-        const deleteBtn = document.getElementById(`btn-delete-pose-${p.key}`);
-        if (deleteBtn) {
-          deleteBtn.classList.add('hidden');
-          deleteBtn.onclick = null;
-        }
       }
     });
 
@@ -7671,132 +6954,59 @@ export async function openProfileDetailsModal(profileId) {
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
 
-    // Peak-level Knee Cave-In Summary rendering (handles both Static Snapshot and Frontal Video Timeline scans)
+    // Peak-level Knee Cave-In Summary rendering (strictly calculated only from the taken Overhead Squat image)
     const detailSquatAsymmetrySummary = document.getElementById('detail-squat-asymmetry-summary');
     if (detailSquatAsymmetrySummary) {
-      let imageHtml = "";
-      let videoHtml = "";
+      let maxCaveL = 0;
+      let maxCaveR = 0;
+      let calculatedFromImage = false;
 
-      // 1. Static Image Knee Alignment
-      let hasImage = false;
       if (activeSession.jointsOverhead) {
-        hasImage = true;
         const valgus = calculateValgusFromJoints(activeSession.jointsOverhead);
-        const imgL = valgus.pctL;
-        const imgR = valgus.pctR;
-        const maxImgCave = Math.max(imgL, imgR);
-        const lStr = `${imgL.toFixed(1)}°`;
-        const rStr = `${imgR.toFixed(1)}°`;
-        
-        let color = "#10b981"; // Emerald
-        let statusText = `Excellent Alignment: Both knees perpendicular to baseline (L: ${lStr}, R: ${rStr}).`;
-        if (maxImgCave > 15.0) {
-          color = "#ef4444"; // Scarlet
-          statusText = `Severe Deviation: Significant knee cave-in detected (L: ${lStr}, R: ${rStr}). Focus on stability.`;
-        } else if (maxImgCave > 8.0) {
-          color = "#ff9f43"; // Amber
-          statusText = `Moderate Deviation: Knees cave inward past baseline (L: ${lStr}, R: ${rStr}).`;
-        } else if (maxImgCave >= 3.0) {
-          color = "#ffb300"; // Yellow-Amber
-          statusText = `Mild Deviation: Minor knee tracking variance (L: ${lStr}, R: ${rStr}).`;
-        }
-
-        imageHtml = `
-          <div style="padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.015); text-align: left;">
-            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #d4a017;"></span> Static Overhead Snapshot
-            </div>
-            <div style="font-size: 13px; color: ${color}; font-weight: 500;">
-              ${statusText}
-            </div>
-          </div>
-        `;
+        maxCaveL = valgus.pctL;
+        maxCaveR = valgus.pctR;
+        calculatedFromImage = true;
       }
 
-      // 2. Video Knee Alignment & Valgus Timestamps
-      let hasVideoData = false;
-      if (sPeaks.maxKneeCaveL > 0 || sPeaks.maxKneeCaveR > 0) {
-        hasVideoData = true;
-        const vidL = sPeaks.maxKneeCaveL || 0;
-        const vidR = sPeaks.maxKneeCaveR || 0;
-        const maxVidCave = Math.max(vidL, vidR);
-        const lStr = `${vidL.toFixed(1)}°`;
-        const rStr = `${vidR.toFixed(1)}°`;
-
-        let color = "#10b981"; // Emerald
-        let statusTitle = "✅ Stable Knee Alignment (Video Scan)";
-        let explanationText = `Knees tracking cleanly over feet. Peak deviation: L: ${lStr}, R: ${rStr}.`;
-        let timestampText = "";
-
-        if (maxVidCave > 8.0) {
-          const isSevere = maxVidCave > 15.0;
-          color = isSevere ? "#ef4444" : "#ff9f43"; // Scarlet or Amber
-          statusTitle = isSevere ? "🚨 Severe Knee Valgus (Cave-In) Detected" : "⚠️ Moderate Knee Valgus (Cave-In) Detected";
-          explanationText = `Knees caved inward past safe tracking boundaries. Peak: L: ${lStr}, R: ${rStr}.`;
-          
-          const tFirst = sPeaks.valgusFirstTimestamp;
-          const tPeak = sPeaks.valgusPeakTimestamp;
-          
-          if (tFirst !== null && tFirst !== undefined) {
-            timestampText = `
-              <div style="margin-top: 6px; font-size: 11px; color: #9ca3af; display: flex; flex-direction: column; gap: 2px;">
-                <span>⏱️ Valgus first appeared at: <strong>${tFirst.toFixed(1)}s</strong> in the video timeline.</span>
-                ${tPeak !== null && tPeak !== undefined ? `<span>🎯 Peak Valgus reached at: <strong>${tPeak.toFixed(1)}s</strong> (deviation of ${maxVidCave.toFixed(1)}°).</span>` : ""}
-              </div>
-            `;
-          } else {
-            timestampText = `
-              <div style="margin-top: 6px; font-size: 11px; color: #9ca3af;">
-                🎯 Peak deviation of <strong>${maxVidCave.toFixed(1)}°</strong> recorded during scan.
-              </div>
-            `;
-          }
-        } else if (maxVidCave >= 3.0) {
-          color = "#ffb300"; // Yellow-Amber
-          statusTitle = "⚠️ Mild Knee Tracking Deviation";
-          explanationText = `Slight knee deviation during squat video. Peak: L: ${lStr}, R: ${rStr}.`;
-        }
-
-        videoHtml = `
-          <div style="padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.015); text-align: left;">
-            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #ec4899;"></span> Frontal Squat Video Timeline
-            </div>
-            <div style="font-size: 13px; color: ${color}; font-weight: 600;">
-              ${statusTitle}
-            </div>
-            <div style="font-size: 12px; color: #ccc; margin-top: 2px;">
-              ${explanationText}
-            </div>
-            ${timestampText}
-          </div>
-        `;
-      }
-
-      // Assemble final combined layout
-      if (!hasImage && !hasVideoData) {
-        detailSquatAsymmetrySummary.innerHTML = `
-          <span style="color: #888; font-style: italic;">Knee Alignment & Valgus Tracking: No frontal squat image or video scan completed yet.</span>
-        `;
+      if (!calculatedFromImage) {
+        detailSquatAsymmetrySummary.textContent = "Knee Alignment Tracking: No overhead squat image taken yet.";
         detailSquatAsymmetrySummary.style.color = "#aaa";
         detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 255, 255, 0.03)";
         detailSquatAsymmetrySummary.style.background = "rgba(255, 255, 255, 0.01)";
-        detailSquatAsymmetrySummary.style.padding = "6px 12px";
-        detailSquatAsymmetrySummary.style.border = "1px solid rgba(255,255,255,0.03)";
       } else {
-        detailSquatAsymmetrySummary.innerHTML = `
-          <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-            ${videoHtml}
-            ${imageHtml}
-          </div>
-        `;
-        detailSquatAsymmetrySummary.style.border = "none";
-        detailSquatAsymmetrySummary.style.background = "transparent";
-        detailSquatAsymmetrySummary.style.padding = "0";
+        const lStr = `${maxCaveL.toFixed(1)}°`;
+        const rStr = `${maxCaveR.toFixed(1)}°`;
+        
+        const peakMaxCave = Math.max(maxCaveL, maxCaveR);
+        if (peakMaxCave > 15.0) {
+          detailSquatAsymmetrySummary.textContent = `Knee Alignment Alert: Severe deviation from perpendicular detected (L: ${lStr}, R: ${rStr}). Focus on knee stability and hip strength.`;
+          detailSquatAsymmetrySummary.style.color = "#ef4444"; // Scarlet
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(239, 68, 68, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(239, 68, 68, 0.04)";
+        } else if (peakMaxCave > 8.0) {
+          detailSquatAsymmetrySummary.textContent = `Knee Alignment Warning: Moderate deviation from perpendicular detected (L: ${lStr}, R: ${rStr}). Focus on keeping knees aligned over feet.`;
+          detailSquatAsymmetrySummary.style.color = "#ff9f43"; // Amber
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 159, 67, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(255, 159, 67, 0.04)";
+        } else if (peakMaxCave >= 3.0) {
+          detailSquatAsymmetrySummary.textContent = `Knee Alignment Warning: Mild deviation from perpendicular detected (L: ${lStr}, R: ${rStr}). Focus on keeping knees tracking straight.`;
+          detailSquatAsymmetrySummary.style.color = "#ffb300"; // Yellow-Amber
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(255, 179, 0, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(255, 179, 0, 0.04)";
+        } else {
+          detailSquatAsymmetrySummary.textContent = `Excellent Knee Alignment: Both knees are perfectly perpendicular to the ankle baseline (L: ${lStr}, R: ${rStr}).`;
+          detailSquatAsymmetrySummary.style.color = "#10b981"; // Emerald
+          detailSquatAsymmetrySummary.style.borderColor = "rgba(16, 185, 129, 0.2)";
+          detailSquatAsymmetrySummary.style.background = "rgba(16, 185, 129, 0.04)";
+        }
       }
     }
 
     // 10. Populate Saved Videos & Interactive Playlist Manager
+    if (state.modalObjectUrls) {
+      state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    }
+    state.modalObjectUrls = [];
 
     const videosListEl = document.getElementById('profile-details-videos-list');
     const mainVideoPlayer = document.getElementById('profile-details-video-player');
@@ -7997,22 +7207,8 @@ export async function openProfileDetailsModal(profileId) {
               const freshProfile = await snapshotStore.getProfile(profileId);
               if (freshProfile && freshProfile.videos) {
                 freshProfile.videos = freshProfile.videos.filter(v => v.id !== video.id);
-                
-                // Clear any corresponding session-level squat video references
-                const freshProfileMigrated = ensureProfileSessions(freshProfile);
-                if (freshProfileMigrated.sessions && Array.isArray(freshProfileMigrated.sessions)) {
-                  freshProfileMigrated.sessions.forEach(s => {
-                    if (s.videoSquatL && s.videoSquatL.id === video.id) s.videoSquatL = null;
-                    if (s.videoSquatR && s.videoSquatR.id === video.id) s.videoSquatR = null;
-                    if (s.videoSquatFrontal && s.videoSquatFrontal.id === video.id) s.videoSquatFrontal = null;
-                  });
-                }
-                
-                await snapshotStore.saveProfile(freshProfileMigrated);
+                await snapshotStore.saveProfile(freshProfile);
                 state.allProfiles = await snapshotStore.getAllProfiles();
-                if (state.activeProfileId === profileId) {
-                  await loadProfileIntoState(profileId);
-                }
                 openProfileDetailsModal(profileId);
               }
             } catch (err) {

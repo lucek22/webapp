@@ -4144,7 +4144,6 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
 
       // Perform a full database sync of both the video assignments and the calculated joint peaks/valgus metrics
       await autoSyncToActiveProfile();
-
       if (state.activeProfileId === profile.id) {
         await loadProfileIntoState(profile.id);
       }
@@ -6346,6 +6345,13 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     
     if (state.imageSquatL !== null && state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;
     if (state.imageSquatR !== null && state.imageSquatR !== undefined) session.imageSquatR = state.imageSquatR;
+    if (state.imageSquatFrontal !== null && state.imageSquatFrontal !== undefined) session.imageSquatFrontal = state.imageSquatFrontal;
+    
+    if (state.videoSquatL !== null && state.videoSquatL !== undefined) session.videoSquatL = state.videoSquatL;
+    if (state.videoSquatR !== null && state.videoSquatR !== undefined) session.videoSquatR = state.videoSquatR;
+    if (state.videoSquatFrontal !== null && state.videoSquatFrontal !== undefined) session.videoSquatFrontal = state.videoSquatFrontal;
+    if (state.jointsOverhead !== null && state.jointsOverhead !== undefined) session.jointsOverhead = state.jointsOverhead;
+
     if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
       session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
     }
@@ -6369,6 +6375,13 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     
     if (state.imageSquatL !== null && state.imageSquatL !== undefined) profile.imageSquatL = state.imageSquatL;
     if (state.imageSquatR !== null && state.imageSquatR !== undefined) profile.imageSquatR = state.imageSquatR;
+    if (state.imageSquatFrontal !== null && state.imageSquatFrontal !== undefined) profile.imageSquatFrontal = state.imageSquatFrontal;
+    
+    if (state.videoSquatL !== null && state.videoSquatL !== undefined) profile.videoSquatL = state.videoSquatL;
+    if (state.videoSquatR !== null && state.videoSquatR !== undefined) profile.videoSquatR = state.videoSquatR;
+    if (state.videoSquatFrontal !== null && state.videoSquatFrontal !== undefined) profile.videoSquatFrontal = state.videoSquatFrontal;
+    if (state.jointsOverhead !== null && state.jointsOverhead !== undefined) profile.jointsOverhead = state.jointsOverhead;
+
     if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
       profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
     }
@@ -6405,7 +6418,6 @@ export async function openProfileDetailsModal(profileId) {
       uploadedVideo.pause();
     } catch (e) {}
   }
-
   if (state.modalObjectUrls) {
     state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
   }

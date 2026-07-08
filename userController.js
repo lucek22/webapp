@@ -257,7 +257,7 @@ function drawBone(p1, p2, color, ctx = canvasCtx) {
   ctx.stroke();
 }
 
-function drawSkeletalFramework(joints) {
+function drawSkeletalFramework(joints, ctx = canvasCtx) {
   if (!joints) return;
   const {
     shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
@@ -266,49 +266,49 @@ function drawSkeletalFramework(joints) {
   } = joints;
 
   // 1. Draw Bones
-  drawBone(shoulder_l, shoulder_r, '#FFFFFF'); 
-  drawBone(hip_l, hip_r, '#FFFFFF'); 
-  drawBone(shoulder_l, hip_l, '#FFFFFF'); 
-  drawBone(shoulder_r, hip_r, '#FFFFFF'); 
+  drawBone(shoulder_l, shoulder_r, '#FFFFFF', ctx); 
+  drawBone(hip_l, hip_r, '#FFFFFF', ctx); 
+  drawBone(shoulder_l, hip_l, '#FFFFFF', ctx); 
+  drawBone(shoulder_r, hip_r, '#FFFFFF', ctx); 
 
   // Left Arm & Leg
-  drawBone(shoulder_l, elbow_l, '#FFFFFF'); 
-  drawBone(elbow_l, wrist_l, '#FFFFFF'); 
-  drawBone(hip_l, knee_l, '#FFFFFF'); 
-  drawBone(knee_l, ankle_l, '#FFFFFF'); 
-  drawBone(ankle_l, heel_l, '#FFFFFF'); 
-  drawBone(heel_l, toe_l, '#FFFFFF'); 
+  drawBone(shoulder_l, elbow_l, '#FFFFFF', ctx); 
+  drawBone(elbow_l, wrist_l, '#FFFFFF', ctx); 
+  drawBone(hip_l, knee_l, '#FFFFFF', ctx); 
+  drawBone(knee_l, ankle_l, '#FFFFFF', ctx); 
+  drawBone(ankle_l, heel_l, '#FFFFFF', ctx); 
+  drawBone(heel_l, toe_l, '#FFFFFF', ctx); 
 
   // Right Arm & Leg
-  drawBone(shoulder_r, elbow_r, '#FFFFFF'); 
-  drawBone(elbow_r, wrist_r, '#FFFFFF'); 
-  drawBone(hip_r, knee_r, '#FFFFFF'); 
-  drawBone(knee_r, ankle_r, '#FFFFFF'); 
-  drawBone(ankle_r, heel_r, '#FFFFFF'); 
-  drawBone(heel_r, toe_r, '#FFFFFF'); 
+  drawBone(shoulder_r, elbow_r, '#FFFFFF', ctx); 
+  drawBone(elbow_r, wrist_r, '#FFFFFF', ctx); 
+  drawBone(hip_r, knee_r, '#FFFFFF', ctx); 
+  drawBone(knee_r, ankle_r, '#FFFFFF', ctx); 
+  drawBone(ankle_r, heel_r, '#FFFFFF', ctx); 
+  drawBone(heel_r, toe_r, '#FFFFFF', ctx); 
 
   // 2. Draw Joints (Always renders as vibrant glowing white with a dark border)
-  drawJoint(shoulder_l);
-  drawJoint(shoulder_r);
-  drawJoint(elbow_l);
-  drawJoint(elbow_r);
-  drawJoint(wrist_l);
-  drawJoint(wrist_r);
-  drawJoint(hip_l);
-  drawJoint(hip_r);
-  drawJoint(knee_l);
-  drawJoint(knee_r);
-  drawJoint(ankle_l);
-  drawJoint(ankle_r);
-  drawJoint(toe_l);
-  drawJoint(toe_r);
+  drawJoint(shoulder_l, '#ffffff', ctx);
+  drawJoint(shoulder_r, '#ffffff', ctx);
+  drawJoint(elbow_l, '#ffffff', ctx);
+  drawJoint(elbow_r, '#ffffff', ctx);
+  drawJoint(wrist_l, '#ffffff', ctx);
+  drawJoint(wrist_r, '#ffffff', ctx);
+  drawJoint(hip_l, '#ffffff', ctx);
+  drawJoint(hip_r, '#ffffff', ctx);
+  drawJoint(knee_l, '#ffffff', ctx);
+  drawJoint(knee_r, '#ffffff', ctx);
+  drawJoint(ankle_l, '#ffffff', ctx);
+  drawJoint(ankle_r, '#ffffff', ctx);
+  drawJoint(toe_l, '#ffffff', ctx);
+  drawJoint(toe_r, '#ffffff', ctx);
   
   if (head_top) {
-    drawJoint(head_top);
+    drawJoint(head_top, '#ffffff', ctx);
   }
 }
 
-export function drawFullSkeletalMesh(landmarks) {
+export function drawFullSkeletalMesh(landmarks, ctx = canvasCtx) {
   if (!landmarks || landmarks.length < 33) return;
 
   // 1. Draw thin, semi-transparent skeletal mesh connections
@@ -330,13 +330,13 @@ export function drawFullSkeletalMesh(landmarks) {
     if (!p) return;
 
     // Render glowing nodes
-    canvasCtx.beginPath();
-    canvasCtx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
-    canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
-    canvasCtx.fill();
-    canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
-    canvasCtx.lineWidth = 1.5;
-    canvasCtx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ffffff'; // Vibrant glowing white
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a'; // High contrast dark slate outline
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   });
 }
 
@@ -783,6 +783,72 @@ export function onPoseResults(results) {
   try {
     let calculated = null;
     state.latestPoseResults = results;
+
+    // Run core metrics calculation during frame-by-frame preprocessing (and other phases) to ensure peaks are fully analyzed
+    if (results && results.poseLandmarks) {
+      calculated = calculatePoseMetrics(results);
+      if (calculated) {
+        const kneeAngleL = calculated.kneeAngleL;
+        const kneeAngleR = calculated.kneeAngleR;
+        const hipAngleL = calculated.hipAngleL;
+        const hipAngleR = calculated.hipAngleR;
+        const ankleAngleL = calculated.ankleAngleL;
+        const ankleAngleR = calculated.ankleAngleR;
+
+        const kneeMobL = 180 - (kneeAngleL || 180);
+        const kneeMobR = 180 - (kneeAngleR || 180);
+        const hipMobL = 180 - (hipAngleL || 180);
+        const hipMobR = 180 - (hipAngleR || 180);
+        const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
+        const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
+
+        state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
+
+        if (state.squatTestingSide === 'left') {
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        } else if (state.squatTestingSide === 'right') {
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        } else if (state.squatTestingSide === 'frontal') {
+          if (state.allowFrontalUpdateL) {
+            state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+            state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+            state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          }
+          if (state.allowFrontalUpdateR) {
+            state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+            state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+            state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          }
+          
+          // Cache jointsOverhead directly from analyzed static frame results
+          state.jointsOverhead = JSON.parse(JSON.stringify(calculated));
+        }
+
+        // Track frontal Knee Valgus/Cave-In peaks during active squat movement (knee flexion >= 30 degrees)
+        if (state.squatTestingSide === 'frontal') {
+          const valgus = calculateValgusFromJoints(calculated);
+          const pctL = valgus.pctL;
+          const pctR = valgus.pctR;
+          if (kneeMobL >= 30 || kneeMobR >= 30) {
+            if (kneeMobL >= 30) {
+              state.squatPeaks.maxKneeCaveL = Math.max(state.squatPeaks.maxKneeCaveL || 0, pctL);
+            }
+            if (kneeMobR >= 30) {
+              state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, pctR);
+            }
+          }
+        }
+      }
+    }
+
+    // Early return during preprocessing to prevent drawing on the dashboard canvas
+    if (state.isExportingFrameByFrame) {
+      return;
+    }
 
     // Routing intercept: if we are processing a video inside the details modal, route to drawModalVideoPoseOverlay
     if (state.activeModalVideoProcessing) {
@@ -1744,11 +1810,8 @@ export function startUiRenderLoop() {
     if (state.activeStream && !videoElement.paused && !videoElement.ended) {
       shouldRender = true;
     } else if (state.isUploadedMedia) {
-      if (state.uploadedMediaType === 'video' && !uploadedVideo.paused && !uploadedVideo.ended) {
-        shouldRender = true;
-      } else if (state.uploadedMediaType === 'image') {
-        shouldRender = true;
-      }
+      // Keep tick active for uploaded media (video/image) to cleanly manage canvas clears on pause
+      shouldRender = true;
     }
 
     if (shouldRender) {
@@ -1778,6 +1841,11 @@ export function startUiRenderLoop() {
             state.latestHandResults = closestFrame.handResults;
             onPoseResults(mockedResults);
           }
+
+          // Update playout progress bar live!
+          const duration = uploadedVideo.duration || 1;
+          const playoutPercent = Math.min(100, (curTime / duration) * 100);
+          showExportProgressOverlay(playoutPercent, 2);
         } catch (err) {
           console.error("Error in playout render tick:", err);
           try {
@@ -2537,6 +2605,10 @@ export async function scanVideoForSquatPeaks(targetSide, durationSec) {
 }
 
 export async function handleUploadedFile(file) {
+  if (state.isExportingFrameByFrame || state.isRecordingPlayLoop) {
+    alert("An export is currently in progress. Please wait until the export completes before uploading new files.");
+    return;
+  }
   if (!file) return;
 
   const isVideo = file.type.startsWith('video/');
@@ -2668,7 +2740,7 @@ export async function handleUploadedFile(file) {
           statusElement.textContent = "📥 Preparing imported video for high-fidelity export and peak analysis...";
           
           // Ensure state.squatPeaks is initialized
-          state.squatPeaks = state.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+          state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
 
           // Configure state based on target to guide the pre-processing engine and layout templates
           if (importTarget === 'squat-l' || importTarget === 'squat-r' || importTarget === 'squat-frontal') {
@@ -2751,6 +2823,10 @@ export async function handleUploadedFile(file) {
       };
 
       uploadedVideo.src = objectURL;
+      uploadedVideo.onerror = (e) => {
+        console.error("[VideoImport] Video element encountered error loading source:", e);
+      };
+      uploadedVideo.load(); // Explicitly trigger HTML5 source reload!
       uploadedVideo.classList.remove('hidden');
       uploadedVideo.classList.add('video-visible');
       uploadedVideo.muted = true;
@@ -2958,7 +3034,7 @@ function openSnapshotModal(id) {
         if (modalImg) modalImg.src = snapshot.image;
 
         if (m) {
-          const peaks = m.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+          const peaks = getDefaultSquatPeaks(m.squatPeaks);
           setModalMetric('modal-squat-peak-knee-l', `${Math.round(peaks.kneeL)}°`);
           setModalMetric('modal-squat-peak-knee-r', `${Math.round(peaks.kneeR)}°`);
           setModalMetric('modal-squat-peak-hip-l', `${Math.round(peaks.hipL)}°`);
@@ -4080,6 +4156,13 @@ export function stopVideoRecording() {
   state.isExportingFrameByFrame = false;
   state.exportFramesData = [];
 
+  hideExportProgressOverlay();
+
+  // Clean standard canvas overlay instantly upon finishing export
+  if (canvasCtx) {
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  }
+
   // Restore original video looping and playback speed after export completes
   if (state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo) {
     if (state.wasLooping !== undefined) {
@@ -4087,6 +4170,9 @@ export function stopVideoRecording() {
     }
     if (state.wasPlaybackRate !== undefined) {
       uploadedVideo.playbackRate = state.wasPlaybackRate;
+    }
+    if (videoControlsBar) {
+      videoControlsBar.classList.remove('hidden');
     }
   }
 }
@@ -4166,6 +4252,9 @@ export function toggleVideoRecording() {
     if (state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo) {
       if (state.wasLooping !== undefined) uploadedVideo.loop = state.wasLooping;
       if (state.wasPlaybackRate !== undefined) uploadedVideo.playbackRate = state.wasPlaybackRate;
+      if (videoControlsBar) {
+        videoControlsBar.classList.remove('hidden');
+      }
     }
     updateRecordButtonUI();
     return;
@@ -4241,6 +4330,10 @@ export async function runVideoFramePreprocessing() {
   state.isExportingFrameByFrame = true;
   state.exportFramesData = [];
   updateRecordButtonUI();
+
+  if (videoControlsBar) {
+    videoControlsBar.classList.add('hidden');
+  }
 
   // Temporarily pause standard looping and background inference
   uploadedVideo.pause();
@@ -4334,7 +4427,6 @@ export async function runVideoFramePreprocessing() {
 
     // Pre-processing complete!
     if (state.isExportingFrameByFrame) {
-      hideExportProgressOverlay();
       statusElement.textContent = "✅ Pre-processing complete. Initializing zero-lag playout record...";
       state.isExportingFrameByFrame = false;
       updateRecordButtonUI();
@@ -4349,6 +4441,9 @@ export async function runVideoFramePreprocessing() {
     state.isExportingFrameByFrame = false;
     state.exportFramesData = [];
     updateRecordButtonUI();
+    if (videoControlsBar) {
+      videoControlsBar.classList.remove('hidden');
+    }
     
     // Fallback: start standard recording
     startVideoRecording();
@@ -4387,6 +4482,7 @@ export async function startRealTimePlaybackExport() {
   
   // Start canvas recording
   startVideoRecording();
+  showExportProgressOverlay(0, 2);
   
   // Play the video at standard 1.0x speed
   uploadedVideo.play();
@@ -4395,7 +4491,7 @@ export async function startRealTimePlaybackExport() {
   updateRecordButtonUI();
 }
 
-export function showExportProgressOverlay(percent) {
+export function showExportProgressOverlay(percent, phase = 1) {
   const viewport = document.querySelector('.viewport');
   if (!viewport) return;
 
@@ -4411,18 +4507,38 @@ export function showExportProgressOverlay(percent) {
             <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
           </svg>
         </div>
-        <div class="export-progress-title">Analyzing Athletic Motion</div>
-        <div class="export-progress-subtitle">Phase 1 of 2: High-Fidelity Pre-processing</div>
+        <div class="export-progress-title" id="export-progress-title">Analyzing Athletic Motion</div>
+        <div class="export-progress-subtitle" id="export-progress-subtitle">Phase 1 of 2: High-Fidelity Pre-processing</div>
         <div class="export-progress-bar-container">
           <div class="export-progress-bar-fill" id="export-progress-fill" style="width: 0%;"></div>
         </div>
         <div class="export-progress-text" id="export-progress-text">0% Completed</div>
-        <div class="export-progress-warning">
+        <div class="export-progress-warning" id="export-progress-warning">
           Biomechanical calculation is active. Once finished, Phase 2 will start recording
         </div>
       </div>
     `;
     viewport.appendChild(overlay);
+  }
+
+  const titleEl = document.getElementById('export-progress-title');
+  const subtitleEl = document.getElementById('export-progress-subtitle');
+  const warningEl = document.getElementById('export-progress-warning');
+
+  if (phase === 2) {
+    if (titleEl) titleEl.textContent = "Exporting Playout to Profile";
+    if (subtitleEl) {
+      subtitleEl.textContent = "Phase 2 of 2: Recording Playout";
+      subtitleEl.style.color = "#ec4899";
+    }
+    if (warningEl) warningEl.textContent = "🔴 Recording high-fidelity stream with biomechanical overlays... Please do not close or interact.";
+  } else {
+    if (titleEl) titleEl.textContent = "Analyzing Athletic Motion";
+    if (subtitleEl) {
+      subtitleEl.textContent = "Phase 1 of 2: High-Fidelity Pre-processing";
+      subtitleEl.style.color = "";
+    }
+    if (warningEl) warningEl.textContent = "Biomechanical calculation is active. Once finished, Phase 2 will start recording";
   }
 
   // Update percentages
@@ -5166,19 +5282,7 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
 }
 
 export function resetSquatPeaks() {
-  state.squatPeaks = {
-    kneeL: 0,
-    kneeR: 0,
-    hipL: 0,
-    hipR: 0,
-    ankleL: 0,
-    ankleR: 0,
-    maxKneeCaveL: 0,
-    maxKneeCaveR: 0,
-    valgusFirstTimestamp: null,
-    valgusPeakTimestamp: null,
-    valgusPeakScore: 0
-  };
+  state.squatPeaks = getDefaultSquatPeaks();
   state.jointsOverhead = null;
 
   if (state.activeProfileId) {
@@ -5196,6 +5300,26 @@ export function resetSquatPeaks() {
   if (state.latestPoseResults) {
     onPoseResults(state.latestPoseResults);
   }
+}
+
+export function getDefaultSquatPeaks(existing = null) {
+  const defaults = {
+    kneeL: 0,
+    kneeR: 0,
+    hipL: 0,
+    hipR: 0,
+    ankleL: 0,
+    ankleR: 0,
+    maxKneeCaveL: 0,
+    maxKneeCaveR: 0,
+    valgusFirstTimestamp: null,
+    valgusPeakTimestamp: null,
+    valgusPeakScore: 0
+  };
+  if (existing) {
+    return { ...defaults, ...existing };
+  }
+  return defaults;
 }
 
 export function updateDashboardOfflinePlaceholders() {
@@ -5659,6 +5783,12 @@ export async function initializeProfilesSelector() {
   }
 
   const handleProfileChange = async (selectedVal) => {
+    if (state.isExportingFrameByFrame || state.isRecordingPlayLoop) {
+      alert("An export is currently in progress. Please wait until the export completes before switching profiles.");
+      if (profileSelect) profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
+      if (calProfileSelect) calProfileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
+      return;
+    }
     if (selectedVal === 'new') {
       if (profileSelect) profileSelect.value = 'new';
       if (calProfileSelect) calProfileSelect.value = '';
@@ -5687,7 +5817,7 @@ export async function initializeProfilesSelector() {
       state.importedPortfolioMetrics = null;
       state.pixelsPerCm = null;
       state.calLocked = false;
-      state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+      state.squatPeaks = getDefaultSquatPeaks();
 
       updateDashboardOfflinePlaceholders();
 
@@ -5743,7 +5873,7 @@ export async function initializeProfilesSelector() {
         metricsA: null,
         metricsT: null,
         metricsOverhead: null,
-        squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+        squatPeaks: getDefaultSquatPeaks(),
         imageA: null,
         imageT: null,
         imageOverhead: null,
@@ -5799,7 +5929,7 @@ export async function initializeProfilesSelector() {
         state.importedPortfolioMetrics = null;
         state.pixelsPerCm = null;
         state.calLocked = false;
-        state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+        state.squatPeaks = getDefaultSquatPeaks();
         
         state.allProfiles = await snapshotStore.getAllProfiles();
         
@@ -5847,31 +5977,8 @@ export async function initializeProfilesSelector() {
 
   const mainVideoPlayer = document.getElementById('profile-details-video-player');
   if (mainVideoPlayer) {
-    mainVideoPlayer.addEventListener('play', () => {
-      // Disabling real-time computer vision overlays on modal video playback of saved annotated assets
-      state.activeModalVideoProcessing = true; // Still keep true to suspend background webcam/video loops
-      const canvas = document.getElementById('profile-details-video-canvas');
-      if (canvas) {
-        canvas.style.display = 'none'; // Keep hidden as the saved video already has overlays baked-in
-      }
-    });
-
-    mainVideoPlayer.addEventListener('pause', () => {
-      // Keep state.activeModalVideoProcessing = true so that background loops remain suspended
-    });
-
-    mainVideoPlayer.addEventListener('ended', () => {
-      // Keep state.activeModalVideoProcessing = true to maintain routing intercept
-    });
-
-    mainVideoPlayer.addEventListener('seeked', () => {
-      // Bypassed: we do not send saved annotated videos to real-time MediaPipe pose
-    });
-
-    // Also trigger pose send when video is loaded or changed so the first frame gets a skeleton immediately
-    mainVideoPlayer.addEventListener('loadeddata', () => {
-      // Bypassed: we do not send saved annotated videos to real-time MediaPipe pose
-    });
+    // Real-time inference on player profile videos is disabled because they already contain beautiful, high-performance burned-in overlays from export.
+    // This prevents redundant pose calculations, saves CPU/GPU resources, and avoids overlapping static dots or lag.
 
     // Custom fullscreen button toggle logic and double-click handlers
     const container = document.getElementById('profile-details-video-player-container');
@@ -6117,7 +6224,7 @@ export function ensureProfileSessions(profile) {
       metricsA: profile.metricsA || null,
       metricsT: profile.metricsT || null,
       metricsOverhead: profile.metricsOverhead || null,
-      squatPeaks: profile.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+      squatPeaks: getDefaultSquatPeaks(profile.squatPeaks),
       imageA: profile.imageA || null,
       imageT: profile.imageT || null,
       imageOverhead: profile.imageOverhead || null,
@@ -6165,7 +6272,7 @@ export async function loadProfileIntoState(profileId) {
     state.metricsA = activeSession.metricsA || null;
     state.metricsT = activeSession.metricsT || null;
     state.metricsOverhead = activeSession.metricsOverhead || null;
-    state.squatPeaks = activeSession.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+    state.squatPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
@@ -6277,7 +6384,7 @@ export async function loadProfileIntoState(profileId) {
               metricsA: null,
               metricsT: null,
               metricsOverhead: null,
-              squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+              squatPeaks: getDefaultSquatPeaks(),
               imageA: null,
               imageT: null,
               imageOverhead: null,
@@ -6409,7 +6516,7 @@ export function autoSyncToActiveProfileDebounced() {
 export async function openProfileDetailsModal(profileId) {
   if (!profileId) return;
 
-  state.activeModalVideoProcessing = true; // Set active flag on modal open to route results
+  state.activeModalVideoProcessing = false; // Set active flag on modal open to route results (disabled for performance)
 
   // Pause background video player if playing to prevent resource contention / overlapping frames
   const uploadedVideo = document.getElementById('uploaded-video');
@@ -6542,7 +6649,7 @@ export async function openProfileDetailsModal(profileId) {
           metricsA: null,
           metricsT: null,
           metricsOverhead: null,
-          squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
+          squatPeaks: getDefaultSquatPeaks(),
           imageA: null,
           imageT: null,
           imageOverhead: null,
@@ -6563,7 +6670,7 @@ export async function openProfileDetailsModal(profileId) {
         state.metricsA = null;
         state.metricsT = null;
         state.metricsOverhead = null;
-        state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+        state.squatPeaks = getDefaultSquatPeaks();
         state.imageA = null;
         state.imageT = null;
         state.imageOverhead = null;
@@ -7316,7 +7423,7 @@ export async function openProfileDetailsModal(profileId) {
 
             // Save squat peaks mobility records in session
             if (!freshActiveSession.squatPeaks) {
-              freshActiveSession.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+              freshActiveSession.squatPeaks = getDefaultSquatPeaks();
             }
             const squatInputs = document.querySelectorAll('.profile-squat-edit-input');
             squatInputs.forEach(input => {
@@ -7382,7 +7489,7 @@ export async function openProfileDetailsModal(profileId) {
     const dsqHip = document.getElementById('detail-squat-hip');
     const dsqAnkle = document.getElementById('detail-squat-ankle');
     
-    const sPeaks = activeSession.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+    const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
     // Safe Migration/Reset: Since the absolute maximum possible angular deviation from perpendicular is 90.0 degrees,
     // any legacy peak values > 90.0 are leftover centimeter/inch records and are automatically reset to 0.
     if (sPeaks.maxKneeCaveL > 90.0) sPeaks.maxKneeCaveL = 0;
@@ -7391,6 +7498,27 @@ export async function openProfileDetailsModal(profileId) {
     if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
+
+    const dsqDepth = document.getElementById('detail-squat-depth');
+    if (dsqDepth) {
+      const maxKneeMob = Math.max(sPeaks.kneeL || 0, sPeaks.kneeR || 0);
+      let depthStatus = "Standing Upright";
+      let statusClass = "text-slate";
+
+      if (maxKneeMob >= 110) {
+        depthStatus = "Deep Squat";
+        statusClass = "text-emerald";
+      } else if (maxKneeMob >= 75) {
+        depthStatus = "Parallel Squat";
+        statusClass = "text-red";
+      } else if (maxKneeMob >= 30) {
+        depthStatus = "Partial Squat";
+        statusClass = "text-amber";
+      }
+
+      dsqDepth.textContent = depthStatus;
+      dsqDepth.className = `squat-peak-detail-val ${statusClass}`;
+    }
 
     // Peak-level Knee Cave-In Summary rendering (handles both Static Snapshot and Frontal Video Timeline scans)
     const detailSquatAsymmetrySummary = document.getElementById('detail-squat-asymmetry-summary');
@@ -7870,116 +7998,82 @@ export function startModalVideoInferenceLoop() {
   modalVideoInferenceLoop();
 }
 
-export function drawModalVideoPoseOverlay(results) {
+export async function triggerSingleModalVideoInference() {
   const video = document.getElementById('profile-details-video-player');
-  const canvas = document.getElementById('profile-details-video-canvas');
-  if (!video || !canvas || !video.src || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
+  if (!video || !video.src || video.readyState < 2) return;
+  try {
+    await pose.send({ image: video });
+  } catch (err) {
+    console.warn("[ModalVideoSingleInference] MediaPipe parsing error:", err);
+  }
+}
 
-  // Ensure canvas is visible whenever we are actively processing and drawing modal video poses
-  if (canvas.style.display !== 'block') {
-    canvas.style.display = 'block';
+export function drawModalVideoPoseOverlay(results) {
+  const canvas = document.getElementById('profile-details-video-canvas');
+  if (!canvas) return;
+
+  const video = document.getElementById('profile-details-video-player');
+  if (!video) return;
+
+  // Clear if no landmarks
+  if (!results || !results.poseLandmarks) {
+    canvas.style.display = 'none';
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
   }
 
+  // Ensure canvas dimensions match the display style of the video element
+  if (canvas.width !== video.clientWidth || canvas.height !== video.clientHeight) {
+    canvas.width = video.clientWidth;
+    canvas.height = video.clientHeight;
+  }
+
+  canvas.style.display = 'block';
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // Sync canvas size to natural video dimensions
-  if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-  }
-
-  // Clear previous frame completely
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Temporary state overrides for scale-invariant pose metric calculation
+  // Temporarily set canvasWidth/Height so calculatePoseMetrics handles correct scale factor
   const oldWidth = state.canvasWidth;
   const oldHeight = state.canvasHeight;
-  const oldIsUploaded = state.isUploadedMedia;
-
-  state.canvasWidth = video.videoWidth;
-  state.canvasHeight = video.videoHeight;
-  state.isUploadedMedia = true; // Avoid horizontal mirroring on saved modal playlist videos
+  state.canvasWidth = video.clientWidth || 640;
+  state.canvasHeight = video.clientHeight || 480;
 
   const calculated = calculatePoseMetrics(results);
 
-  // Restore state parameters immediately
+  // Restore immediately
   state.canvasWidth = oldWidth;
   state.canvasHeight = oldHeight;
-  state.isUploadedMedia = oldIsUploaded;
 
-  if (!calculated) return;
+  if (calculated) {
+    // Draw standard skeletal mesh elements
+    drawFullSkeletalMesh(calculated.all_landmarks, ctx);
 
-  const {
-    shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
-    shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
-    kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
-    ankleAngleL, ankleAngleR
-  } = calculated;
+    // Draw skeletal bones and joint points
+    drawSkeletalFramework(calculated, ctx);
 
-  // Draw full skeletal mesh
-  drawFullSkeletalMesh(calculated.all_landmarks, ctx);
+    // Draw Angle Badges
+    drawAngleBadge(ctx, calculated.knee_l, calculated.kneeAngleL, '#10b981');
+    drawAngleBadge(ctx, calculated.hip_l, calculated.hipAngleL, '#d4a017');
+    drawAngleBadge(ctx, calculated.ankle_l, calculated.ankleAngleL, '#06b6d4');
 
-  // Draw skeletal bones
-  drawBone(shoulder_l, shoulder_r, '#d4a017', ctx); 
-  drawBone(hip_l, hip_r, '#d4a017', ctx); 
-  drawBone(shoulder_l, hip_l, '#38bdf8', ctx); 
-  drawBone(shoulder_r, hip_r, '#38bdf8', ctx); 
+    drawAngleBadge(ctx, calculated.knee_r, calculated.kneeAngleR, '#10b981');
+    drawAngleBadge(ctx, calculated.hip_r, calculated.hipAngleR, '#d4a017');
+    drawAngleBadge(ctx, calculated.ankle_r, calculated.ankleAngleR, '#06b6d4');
 
-  // Left Arm & Leg
-  drawBone(shoulder_l, elbow_l, '#ec4899', ctx); 
-  drawBone(elbow_l, wrist_l, '#f43f5e', ctx); 
-  drawBone(hip_l, knee_l, '#d4a017', ctx); 
-  drawBone(knee_l, ankle_l, '#06b6d4', ctx); 
-  drawBone(ankle_l, heel_l, '#10b981', ctx); 
-  drawBone(heel_l, toe_l, '#10b981', ctx); 
-
-  // Right Arm & Leg
-  drawBone(shoulder_r, elbow_r, '#ec4899', ctx); 
-  drawBone(elbow_r, wrist_r, '#f43f5e', ctx); 
-  drawBone(hip_r, knee_r, '#d4a017', ctx); 
-  drawBone(knee_r, ankle_r, '#06b6d4', ctx); 
-  drawBone(ankle_r, heel_r, '#10b981', ctx); 
-  drawBone(heel_r, toe_r, '#10b981', ctx); 
-
-  // Joint Nodes
-  drawJoint(shoulder_l, '#d4a017', ctx);
-  drawJoint(shoulder_r, '#d4a017', ctx);
-  drawJoint(elbow_l, '#d946ef', ctx);
-  drawJoint(elbow_r, '#d946ef', ctx);
-  drawJoint(wrist_l, '#f43f5e', ctx);
-  drawJoint(wrist_r, '#f43f5e', ctx);
-  drawJoint(hip_l, '#d4a017', ctx);
-  drawJoint(hip_r, '#d4a017', ctx);
-  drawJoint(knee_l, '#10b981', ctx);
-  drawJoint(knee_r, '#10b981', ctx);
-  drawJoint(ankle_l, '#06b6d4', ctx);
-  drawJoint(ankle_r, '#06b6d4', ctx);
-  drawJoint(toe_l, '#10b981', ctx);
-  drawJoint(toe_r, '#10b981', ctx);
-
-  // Digital Floating Badges
-  drawAngleBadge(ctx, knee_l, kneeAngleL, '#10b981');
-  drawAngleBadge(ctx, hip_l, hipAngleL, '#d4a017');
-  drawAngleBadge(ctx, ankle_l, ankleAngleL, '#06b6d4');
-
-  drawAngleBadge(ctx, knee_r, kneeAngleR, '#10b981');
-  drawAngleBadge(ctx, hip_r, hipAngleR, '#d4a017');
-  drawAngleBadge(ctx, ankle_r, ankleAngleR, '#06b6d4');
-
-  // Knee Valgus check and warning
-  const valgus = calculateValgusFromJoints(calculated);
-  const kneeMobL = 180 - (kneeAngleL || 180);
-  const kneeMobR = 180 - (kneeAngleR || 180);
-  if (kneeMobL >= 15 && valgus.pctL > 4.0) {
-    drawValgusBadge(ctx, knee_l, valgus.pctL);
+    // Frontal Knee Valgus Badges
+    const valgus = calculateValgusFromJoints(calculated);
+    const kneeMobL = 180 - (calculated.kneeAngleL || 180);
+    const kneeMobR = 180 - (calculated.kneeAngleR || 180);
+    if (kneeMobL >= 15 && valgus.pctL > 4.0) {
+      drawValgusBadge(ctx, calculated.knee_l, valgus.pctL);
+    }
+    if (kneeMobR >= 15 && valgus.pctR > 4.0) {
+      drawValgusBadge(ctx, calculated.knee_r, valgus.pctR);
+    }
   }
-  if (kneeMobR >= 15 && valgus.pctR > 4.0) {
-    drawValgusBadge(ctx, knee_r, valgus.pctR);
-  }
-
-  // Live Stats HUD Card
-  drawLiveStatsCard(ctx, calculated);
 }
 
 // =====================================================================

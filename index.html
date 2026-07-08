@@ -798,38 +798,29 @@
 
   <!-- Persistent Profile Details Modal -->
   <div id="profile-details-modal" class="modal">
-    <div class="modal-container" style="max-width: 950px; height: auto; max-height: 90vh; display: flex; flex-direction: column;">
-      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-        <div class="session-controls-wrap" style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto; margin-right: 0.5rem; height: 32px;">
-          <label for="profile-detail-user-select" style="font-size: 0.8rem; color: #aaa; font-weight: 500; height: 100%; display: flex; align-items: center; margin: 0;">User:</label>
-          <select id="profile-detail-user-select" style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s; min-width: 150px; height: 100%;">
-            <!-- Options populated dynamically -->
-          </select>
-          <label for="profile-detail-session-select" style="font-size: 0.8rem; color: #aaa; font-weight: 500; height: 100%; display: flex; align-items: center; margin: 0; margin-left: 0.5rem;">Session:</label>
-          <select id="profile-detail-session-select" style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; cursor: pointer; outline: none; transition: border-color 0.2s; min-width: 150px; height: 100%;">
-            <!-- Options populated dynamically -->
-          </select>
-          <button id="btn-profile-new-session" class="btn" style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); color: var(--color-cyan); padding: 0 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s; margin: 0; width: auto; height: 100%;">
     <div class="modal-container profile-modal-container">
-      <div class="modal-header">
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
         <div class="modal-title-wrap">
-          <h2 class="modal-title" id="profile-details-title">Subject Profile Summary</h2>
-          <span class="modal-date" id="profile-detail-last-session">Last Session: --</span>
+          <h2 class="modal-title" id="profile-details-title" style="margin: 0;">Subject Profile Summary</h2>
         </div>
-        <div class="session-controls-wrap">
-          <label for="profile-detail-session-select" class="profile-detail-session-label">Session:</label>
-          <select id="profile-detail-session-select" class="profile-detail-session-select">
+        <div class="session-controls-wrap" style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto; height: 32px;">
+          <label for="profile-detail-user-select" class="profile-detail-session-label">User:</label>
+          <select id="profile-detail-user-select" class="profile-detail-session-select" style="min-width: 130px; height: 100%;">
             <!-- Options populated dynamically -->
           </select>
-          <button id="btn-profile-new-session" class="btn btn-profile-new-session">
+          <label for="profile-detail-session-select" class="profile-detail-session-label" style="margin-left: 0.5rem;">Session:</label>
+          <select id="profile-detail-session-select" class="profile-detail-session-select" style="min-width: 130px; height: 100%;">
+            <!-- Options populated dynamically -->
+          </select>
+          <button id="btn-profile-new-session" class="btn btn-profile-new-session" style="height: 100%; margin: 0; padding: 0 10px; display: flex; align-items: center;">
             ➕ New Session
           </button>
-          <div class="unit-switcher" style="display: flex; gap: 2px; align-items: center; min-width: 120px; max-width: 150px; margin-left: 0.5rem; height: 100%; padding: 2px;">
+          <div class="unit-switcher" style="display: flex; gap: 2px; align-items: center; min-width: 110px; max-width: 140px; margin-left: 0.5rem; height: 100%; padding: 2px;">
             <button id="modal-unit-inch-btn" class="unit-btn active" style="height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 8px; font-size: 0.75rem; border-radius: 14px;">Inches</button>
             <button id="modal-unit-cm-btn" class="unit-btn" style="height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 8px; font-size: 0.75rem; border-radius: 14px;">cm</button>
           </div>
         </div>
-        <button id="btn-close-profile-details" class="modal-close modal-close-btn">&times;</button>
+        <button id="btn-close-profile-details" class="modal-close modal-close-btn" style="font-size: 1.75rem; margin-left: 0.5rem; line-height: 1;">&times;</button>
       </div>
       <div class="modal-body profile-details-grid">
         
@@ -1102,6 +1093,10 @@
             <div class="squat-peak-detail-box">
               <span class="squat-peak-detail-lbl">Ankle Dorsi (L/R)</span>
               <span class="squat-peak-detail-val" id="detail-squat-ankle">0° / 0°</span>
+            </div>
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Overall Squat Depth</span>
+              <span class="squat-peak-detail-val" id="detail-squat-depth">--</span>
             </div>
           </div>
           <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">

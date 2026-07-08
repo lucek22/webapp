@@ -26,35 +26,32 @@ import {
   FINGER_COLORS
 } from './helpers.js';
 
-// MediaPipe Pose Setup
-export const pose = new Pose({
+// MediaPipe Holistic Setup (exported as pose for backward compatibility and minimal churn)
+export const pose = new Holistic({
   locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
   }
 });
 
-// Configure Pose options (with built-in neural segmentation mask for background isolation)
+// Configure Holistic options (combines pose and hands tracking in a single optimized pass)
 pose.setOptions({
   modelComplexity: 1,
   smoothLandmarks: true,
   enableSegmentation: true,
+  refineFaceLandmarks: false,
   minDetectionConfidence: 0.5,
   minTrackingConfidence: 0.5
 });
 
-// MediaPipe Hands Setup
-export const hands = new Hands({
-  locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+// Dummy hands object with no-op send function to prevent errors from sequential send loops
+export const hands = {
+  send: async () => {
+    // No-op: Holistic processes both hands and pose in a single unified execution!
+  },
+  onResults: () => {
+    // No-op: Callback registration is handled by our unified holistic listener
   }
-});
-
-hands.setOptions({
-  maxNumHands: 2,
-  modelComplexity: 1,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
-});
+};
 
 // Callbacks registered dynamically
 let onPoseResults = null;
@@ -65,13 +62,29 @@ export function setupMediaPipeCallbacks(onPoseResultsCb, drawHandMeshCb) {
   drawHandMesh = drawHandMeshCb;
 }
 
-// Register model callbacks
-hands.onResults((results) => {
-  state.latestHandResults = results;
-  updateHandTracking(results);
-});
-
+// Register unified holistic results callback
 pose.onResults((results) => {
+  // Map holistic hand landmarks to the structure expected by updateHandTracking/drawHandMesh
+  const multiHandLandmarks = [];
+  const multiHandedness = [];
+
+  if (results.leftHandLandmarks) {
+    multiHandLandmarks.push(results.leftHandLandmarks);
+    multiHandedness.push({ label: 'Left', score: 0.99 });
+  }
+  if (results.rightHandLandmarks) {
+    multiHandLandmarks.push(results.rightHandLandmarks);
+    multiHandedness.push({ label: 'Right', score: 0.99 });
+  }
+
+  const handResults = {
+    multiHandLandmarks,
+    multiHandedness
+  };
+
+  state.latestHandResults = handResults;
+  updateHandTracking(handResults);
+
   if (onPoseResults) {
     onPoseResults(results);
   }
@@ -177,7 +190,7 @@ export function calculatePoseMetrics(results) {
   const ground_y = (foot_l_bottom + foot_r_bottom) / 2;
 
   let liveMetrics = null;
-  const wl = results.poseWorldLandmarks;
+  const wl = results.poseWorldLandmarks || results.ea || results.za || results.pose_world_landmarks;
 
   // Auto-calibrate state.pixelsPerCm using pre-measured portfolio stature if present
   if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {
@@ -298,16 +311,15 @@ export function calculatePoseMetrics(results) {
     // as MediaPipe Pose only tracks up to the index finger knuckle/tip.
     const hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
     const hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
-    // Note: We apply an anatomical correction factor of 1.11x to compensate for MediaPipe's systemic 
-    // monocular depth compression/smoothing of outstretched limbs and neutral shoulder joint center-of-rotation placement.
-    const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl) * 1.11;
+    // Note: We no longer apply the 1.11x correction factor, as 3D world landmarks have proved accurate enough without it.
+    const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl);
 
     // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
     const wingspan_straight_wl = Math.hypot(
       wl_left_index.x - wl_right_index.x,
       wl_left_index.y - wl_right_index.y,
       wl_left_index.z - wl_right_index.z
-    ) * 100 * 1.42 * 1.11;
+    ) * 100 * 1.42;
 
     // Skeletal (posture-independent) stature calculation in 3D
     const head_segment_wl = Math.hypot(wl_head_top.x - wl_shoulder_mid.x, wl_head_top.y - wl_shoulder_mid.y, wl_head_top.z - wl_shoulder_mid.z) * 100;
@@ -345,7 +357,7 @@ export function calculatePoseMetrics(results) {
         scaleFactor3D = smooth('scale_factor_3d_height', rawScale3D, 8, 0.25);
         state.scaleFactor3D = scaleFactor3D;
       }
-    } else if (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'card') {
+    } else if (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation' || state.activeCalMethod === 'card') {
       if (state.pixelsPerCm) {
         // Only update the 3D scale factor when calibration is active/unlocked.
         // In ArUco mode, only update when the marker is actively detected in the current frame.
@@ -353,6 +365,8 @@ export function calculatePoseMetrics(results) {
         let shouldUpdate3DScale = false;
         if (state.activeCalMethod === 'aruco') {
           shouldUpdate3DScale = !!state.latestArucoMarker;
+        } else if (state.activeCalMethod === 'validation') {
+          shouldUpdate3DScale = true; // Always allow calculation if person is tracked to show live height validation
         } else if (state.activeCalMethod === 'card') {
           shouldUpdate3DScale = !state.calLocked || !state.scaleFactor3D;
         }

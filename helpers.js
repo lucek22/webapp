@@ -75,127 +75,54 @@ export class SnapshotStore {
     });
   }
 
-  save(snapshot) {
+  _dbRequest(storeName, mode, operation, ...args) {
     return new Promise((resolve, reject) => {
       if (!this.db) {
         reject(new Error("Database not initialized"));
         return;
       }
-      const transaction = this.db.transaction(["snapshots"], "readwrite");
-      const store = transaction.objectStore("snapshots");
-      const request = store.add(snapshot);
+      const transaction = this.db.transaction([storeName], mode);
+      const store = transaction.objectStore(storeName);
+      const request = store[operation](...args);
 
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e.target.error);
     });
+  }
+
+  save(snapshot) {
+    return this._dbRequest("snapshots", "readwrite", "add", snapshot);
   }
 
   getAll() {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["snapshots"], "readonly");
-      const store = transaction.objectStore("snapshots");
-      const request = store.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("snapshots", "readonly", "getAll");
   }
 
   get(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["snapshots"], "readonly");
-      const store = transaction.objectStore("snapshots");
-      const request = store.get(Number(id));
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("snapshots", "readonly", "get", Number(id));
   }
 
   delete(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["snapshots"], "readwrite");
-      const store = transaction.objectStore("snapshots");
-      const request = store.delete(Number(id));
-
-      request.onsuccess = () => resolve();
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("snapshots", "readwrite", "delete", Number(id));
   }
 
   // ==========================================
   // PROFILE PERSISTENCE OPERATIONS
   // ==========================================
   saveProfile(profile) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readwrite");
-      const store = transaction.objectStore("profiles");
-      const request = store.put(profile); // put handles both insert and update
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readwrite", "put", profile);
   }
 
   getProfile(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readonly");
-      const store = transaction.objectStore("profiles");
-      const request = store.get(Number(id));
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readonly", "get", Number(id));
   }
 
   getAllProfiles() {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readonly");
-      const store = transaction.objectStore("profiles");
-      const request = store.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readonly", "getAll");
   }
 
   deleteProfile(id) {
-    return new Promise((resolve, reject) => {
-      if (!this.db) {
-        reject(new Error("Database not initialized"));
-        return;
-      }
-      const transaction = this.db.transaction(["profiles"], "readwrite");
-      const store = transaction.objectStore("profiles");
-      const request = store.delete(Number(id));
-
-      request.onsuccess = () => resolve();
-      request.onerror = (e) => reject(e.target.error);
-    });
+    return this._dbRequest("profiles", "readwrite", "delete", Number(id));
   }
 }
 
@@ -231,11 +158,11 @@ export const POSE_CONNECTIONS = [
 ];
 
 export const FINGER_COLORS = {
-  thumb: '#ec4899',   // Pink
-  index: '#06b6d4',   // Cyan
-  middle: '#d4a017',  // Warm Gold
-  ring: '#10b981',    // Emerald
-  pinky: '#f59e0b'    // Amber
+  thumb: '#FFFFFF',  
+  index: '#FFFFFF',   
+  middle: '#FFFFFF',  
+  ring: '#FFFFFF',    
+  pinky: '#FFFFFF'    
 };
 
 // Joint indices mapping
@@ -288,13 +215,11 @@ export const state = {
   useInches: true,
   currentFacingMode: "user",
   wallPerspectiveEnabled: false,
-  wallPerspectiveFactor: 1.09, // Increases px/cm scale, decreasing calculated height to correct for being closer to the camera when standing beside wall-mounted ArUco
   calBoxSize: 150,
   calBoxX: 320,
   calBoxY: 240,
   lastVerticalHeightPx: 0,
   lastSkeletalHeightPx: 0,
-  latestArucoMarker: null,
   latestHandResults: null,
   frozenHandResults: null,
   countdownValue: 0,
@@ -310,7 +235,7 @@ export const state = {
   latestLeftMiddleTip: null,
   latestRightMiddleTip: null,
   activeStream: null,
-  activeCalMethod: 'aruco',
+  activeCalMethod: 'height',
   inputHeightCm: 175.006,
   validationHeightCm: 175.006,
   dbInitialized: false,
@@ -508,16 +433,3 @@ export function triggerFlashEffect() {
   }, 30);
 }
 
-export function drawRoundedRect(ctx, x, y, width, height, radius) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}

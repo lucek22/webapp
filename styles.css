@@ -2642,10 +2642,61 @@ div[style*="color: #10b981"] {
   width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
+  .profile-modal-container {
+    width: 95% !important;
+    max-height: 95vh !important;
+    height: 95vh !important;
+  }
+
+  .profile-modal-container .modal-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    position: relative !important;
+    padding-right: 2.5rem !important;
+  }
+
+  .profile-modal-container .modal-close-btn {
+    position: absolute !important;
+    top: 0.85rem !important;
+    right: 1rem !important;
+    font-size: 1.8rem !important;
+  }
+
+  .profile-modal-container .modal-title-wrap {
+    width: 100% !important;
+  }
+
+  .profile-modal-container .session-controls-wrap {
+    width: 100% !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    justify-content: flex-start !important;
+  }
+
+  .profile-modal-container .profile-detail-session-label {
+    display: none !important; /* Hide label to save space on very small screens */
+  }
+
+  .profile-modal-container .profile-detail-session-select {
+    flex: 1 !important;
+    min-width: 120px !important;
+    max-width: 100% !important;
+  }
+
+  .profile-modal-container .btn-profile-new-session {
+    width: auto !important;
+    flex-shrink: 0 !important;
+  }
+
   .profile-details-grid {
-    grid-template-columns: 1fr !important;
-    gap: 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    padding: 1rem !important;
   }
 }
 

@@ -19,7 +19,6 @@ import {
   getDomMeasurementCm
 } from './helpers.js';
 
-import { detectArucoMarker } from './arucoDetector.js';
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
 import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
 
@@ -192,21 +191,12 @@ const btnSquatSideRight = document.getElementById('btn-squat-side-right');
 
 
 // UI Calibration Toggles & Panels
-const tabArucoBtn = document.getElementById('tab-aruco-btn');
 const tabHeightBtn = document.getElementById('tab-height-btn');
 const tabPortfolioBtn = document.getElementById('tab-portfolio-btn');
-const tabValidationBtn = document.getElementById('tab-validation-btn');
 
-const panelAruco = document.getElementById('panel-aruco');
 const panelCard = document.getElementById('panel-card');
 const panelHeight = document.getElementById('panel-height');
 const panelPortfolio = document.getElementById('panel-portfolio');
-const panelValidation = document.getElementById('panel-validation');
-const arucoStatusText = document.getElementById('aruco-status-text');
-const validationStatusText = document.getElementById('validation-status-text');
-const validationFeedbackBox = document.getElementById('validation-feedback-box');
-const validationHeightLabel = document.getElementById('validation-height-label');
-const inputValidationHeight = document.getElementById('input-validation-height');
 
 const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
 const btnApplyScale = document.getElementById('btn-apply-scale');
@@ -853,49 +843,6 @@ export function onPoseResults(results) {
     canvasCtx.restore();
   }
 
-  if (state.latestArucoMarker && (state.activeCalMethod === 'aruco' || state.activeCalMethod === 'validation')) {
-    const width = state.canvasWidth || 640;
-    const corners = state.latestArucoMarker.corners.map(c => ({
-      x: (!state.isUploadedMedia && state.currentFacingMode === "user") ? width - c.x : c.x,
-      y: c.y
-    }));
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(corners[0].x, corners[0].y);
-    canvasCtx.lineTo(corners[1].x, corners[1].y);
-    canvasCtx.lineTo(corners[2].x, corners[2].y);
-    canvasCtx.lineTo(corners[3].x, corners[3].y);
-    canvasCtx.closePath();
-    canvasCtx.strokeStyle = '#10b981';
-    canvasCtx.lineWidth = 3.5;
-    canvasCtx.stroke();
-
-    canvasCtx.fillStyle = 'rgba(16, 185, 129, 0.15)';
-    canvasCtx.fill();
-
-    canvasCtx.fillStyle = '#10b981';
-    canvasCtx.font = 'bold 11px sans-serif';
-    canvasCtx.fillText(`ARUCO ID 0 DETECTED (${formatLength(20.0)})`, corners[0].x, corners[0].y - 8);
-  }
-
-  // 1. Draw Direct Card Calibration Guide Box (only if state.activeCalMethod is 'card')
-  if (state.activeCalMethod === 'card') {
-    const x1 = state.calBoxX - state.calBoxSize / 2;
-    const y1 = state.calBoxY - state.calBoxSize / 2;
-    
-    canvasCtx.beginPath();
-    canvasCtx.rect(x1, y1, state.calBoxSize, state.calBoxSize);
-    canvasCtx.strokeStyle = state.calLocked ? '#10b981' : '#ec4899'; 
-    canvasCtx.lineWidth = 3;
-    if (!state.calLocked) canvasCtx.setLineDash([6, 4]);
-    canvasCtx.stroke();
-    canvasCtx.setLineDash([]); 
-
-    // Calibration box label
-    canvasCtx.fillStyle = state.calLocked ? '#10b981' : '#ec4899';
-    canvasCtx.font = 'bold 11px sans-serif';
-    canvasCtx.fillText(state.calLocked ? "SCARLET CALIBRATION LOCKED" : "ALIGN PRINTED 200mm SQUARE IN BOX", x1 + 5, y1 - 8);
-  }
-
   // 2. Perform Biomechanical mathematical updates
   let hasValidPerson = false;
   if (results.poseLandmarks) {
@@ -1280,51 +1227,6 @@ export function onPoseResults(results) {
     canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
   }
 
-  // --- REAL-TIME CALIBRATION / VALIDATION CHECK ---
-  if (state.activeCalMethod === 'validation') {
-    const feedbackBox = document.getElementById('validation-feedback-box');
-    const statusText = document.getElementById('validation-status-text');
-    if (feedbackBox && statusText) {
-      if (!state.pixelsPerCm) {
-        statusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
-        feedbackBox.classList.add('hidden');
-      } else {
-        statusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-        
-        feedbackBox.classList.remove('hidden', 'feedback-info', 'feedback-success', 'feedback-error');
-        if (!calculated || !calculated.liveMetrics) {
-          feedbackBox.classList.add('feedback-info');
-          feedbackBox.innerHTML = `👤 Please stand in view of the camera to perform real-time verification...`;
-        } else {
-          const liveHeight = calculated.liveMetrics.skeletal_height;
-          const targetHeight = state.validationHeightCm;
-          const diffCm = Math.abs(liveHeight - targetHeight);
-          
-          const calculatedStr = formatSkeletalHeight(liveHeight);
-          const trueStr = formatSkeletalHeight(targetHeight);
-          const diffStr = state.useInches ? `${(diffCm / 2.54).toFixed(1)} in` : `${diffCm.toFixed(1)} cm`;
-          
-          if (diffCm <= 1.0) {
-            feedbackBox.classList.add('feedback-success');
-            feedbackBox.innerHTML = `
-              <div class="feedback-title">✅ SUCCESS: Calibrated & Positioned Properly!</div>
-              <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div class="feedback-subtitle">Discrepancy: ${diffStr} (Within 1.0 cm limit)</div>
-            `;
-          } else {
-            feedbackBox.classList.add('feedback-error');
-            feedbackBox.innerHTML = `
-              <div class="feedback-title">⚠️ POSITION CHECK: Discrepancy Found</div>
-              <div>Calculated: <strong>${calculatedStr}</strong> | True: <strong>${trueStr}</strong></div>
-              <div class="feedback-subtitle">Discrepancy: <strong class="text-red">${diffStr}</strong> (Max allowed: 1.0 cm)</div>
-              <div class="feedback-subtitle feedback-instruction">Please adjust your ArUco marker position or camera alignment.</div>
-            `;
-          }
-        }
-      }
-    }
-  }
-
   canvasCtx.restore();
   } catch (err) {
     console.error("Error inside onPoseResults:", err);
@@ -1429,12 +1331,6 @@ export function cancelAutoSequence() {
   state.currentGroupId = null;
   state.frozenAutoJoints = null;
   state.frozenAutoMetrics = null;
-  state.metricsA = null;
-  state.metricsT = null;
-  state.metricsOverhead = null;
-  state.imageA = null;
-  state.imageT = null;
-  state.imageOverhead = null;
   
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
@@ -1888,56 +1784,11 @@ export async function startCamera() {
 
       const startTime = Date.now();
       try {
-        if (!state.isSnapshotFrozen) {
-          if (state.currentMode === 'squat') {
-            state.latestArucoMarker = null;
-            if (arucoStatusText) {
-              arucoStatusText.innerHTML = `<span style="color: #BA0C2F; font-weight: 700;">Active Squat Analyzer Mode (Calibration Bypassed)</span>`;
-            }
-          } else if ((state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) && state.activeCalMethod !== 'aruco' && state.activeCalMethod !== 'validation') {
-            state.latestArucoMarker = null;
-            if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-              arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
-            }
-          } else if (typeof detectArucoMarker === 'function') {
-            const found = detectArucoMarker(videoElement);
-            state.latestArucoMarker = found;
-
-            if (found) {
-              const corners = found.corners;
-              const d01 = Math.hypot(corners[0].x - corners[1].x, corners[0].y - corners[1].y);
-              const d12 = Math.hypot(corners[1].x - corners[2].x, corners[1].y - corners[2].y);
-              const d23 = Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y);
-              const d30 = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
-              const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
-
-              const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM);
-              if (state.wallPerspectiveEnabled) {
-                state.pixelsPerCm = smoothedScale * state.wallPerspectiveFactor;
-              } else {
-                state.pixelsPerCm = smoothedScale;
-              }
-              state.calLocked = true;
-
-              if (state.activeCalMethod === 'aruco') {
-                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-              }
-            } else {
-              if (state.activeCalMethod === 'aruco') {
-                if (state.pixelsPerCm) {
-                  arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-                } else {
-                  arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
-                }
-              }
-            }
-          }
-
           // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
           await pose.send({ image: videoElement });
           await hands.send({ image: videoElement });
         }
-      } catch (err) {
+      catch (err) {
         console.error("Camera inference loop error:", err);
       }
 
@@ -1951,8 +1802,6 @@ export async function startCamera() {
       if (state.currentMode === 'squat') {
         const side = state.squatTestingSide || 'left';
         statusElement.textContent = `Active squat tracking. Position subject profile view for the ${side.toUpperCase()} side.`;
-      } else {
-        statusElement.textContent = "Active tracking. Present your printed ArUco marker to calibrate scale!";
       }
       startUiRenderLoop();
       cameraInferenceLoop();
@@ -2196,56 +2045,6 @@ export function startUploadedMediaLoop() {
     const startTime = Date.now();
     try {
       if (!state.isSnapshotFrozen) {
-        if (state.currentMode === 'squat') {
-          state.latestArucoMarker = null;
-          if (arucoStatusText) {
-            arucoStatusText.innerHTML = `<span style="color: #BA0C2F; font-weight: 700;">Active Squat Analyzer Mode</span>`;
-          }
-        } else if ((state.importedPortfolioMetrics || (state.activeProfileId && state.pixelsPerCm)) && state.activeCalMethod !== 'aruco' && state.activeCalMethod !== 'validation') {
-          state.latestArucoMarker = null;
-          if (state.activeCalMethod === 'aruco' && arucoStatusText && state.pixelsPerCm) {
-            arucoStatusText.innerHTML = `✅ Calibrated via Profile (<strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>)`;
-          }
-        } else if (typeof detectArucoMarker === 'function') {
-          const found = detectArucoMarker(uploadedVideo);
-          state.latestArucoMarker = found;
-
-          if (found) {
-            const corners = found.corners;
-            const d01 = Math.hypot(corners[0].x - corners[1].x, corners[0].y - corners[1].y);
-            const d12 = Math.hypot(corners[1].x - corners[2].x, corners[1].y - corners[2].y);
-            const d23 = Math.hypot(corners[2].x - corners[3].x, corners[2].y - corners[3].y);
-            const d30 = Math.hypot(corners[3].x - corners[0].x, corners[3].y - corners[0].y);
-            const edgeLengthPx = (d01 + d12 + d23 + d30) / 4;
-
-            // Safeguard: Ignore noise / false detections with extremely small edge lengths
-            if (edgeLengthPx > 25) {
-              // Smooth calibration scale to avoid webcam noise
-              const smoothedScale = smooth('scale_factor', edgeLengthPx / MARKER_PHYSICAL_SIZE_CM, 8, 0.25);
-              if (state.wallPerspectiveEnabled) {
-                state.pixelsPerCm = smoothedScale * state.wallPerspectiveFactor;
-              } else {
-                state.pixelsPerCm = smoothedScale;
-              }
-              state.calLocked = true;
-
-              if (state.activeCalMethod === 'aruco') {
-                arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-              }
-            } else {
-              // If it's a tiny detection (likely noise), treat as not found in this frame
-              state.latestArucoMarker = null;
-            }
-          } else {
-            if (state.activeCalMethod === 'aruco') {
-              if (state.pixelsPerCm) {
-                arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-              } else {
-                arucoStatusText.innerHTML = `🔍 Scanning for Reference (200mm)...`;
-              }
-            }
-          }
-        }
 
         // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
         await pose.send({ image: uploadedVideo });
@@ -2675,7 +2474,6 @@ slider.addEventListener('input', (e) => {
   if (state.calLocked) {
     state.calLocked = false;
     state.scaleFactor3D = null; // Reset 3D scale so that it re-estimates based on new card scale!
-    clearSmoothBuffer('scale_factor_3d_aruco');
     clearSmoothBuffer('height_scale_calibration');
     clearSmoothBuffer('body_height_skeletal');
     clearSmoothBuffer('body_height_live');
@@ -2690,7 +2488,6 @@ lockCalButton.addEventListener('click', () => {
   state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
   state.calLocked = true;
   state.scaleFactor3D = null; // Force recalibration of 3D scale factor using new pixelsPerCm
-  clearSmoothBuffer('scale_factor_3d_aruco');
   clearSmoothBuffer('height_scale_calibration');
   clearSmoothBuffer('body_height_skeletal');
   clearSmoothBuffer('body_height_live');
@@ -2883,7 +2680,6 @@ unitInchBtn.addEventListener('click', () => {
   unitCmBtn.classList.remove('active');
   updateHeightInputUnit();
   updateStateInputHeight();
-  updateStateValidationHeight();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -2905,7 +2701,6 @@ unitCmBtn.addEventListener('click', () => {
   unitInchBtn.classList.remove('active');
   updateHeightInputUnit();
   updateStateInputHeight();
-  updateStateValidationHeight();
   updateSidebarPlaceholders();
   if (state.isSnapshotFrozen && state.frozenMetrics) {
     renderDashboard(state.frozenMetrics);
@@ -2929,19 +2724,18 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   // Clear calibration-related smoothing buffers to avoid slow drift/lag from previous states
   clearSmoothBuffer('scale_factor');
   clearSmoothBuffer('scale_factor_3d_height');
-  clearSmoothBuffer('scale_factor_3d_aruco');
   clearSmoothBuffer('height_scale_calibration');
   clearSmoothBuffer('body_height_skeletal');
   clearSmoothBuffer('body_height_live');
   
-  [tabArucoBtn, tabHeightBtn, tabPortfolioBtn, tabValidationBtn].forEach(btn => {
+  [tabHeightBtn, tabPortfolioBtn].forEach(btn => {
     if (btn) {
       btn.classList.toggle('btn-tab-active', btn === activeBtn);
       btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
     }
   });
 
-  [panelAruco, panelCard, panelHeight, panelPortfolio, panelValidation].forEach(panel => {
+  [panelHeight, panelPortfolio].forEach(panel => {
     if (panel) {
       if (panel === activePanel) {
         panel.classList.remove('hidden');
@@ -2957,37 +2751,11 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   if (method === 'height') {
     state.pixelsPerCm = null; // Calculated dynamically in frame loop
     state.calLocked = true;   // Automatically consider locked/calibrated
-  } else if (method === 'validation' || method === 'aruco') {
-    // For validation or aruco tab, keep current pixelsPerCm if already calibrated, or restore from active profile if any
-    if (state.activeProfileId && !state.pixelsPerCm) {
-      const activeProfile = state.allProfiles?.find(p => p.id === state.activeProfileId);
-      const activeSession = activeProfile?.sessions?.find(s => s.id === state.activeSessionId) || activeProfile?.sessions?.[activeProfile.sessions.length - 1];
-      const sessionPixelsPerCm = activeSession?.pixelsPerCm || activeProfile?.pixelsPerCm;
-      if (sessionPixelsPerCm) {
-        state.pixelsPerCm = sessionPixelsPerCm;
-        state.calLocked = true;
-      }
-    }
-    if (!state.pixelsPerCm) {
-      state.pixelsPerCm = null;
-      state.calLocked = false;
-    } else {
-      state.calLocked = true;
-    }
-  } else {
+  }  else {
     state.pixelsPerCm = null;
     state.calLocked = false;
-    if (method === 'card') {
-      lockCalButton.textContent = "Lock 20cm Calibration";
-      lockCalButton.classList.add('cal-btn-unlocked');
-      lockCalButton.classList.remove('cal-btn-locked');
-    }
   }
 }
-
-tabArucoBtn.addEventListener('click', () => {
-  switchCalibrationTab('aruco', tabArucoBtn, panelAruco);
-});
 
 tabHeightBtn.addEventListener('click', () => {
   switchCalibrationTab('height', tabHeightBtn, panelHeight);
@@ -3020,13 +2788,7 @@ if (btnApplyScale && inputPremeasuredScale) {
       btnApplyScale.classList.remove('btn-success-glow');
       btnApplyScale.textContent = "Apply Scale";
     }, 2000);
-
-    // Update global scale indicators
-    if (arucoStatusText) {
-      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
-    }
-    
-    statusElement.textContent = `Scale calibration locked to pasted premeasured factor: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+  
     if (state.activeProfileId) {
       autoSyncToActiveProfile();
     }
@@ -3942,9 +3704,6 @@ export function importPriorPortfolio(report) {
     if (inputPremeasuredScale) {
       inputPremeasuredScale.value = report.pixelsPerCm.toFixed(2);
     }
-    if (arucoStatusText) {
-      arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
-    }
   } else if (report.summary && report.summary.skeletal_height_cm) {
     console.log("[Portfolio Ingest] Report has skeletal height but no scale factor.");
   }
@@ -4157,12 +3916,6 @@ export function importPriorPortfolio(report) {
   }
 }
 
-if (tabValidationBtn) {
-  tabValidationBtn.addEventListener('click', () => {
-    switchCalibrationTab('validation', tabValidationBtn, panelValidation);
-  });
-}
-
 const inputUserHeight = document.getElementById('input-user-height');
 
 function updateStateInputHeight() {
@@ -4183,164 +3936,7 @@ if (inputUserHeight) {
   updateStateInputHeight();
 }
 
-function updateStateValidationHeight() {
-  const inputElem = document.getElementById('input-validation-height');
-  if (!inputElem) return;
-  const inputVal = parseFloat(inputElem.value);
-  if (!isNaN(inputVal)) {
-    if (state.useInches) {
-      state.validationHeightCm = inputVal * 2.54;
-    } else {
-      state.validationHeightCm = inputVal;
-    }
-  }
-}
-
-if (inputValidationHeight) {
-  inputValidationHeight.addEventListener('input', updateStateValidationHeight);
-  updateStateValidationHeight();
-}
-
-function syncWallPerspectiveEnabled(enabled) {
-  const wasEnabled = state.wallPerspectiveEnabled;
-  state.wallPerspectiveEnabled = enabled;
-
-  // Sync checkboxes
-  const toggleCal = document.getElementById('toggle-wall-perspective');
-  const toggleVal = document.getElementById('toggle-wall-perspective-validation');
-  if (toggleCal) toggleCal.checked = enabled;
-  if (toggleVal) toggleVal.checked = enabled;
-
-  // Sync container visibilities
-  const containerCal = document.getElementById('wall-perspective-container');
-  const containerVal = document.getElementById('wall-perspective-container-validation');
-  if (containerCal) {
-    if (enabled) containerCal.classList.remove('hidden');
-    else containerCal.classList.add('hidden');
-  }
-  if (containerVal) {
-    if (enabled) containerVal.classList.remove('hidden');
-    else containerVal.classList.add('hidden');
-  }
-
-  // Adjust cached pixelsPerCm immediately if it exists
-  if (state.pixelsPerCm && wasEnabled !== enabled) {
-    if (enabled) {
-      state.pixelsPerCm *= state.wallPerspectiveFactor;
-    } else {
-      state.pixelsPerCm /= state.wallPerspectiveFactor;
-    }
-
-    // Update UI status texts
-    const arucoStatusText = document.getElementById('aruco-status-text');
-    if (arucoStatusText && state.activeCalMethod === 'aruco') {
-      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-    }
-    const validationStatusText = document.getElementById('validation-status-text');
-    if (validationStatusText && state.activeCalMethod === 'validation') {
-      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-    }
-  }
-}
-
-function syncWallPerspectiveFactor(newVal) {
-  const oldVal = state.wallPerspectiveFactor;
-  if (isNaN(newVal) || newVal < 1.00 || newVal > 1.25) {
-    return; // Allow temporary invalid states while typing, but do not apply them
-  }
-
-  if (newVal === oldVal) return;
-
-  state.wallPerspectiveFactor = newVal;
-
-  // Sync text inputs
-  const inputCal = document.getElementById('wall-perspective-input');
-  const inputVal = document.getElementById('wall-perspective-input-validation');
-  if (inputCal && parseFloat(inputCal.value) !== newVal) {
-    inputCal.value = parseFloat(newVal.toFixed(3));
-  }
-  if (inputVal && parseFloat(inputVal.value) !== newVal) {
-    inputVal.value = parseFloat(newVal.toFixed(3));
-  }
-
-  // Adjust cached pixelsPerCm immediately if it exists
-  if (state.wallPerspectiveEnabled && state.pixelsPerCm && oldVal > 0) {
-    state.pixelsPerCm = (state.pixelsPerCm / oldVal) * newVal;
-
-    // Update UI status texts
-    const arucoStatusText = document.getElementById('aruco-status-text');
-    if (arucoStatusText && state.activeCalMethod === 'aruco') {
-      arucoStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-    }
-    const validationStatusText = document.getElementById('validation-status-text');
-    if (validationStatusText && state.activeCalMethod === 'validation') {
-      validationStatusText.innerHTML = `✅ ArUco Detected! Scale: <strong class="text-red">${state.pixelsPerCm.toFixed(1)} px/cm</strong>`;
-    }
-  }
-}
-
-// Initial Sync from state on load
-const toggleWallPerspective = document.getElementById('toggle-wall-perspective');
-const toggleWallPerspectiveValidation = document.getElementById('toggle-wall-perspective-validation');
-const wallPerspectiveInput = document.getElementById('wall-perspective-input');
-const wallPerspectiveInputValidation = document.getElementById('wall-perspective-input-validation');
-
-if (toggleWallPerspective) toggleWallPerspective.checked = state.wallPerspectiveEnabled;
-if (toggleWallPerspectiveValidation) toggleWallPerspectiveValidation.checked = state.wallPerspectiveEnabled;
-
-const containerCal = document.getElementById('wall-perspective-container');
-const containerVal = document.getElementById('wall-perspective-container-validation');
-if (containerCal) {
-  if (state.wallPerspectiveEnabled) containerCal.classList.remove('hidden');
-  else containerCal.classList.add('hidden');
-}
-if (containerVal) {
-  if (state.wallPerspectiveEnabled) containerVal.classList.remove('hidden');
-  else containerVal.classList.add('hidden');
-}
-
-if (wallPerspectiveInput) wallPerspectiveInput.value = parseFloat(state.wallPerspectiveFactor.toFixed(3));
-if (wallPerspectiveInputValidation) wallPerspectiveInputValidation.value = parseFloat(state.wallPerspectiveFactor.toFixed(3));
-
-// Event Listeners for Toggles
-if (toggleWallPerspective) {
-  toggleWallPerspective.addEventListener('change', (e) => {
-    syncWallPerspectiveEnabled(e.target.checked);
-  });
-}
-if (toggleWallPerspectiveValidation) {
-  toggleWallPerspectiveValidation.addEventListener('change', (e) => {
-    syncWallPerspectiveEnabled(e.target.checked);
-  });
-}
-
-// Event Listeners for Inputs (real-time keypresses)
-if (wallPerspectiveInput) {
-  wallPerspectiveInput.addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
-    syncWallPerspectiveFactor(val);
-  });
-  wallPerspectiveInput.addEventListener('blur', (e) => {
-    let val = parseFloat(e.target.value);
-    if (isNaN(val) || val < 1.00) val = 1.00;
-    if (val > 1.25) val = 1.25;
-    e.target.value = parseFloat(val.toFixed(3));
-    syncWallPerspectiveFactor(val);
-  });
-}
-if (wallPerspectiveInputValidation) {
-  wallPerspectiveInputValidation.addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
-    syncWallPerspectiveFactor(val);
-  });
-  wallPerspectiveInputValidation.addEventListener('blur', (e) => {
-    let val = parseFloat(e.target.value);
-    if (isNaN(val) || val < 1.00) val = 1.00;
-    if (val > 1.25) val = 1.25;
-    e.target.value = parseFloat(val.toFixed(3));
-    syncWallPerspectiveFactor(val);
-  });
-}
+// Event Listeners for Inputs
 
 // Background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {
@@ -4414,7 +4010,6 @@ if (autoSequenceBtn) {
 
     // Check if calibrated
     if (!state.pixelsPerCm || state.pixelsPerCm <= 0) {
-      alert("Please lock your 20cm Calibration (ArUco or Direct Card) first before starting Hands-Free Auto Capture!");
       return;
     }
 
@@ -4431,6 +4026,9 @@ if (autoSequenceBtn) {
     state.metricsA = null;
     state.metricsT = null;
     state.metricsOverhead = null;
+    state.imageA = null;
+    state.imageT = null;
+    state.imageOverhead = null;
 
     autoSequenceBtn.textContent = "Cancel Auto Sequence";
     autoSequenceBtn.classList.add('active-cancel');
@@ -4579,7 +4177,7 @@ export function resetSquatPeaks() {
   };
 
   if (state.activeProfileId) {
-    autoSyncToActiveProfile();
+    autoSyncToActiveProfile(true);
   }
 
   if (squatPeakKneeL) squatPeakKneeL.textContent = '0°';
@@ -4751,7 +4349,7 @@ if (btnSaveSquatPeaks) {
         } else {
           state.imageSquatR = capturedImg;
         }
-        await autoSyncToActiveProfile();
+        await autoSyncToActiveProfile(true);
         
         if (statusElement) {
           statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to portfolio!`;
@@ -5076,11 +4674,6 @@ export async function initializeProfilesSelector() {
       
       const sessionContainer = document.getElementById('profile-session-select-container');
       if (sessionContainer) sessionContainer.classList.add('hidden');
-      
-      const arucoStatusText = document.getElementById('aruco-status-text');
-      if (arucoStatusText) {
-        arucoStatusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
-      }
     } else {
       if (profileSelect) profileSelect.value = selectedVal;
       if (calProfileSelect) calProfileSelect.value = selectedVal;
@@ -5194,10 +4787,6 @@ export async function initializeProfilesSelector() {
         btnDeleteProfile.classList.add('hidden');
         if (profileActionRow) profileActionRow.classList.add('hidden');
         
-        const arucoStatusText = document.getElementById('aruco-status-text');
-        if (arucoStatusText) {
-          arucoStatusText.innerHTML = `🔍 Scanning for Reference ArUco (200mm)...`;
-        }
 
         statusElement.textContent = `🗑️ Profile deleted successfully. Switched back to Guest Mode.`;
       } catch (err) {
@@ -5424,10 +5013,7 @@ export async function loadProfileIntoState(profileId) {
     if (sessionPixelsPerCm) {
       state.pixelsPerCm = sessionPixelsPerCm;
       state.calLocked = true;
-      const arucoStatusText = document.getElementById('aruco-status-text');
-      if (arucoStatusText) {
-        arucoStatusText.innerHTML = `✅ Scale Calibrated: <strong class="text-red">${state.pixelsPerCm.toFixed(2)} px/cm</strong>`;
-      }
+
       const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
       if (inputPremeasuredScale) {
         inputPremeasuredScale.value = state.pixelsPerCm.toFixed(2);
@@ -5539,7 +5125,7 @@ export async function loadProfileIntoState(profileId) {
   }
 }
 
-export async function autoSyncToActiveProfile() {
+export async function autoSyncToActiveProfile(onlySquat = false) {
   if (!state.activeProfileId || !state.dbInitialized) return;
   try {
     let profile = await snapshotStore.getProfile(state.activeProfileId);
@@ -5557,34 +5143,46 @@ export async function autoSyncToActiveProfile() {
       session = profile.sessions[profile.sessions.length - 1];
     }
     
-    // Sync current dashboard state into the active session
+    // Sync current dashboard state into the active session with non-null guards to prevent accidental deletion
     session.timestamp = Date.now();
-    session.pixelsPerCm = state.pixelsPerCm;
-    session.metricsA = state.metricsA;
-    session.metricsT = state.metricsT;
-    session.metricsOverhead = state.metricsOverhead;
-    session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
-    session.imageA = state.imageA;
-    session.imageT = state.imageT;
-    session.imageOverhead = state.imageOverhead;
-    session.imageSquatL = state.imageSquatL;
-    session.imageSquatR = state.imageSquatR;
+    if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) session.pixelsPerCm = state.pixelsPerCm;
+    
+    if (!onlySquat) {
+      if (state.metricsA !== null && state.metricsA !== undefined) session.metricsA = state.metricsA;
+      if (state.metricsT !== null && state.metricsT !== undefined) session.metricsT = state.metricsT;
+      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) session.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== null && state.imageA !== undefined) session.imageA = state.imageA;
+      if (state.imageT !== null && state.imageT !== undefined) session.imageT = state.imageT;
+      if (state.imageOverhead !== null && state.imageOverhead !== undefined) session.imageOverhead = state.imageOverhead;
+    }
+    
+    if (state.imageSquatL !== null && state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;
+    if (state.imageSquatR !== null && state.imageSquatR !== undefined) session.imageSquatR = state.imageSquatR;
+    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
+      session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
+    }
     
     // Keep profile-level active session and timestamp synced
     profile.timestamp = Date.now();
     profile.activeSessionId = session.id;
     
     // Keep legacy flat fields updated on the main profile for redundant backup
-    profile.pixelsPerCm = state.pixelsPerCm;
-    profile.metricsA = state.metricsA;
-    profile.metricsT = state.metricsT;
-    profile.metricsOverhead = state.metricsOverhead;
-    profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
-    profile.imageA = state.imageA;
-    profile.imageT = state.imageT;
-    profile.imageOverhead = state.imageOverhead;
-    profile.imageSquatL = state.imageSquatL;
-    profile.imageSquatR = state.imageSquatR;
+    if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) profile.pixelsPerCm = state.pixelsPerCm;
+    
+    if (!onlySquat) {
+      if (state.metricsA !== null && state.metricsA !== undefined) profile.metricsA = state.metricsA;
+      if (state.metricsT !== null && state.metricsT !== undefined) profile.metricsT = state.metricsT;
+      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) profile.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== null && state.imageA !== undefined) profile.imageA = state.imageA;
+      if (state.imageT !== null && state.imageT !== undefined) profile.imageT = state.imageT;
+      if (state.imageOverhead !== null && state.imageOverhead !== undefined) profile.imageOverhead = state.imageOverhead;
+    }
+    
+    if (state.imageSquatL !== null && state.imageSquatL !== undefined) profile.imageSquatL = state.imageSquatL;
+    if (state.imageSquatR !== null && state.imageSquatR !== undefined) profile.imageSquatR = state.imageSquatR;
+    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
+      profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
+    }
     
     await snapshotStore.saveProfile(profile);
     console.log(`[autoSync] Synced active profile: ${profile.name}, session: ${session.name}`);
@@ -5602,7 +5200,7 @@ export function autoSyncToActiveProfileDebounced() {
     clearTimeout(syncTimeout);
   }
   syncTimeout = setTimeout(() => {
-    autoSyncToActiveProfile();
+    autoSyncToActiveProfile(true);
   }, 1500);
 }
 

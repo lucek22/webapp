@@ -3337,6 +3337,11 @@ div[style*="color: #10b981"] {
   color: white !important;
   box-shadow: 0 2px 8px rgba(186, 12, 47, 0.4) !important;
 }
+.btn-side-toggle.active-frontal {
+  background-color: #BA0C2F !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(186, 12, 47, 0.4) !important;
+}
 /* Overhead Squat Side Highlights */
 .angle-box {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

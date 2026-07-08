@@ -1015,8 +1015,13 @@
           <div id="profile-details-videos-container" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
             <!-- Central Video Player Display Area (Fixed 16:9 aspect ratio) -->
             <div id="profile-details-video-player-container" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;">
-              <video id="profile-details-video-player" controls style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
+              <video id="profile-details-video-player" controls controlsList="nofullscreen" style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
               <canvas id="profile-details-video-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; z-index: 2; display: none;"></canvas>
+              <button id="btn-profile-video-fullscreen" style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; width: 32px; height: 32px; border-radius: 6px; display: none; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s ease;" title="Expand Fullscreen">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                </svg>
+              </button>
               <div id="profile-details-video-placeholder" style="color: #888; font-size: 0.85rem; text-align: center; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
                 <span>Select a recording from the playlist below to play</span>

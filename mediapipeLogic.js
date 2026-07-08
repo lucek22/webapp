@@ -91,11 +91,11 @@ export function calculatePoseMetrics(results) {
 
   const lm = results.poseLandmarks;
 
-  // Safety check: Make sure all required landmarks exist in the poseLandmarks array
-  const requiredIndices = [7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+  // Safety check: Require only the critical structural joints (shoulders, hips, knees, ankles)
+  const requiredIndices = [11, 12, 23, 24, 25, 26, 27, 28];
   for (const idx of requiredIndices) {
     if (!lm[idx]) {
-      console.warn(`Missing required landmark index ${idx} in calculatePoseMetrics`);
+      console.warn(`Missing critical required landmark index ${idx} in calculatePoseMetrics`);
       return null;
     }
   }
@@ -103,25 +103,28 @@ export function calculatePoseMetrics(results) {
   const mirrorX = getCanvasX;
   const height = state.canvasHeight || 480;
 
-  // Resolve normalized coordinates to pixels (LEFT)
+  // Resolve normalized coordinates to pixels (LEFT) - CRITICAL JOINTS
   const shoulder_l = { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * height };
-  const elbow_l = { x: mirrorX(lm[LEFT_ELBOW].x), y: lm[LEFT_ELBOW].y * height };
-  const wrist_l = { x: mirrorX(lm[LEFT_WRIST].x), y: lm[LEFT_WRIST].y * height };
   const hip_l = { x: mirrorX(lm[LEFT_HIP].x), y: lm[LEFT_HIP].y * height };
   const knee_l = { x: mirrorX(lm[LEFT_KNEE].x), y: lm[LEFT_KNEE].y * height };
   const ankle_l = { x: mirrorX(lm[LEFT_ANKLE].x), y: lm[LEFT_ANKLE].y * height };
-  const heel_l = { x: mirrorX(lm[LEFT_HEEL].x), y: lm[LEFT_HEEL].y * height };
-  const toe_l = { x: mirrorX(lm[LEFT_FOOT_INDEX].x), y: lm[LEFT_FOOT_INDEX].y * height };
 
-  // Resolve normalized coordinates to pixels (RIGHT)
+  // Resolve normalized coordinates to pixels (RIGHT) - CRITICAL JOINTS
   const shoulder_r = { x: mirrorX(lm[RIGHT_SHOULDER].x), y: lm[RIGHT_SHOULDER].y * height };
-  const elbow_r = { x: mirrorX(lm[RIGHT_ELBOW].x), y: lm[RIGHT_ELBOW].y * height };
-  const wrist_r = { x: mirrorX(lm[RIGHT_WRIST].x), y: lm[RIGHT_WRIST].y * height };
   const hip_r = { x: mirrorX(lm[RIGHT_HIP].x), y: lm[RIGHT_HIP].y * height };
   const knee_r = { x: mirrorX(lm[RIGHT_KNEE].x), y: lm[RIGHT_KNEE].y * height };
   const ankle_r = { x: mirrorX(lm[RIGHT_ANKLE].x), y: lm[RIGHT_ANKLE].y * height };
-  const heel_r = { x: mirrorX(lm[RIGHT_HEEL].x), y: lm[RIGHT_HEEL].y * height };
-  const toe_r = { x: mirrorX(lm[RIGHT_FOOT_INDEX].x), y: lm[RIGHT_FOOT_INDEX].y * height };
+
+  // Resolve normalized coordinates to pixels (OPTIONAL JOINTS WITH ANATOMICAL FALLBACKS)
+  const elbow_l = lm[13] ? { x: mirrorX(lm[13].x), y: lm[13].y * height } : { ...shoulder_l };
+  const wrist_l = lm[15] ? { x: mirrorX(lm[15].x), y: lm[15].y * height } : { ...elbow_l };
+  const heel_l = lm[29] ? { x: mirrorX(lm[29].x), y: lm[29].y * height } : { ...ankle_l };
+  const toe_l = lm[31] ? { x: mirrorX(lm[31].x), y: lm[31].y * height } : { ...ankle_l };
+
+  const elbow_r = lm[14] ? { x: mirrorX(lm[14].x), y: lm[14].y * height } : { ...shoulder_r };
+  const wrist_r = lm[16] ? { x: mirrorX(lm[16].x), y: lm[16].y * height } : { ...elbow_r };
+  const heel_r = lm[30] ? { x: mirrorX(lm[30].x), y: lm[30].y * height } : { ...ankle_r };
+  const toe_r = lm[32] ? { x: mirrorX(lm[32].x), y: lm[32].y * height } : { ...ankle_r };
 
   // --- CALCULATE HEAD TOP ---
   const shoulder_mid = {
@@ -130,20 +133,33 @@ export function calculatePoseMetrics(results) {
   };
   const hip_mid_x = (hip_l.x + hip_r.x) / 2;
   const hip_mid_y = (hip_l.y + hip_r.y) / 2;
-  const ear_mid = {
-    x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
-    y: (lm[7].y * height + lm[8].y * height) / 2
-  };
-  // The top of the head (crown) is approximately 65% of the shoulder-to-ear neck height or 70% of ear-to-ear distance above ear level (maximum to prevent shrugging/posture errors)
-  const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
-  const ear_to_ear_px = Math.hypot(mirrorX(lm[7].x) - mirrorX(lm[8].x), (lm[7].y - lm[8].y) * height);
-  const ear_to_crown_px = Math.max(shoulder_to_ear_px * 0.65, ear_to_ear_px * 0.70);
+
+  let ear_mid;
+  let ear_to_crown_px;
+  const shoulder_width_px = Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y);
+
+  if (lm[7] && lm[8]) {
+    ear_mid = {
+      x: (mirrorX(lm[7].x) + mirrorX(lm[8].x)) / 2,
+      y: (lm[7].y * height + lm[8].y * height) / 2
+    };
+    const shoulder_to_ear_px = Math.abs(shoulder_mid.y - ear_mid.y);
+    const ear_to_ear_px = Math.hypot(mirrorX(lm[7].x) - mirrorX(lm[8].x), (lm[7].y - lm[8].y) * height);
+    ear_to_crown_px = Math.max(shoulder_to_ear_px * 0.65, ear_to_ear_px * 0.70);
+  } else if (lm[0]) {
+    ear_mid = { x: mirrorX(lm[0].x), y: lm[0].y * height };
+    ear_to_crown_px = shoulder_width_px * 0.25;
+  } else {
+    ear_mid = { x: shoulder_mid.x, y: shoulder_mid.y - shoulder_width_px * 0.4 };
+    ear_to_crown_px = shoulder_width_px * 0.2;
+  }
+
   const head_top = {
     x: ear_mid.x,
     y: ear_mid.y - ear_to_crown_px
   };
 
-  const all_landmarks = lm.map(l => ({ x: mirrorX(l.x), y: l.y * height }));
+  const all_landmarks = lm.map(l => l ? { x: mirrorX(l.x), y: l.y * height } : { x: 0, y: 0 });
 
   // --- CALCULATE REAL-TIME FLEXION ANGLES ---
   const kneeAngleL = calculateAngle(knee_l, hip_l, ankle_l);
@@ -185,24 +201,28 @@ export function calculatePoseMetrics(results) {
 
   // Perform 3D calculations if world landmarks are available
   if (wl && wl.length > 0) {
+    // Critical world landmarks
     const wl_shoulder_l = wl[LEFT_SHOULDER];
     const wl_shoulder_r = wl[RIGHT_SHOULDER];
-    const wl_ear_l = wl[7];
-    const wl_ear_r = wl[8];
     const wl_hip_l = wl[LEFT_HIP];
     const wl_hip_r = wl[RIGHT_HIP];
     const wl_knee_l = wl[LEFT_KNEE];
     const wl_knee_r = wl[RIGHT_KNEE];
     const wl_ankle_l = wl[LEFT_ANKLE];
     const wl_ankle_r = wl[RIGHT_ANKLE];
-    const wl_heel_l = wl[LEFT_HEEL];
-    const wl_heel_r = wl[RIGHT_HEEL];
-    const wl_toe_l = wl[LEFT_FOOT_INDEX];
-    const wl_toe_r = wl[RIGHT_FOOT_INDEX];
-    const wl_elbow_l = wl[LEFT_ELBOW];
-    const wl_elbow_r = wl[RIGHT_ELBOW];
-    const wl_wrist_l = wl[LEFT_WRIST];
-    const wl_wrist_r = wl[RIGHT_WRIST];
+
+    if (wl_shoulder_l && wl_shoulder_r && wl_hip_l && wl_hip_r && wl_knee_l && wl_knee_r && wl_ankle_l && wl_ankle_r) {
+      // Optional world landmarks with graceful fallbacks
+      const wl_ear_l = wl[7] || wl[0] || wl_shoulder_l;
+      const wl_ear_r = wl[8] || wl[0] || wl_shoulder_r;
+      const wl_elbow_l = wl[LEFT_ELBOW] || wl_shoulder_l;
+      const wl_elbow_r = wl[RIGHT_ELBOW] || wl_shoulder_r;
+      const wl_wrist_l = wl[LEFT_WRIST] || wl_elbow_l;
+      const wl_wrist_r = wl[RIGHT_WRIST] || wl_elbow_r;
+      const wl_heel_l = wl[LEFT_HEEL] || wl_ankle_l;
+      const wl_heel_r = wl[RIGHT_HEEL] || wl_ankle_r;
+      const wl_toe_l = wl[LEFT_FOOT_INDEX] || wl_ankle_l;
+      const wl_toe_r = wl[RIGHT_FOOT_INDEX] || wl_ankle_r;
 
     const wl_shoulder_mid = {
       x: (wl_shoulder_l.x + wl_shoulder_r.x) / 2,
@@ -431,6 +451,7 @@ export function calculatePoseMetrics(results) {
         }
       }
       liveMetrics.pose = detectedPose;
+    }
     }
   } else if (state.pixelsPerCm || state.activeCalMethod === 'height') {    // 2D Fallback Calculations (in case 3D world landmarks are not available in current environment)
     // Left segment calculations

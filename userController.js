@@ -911,7 +911,9 @@ export function onPoseResults(results) {
         
         // Cache jointsOverhead directly from analyzed static frame results
         state.jointsOverhead = JSON.parse(JSON.stringify(calculated));
-        state.imageSquatFrontal = state.uploadedMediaUrl || (results && results.image && results.image.src) || state.imageSquatFrontal;
+        if (!isVideo) {
+          state.imageSquatFrontal = state.uploadedMediaUrl || (results && results.image && results.image.src) || state.imageSquatFrontal;
+        }
       }
 
       if (state.currentMode === 'squat') {
@@ -2045,6 +2047,11 @@ export function startUiRenderLoop() {
             console.error("Playout tick fallback drawing failed:", e);
           }
         }
+      } else if (state.isUploadedMedia && state.uploadedMediaType === 'video') {
+        // Standard playback of imported/uploaded video: completely clean, no overlays
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.restore();
       } else {
         if (state.latestPoseResults) {
           // If YOLO mode is active, we let the async callback handle drawing to avoid WebGL recycled resource flashing
@@ -2234,10 +2241,6 @@ export async function startCamera() {
       });
     }
     
-    videoElement.srcObject = state.activeStream;
-    // Mirror the view only for front/user camera
-    videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
-    
     videoElement.onloadedmetadata = () => {
       const w = videoElement.videoWidth || 640;
       const h = videoElement.videoHeight || 480;
@@ -2254,14 +2257,24 @@ export async function startCamera() {
       state.calBoxX = w / 2;
       state.calBoxY = h / 2;
       
+      // Clear scale metrics cache on camera feed dimensions update
+      state.lastProcessedScaleFactor = null;
+      state.lastCalculatedResults = null;
+      
       const viewport = document.querySelector('.viewport');
       if (viewport) {
         viewport.style.aspectRatio = `${w} / ${h}`;
       }
       
+      console.log(`[CameraFeed] Stream metadata loaded. Coordinates calibrated to ${w}x${h}`);
+      
       videoElement.play();
       statusElement.textContent = "Camera active. Syncing with computer vision models...";
     };
+
+    videoElement.srcObject = state.activeStream;
+    // Mirror the view only for front/user camera
+    videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
 
     // Throttled concurrent model inference loop (runs in background)
     async function cameraInferenceLoop() {
@@ -2319,8 +2332,10 @@ export async function startCamera() {
           }
 
           // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
-          await pose.send({ image: videoElement });
-          await hands.send({ image: videoElement });
+          if (!state.activeModalVideoProcessing) {
+            await pose.send({ image: videoElement });
+            await hands.send({ image: videoElement });
+          }
         }
       } catch (err) {
         console.error("Camera inference loop error:", err);
@@ -2926,12 +2941,7 @@ export async function handleUploadedFile(file) {
       uploadedImage.src = "";
     }
     if (uploadedVideo) {
-      uploadedVideo.src = objectURL;
-      uploadedVideo.classList.remove('hidden');
-      uploadedVideo.classList.add('video-visible');
-      uploadedVideo.muted = true;
-      uploadedVideo.loop = true;
-      
+      // Attach event listeners BEFORE setting the source to prevent race-conditions with cached/local media loading!
       uploadedVideo.onloadedmetadata = async () => {
         state.canvasWidth = uploadedVideo.videoWidth || 640;
         state.canvasHeight = uploadedVideo.videoHeight || 480;
@@ -2957,29 +2967,41 @@ export async function handleUploadedFile(file) {
           // Clear it immediately to prevent duplicate runs
           state.pendingImportTarget = null;
 
-          statusElement.textContent = "📥 Saving imported video to profile...";
+          statusElement.textContent = "📥 Preparing imported video for high-fidelity export and peak analysis...";
           
-          // 1. Save video entry to the profile database
-          const durationSec = uploadedVideo.duration || 0;
-          await saveImportedVideoToProfile(file, importTarget, durationSec);
+          // Ensure state.squatPeaks is initialized
+          state.squatPeaks = state.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
 
-          // 2. If it's a squat destination, run background peak scan
+          // Configure state based on target to guide the pre-processing engine and layout templates
           if (importTarget === 'squat-l' || importTarget === 'squat-r' || importTarget === 'squat-frontal') {
-            // Set state to squat mode and correct testing side
             state.currentMode = 'squat';
             if (importTarget === 'squat-l') {
               state.squatTestingSide = 'left';
               state.allowFrontalUpdateL = false;
               state.allowFrontalUpdateR = false;
+              state.squatPeaks.kneeL = 0;
+              state.squatPeaks.hipL = 0;
+              state.squatPeaks.ankleL = 0;
+              state.imageSquatL = null; // Clear pre-existing static overlay
             } else if (importTarget === 'squat-r') {
               state.squatTestingSide = 'right';
               state.allowFrontalUpdateL = false;
               state.allowFrontalUpdateR = false;
+              state.squatPeaks.kneeR = 0;
+              state.squatPeaks.hipR = 0;
+              state.squatPeaks.ankleR = 0;
+              state.imageSquatR = null; // Clear pre-existing static overlay
             } else if (importTarget === 'squat-frontal') {
               state.squatTestingSide = 'frontal';
               // Allow updating left/right peak metrics during a frontal squat if they are currently 0 (missing)
               state.allowFrontalUpdateL = (!state.squatPeaks || state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0 && state.squatPeaks.ankleL === 0);
               state.allowFrontalUpdateR = (!state.squatPeaks || state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0 && state.squatPeaks.ankleR === 0);
+              state.squatPeaks.maxKneeCaveL = 0;
+              state.squatPeaks.maxKneeCaveR = 0;
+              state.squatPeaks.valgusFirstTimestamp = null;
+              state.squatPeaks.valgusPeakTimestamp = null;
+              state.squatPeaks.valgusPeakScore = 0;
+              state.imageSquatFrontal = null; // Clear pre-existing static overlay
             }
 
             // Sync the active mode and side selectors in the UI
@@ -2988,14 +3010,18 @@ export async function handleUploadedFile(file) {
             if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
             if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
             updateSquatSideUI();
-
-            // Run the background scan
-            await scanVideoForSquatPeaks(importTarget, durationSec);
-          } else {
-            // Just a playlist import, start standard playback
-            uploadedVideo.play();
-            statusElement.textContent = "Uploaded video active in playlist.";
+          } else if (importTarget === 'playlist') {
+            state.currentMode = 'posture';
+            if (btnModeSquat) btnModeSquat.classList.remove('active');
+            if (btnModePosture) btnModePosture.classList.add('active');
+            if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+            if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
           }
+
+          // Trigger high-fidelity pre-processing + automatic playout export!
+          setTimeout(() => {
+            runVideoFramePreprocessing();
+          }, 300);
         } else {
           // Normal transient run or cancel, just play
           state.pendingImportTarget = null;
@@ -3025,6 +3051,12 @@ export async function handleUploadedFile(file) {
           }
         }
       };
+
+      uploadedVideo.src = objectURL;
+      uploadedVideo.classList.remove('hidden');
+      uploadedVideo.classList.add('video-visible');
+      uploadedVideo.muted = true;
+      uploadedVideo.loop = true;
     }
   } else {
     // Image
@@ -3038,10 +3070,6 @@ export async function handleUploadedFile(file) {
       uploadedVideo.src = "";
     }
     if (uploadedImage) {
-      uploadedImage.src = objectURL;
-      uploadedImage.classList.remove('hidden');
-      uploadedImage.classList.add('video-visible');
-      
       uploadedImage.onload = async () => {
         const maxLiveDim = 1280;
         let w = uploadedImage.naturalWidth || 640;
@@ -3090,13 +3118,17 @@ export async function handleUploadedFile(file) {
 
         startUploadedMediaLoop();
       };
+
+      uploadedImage.src = objectURL;
+      uploadedImage.classList.remove('hidden');
+      uploadedImage.classList.add('video-visible');
     }
   }
 }
 
 export function startUploadedMediaLoop() {
   async function videoInferenceLoop() {
-    if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended || state.isRecordingPlayLoop || state.isExportingFrameByFrame) {
+    if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended || state.isRecordingPlayLoop || state.isExportingFrameByFrame || state.activeModalVideoProcessing) {
       state.isVideoInferenceLoopRunning = false;
       return;
     }
@@ -3172,9 +3204,9 @@ export function startUploadedMediaLoop() {
   // Always kick off UI redraw loop
   startUiRenderLoop();
 
-  // If it's a video, also kick off the background inference loop
+  // If it's a video, also kick off the background inference loop (disabled to prevent redundant real-time overlays)
   if (state.uploadedMediaType === 'video') {
-    videoInferenceLoop();
+    state.isVideoInferenceLoopRunning = false;
   }
 }
 
@@ -4585,21 +4617,29 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
             if (state.squatTestingSide === 'left') {
               activeSession.videoSquatL = videoEntry;
               state.videoSquatL = videoEntry;
+              activeSession.imageSquatL = null; // Clear static overlay for video slots
+              state.imageSquatL = null;
             } else if (state.squatTestingSide === 'right') {
               activeSession.videoSquatR = videoEntry;
               state.videoSquatR = videoEntry;
+              activeSession.imageSquatR = null; // Clear static overlay for video slots
+              state.imageSquatR = null;
             } else {
               activeSession.videoSquatFrontal = videoEntry;
               state.videoSquatFrontal = videoEntry;
+              activeSession.imageSquatFrontal = null; // Clear static overlay for video slots
+              state.imageSquatFrontal = null;
             }
           }
         }
       }
 
-      await snapshotStore.saveProfile(profileMigrated);
-      
-      // Update local cache
-      state.allProfiles = await snapshotStore.getAllProfiles();
+      // Update state.videos so autoSync can find it
+      state.videos = profileMigrated.videos;
+
+      // Perform a full database sync of both the video assignments and the calculated joint peaks/valgus metrics
+      await autoSyncToActiveProfile();
+
       if (state.activeProfileId === profile.id) {
         await loadProfileIntoState(profile.id);
       }
@@ -6069,7 +6109,9 @@ function updateVideoControlsUI() {
 
 // Throttled frame-by-frame inference for manual seeking & video scrubbing on pause
 async function renderSingleVideoFrame() {
-  if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || !uploadedVideo) return;
+  // Disable real-time computer vision inference overlays during standard interaction/playback of imported/uploaded videos
+  if (state.uploadedMediaType === 'video') return;
+  if (!state.isUploadedMedia || !uploadedVideo) return;
   
   if (isSeekingInferenceRunning) {
     pendingInferenceRequest = true;
@@ -6490,16 +6532,16 @@ export async function initializeProfilesSelector() {
   const mainVideoPlayer = document.getElementById('profile-details-video-player');
   if (mainVideoPlayer) {
     mainVideoPlayer.addEventListener('play', () => {
-      state.activeModalVideoProcessing = true;
+      // Disabling real-time computer vision overlays on modal video playback of saved annotated assets
+      state.activeModalVideoProcessing = true; // Still keep true to suspend background webcam/video loops
       const canvas = document.getElementById('profile-details-video-canvas');
       if (canvas) {
-        canvas.style.display = 'block';
+        canvas.style.display = 'none'; // Keep hidden as the saved video already has overlays baked-in
       }
-      startModalVideoInferenceLoop();
     });
 
     mainVideoPlayer.addEventListener('pause', () => {
-      // Keep state.activeModalVideoProcessing = true so that seeks or late frames are routed to modal canvas
+      // Keep state.activeModalVideoProcessing = true so that background loops remain suspended
     });
 
     mainVideoPlayer.addEventListener('ended', () => {
@@ -6507,15 +6549,107 @@ export async function initializeProfilesSelector() {
     });
 
     mainVideoPlayer.addEventListener('seeked', () => {
-      if (state.activeModalVideoProcessing && (mainVideoPlayer.paused || mainVideoPlayer.ended)) {
-        pose.send({ image: mainVideoPlayer }).catch(e => {});
-      }
+      // Bypassed: we do not send saved annotated videos to real-time MediaPipe pose
     });
 
     // Also trigger pose send when video is loaded or changed so the first frame gets a skeleton immediately
     mainVideoPlayer.addEventListener('loadeddata', () => {
-      if (state.activeModalVideoProcessing) {
-        pose.send({ image: mainVideoPlayer }).catch(e => {});
+      // Bypassed: we do not send saved annotated videos to real-time MediaPipe pose
+    });
+
+    // Custom fullscreen button toggle logic and double-click handlers
+    const container = document.getElementById('profile-details-video-player-container');
+    const customFullscreenBtn = document.getElementById('btn-profile-video-fullscreen');
+
+    const toggleFullscreen = () => {
+      const currentFullscreenElement = document.fullscreenElement || 
+                                       document.webkitFullscreenElement || 
+                                       document.mozFullScreenElement || 
+                                       document.msFullscreenElement;
+
+      if (!currentFullscreenElement) {
+        if (container.requestFullscreen) {
+          container.requestFullscreen().catch(e => console.error("[Fullscreen] requestFullscreen failed:", e));
+        } else if (container.webkitRequestFullscreen) {
+          container.webkitRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+          container.mozRequestFullScreen();
+        } else if (container.msRequestFullscreen) {
+          container.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(e => console.error("[Fullscreen] exitFullscreen failed:", e));
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    };
+
+    if (customFullscreenBtn) {
+      customFullscreenBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFullscreen();
+      });
+    }
+
+    // Support double-clicking on the container or video to toggle fullscreen
+    if (container) {
+      container.addEventListener('dblclick', (e) => {
+        // Prevent toggling if user double clicks controls or the custom button
+        if (e.target.closest('#btn-profile-video-fullscreen') || e.target.tagName.toLowerCase() === 'button') {
+          return;
+        }
+        toggleFullscreen();
+      });
+    }
+
+    // Update custom button UI when fullscreen state changes
+    const updateFullscreenButtonUI = () => {
+      const currentFullscreenElement = document.fullscreenElement || 
+                                       document.webkitFullscreenElement || 
+                                       document.mozFullScreenElement || 
+                                       document.msFullscreenElement;
+
+      const isFullscreen = (currentFullscreenElement === container);
+
+      if (customFullscreenBtn) {
+        if (isFullscreen) {
+          customFullscreenBtn.title = "Exit Fullscreen";
+          customFullscreenBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/>
+            </svg>
+          `;
+        } else {
+          customFullscreenBtn.title = "Expand Fullscreen";
+          customFullscreenBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+            </svg>
+          `;
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', updateFullscreenButtonUI);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButtonUI);
+    document.addEventListener('mozfullscreenchange', updateFullscreenButtonUI);
+    document.addEventListener('MSFullscreenChange', updateFullscreenButtonUI);
+
+    // Support Safari / iOS direct native fullscreen begin events fallback
+    mainVideoPlayer.addEventListener('webkitbeginfullscreen', (e) => {
+      e.preventDefault();
+      if (container) {
+        if (container.webkitRequestFullscreen) {
+          container.webkitRequestFullscreen();
+        } else if (container.requestFullscreen) {
+          container.requestFullscreen().catch(e => {});
+        }
       }
     });
   }
@@ -6948,6 +7082,14 @@ export async function openProfileDetailsModal(profileId) {
 
   state.activeModalVideoProcessing = true; // Set active flag on modal open to route results
 
+  // Pause background video player if playing to prevent resource contention / overlapping frames
+  const uploadedVideo = document.getElementById('uploaded-video');
+  if (uploadedVideo) {
+    try {
+      uploadedVideo.pause();
+    } catch (e) {}
+  }
+
   if (state.modalObjectUrls) {
     state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
   }
@@ -7366,6 +7508,19 @@ export async function openProfileDetailsModal(profileId) {
                 playlistRow.click();
               } else {
                 // Fallback direct binding if playlist item is not found (should not happen)
+                if (p.key === 'squat-l') {
+                  state.squatTestingSide = 'left';
+                  state.allowFrontalUpdateL = false;
+                  state.allowFrontalUpdateR = false;
+                } else if (p.key === 'squat-r') {
+                  state.squatTestingSide = 'right';
+                  state.allowFrontalUpdateL = false;
+                  state.allowFrontalUpdateR = false;
+                } else if (p.key === 'squat-frontal') {
+                  state.squatTestingSide = 'frontal';
+                  state.allowFrontalUpdateL = (!state.squatPeaks || (state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0));
+                  state.allowFrontalUpdateR = (!state.squatPeaks || (state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0));
+                }
                 if (mainVideoPlayer) {
                   const canvas = document.getElementById('profile-details-video-canvas');
                   if (canvas) {
@@ -7376,6 +7531,10 @@ export async function openProfileDetailsModal(profileId) {
                   mainVideoPlayer.style.display = 'block';
                   if (videoPlaceholder) {
                     videoPlaceholder.style.display = 'none';
+                  }
+                  const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+                  if (btnFullscreen) {
+                    btnFullscreen.style.display = 'flex';
                   }
                   mainVideoPlayer.play().catch(err => console.log("[VideoPlay] Autoplay blocked:", err));
                 }
@@ -8149,6 +8308,25 @@ export async function openProfileDetailsModal(profileId) {
               playIcon.style.color = '#000';
             }
 
+            // Automatically detect and set the squat testing side from video name
+            const lowerName = (video.name || '').toLowerCase();
+            if (lowerName.includes('left')) {
+              state.squatTestingSide = 'left';
+              state.allowFrontalUpdateL = false;
+              state.allowFrontalUpdateR = false;
+            } else if (lowerName.includes('right')) {
+              state.squatTestingSide = 'right';
+              state.allowFrontalUpdateL = false;
+              state.allowFrontalUpdateR = false;
+            } else if (lowerName.includes('frontal') || lowerName.includes('front')) {
+              state.squatTestingSide = 'frontal';
+              state.allowFrontalUpdateL = (!state.squatPeaks || (state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0));
+              state.allowFrontalUpdateR = (!state.squatPeaks || (state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0));
+            } else {
+              // Default fallback
+              state.squatTestingSide = state.squatTestingSide || 'frontal';
+            }
+
             if (mainVideoPlayer) {
               const canvas = document.getElementById('profile-details-video-canvas');
               if (canvas) {
@@ -8159,6 +8337,10 @@ export async function openProfileDetailsModal(profileId) {
               mainVideoPlayer.style.display = 'block';
               if (videoPlaceholder) {
                 videoPlaceholder.style.display = 'none';
+              }
+              const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+              if (btnFullscreen) {
+                btnFullscreen.style.display = 'flex';
               }
               mainVideoPlayer.play().catch(e => console.log("[VideoPlay] Autoplay blocked:", e));
             }
@@ -8187,6 +8369,29 @@ export async function openProfileDetailsModal(profileId) {
               if (videoPlaceholder) {
                 videoPlaceholder.style.display = 'none';
               }
+              const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+              if (btnFullscreen) {
+                btnFullscreen.style.display = 'flex';
+              }
+            }
+
+            // Automatically detect and set the squat testing side for the pre-selected video
+            const lowerName = (video.name || '').toLowerCase();
+            if (lowerName.includes('left')) {
+              state.squatTestingSide = 'left';
+              state.allowFrontalUpdateL = false;
+              state.allowFrontalUpdateR = false;
+            } else if (lowerName.includes('right')) {
+              state.squatTestingSide = 'right';
+              state.allowFrontalUpdateL = false;
+              state.allowFrontalUpdateR = false;
+            } else if (lowerName.includes('frontal') || lowerName.includes('front')) {
+              state.squatTestingSide = 'frontal';
+              state.allowFrontalUpdateL = (!state.squatPeaks || (state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0));
+              state.allowFrontalUpdateR = (!state.squatPeaks || (state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0));
+            } else {
+              // Default fallback
+              state.squatTestingSide = state.squatTestingSide || 'frontal';
             }
           }
 
@@ -8290,21 +8495,58 @@ export function closeProfileDetailsModal() {
   if (profileDetailsModal) {
     profileDetailsModal.classList.remove('active');
   }
-  if (state.modalObjectUrls) {
-    state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
-    state.modalObjectUrls = [];
-  }
-  state.isEditingProfileMetrics = false;
-
-  // Clean up modal player video, canvas, and reset inference loop state
-  const mainVideoPlayer = document.getElementById('profile-details-video-player');
-  if (mainVideoPlayer) {
-    mainVideoPlayer.pause();
-    mainVideoPlayer.src = "";
-  }
 
   state.activeModalVideoProcessing = false;
   state.isModalVideoInferenceLoopRunning = false;
+
+  const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+  if (btnFullscreen) {
+    btnFullscreen.style.display = 'none';
+  }
+
+  // Safely exit fullscreen if the modal is closed in fullscreen mode
+  const currentFullscreenElement = document.fullscreenElement || 
+                                   document.webkitFullscreenElement || 
+                                   document.mozFullScreenElement || 
+                                   document.msFullscreenElement;
+  if (currentFullscreenElement) {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(e => {});
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
+  }
+
+  const mainVideoPlayer = document.getElementById('profile-details-video-player');
+  if (mainVideoPlayer) {
+    try {
+      mainVideoPlayer.pause();
+    } catch (e) {}
+  }
+
+  // Delay revoking the Object URLs and resetting the player src by 150ms 
+  // to ensure any currently in-flight asynchronous pose.send() call fully terminates first.
+  // This prevents WebGL context destruction / invalid texture crashes inside MediaPipe's WASM engine.
+  setTimeout(() => {
+    const player = document.getElementById('profile-details-video-player');
+    if (player) {
+      player.src = "";
+    }
+    if (state.modalObjectUrls) {
+      state.modalObjectUrls.forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {}
+      });
+      state.modalObjectUrls = [];
+    }
+  }, 150);
+
+  state.isEditingProfileMetrics = false;
 
   const canvas = document.getElementById('profile-details-video-canvas');
   if (canvas) {
@@ -8320,7 +8562,7 @@ export function startModalVideoInferenceLoop() {
 
   async function modalVideoInferenceLoop() {
     const video = document.getElementById('profile-details-video-player');
-    if (!state.activeModalVideoProcessing || !video || video.paused || video.ended) {
+    if (!state.activeModalVideoProcessing || !video || video.paused || video.ended || !video.src || video.readyState < 2) {
       state.isModalVideoInferenceLoopRunning = false;
       return;
     }
@@ -8347,7 +8589,7 @@ export function startModalVideoInferenceLoop() {
 export function drawModalVideoPoseOverlay(results) {
   const video = document.getElementById('profile-details-video-player');
   const canvas = document.getElementById('profile-details-video-canvas');
-  if (!video || !canvas) return;
+  if (!video || !canvas || !video.src || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
 
   // Ensure canvas is visible whenever we are actively processing and drawing modal video poses
   if (canvas.style.display !== 'block') {

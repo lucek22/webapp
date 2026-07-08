@@ -2675,3 +2675,56 @@ div[style*="color: #10b981"] {
   font-size: 0.85rem !important;
   font-weight: 500 !important;
 }
+
+/* Fullscreen rules for profile details video container */
+#profile-details-video-player-container:fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  aspect-ratio: auto !important;
+  background: #000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#profile-details-video-player-container:fullscreen video,
+#profile-details-video-player-container:fullscreen canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* WebKit specific fullscreen rule for Safari/Chrome */
+#profile-details-video-player-container:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  aspect-ratio: auto !important;
+  background: #000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#profile-details-video-player-container:-webkit-full-screen video,
+#profile-details-video-player-container:-webkit-full-screen canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Hide native controls' fullscreen and picture-in-picture buttons */
+#profile-details-video-player::-webkit-media-controls-fullscreen-button {
+  display: none !important;
+}
+#profile-details-video-player::-webkit-media-controls-play-button {
+  display: inline-flex !important;
+}
+#profile-details-video-player::-moz-media-controls-fullscreen-button {
+  display: none !important;
+}
+#profile-details-video-player::-webkit-media-controls-picture-in-picture-button {
+  display: none !important;
+}
+#profile-details-video-player::picture-in-picture {
+  display: none !important;
+}

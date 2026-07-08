@@ -1655,7 +1655,10 @@ export function resetAndResume() {
 // CAMERA STREAM MANAGEMENT
 // ==========================================
 
-export async function startCamera() {
+export async function startCamera(preferredDeviceId = null) {
+  if (typeof preferredDeviceId !== 'string') {
+    preferredDeviceId = null;
+  }
   state.isUploadedMedia = false;
   state.uploadedMediaType = null;
   state.latestPoseResults = null;
@@ -1722,30 +1725,82 @@ export async function startCamera() {
   }
 
   try {
+    const primaryVideoConstraints = {
+      width: { min: 1280, ideal: 1920 },
+      height: { min: 720, ideal: 1080 }
+    };
+    if (preferredDeviceId) {
+      primaryVideoConstraints.deviceId = { exact: preferredDeviceId };
+    } else {
+      primaryVideoConstraints.facingMode = state.currentFacingMode;
+    }
+
+    const fallbackVideoConstraints = {
+      width: { ideal: 640 },
+      height: { ideal: 480 }
+    };
+    if (preferredDeviceId) {
+      fallbackVideoConstraints.deviceId = { exact: preferredDeviceId };
+    } else {
+      fallbackVideoConstraints.facingMode = state.currentFacingMode;
+    }
+
     try {
       // Attempt HD/FHD stream for high tracking accuracy (min 720p, ideal 1080p)
       state.activeStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-          width: { min: 1280, ideal: 1920 },
-          height: { min: 720, ideal: 1080 },
-          facingMode: state.currentFacingMode
-        }
+        video: primaryVideoConstraints
       });
     } catch (hdErr) {
       console.warn("HD/FHD camera request failed, falling back to 640x480:", hdErr);
       // Fallback to standard definition if HD is overconstrained or unsupported
       state.activeStream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: state.currentFacingMode
-        }
+        video: fallbackVideoConstraints
       });
     }
     
     videoElement.srcObject = state.activeStream;
+
+    // Detect the active device settings and enumerate devices
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      state.cameraDevices = devices.filter(d => d.kind === 'videoinput' && d.deviceId);
+
+      const activeTrack = state.activeStream.getVideoTracks()[0];
+      if (activeTrack) {
+        const settings = activeTrack.getSettings();
+        if (settings.deviceId) {
+          const idx = state.cameraDevices.findIndex(d => d.deviceId === settings.deviceId);
+          if (idx !== -1) {
+            state.activeCameraIndex = idx;
+          }
+        }
+        
+        if (settings.facingMode) {
+          state.currentFacingMode = settings.facingMode;
+        } else {
+          // Fallback check based on device label
+          const currentDevice = state.activeCameraIndex !== -1 ? state.cameraDevices[state.activeCameraIndex] : null;
+          if (currentDevice && currentDevice.label) {
+            const label = currentDevice.label.toLowerCase();
+            if (label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('outward')) {
+              state.currentFacingMode = "environment";
+            } else if (label.includes('front') || label.includes('user') || label.includes('selfie') || label.includes('integrated') || label.includes('facetime') || label.includes('internal') || label.includes('inward') || label.includes('webcam')) {
+              state.currentFacingMode = "user";
+            } else {
+              // Retain current facing mode if we cannot determine, defaulting to user
+              if (!state.currentFacingMode) {
+                state.currentFacingMode = "user";
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not query active camera settings or enumerate devices:", e);
+    }
+
     // Mirror the view only for front/user camera
     videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
     
@@ -2081,21 +2136,34 @@ if (uploadMediaBtn && mediaUploadInput) {
   });
 }
 
-// Camera switch event listener for switching between front/back cameras
+// Camera switch event listener for switching between front/back cameras (cycling all available cameras)
 const cameraSwitchBtn = document.getElementById('camera-switch-btn');
 if (cameraSwitchBtn) {
   cameraSwitchBtn.addEventListener('click', async () => {
     if (!state.activeStream) return;
     
+    // Ensure we have up-to-date enumerated devices while the stream is active
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      state.cameraDevices = devices.filter(d => d.kind === 'videoinput' && d.deviceId);
+    } catch (err) {
+      console.warn("Could not enumerate devices on switch click:", err);
+    }
+
     // Stop the active stream tracks first
     state.activeStream.getTracks().forEach(track => track.stop());
     state.activeStream = null;
     
-    // Toggle facing mode between user and environment
-    state.currentFacingMode = (state.currentFacingMode === "user") ? "environment" : "user";
-    
-    // Restart camera with new facing mode
-    await startCamera();
+    if (state.cameraDevices && state.cameraDevices.length > 1) {
+      // Cycle through available cameras
+      state.activeCameraIndex = (state.activeCameraIndex + 1) % state.cameraDevices.length;
+      const nextDevice = state.cameraDevices[state.activeCameraIndex];
+      await startCamera(nextDevice.deviceId);
+    } else {
+      // Toggle facing mode between user and environment as a robust fallback
+      state.currentFacingMode = (state.currentFacingMode === "user") ? "environment" : "user";
+      await startCamera();
+    }
   });
 }
 

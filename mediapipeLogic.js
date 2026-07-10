@@ -297,12 +297,6 @@ export function calculatePoseMetrics(results) {
     const shoulderW_wl = Math.hypot(wl_shoulder_l.x - wl_shoulder_r.x, wl_shoulder_l.y - wl_shoulder_r.y, wl_shoulder_l.z - wl_shoulder_r.z) * 100;
     const hipW_wl = Math.hypot(wl_hip_l.x - wl_hip_r.x, wl_hip_l.y - wl_hip_r.y, wl_hip_l.z - wl_hip_r.z) * 100;
 
-    const wl_finger_l = wl[19] || wl[LEFT_WRIST];
-    const fingerToToeL_wl = Math.hypot(wl_finger_l.x - wl_toe_l.x, wl_finger_l.y - wl_toe_l.y, wl_finger_l.z - wl_toe_l.z) * 100;
-
-    const wl_finger_r = wl[20] || wl[RIGHT_WRIST];
-    const fingerToToeR_wl = Math.hypot(wl_finger_r.x - wl_toe_r.x, wl_finger_r.y - wl_toe_r.y, wl_finger_r.z - wl_toe_r.z) * 100;
-
     const wl_left_index = wl[19] || wl[LEFT_WRIST];
     const wl_right_index = wl[20] || wl[RIGHT_WRIST];
 
@@ -311,6 +305,7 @@ export function calculatePoseMetrics(results) {
     const rightHandWorld = results.rightHandWorldLandmarks || results.right_hand_world_landmarks;
 
     let hand_l_wl = 0;
+    let wl_middle_finger_l = null;
     if (leftHandWorld && leftHandWorld[0] && leftHandWorld[12]) {
       // Calculate exact physical hand length using the wrist (0) and middle fingertip (12) from Holistic Hands world landmarks
       hand_l_wl = Math.hypot(
@@ -319,15 +314,38 @@ export function calculatePoseMetrics(results) {
         leftHandWorld[12].z - leftHandWorld[0].z
       ) * 100;
       state.cachedHandLengthL = hand_l_wl;
-    } else if (state.cachedHandLengthL) {
-      // Use calibrated hand length if hand tracking goes offline at the camera boundaries
-      hand_l_wl = state.cachedHandLengthL;
+
+      // Project absolute 3D position of the middle fingertip in Pose world coordinate space
+      wl_middle_finger_l = {
+        x: wl_wrist_l.x + (leftHandWorld[12].x - leftHandWorld[0].x),
+        y: wl_wrist_l.y + (leftHandWorld[12].y - leftHandWorld[0].y),
+        z: wl_wrist_l.z + (leftHandWorld[12].z - leftHandWorld[0].z)
+      };
     } else {
-      // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
-      hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
+      if (state.cachedHandLengthL) {
+        // Use calibrated hand length if hand tracking goes offline at the camera boundaries
+        hand_l_wl = state.cachedHandLengthL;
+      } else {
+        // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
+        hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
+      }
+
+      // Fallback/offline middle fingertip projection: Extend the forearm vector (elbow to wrist) by the hand length
+      const forearm_len = Math.hypot(wl_wrist_l.x - wl_elbow_l.x, wl_wrist_l.y - wl_elbow_l.y, wl_wrist_l.z - wl_elbow_l.z);
+      if (forearm_len > 0.001) {
+        const hand_len_m = hand_l_wl / 100;
+        wl_middle_finger_l = {
+          x: wl_wrist_l.x + (wl_wrist_l.x - wl_elbow_l.x) / forearm_len * hand_len_m,
+          y: wl_wrist_l.y + (wl_wrist_l.y - wl_elbow_l.y) / forearm_len * hand_len_m,
+          z: wl_wrist_l.z + (wl_wrist_l.z - wl_elbow_l.z) / forearm_len * hand_len_m
+        };
+      } else {
+        wl_middle_finger_l = wl_left_index;
+      }
     }
 
     let hand_r_wl = 0;
+    let wl_middle_finger_r = null;
     if (rightHandWorld && rightHandWorld[0] && rightHandWorld[12]) {
       // Calculate exact physical hand length using the wrist (0) and middle fingertip (12) from Holistic Hands world landmarks
       hand_r_wl = Math.hypot(
@@ -336,13 +354,39 @@ export function calculatePoseMetrics(results) {
         rightHandWorld[12].z - rightHandWorld[0].z
       ) * 100;
       state.cachedHandLengthR = hand_r_wl;
-    } else if (state.cachedHandLengthR) {
-      // Use calibrated hand length if hand tracking goes offline at the camera boundaries
-      hand_r_wl = state.cachedHandLengthR;
+
+      // Project absolute 3D position of the middle fingertip in Pose world coordinate space
+      wl_middle_finger_r = {
+        x: wl_wrist_r.x + (rightHandWorld[12].x - rightHandWorld[0].x),
+        y: wl_wrist_r.y + (rightHandWorld[12].y - rightHandWorld[0].y),
+        z: wl_wrist_r.z + (rightHandWorld[12].z - rightHandWorld[0].z)
+      };
     } else {
-      // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
-      hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
+      if (state.cachedHandLengthR) {
+        // Use calibrated hand length if hand tracking goes offline at the camera boundaries
+        hand_r_wl = state.cachedHandLengthR;
+      } else {
+        // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
+        hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
+      }
+
+      // Fallback/offline middle fingertip projection: Extend the forearm vector (elbow to wrist) by the hand length
+      const forearm_len = Math.hypot(wl_wrist_r.x - wl_elbow_r.x, wl_wrist_r.y - wl_elbow_r.y, wl_wrist_r.z - wl_elbow_r.z);
+      if (forearm_len > 0.001) {
+        const hand_len_m = hand_r_wl / 100;
+        wl_middle_finger_r = {
+          x: wl_wrist_r.x + (wl_wrist_r.x - wl_elbow_r.x) / forearm_len * hand_len_m,
+          y: wl_wrist_r.y + (wl_wrist_r.y - wl_elbow_r.y) / forearm_len * hand_len_m,
+          z: wl_wrist_r.z + (wl_wrist_r.z - wl_elbow_r.z) / forearm_len * hand_len_m
+        };
+      } else {
+        wl_middle_finger_r = wl_right_index;
+      }
     }
+
+    // High-accuracy, posture-independent finger-to-toe distance using projected middle fingertips
+    const fingerToToeL_wl = Math.hypot(wl_middle_finger_l.x - wl_toe_l.x, wl_middle_finger_l.y - wl_toe_l.y, wl_middle_finger_l.z - wl_toe_l.z) * 100;
+    const fingerToToeR_wl = Math.hypot(wl_middle_finger_r.x - wl_toe_r.x, wl_middle_finger_r.y - wl_toe_r.y, wl_middle_finger_r.z - wl_toe_r.z) * 100;
 
     // Posture-independent, segment-summed path for 3D wingspan:
     // (Left hand + Left forearm + Left upper arm + Shoulder width + Right upper arm + Right forearm + Right hand)

@@ -170,8 +170,10 @@ const elbowAngleRDisp = document.getElementById('angle-elbow-r');
 // UI Overhead Squat Elements
 const btnModePosture = document.getElementById('btn-mode-posture');
 const btnModeSquat = document.getElementById('btn-mode-squat');
+const btnModeShoulder = document.getElementById('btn-mode-shoulder');
 const postureSidebarContent = document.getElementById('posture-sidebar-content');
 const squatSidebarContent = document.getElementById('squat-sidebar-content');
+const shoulderSidebarContent = document.getElementById('shoulder-sidebar-content');
 
 const squatPeakKneeL = document.getElementById('squat-peak-knee-l');
 const squatLiveKneeL = document.getElementById('squat-live-knee-l');
@@ -193,6 +195,22 @@ const squatStatusVal = document.getElementById('squat-status-val');
 const btnSquatSideLeft = document.getElementById('btn-squat-side-left');
 const btnSquatSideRight = document.getElementById('btn-squat-side-right');
 const btnSquatSideFrontal = document.getElementById('btn-squat-side-frontal');
+
+// UI Shoulder Flexion Elements
+const shoulderPeakExcursionL = document.getElementById('shoulder-peak-excursion-l');
+const shoulderLiveAngleL = document.getElementById('shoulder-live-angle-l');
+const shoulderPeakExcursionR = document.getElementById('shoulder-peak-excursion-r');
+const shoulderLiveAngleR = document.getElementById('shoulder-live-angle-r');
+
+const shoulderStartAngleL = document.getElementById('shoulder-start-angle-l');
+const shoulderStartAngleR = document.getElementById('shoulder-start-angle-r');
+const shoulderEndAngleL = document.getElementById('shoulder-end-angle-l');
+const shoulderEndAngleR = document.getElementById('shoulder-end-angle-r');
+
+const shoulderStatusVal = document.getElementById('shoulder-status-val');
+
+const btnShoulderSideLeft = document.getElementById('btn-shoulder-side-left');
+const btnShoulderSideRight = document.getElementById('btn-shoulder-side-right');
 
 
 // UI Calibration Toggles & Panels
@@ -1214,31 +1232,97 @@ export function onPoseResults(results) {
       const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
       const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
 
-      // Always update peaks state when a valid frame is processed
-      if (state.squatTestingSide === 'left') {
-        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-      } else if (state.squatTestingSide === 'right') {
-        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
-      } else if (state.squatTestingSide === 'frontal') {
-        if (state.allowFrontalUpdateL) {
+      // Always update peaks state when a valid frame is processed in squat mode
+      if (state.currentMode === 'squat') {
+        if (state.squatTestingSide === 'left') {
           state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
           state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
           state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-        }
-        if (state.allowFrontalUpdateR) {
+        } else if (state.squatTestingSide === 'right') {
           state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
           state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
           state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        } else if (state.squatTestingSide === 'frontal') {
+          if (state.allowFrontalUpdateL) {
+            state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+            state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+            state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          }
+          if (state.allowFrontalUpdateR) {
+            state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+            state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+            state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          }
         }
       }
 
       // If in squat mode, update the Overhead Squat dashboard UI
       if (state.currentMode === 'squat') {
         updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated);
+      } else if (state.currentMode === 'shoulder_flexion') {
+        const side = state.shoulderTestingSide || 'left';
+        const angleInfo = getShoulderWristAngle(results.poseLandmarks, side);
+        if (angleInfo) {
+          state.lastCalculatedShoulderAngle = angleInfo.angleDeg;
+          if (side === 'left') {
+            if (shoulderLiveAngleL) shoulderLiveAngleL.textContent = `${Math.round(angleInfo.angleDeg)}°`;
+            if (shoulderLiveAngleR) shoulderLiveAngleR.textContent = '--';
+          } else {
+            if (shoulderLiveAngleR) shoulderLiveAngleR.textContent = `${Math.round(angleInfo.angleDeg)}°`;
+            if (shoulderLiveAngleL) shoulderLiveAngleL.textContent = '--';
+          }
+
+          if (shoulderStatusVal) {
+            shoulderStatusVal.textContent = 'Active Tracking';
+            shoulderStatusVal.className = 'text-emerald';
+          }
+
+          // 1. Draw vertical reference line straight down from the shoulder
+          canvasCtx.save();
+          canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          canvasCtx.setLineDash([5, 5]);
+          canvasCtx.lineWidth = 1.5;
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
+          canvasCtx.lineTo(angleInfo.shoulder.x, angleInfo.shoulder.y + 120); // vertical down
+          canvasCtx.stroke();
+          canvasCtx.restore();
+
+          // 2. Draw angle arc at the shoulder
+          const r = 40;
+          canvasCtx.save();
+          canvasCtx.strokeStyle = '#BA0C2F'; // Scarlet red
+          canvasCtx.lineWidth = 2.5;
+          canvasCtx.beginPath();
+          const armAngleRad = Math.atan2(angleInfo.wrist.y - angleInfo.shoulder.y, angleInfo.wrist.x - angleInfo.shoulder.x);
+          // straight down in canvas coordinates is Math.PI / 2
+          canvasCtx.arc(angleInfo.shoulder.x, angleInfo.shoulder.y, r, Math.PI / 2, armAngleRad, armAngleRad < Math.PI / 2);
+          canvasCtx.stroke();
+          canvasCtx.restore();
+
+          // 3. Draw a premium crimson glowing line for the active arm (shoulder to wrist)
+          canvasCtx.save();
+          canvasCtx.strokeStyle = '#BA0C2F';
+          canvasCtx.lineWidth = 4;
+          canvasCtx.shadowColor = '#BA0C2F';
+          canvasCtx.shadowBlur = 10;
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
+          canvasCtx.lineTo(angleInfo.wrist.x, angleInfo.wrist.y);
+          canvasCtx.stroke();
+          canvasCtx.restore();
+
+          // 4. Draw floating angle badge near the wrist
+          drawAngleBadge(canvasCtx, angleInfo.wrist, Math.round(angleInfo.angleDeg), '#BA0C2F');
+
+          // Real-time Peak and Snapshot Tracking for Live Camera Stream has been transitioned to manual Capture Flexion Snapshot button-click
+          updateShoulderSidebarUI();
+        } else {
+          if (shoulderStatusVal) {
+            shoulderStatusVal.textContent = 'Offline';
+            shoulderStatusVal.className = 'text-slate';
+          }
+        }
       }
 
       // Draw real-time biometrics to dashboard and ruler if calibrated
@@ -2319,7 +2403,29 @@ export function showImportDestinationModal(file) {
           </div>
         </div>
 
-        <!-- Option 5: Analyze Video (No save) -->
+        <!-- Option 5: Left Shoulder Flexion -->
+        <div class="import-opt-card" data-value="shoulder-l" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+          </div>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">💪 Left Shoulder Flexion Video</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Left Shoulder Flexion lowering slot and computes peak mobility excursion.</div>
+          </div>
+        </div>
+
+        <!-- Option 6: Right Shoulder Flexion -->
+        <div class="import-opt-card" data-value="shoulder-r" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+          </div>
+          <div>
+            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">💪 Right Shoulder Flexion Video</div>
+            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Right Shoulder Flexion lowering slot and computes peak mobility excursion.</div>
+          </div>
+        </div>
+
+        <!-- Option 7: Analyze Video (No save) -->
         <div class="import-opt-card" data-value="analyze-only" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
           <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
             <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
@@ -2592,7 +2698,7 @@ export async function scanVideoForSquatPeaks(targetSide, durationSec) {
         if (!resolved) {
           resolved = true;
           uploadedVideo.removeEventListener('seeked', onSeeked);
-          resolve();
+          setTimeout(resolve, 25);
         }
       }
       uploadedVideo.addEventListener('seeked', onSeeked);
@@ -2858,12 +2964,56 @@ export async function handleUploadedFile(file) {
             if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
             if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
             updateSquatSideUI();
+          } else if (importTarget === 'shoulder-l' || importTarget === 'shoulder-r') {
+            state.currentMode = 'shoulder_flexion';
+            state.shoulderPeaks = getDefaultShoulderPeaks(state.shoulderPeaks);
+            if (importTarget === 'shoulder-l') {
+              state.shoulderTestingSide = 'left';
+              state.shoulderPeaks.excursionL = 0;
+              state.shoulderPeaks.startAngleL = null;
+              state.shoulderPeaks.endAngleL = null;
+              state.shoulderPeaks.jointsLStart = null;
+              state.shoulderPeaks.jointsLEnd = null;
+              state.imageShoulderLStart = null;
+              state.imageShoulderLEnd = null;
+            } else if (importTarget === 'shoulder-r') {
+              state.shoulderTestingSide = 'right';
+              state.shoulderPeaks.excursionR = 0;
+              state.shoulderPeaks.startAngleR = null;
+              state.shoulderPeaks.endAngleR = null;
+              state.shoulderPeaks.jointsRStart = null;
+              state.shoulderPeaks.jointsREnd = null;
+              state.imageShoulderRStart = null;
+              state.imageShoulderREnd = null;
+            }
+
+            // Sync the active mode and side selectors in the UI
+            if (btnModeSquat) btnModeSquat.classList.remove('active');
+            if (btnModePosture) btnModePosture.classList.remove('active');
+            if (btnModeShoulder) btnModeShoulder.classList.add('active');
+            if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+            if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
+            if (shoulderSidebarContent) shoulderSidebarContent.classList.remove('hidden');
+
+            // Highlight current shoulder testing side
+            if (btnShoulderSideLeft && btnShoulderSideRight) {
+              if (state.shoulderTestingSide === 'left') {
+                btnShoulderSideLeft.classList.add('active');
+                btnShoulderSideRight.classList.remove('active');
+              } else {
+                btnShoulderSideRight.classList.add('active');
+                btnShoulderSideLeft.classList.remove('active');
+              }
+            }
+            updateShoulderSidebarUI();
           } else if (importTarget === 'playlist') {
             state.currentMode = 'posture';
             if (btnModeSquat) btnModeSquat.classList.remove('active');
             if (btnModePosture) btnModePosture.classList.add('active');
+            if (btnModeShoulder) btnModeShoulder.classList.remove('active');
             if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
             if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
+            if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
           }
 
           // Trigger high-fidelity pre-processing + automatic playout export!
@@ -3425,38 +3575,44 @@ function deleteSnapshotHandler(id) {
 // ==========================================
 
 // Calibration box size slider listeners
-slider.addEventListener('input', (e) => {
-  state.calBoxSize = parseInt(e.target.value);
-  sliderValDisplay.textContent = `${state.calBoxSize} px`;
-  if (state.calLocked) {
-    state.calLocked = false;
-    state.scaleFactor3D = null; // Reset 3D scale so that it re-estimates based on new card scale!
+if (slider) {
+  slider.addEventListener('input', (e) => {
+    state.calBoxSize = parseInt(e.target.value);
+    if (sliderValDisplay) sliderValDisplay.textContent = `${state.calBoxSize} px`;
+    if (state.calLocked) {
+      state.calLocked = false;
+      state.scaleFactor3D = null; // Reset 3D scale so that it re-estimates based on new card scale!
+      clearSmoothBuffer('height_scale_calibration');
+      clearSmoothBuffer('body_height_skeletal');
+      clearSmoothBuffer('body_height_live');
+      
+      if (lockCalButton) {
+        lockCalButton.textContent = "Lock 20cm Calibration";
+        lockCalButton.classList.add('cal-btn-unlocked');
+        lockCalButton.classList.remove('cal-btn-locked');
+      }
+    }
+  });
+}
+
+if (lockCalButton) {
+  lockCalButton.addEventListener('click', () => {
+    state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
+    state.calLocked = true;
+    state.scaleFactor3D = null; // Force recalibration of 3D scale factor using new pixelsPerCm
     clearSmoothBuffer('height_scale_calibration');
     clearSmoothBuffer('body_height_skeletal');
     clearSmoothBuffer('body_height_live');
     
-    lockCalButton.textContent = "Lock 20cm Calibration";
-    lockCalButton.classList.add('cal-btn-unlocked');
-    lockCalButton.classList.remove('cal-btn-locked');
-  }
-});
-
-lockCalButton.addEventListener('click', () => {
-  state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
-  state.calLocked = true;
-  state.scaleFactor3D = null; // Force recalibration of 3D scale factor using new pixelsPerCm
-  clearSmoothBuffer('height_scale_calibration');
-  clearSmoothBuffer('body_height_skeletal');
-  clearSmoothBuffer('body_height_live');
-  
-  lockCalButton.textContent = "✅ Scale Locked!";
-  lockCalButton.classList.add('cal-btn-locked');
-  lockCalButton.classList.remove('cal-btn-unlocked');
-  statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
-  if (state.activeProfileId) {
-    autoSyncToActiveProfile();
-  }
-});
+    lockCalButton.textContent = "✅ Scale Locked!";
+    lockCalButton.classList.add('cal-btn-locked');
+    lockCalButton.classList.remove('cal-btn-unlocked');
+    if (statusElement) statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+    if (state.activeProfileId) {
+      autoSyncToActiveProfile();
+    }
+  });
+}
 
 // Preset Position buttons
 const posLeftBtn = document.getElementById('pos-left-btn');
@@ -3465,34 +3621,42 @@ const posRightBtn = document.getElementById('pos-right-btn');
 
 function updatePosBtnStyles(activeBtn) {
   [posLeftBtn, posCenterBtn, posRightBtn].forEach(btn => {
-    btn.classList.toggle('btn-tab-active', btn === activeBtn);
-    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+    if (btn) {
+      btn.classList.toggle('btn-tab-active', btn === activeBtn);
+      btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+    }
   });
 }
 
-posLeftBtn.addEventListener('click', () => {
-  const w = state.canvasWidth || 640;
-  const h = state.canvasHeight || 480;
-  state.calBoxX = w * 0.15;
-  state.calBoxY = h / 2;
-  updatePosBtnStyles(posLeftBtn);
-});
+if (posLeftBtn) {
+  posLeftBtn.addEventListener('click', () => {
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    state.calBoxX = w * 0.15;
+    state.calBoxY = h / 2;
+    updatePosBtnStyles(posLeftBtn);
+  });
+}
 
-posCenterBtn.addEventListener('click', () => {
-  const w = state.canvasWidth || 640;
-  const h = state.canvasHeight || 480;
-  state.calBoxX = w / 2;
-  state.calBoxY = h / 2;
-  updatePosBtnStyles(posCenterBtn);
-});
+if (posCenterBtn) {
+  posCenterBtn.addEventListener('click', () => {
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    state.calBoxX = w / 2;
+    state.calBoxY = h / 2;
+    updatePosBtnStyles(posCenterBtn);
+  });
+}
 
-posRightBtn.addEventListener('click', () => {
-  const w = state.canvasWidth || 640;
-  const h = state.canvasHeight || 480;
-  state.calBoxX = w * 0.85;
-  state.calBoxY = h / 2;
-  updatePosBtnStyles(posRightBtn);
-});
+if (posRightBtn) {
+  posRightBtn.addEventListener('click', () => {
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    state.calBoxX = w * 0.85;
+    state.calBoxY = h / 2;
+    updatePosBtnStyles(posRightBtn);
+  });
+}
 
 // Mouse/Touch Drag and Drop positioning logic for the calibration guide box
 let isDragging = false;
@@ -4280,9 +4444,12 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
     if (profile) {
       profile.videos = profile.videos || [];
       
-      const labelPrefix = state.currentMode === 'squat' 
-        ? (state.squatTestingSide === 'left' ? "Left Overhead Squat" : (state.squatTestingSide === 'right' ? "Right Overhead Squat" : "Frontal Overhead Squat")) 
-        : "Video Capture";
+      let labelPrefix = "Video Capture";
+      if (state.currentMode === 'squat') {
+        labelPrefix = state.squatTestingSide === 'left' ? "Left Overhead Squat" : (state.squatTestingSide === 'right' ? "Right Overhead Squat" : "Frontal Overhead Squat");
+      } else if (state.currentMode === 'shoulder_flexion') {
+        labelPrefix = state.shoulderTestingSide === 'left' ? "Left Shoulder Flexion" : "Right Shoulder Flexion";
+      }
         
       const videoEntry = {
         id: Date.now(),
@@ -4305,18 +4472,44 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
             if (state.squatTestingSide === 'left') {
               activeSession.videoSquatL = videoEntry;
               state.videoSquatL = videoEntry;
-              activeSession.imageSquatL = null; // Clear static overlay for video slots
-              state.imageSquatL = null;
+              if (!state.isRecordingAssessment) {
+                activeSession.imageSquatL = null; // Clear static overlay for video slots
+                state.imageSquatL = null;
+              }
             } else if (state.squatTestingSide === 'right') {
               activeSession.videoSquatR = videoEntry;
               state.videoSquatR = videoEntry;
-              activeSession.imageSquatR = null; // Clear static overlay for video slots
-              state.imageSquatR = null;
+              if (!state.isRecordingAssessment) {
+                activeSession.imageSquatR = null; // Clear static overlay for video slots
+                state.imageSquatR = null;
+              }
             } else {
               activeSession.videoSquatFrontal = videoEntry;
               state.videoSquatFrontal = videoEntry;
-              activeSession.imageSquatFrontal = null; // Clear static overlay for video slots
-              state.imageSquatFrontal = null;
+              if (!state.isRecordingAssessment) {
+                activeSession.imageSquatFrontal = null; // Clear static overlay for video slots
+                state.imageSquatFrontal = null;
+              }
+            }
+          } else if (state.currentMode === 'shoulder_flexion') {
+            if (state.shoulderTestingSide === 'left') {
+              activeSession.videoShoulderL = videoEntry;
+              state.videoShoulderL = videoEntry;
+              if (!state.isRecordingAssessment) {
+                activeSession.imageShoulderLStart = null;
+                state.imageShoulderLStart = null;
+                activeSession.imageShoulderLEnd = null;
+                state.imageShoulderLEnd = null;
+              }
+            } else if (state.shoulderTestingSide === 'right') {
+              activeSession.videoShoulderR = videoEntry;
+              state.videoShoulderR = videoEntry;
+              if (!state.isRecordingAssessment) {
+                activeSession.imageShoulderRStart = null;
+                state.imageShoulderRStart = null;
+                activeSession.imageShoulderREnd = null;
+                state.imageShoulderREnd = null;
+              }
             }
           }
         }
@@ -4333,9 +4526,193 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
       
       console.log(`[VideoSave] Successfully saved video to profile: ${profile.name}`);
       statusElement.textContent = `🎥 Video saved directly to "${profile.name}"'s portfolio and downloaded locally!`;
+
+      if (state.isRecordingAssessment) {
+        state.isRecordingAssessment = false;
+        alert(`Assessment video recorded and saved successfully for ${profile.name}!`);
+        openProfileDetailsModal(profile.id);
+      }
     }
   } catch (err) {
     console.error("[VideoSave] Failed to save video to active profile:", err);
+  }
+}
+
+export function getShoulderWristAngle(landmarks, side) {
+  if (!landmarks) return null;
+  const shoulderIdx = side === 'left' ? 11 : 12;
+  const wristIdx = side === 'left' ? 15 : 16;
+  
+  const rawShoulder = landmarks[shoulderIdx];
+  const rawWrist = landmarks[wristIdx];
+  if (!rawShoulder || !rawWrist) return null;
+
+  const height = state.canvasHeight || 480;
+
+  // Resolve landmarks to pixel coordinates, matching how they are drawn
+  const shoulder = { x: getCanvasX(rawShoulder.x), y: rawShoulder.y * height };
+  const wrist = { x: getCanvasX(rawWrist.x), y: rawWrist.y * height };
+
+  const v_x = wrist.x - shoulder.x;
+  const v_y = wrist.y - shoulder.y;
+  const len = Math.sqrt(v_x * v_x + v_y * v_y);
+  if (len === 0) return null;
+
+  const u_x = v_x / len;
+  const u_y = v_y / len;
+  
+  // Angle relative to straight down vertical [0, 1]
+  const cos_theta = Math.max(-1, Math.min(1, u_y));
+  const angleDeg = Math.acos(cos_theta) * 180 / Math.PI;
+
+  return { angleDeg, u_x, u_y, wrist, shoulder };
+}
+
+export async function processShoulderFlexionFromPreprocessedFrames() {
+  if (!state.exportFramesData || state.exportFramesData.length === 0) return;
+  const side = state.shoulderTestingSide || 'left';
+  console.log(`[ShoulderProcessing] Processing shoulder flexion from ${state.exportFramesData.length} frames for side: ${side}`);
+
+  // 1. Find the Peak End Frame (max angle relative to straight down across the entire video)
+  let maxAngle = -1;
+  let endIdx = -1;
+  let endAngleInfo = null;
+
+  for (let i = 0; i < state.exportFramesData.length; i++) {
+    const frame = state.exportFramesData[i];
+    if (frame.poseLandmarks) {
+      const info = getShoulderWristAngle(frame.poseLandmarks, side);
+      if (info && info.angleDeg > maxAngle) {
+        maxAngle = info.angleDeg;
+        endIdx = i;
+        endAngleInfo = info;
+      }
+    }
+  }
+
+  if (endIdx === -1 || !endAngleInfo) {
+    console.warn("[ShoulderProcessing] Could not identify a valid peak end frame (arms up) with pose landmarks.");
+    return;
+  }
+
+  // 2. Find the Start Frame (min angle before the peak end frame)
+  let minAngle = 360;
+  let startIdx = -1;
+  let startAngleInfo = null;
+
+  for (let i = 0; i <= endIdx; i++) {
+    const frame = state.exportFramesData[i];
+    if (frame.poseLandmarks) {
+      const info = getShoulderWristAngle(frame.poseLandmarks, side);
+      if (info && info.angleDeg < minAngle) {
+        minAngle = info.angleDeg;
+        startIdx = i;
+        startAngleInfo = info;
+      }
+    }
+  }
+
+  if (startIdx === -1 || !startAngleInfo) {
+    console.warn("[ShoulderProcessing] Could not identify a valid start frame (arms down) before the peak.");
+    return;
+  }
+
+  const startFrame = state.exportFramesData[startIdx];
+  const endFrame = state.exportFramesData[endIdx];
+
+  // 3. Compute excursion
+  const dot = startAngleInfo.u_x * endAngleInfo.u_x + startAngleInfo.u_y * endAngleInfo.u_y;
+  const excursion = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+
+  console.log(`[ShoulderProcessing] Identified Start Frame (Arms Down) at t=${startFrame.time.toFixed(3)}s (Angle: ${startAngleInfo.angleDeg.toFixed(1)}°), End Frame (Arms Up Peak) at t=${endFrame.time.toFixed(3)}s (Angle: ${endAngleInfo.angleDeg.toFixed(1)}°). Excursion: ${excursion.toFixed(1)}°`);
+
+  // Ensure state peaks structure is initialized
+  state.shoulderPeaks = getDefaultShoulderPeaks(state.shoulderPeaks);
+
+  // Save numerical excursion and angles
+  if (side === 'left') {
+    state.shoulderPeaks.excursionL = excursion;
+    state.shoulderPeaks.startAngleL = startAngleInfo.angleDeg;
+    state.shoulderPeaks.endAngleL = endAngleInfo.angleDeg;
+    state.shoulderPeaks.jointsL = {
+      start: JSON.parse(JSON.stringify(startFrame.poseLandmarks)),
+      end: JSON.parse(JSON.stringify(endFrame.poseLandmarks))
+    };
+    state.jointsShoulderL = state.shoulderPeaks.jointsL;
+  } else {
+    state.shoulderPeaks.excursionR = excursion;
+    state.shoulderPeaks.startAngleR = startAngleInfo.angleDeg;
+    state.shoulderPeaks.endAngleR = endAngleInfo.angleDeg;
+    state.shoulderPeaks.jointsR = {
+      start: JSON.parse(JSON.stringify(startFrame.poseLandmarks)),
+      end: JSON.parse(JSON.stringify(endFrame.poseLandmarks))
+    };
+    state.jointsShoulderR = state.shoulderPeaks.jointsR;
+  }
+
+  // Define seek function
+  function seekVideoTo(time) {
+    return new Promise((resolve) => {
+      let resolved = false;
+      function onSeeked() {
+        if (!resolved) {
+          resolved = true;
+          uploadedVideo.removeEventListener('seeked', onSeeked);
+          setTimeout(resolve, 25);
+        }
+      }
+      uploadedVideo.addEventListener('seeked', onSeeked);
+      uploadedVideo.currentTime = time;
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          uploadedVideo.removeEventListener('seeked', onSeeked);
+          resolve();
+        }
+      }, 1000);
+    });
+  }
+
+  // 4. Capture screenshots with overlays
+  // Save original seek time
+  const origTime = uploadedVideo.currentTime;
+
+  // Render and capture Start Frame
+  await seekVideoTo(startFrame.time);
+  const startResults = {
+    poseLandmarks: startFrame.poseLandmarks,
+    image: uploadedVideo
+  };
+  onPoseResults(startResults);
+  const startImg = canvasElement.toDataURL('image/png');
+
+  // Render and capture End Frame
+  await seekVideoTo(endFrame.time);
+  const endResults = {
+    poseLandmarks: endFrame.poseLandmarks,
+    image: uploadedVideo
+  };
+  onPoseResults(endResults);
+  const endImg = canvasElement.toDataURL('image/png');
+
+  // Save to state
+  if (side === 'left') {
+    state.imageShoulderLStart = endImg;
+    state.imageShoulderLEnd = null;
+  } else {
+    state.imageShoulderRStart = endImg;
+    state.imageShoulderREnd = null;
+  }
+
+  // Restore video playback position
+  await seekVideoTo(origTime);
+
+  // Sync state to profile
+  await autoSyncToActiveProfile();
+  updateShoulderSidebarUI();
+  
+  if (statusElement) {
+    statusElement.textContent = `✅ Calculated ${side.toUpperCase()} Shoulder Excursion: ${excursion.toFixed(1)}°. Snapshots saved.`;
   }
 }
 
@@ -4464,7 +4841,7 @@ export async function runVideoFramePreprocessing() {
         if (!resolved) {
           resolved = true;
           uploadedVideo.removeEventListener('seeked', onSeeked);
-          resolve();
+          setTimeout(resolve, 25);
         }
       }
       uploadedVideo.addEventListener('seeked', onSeeked);
@@ -4527,6 +4904,14 @@ export async function runVideoFramePreprocessing() {
       statusElement.textContent = "✅ Pre-processing complete. Initializing zero-lag playout record...";
       state.isExportingFrameByFrame = false;
       updateRecordButtonUI();
+
+      if (state.currentMode === 'shoulder_flexion') {
+        try {
+          await processShoulderFlexionFromPreprocessedFrames();
+        } catch (err) {
+          console.error("[ShoulderProcessing] Error processing preprocessed frames:", err);
+        }
+      }
 
       // Start the Playout phase!
       await startRealTimePlaybackExport();
@@ -5241,6 +5626,71 @@ export function updateSquatSideUI() {
   }
 }
 
+export function updateShoulderSideUI() {
+  const side = state.shoulderTestingSide || 'left';
+  
+  if (btnShoulderSideLeft && btnShoulderSideRight) {
+    if (side === 'left') {
+      btnShoulderSideLeft.classList.add('active-left');
+      btnShoulderSideLeft.style.background = 'linear-gradient(135deg, #BA0C2F 0%, #8c051e 100%)';
+      btnShoulderSideLeft.style.color = 'white';
+      btnShoulderSideRight.classList.remove('active-right');
+      btnShoulderSideRight.style.background = 'transparent';
+      btnShoulderSideRight.style.color = '#a7b1b7';
+    } else if (side === 'right') {
+      btnShoulderSideRight.classList.add('active-right');
+      btnShoulderSideRight.style.background = 'linear-gradient(135deg, #BA0C2F 0%, #8c051e 100%)';
+      btnShoulderSideRight.style.color = 'white';
+      btnShoulderSideLeft.classList.remove('active-left');
+      btnShoulderSideLeft.style.background = 'transparent';
+      btnShoulderSideLeft.style.color = '#a7b1b7';
+    }
+  }
+
+  const angleBoxes = document.querySelectorAll('#shoulder-sidebar-content .angle-box');
+  angleBoxes.forEach(box => {
+    if (side === 'left') {
+      if (box.classList.contains('left-border')) {
+        box.classList.add('active-left');
+        box.classList.remove('inactive-side');
+      } else if (box.classList.contains('right-border')) {
+        box.classList.add('inactive-side');
+        box.classList.remove('active-right');
+      }
+    } else if (side === 'right') {
+      if (box.classList.contains('right-border')) {
+        box.classList.add('active-right');
+        box.classList.remove('inactive-side');
+      } else if (box.classList.contains('left-border')) {
+        box.classList.add('inactive-side');
+        box.classList.remove('active-left');
+      }
+    }
+  });
+}
+
+export async function resetShoulderPeaksUI() {
+  state.shoulderPeaks = getDefaultShoulderPeaks();
+  state.imageShoulderLStart = null;
+  state.imageShoulderLEnd = null;
+  state.imageShoulderRStart = null;
+  state.imageShoulderREnd = null;
+  
+  if (state.activeProfileId) {
+    await autoSyncToActiveProfile(true);
+  }
+  
+  if (shoulderLiveAngleL) shoulderLiveAngleL.textContent = '--°';
+  if (shoulderLiveAngleR) shoulderLiveAngleR.textContent = '--°';
+
+  if (shoulderStatusVal) {
+    shoulderStatusVal.textContent = 'Awaiting Subject';
+    shoulderStatusVal.classList.remove('text-slate', 'text-amber', 'text-red', 'text-emerald');
+    shoulderStatusVal.classList.add('text-slate');
+  }
+  updateShoulderSidebarUI();
+}
+
 export function calculateValgusFromJoints(joints) {
   let pctL = 0;
   let pctR = 0;
@@ -5420,12 +5870,12 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
   }
 }
 
-export function resetSquatPeaks() {
+export async function resetSquatPeaks() {
   state.squatPeaks = getDefaultSquatPeaks();
   state.jointsOverhead = null;
 
   if (state.activeProfileId) {
-    autoSyncToActiveProfile(true);
+    await autoSyncToActiveProfile(true);
   }
 
   if (squatPeakKneeL) squatPeakKneeL.textContent = '0°';
@@ -5459,6 +5909,33 @@ export function getDefaultSquatPeaks(existing = null) {
     return { ...defaults, ...existing };
   }
   return defaults;
+}
+
+export function getDefaultShoulderPeaks(existing = null) {
+  const defaults = {
+    excursionL: 0,
+    excursionR: 0,
+    startAngleL: null,
+    startAngleR: null,
+    endAngleL: null,
+    endAngleR: null,
+    jointsL: null,
+    jointsR: null
+  };
+  if (existing) {
+    return { ...defaults, ...existing };
+  }
+  return defaults;
+}
+
+export function updateShoulderSidebarUI() {
+  const p = state.shoulderPeaks || getDefaultShoulderPeaks();
+  if (shoulderPeakExcursionL) shoulderPeakExcursionL.textContent = `${Math.round(p.excursionL || 0)}°`;
+  if (shoulderPeakExcursionR) shoulderPeakExcursionR.textContent = `${Math.round(p.excursionR || 0)}°`;
+  if (shoulderStartAngleL) shoulderStartAngleL.textContent = p.startAngleL ? `${Math.round(p.startAngleL)}°` : '--';
+  if (shoulderStartAngleR) shoulderStartAngleR.textContent = p.startAngleR ? `${Math.round(p.startAngleR)}°` : '--';
+  if (shoulderEndAngleL) shoulderEndAngleL.textContent = p.endAngleL ? `${Math.round(p.endAngleL)}°` : '--';
+  if (shoulderEndAngleR) shoulderEndAngleR.textContent = p.endAngleR ? `${Math.round(p.endAngleR)}°` : '--';
 }
 
 export function updateDashboardOfflinePlaceholders() {
@@ -5511,9 +5988,11 @@ if (btnModePosture) {
     state.currentMode = 'posture';
     btnModePosture.classList.add('active');
     if (btnModeSquat) btnModeSquat.classList.remove('active');
+    if (btnModeShoulder) btnModeShoulder.classList.remove('active');
     
     if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
     if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+    if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
     
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
@@ -5528,9 +6007,11 @@ if (btnModeSquat) {
     state.currentMode = 'squat';
     btnModeSquat.classList.add('active');
     if (btnModePosture) btnModePosture.classList.remove('active');
+    if (btnModeShoulder) btnModeShoulder.classList.remove('active');
     
     if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
     if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
+    if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
     
     updateSquatSideUI(); // Ensure side selector states are active on sidebar open
 
@@ -5538,6 +6019,28 @@ if (btnModeSquat) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateSquatDashboardOffline();
+    }
+  });
+}
+
+if (btnModeShoulder) {
+  btnModeShoulder.addEventListener('click', () => {
+    state.currentMode = 'shoulder_flexion';
+    btnModeShoulder.classList.add('active');
+    if (btnModePosture) btnModePosture.classList.remove('active');
+    if (btnModeSquat) btnModeSquat.classList.remove('active');
+    
+    if (shoulderSidebarContent) shoulderSidebarContent.classList.remove('hidden');
+    if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
+    if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+    
+    updateShoulderSideUI();
+    updateShoulderSidebarUI();
+    
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateShoulderSidebarUI();
     }
   });
 }
@@ -5578,9 +6081,31 @@ if (btnSquatSideFrontal) {
   });
 }
 
-// Initial UI sync for squat side selector (runs immediately upon controller load)
+// Wire up Shoulder Testing Side selectors
+if (btnShoulderSideLeft) {
+  btnShoulderSideLeft.addEventListener('click', () => {
+    state.shoulderTestingSide = 'left';
+    updateShoulderSideUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    }
+  });
+}
+if (btnShoulderSideRight) {
+  btnShoulderSideRight.addEventListener('click', () => {
+    state.shoulderTestingSide = 'right';
+    updateShoulderSideUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    }
+  });
+}
+
+// Initial UI sync for side selectors
 setTimeout(() => {
   updateSquatSideUI();
+  updateShoulderSideUI();
+  updateShoulderSidebarUI();
 }, 200);
 
 const btnResetPeaks = document.getElementById('btn-reset-peaks');
@@ -5588,10 +6113,114 @@ if (btnResetPeaks) {
   btnResetPeaks.addEventListener('click', resetSquatPeaks);
 }
 
+const btnResetShoulderPeaks = document.getElementById('btn-reset-shoulder-peaks');
+if (btnResetShoulderPeaks) {
+  btnResetShoulderPeaks.addEventListener('click', resetShoulderPeaksUI);
+}
+
 const btnSaveSquatPeaks = document.getElementById('btn-save-squat-peaks');
 if (btnSaveSquatPeaks) {
   btnSaveSquatPeaks.addEventListener('click', async () => {
-    // 1. Validation check for non-zero squat peaks
+    const isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+    
+    if (isWebcamLive) {
+      if (!state.isRecording) {
+        // Start live recording
+        state.isRecordingAssessment = true;
+        // Merge with existing peak values so we do not wipe out metrics for the opposite side!
+        state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
+        
+        if (state.squatTestingSide === 'left') {
+          state.imageSquatL = null;
+          state.squatPeaks.kneeL = 0;
+          state.squatPeaks.hipL = 0;
+          state.squatPeaks.ankleL = 0;
+        } else if (state.squatTestingSide === 'right') {
+          state.imageSquatR = null;
+          state.squatPeaks.kneeR = 0;
+          state.squatPeaks.hipR = 0;
+          state.squatPeaks.ankleR = 0;
+        } else {
+          state.imageSquatFrontal = null;
+          state.jointsOverhead = null;
+          state.squatPeaks.maxKneeCaveL = 0;
+          state.squatPeaks.maxKneeCaveR = 0;
+          state.squatPeaks.valgusFirstTimestamp = null;
+          state.squatPeaks.valgusPeakTimestamp = null;
+          state.squatPeaks.valgusPeakScore = 0;
+        }
+        startVideoRecording();
+        
+        // Update button UI to recording style
+        btnSaveSquatPeaks.innerHTML = `<span class="recording-dot"></span> 🛑 Stop & Save Assessment Video`;
+        btnSaveSquatPeaks.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        btnSaveSquatPeaks.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        btnSaveSquatPeaks.style.boxShadow = '0 0 15px rgba(239, 68, 68, 0.6)';
+        btnSaveSquatPeaks.classList.add('recording-pulse');
+        
+        // Add CSS keyframes for recording-pulse animation if not present
+        if (!document.getElementById('recording-pulse-style')) {
+          const style = document.createElement('style');
+          style.id = 'recording-pulse-style';
+          style.innerHTML = `
+            @keyframes recording-pulse {
+              0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+              70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+              100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            }
+            .recording-pulse {
+              animation: recording-pulse 1.5s infinite !important;
+            }
+            .recording-dot {
+              display: inline-block;
+              width: 8px;
+              height: 8px;
+              background-color: #fff;
+              border-radius: 50%;
+              margin-right: 6px;
+              animation: blink 1s infinite alternate;
+            }
+            @keyframes blink {
+              0% { opacity: 0.2; }
+              100% { opacity: 1; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+        
+        if (statusElement) {
+          statusElement.textContent = "🎥 Video recording started... Perform your overhead squat test now!";
+        }
+        return;
+      } else {
+        // Stop live recording & finalize save
+        // Restore button appearance
+        btnSaveSquatPeaks.innerHTML = `Record Squat Assessment`;
+        btnSaveSquatPeaks.style.background = 'linear-gradient(135deg, #BA0C2F, #8A0824)';
+        btnSaveSquatPeaks.style.borderColor = 'rgba(186, 12, 47, 0.4)';
+        btnSaveSquatPeaks.style.boxShadow = 'none';
+        btnSaveSquatPeaks.classList.remove('recording-pulse');
+        
+        // Save the snapshots at the moment of clicking stop
+        const capturedImg = canvasElement.toDataURL('image/png');
+        if (state.squatTestingSide === 'left') {
+          state.imageSquatL = capturedImg;
+        } else if (state.squatTestingSide === 'right') {
+          state.imageSquatR = capturedImg;
+        } else if (state.squatTestingSide === 'frontal') {
+          state.imageSquatFrontal = capturedImg;
+          if (state.lastCalculatedResults) {
+            state.jointsOverhead = JSON.parse(JSON.stringify(state.lastCalculatedResults));
+          }
+        }
+        
+        // Stop recording
+        stopVideoRecording();
+        return;
+      }
+    }
+
+    // 1. Validation check for non-zero squat peaks (only run if webcam not active)
     const peaks = state.squatPeaks;
     if (!peaks || (peaks.kneeL === 0 && peaks.kneeR === 0 && peaks.hipL === 0 && peaks.hipR === 0 && peaks.ankleL === 0 && peaks.ankleR === 0)) {
       alert("No peak mobility metrics recorded yet. Please perform an overhead squat test first!");
@@ -5613,19 +6242,8 @@ if (btnSaveSquatPeaks) {
 
     const label = state.activeProfileId ? `${activeProfileName} - Mobility Peaks` : "Guest - Mobility Peaks";
 
-    // 3. Construct persistent database snapshotRecord for IndexedDB gallery registration
-    const snapshotRecord = {
-      name: label,
-      timestamp: Date.now(),
-      image: canvasElement.toDataURL('image/png'),
-      metrics: {
-        isSquatMobility: true,
-        squatPeaks: JSON.parse(JSON.stringify(state.squatPeaks))
-      }
-    };
-
     try {
-      // 4. If we have an active profile, sync these peaks directly to their portfolio record (skipping general gallery)
+      // 3. If we have an active profile, sync these peaks directly to their portfolio record (skipping general gallery)
       if (state.activeProfileId) {
         const capturedImg = canvasElement.toDataURL('image/png');
         if (state.squatTestingSide === 'left') {
@@ -5644,6 +6262,8 @@ if (btnSaveSquatPeaks) {
         if (statusElement) {
           statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to portfolio!`;
         }
+        alert(`Peak mobility metrics saved successfully for ${activeProfileName}!`);
+        openProfileDetailsModal(state.activeProfileId);
       } else {
         alert("You are currently in Guest Mode. To save these peak mobility scores to a player portfolio, please select or create a profile first, then click Save Peaks to Portfolio again.");
       }
@@ -5651,6 +6271,98 @@ if (btnSaveSquatPeaks) {
       console.error("Failed to save squat peak snapshot to IndexedDB:", err);
       alert("Could not save squat peaks snapshot. See developer console for errors.");
     }
+  });
+}
+
+const btnSaveShoulderPeaks = document.getElementById('btn-save-shoulder-peaks');
+if (btnSaveShoulderPeaks) {
+  btnSaveShoulderPeaks.addEventListener('click', async () => {
+    // Initialize shoulder peaks structure if not present
+    if (!state.shoulderPeaks) {
+      state.shoulderPeaks = getDefaultShoulderPeaks();
+    }
+
+    const side = state.shoulderTestingSide || 'left';
+    const statusElement = document.getElementById('shoulder-recording-status');
+
+    // Capture the current canvas context as the snapshot
+    const capturedImg = canvasElement.toDataURL('image/png');
+    let curAngle = 0;
+    if (state.latestPoseResults && state.latestPoseResults.poseLandmarks) {
+      const info = getShoulderWristAngle(state.latestPoseResults.poseLandmarks, side);
+      if (info) {
+        curAngle = info.angleDeg;
+      }
+    }
+    if (curAngle === 0) {
+      curAngle = state.lastCalculatedShoulderAngle || 0;
+    }
+
+    if (side === 'left') {
+      state.imageShoulderLStart = capturedImg;
+      state.imageShoulderLEnd = null;
+      
+      state.shoulderPeaks.startAngleL = 0;
+      state.shoulderPeaks.endAngleL = curAngle;
+      state.shoulderPeaks.excursionL = curAngle;
+
+      state.shoulderPeaks.jointsL = {
+        start: null,
+        end: state.latestPoseResults && state.latestPoseResults.poseLandmarks ? JSON.parse(JSON.stringify(state.latestPoseResults.poseLandmarks)) : null
+      };
+      state.jointsShoulderL = state.shoulderPeaks.jointsL;
+    } else {
+      state.imageShoulderRStart = capturedImg;
+      state.imageShoulderREnd = null;
+      
+      state.shoulderPeaks.startAngleR = 0;
+      state.shoulderPeaks.endAngleR = curAngle;
+      state.shoulderPeaks.excursionR = curAngle;
+
+      state.shoulderPeaks.jointsR = {
+        start: null,
+        end: state.latestPoseResults && state.latestPoseResults.poseLandmarks ? JSON.parse(JSON.stringify(state.latestPoseResults.poseLandmarks)) : null
+      };
+      state.jointsShoulderR = state.shoulderPeaks.jointsR;
+    }
+
+    // Identify active subject or Guest Mode
+    let activeProfileName = "Guest";
+    if (state.activeProfileId) {
+      try {
+        const profile = await snapshotStore.getProfile(state.activeProfileId);
+        if (profile) {
+          activeProfileName = profile.name;
+        }
+      } catch (err) {
+        console.error("Error fetching active profile for peak saving:", err);
+      }
+    }
+
+    const label = state.activeProfileId ? `${activeProfileName} - Shoulder Flexion` : "Guest - Shoulder Flexion";
+
+    try {
+      if (state.activeProfileId) {
+        // Shoulder peaks are synced directly via autoSyncToActiveProfile
+        await autoSyncToActiveProfile(true);
+        
+        if (statusElement) {
+          statusElement.textContent = `💾 Shoulder flexion angle of ${Math.round(curAngle)}° for "${label}" successfully saved to portfolio!`;
+        }
+        alert(`Shoulder flexion angle of ${Math.round(curAngle)}° saved successfully for ${activeProfileName}!`);
+        openProfileDetailsModal(state.activeProfileId);
+      } else {
+        alert(`You are currently in Guest Mode. Your flexion angle is ${Math.round(curAngle)}°. To save these shoulder flexion scores to a player portfolio, please select or create a profile first, then click Capture Flexion Snapshot again.`);
+      }
+    } catch (err) {
+      console.error("Failed to save shoulder peak snapshot:", err);
+      alert("Could not save shoulder flexion snapshot. See developer console for errors.");
+    }
+
+    // Initial placeholder update
+    setTimeout(() => {
+      updateDashboardOfflinePlaceholders();
+    }, 200);
   });
 }
 
@@ -6242,6 +6954,15 @@ export async function initializeProfilesSelector() {
   const lightboxTitle = document.getElementById('lightbox-title');
 
   if (lightboxModal && btnCloseLightbox && lightboxImg) {
+    window.expandLightboxImage = function(src, title) {
+      if (!src) return;
+      lightboxImg.src = src;
+      if (lightboxTitle) {
+        lightboxTitle.textContent = title;
+      }
+      lightboxModal.classList.add('active');
+    };
+
     const closeLightbox = () => {
       lightboxModal.classList.remove('active');
     };
@@ -6364,16 +7085,25 @@ export function ensureProfileSessions(profile) {
       metricsT: profile.metricsT || null,
       metricsOverhead: profile.metricsOverhead || null,
       squatPeaks: getDefaultSquatPeaks(profile.squatPeaks),
+      shoulderPeaks: getDefaultShoulderPeaks(profile.shoulderPeaks),
       imageA: profile.imageA || null,
       imageT: profile.imageT || null,
       imageOverhead: profile.imageOverhead || null,
       imageSquatL: profile.imageSquatL || null,
       imageSquatR: profile.imageSquatR || null,
       imageSquatFrontal: profile.imageSquatFrontal || null,
+      imageShoulderLStart: profile.imageShoulderLStart || null,
+      imageShoulderLEnd: profile.imageShoulderLEnd || null,
+      imageShoulderRStart: profile.imageShoulderRStart || null,
+      imageShoulderREnd: profile.imageShoulderREnd || null,
       jointsOverhead: profile.jointsOverhead || null,
+      jointsShoulderL: profile.jointsShoulderL || null,
+      jointsShoulderR: profile.jointsShoulderR || null,
       videoSquatL: profile.videoSquatL || null,
       videoSquatR: profile.videoSquatR || null,
-      videoSquatFrontal: profile.videoSquatFrontal || null
+      videoSquatFrontal: profile.videoSquatFrontal || null,
+      videoShoulderL: profile.videoShoulderL || null,
+      videoShoulderR: profile.videoShoulderR || null
     };
     profile.sessions = [baselineSession];
     profile.activeSessionId = baselineSession.id;
@@ -6412,16 +7142,27 @@ export async function loadProfileIntoState(profileId) {
     state.metricsT = activeSession.metricsT || null;
     state.metricsOverhead = activeSession.metricsOverhead || null;
     state.squatPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
+    state.shoulderPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
     state.imageSquatL = activeSession.imageSquatL || null;
     state.imageSquatR = activeSession.imageSquatR || null;
     state.imageSquatFrontal = activeSession.imageSquatFrontal || null;
+    state.imageShoulderLStart = activeSession.imageShoulderLStart || null;
+    state.imageShoulderLEnd = activeSession.imageShoulderLEnd || null;
+    state.imageShoulderRStart = activeSession.imageShoulderRStart || null;
+    state.imageShoulderREnd = activeSession.imageShoulderREnd || null;
     state.videoSquatL = activeSession.videoSquatL || null;
     state.videoSquatR = activeSession.videoSquatR || null;
     state.videoSquatFrontal = activeSession.videoSquatFrontal || null;
+    state.videoShoulderL = activeSession.videoShoulderL || null;
+    state.videoShoulderR = activeSession.videoShoulderR || null;
     state.jointsOverhead = activeSession.jointsOverhead || null;
+    state.jointsShoulderL = activeSession.jointsShoulderL || null;
+    state.jointsShoulderR = activeSession.jointsShoulderR || null;
+    
+    updateShoulderSidebarUI();
     
     state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile, activeSession.id);
 
@@ -6581,25 +7322,39 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) session.pixelsPerCm = state.pixelsPerCm;
     
     if (!onlySquat) {
-      if (state.metricsA !== null && state.metricsA !== undefined) session.metricsA = state.metricsA;
-      if (state.metricsT !== null && state.metricsT !== undefined) session.metricsT = state.metricsT;
-      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) session.metricsOverhead = state.metricsOverhead;
-      if (state.imageA !== null && state.imageA !== undefined) session.imageA = state.imageA;
-      if (state.imageT !== null && state.imageT !== undefined) session.imageT = state.imageT;
-      if (state.imageOverhead !== null && state.imageOverhead !== undefined) session.imageOverhead = state.imageOverhead;
+      if (state.metricsA !== undefined) session.metricsA = state.metricsA;
+      if (state.metricsT !== undefined) session.metricsT = state.metricsT;
+      if (state.metricsOverhead !== undefined) session.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== undefined) session.imageA = state.imageA;
+      if (state.imageT !== undefined) session.imageT = state.imageT;
+      if (state.imageOverhead !== undefined) session.imageOverhead = state.imageOverhead;
     }
     
-    if (state.imageSquatL !== null && state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;
-    if (state.imageSquatR !== null && state.imageSquatR !== undefined) session.imageSquatR = state.imageSquatR;
-    if (state.imageSquatFrontal !== null && state.imageSquatFrontal !== undefined) session.imageSquatFrontal = state.imageSquatFrontal;
+    if (state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;
+    if (state.imageSquatR !== undefined) session.imageSquatR = state.imageSquatR;
+    if (state.imageSquatFrontal !== undefined) session.imageSquatFrontal = state.imageSquatFrontal;
     
-    if (state.videoSquatL !== null && state.videoSquatL !== undefined) session.videoSquatL = state.videoSquatL;
-    if (state.videoSquatR !== null && state.videoSquatR !== undefined) session.videoSquatR = state.videoSquatR;
-    if (state.videoSquatFrontal !== null && state.videoSquatFrontal !== undefined) session.videoSquatFrontal = state.videoSquatFrontal;
-    if (state.jointsOverhead !== null && state.jointsOverhead !== undefined) session.jointsOverhead = state.jointsOverhead;
+    if (state.videoSquatL !== undefined) session.videoSquatL = state.videoSquatL;
+    if (state.videoSquatR !== undefined) session.videoSquatR = state.videoSquatR;
+    if (state.videoSquatFrontal !== undefined) session.videoSquatFrontal = state.videoSquatFrontal;
+    if (state.jointsOverhead !== undefined) session.jointsOverhead = state.jointsOverhead;
 
-    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
-      session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
+    if (state.squatPeaks !== undefined) {
+      session.squatPeaks = state.squatPeaks ? JSON.parse(JSON.stringify(state.squatPeaks)) : null;
+    }
+
+    if (state.imageShoulderLStart !== undefined) session.imageShoulderLStart = state.imageShoulderLStart;
+    if (state.imageShoulderLEnd !== undefined) session.imageShoulderLEnd = state.imageShoulderLEnd;
+    if (state.imageShoulderRStart !== undefined) session.imageShoulderRStart = state.imageShoulderRStart;
+    if (state.imageShoulderREnd !== undefined) session.imageShoulderREnd = state.imageShoulderREnd;
+    
+    if (state.videoShoulderL !== undefined) session.videoShoulderL = state.videoShoulderL;
+    if (state.videoShoulderR !== undefined) session.videoShoulderR = state.videoShoulderR;
+    if (state.jointsShoulderL !== undefined) session.jointsShoulderL = state.jointsShoulderL;
+    if (state.jointsShoulderR !== undefined) session.jointsShoulderR = state.jointsShoulderR;
+
+    if (state.shoulderPeaks !== undefined) {
+      session.shoulderPeaks = state.shoulderPeaks ? JSON.parse(JSON.stringify(state.shoulderPeaks)) : null;
     }
     
     // Keep profile-level active session and timestamp synced
@@ -6611,25 +7366,39 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) profile.pixelsPerCm = state.pixelsPerCm;
     
     if (!onlySquat) {
-      if (state.metricsA !== null && state.metricsA !== undefined) profile.metricsA = state.metricsA;
-      if (state.metricsT !== null && state.metricsT !== undefined) profile.metricsT = state.metricsT;
-      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) profile.metricsOverhead = state.metricsOverhead;
-      if (state.imageA !== null && state.imageA !== undefined) profile.imageA = state.imageA;
-      if (state.imageT !== null && state.imageT !== undefined) profile.imageT = state.imageT;
-      if (state.imageOverhead !== null && state.imageOverhead !== undefined) profile.imageOverhead = state.imageOverhead;
+      if (state.metricsA !== undefined) profile.metricsA = state.metricsA;
+      if (state.metricsT !== undefined) profile.metricsT = state.metricsT;
+      if (state.metricsOverhead !== undefined) profile.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== undefined) profile.imageA = state.imageA;
+      if (state.imageT !== undefined) profile.imageT = state.imageT;
+      if (state.imageOverhead !== undefined) profile.imageOverhead = state.imageOverhead;
     }
     
-    if (state.imageSquatL !== null && state.imageSquatL !== undefined) profile.imageSquatL = state.imageSquatL;
-    if (state.imageSquatR !== null && state.imageSquatR !== undefined) profile.imageSquatR = state.imageSquatR;
-    if (state.imageSquatFrontal !== null && state.imageSquatFrontal !== undefined) profile.imageSquatFrontal = state.imageSquatFrontal;
+    if (state.imageSquatL !== undefined) profile.imageSquatL = state.imageSquatL;
+    if (state.imageSquatR !== undefined) profile.imageSquatR = state.imageSquatR;
+    if (state.imageSquatFrontal !== undefined) profile.imageSquatFrontal = state.imageSquatFrontal;
     
-    if (state.videoSquatL !== null && state.videoSquatL !== undefined) profile.videoSquatL = state.videoSquatL;
-    if (state.videoSquatR !== null && state.videoSquatR !== undefined) profile.videoSquatR = state.videoSquatR;
-    if (state.videoSquatFrontal !== null && state.videoSquatFrontal !== undefined) profile.videoSquatFrontal = state.videoSquatFrontal;
-    if (state.jointsOverhead !== null && state.jointsOverhead !== undefined) profile.jointsOverhead = state.jointsOverhead;
+    if (state.videoSquatL !== undefined) profile.videoSquatL = state.videoSquatL;
+    if (state.videoSquatR !== undefined) profile.videoSquatR = state.videoSquatR;
+    if (state.videoSquatFrontal !== undefined) profile.videoSquatFrontal = state.videoSquatFrontal;
+    if (state.jointsOverhead !== undefined) profile.jointsOverhead = state.jointsOverhead;
 
-    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
-      profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
+    if (state.squatPeaks !== undefined) {
+      profile.squatPeaks = state.squatPeaks ? JSON.parse(JSON.stringify(state.squatPeaks)) : null;
+    }
+
+    if (state.imageShoulderLStart !== undefined) profile.imageShoulderLStart = state.imageShoulderLStart;
+    if (state.imageShoulderLEnd !== undefined) profile.imageShoulderLEnd = state.imageShoulderLEnd;
+    if (state.imageShoulderRStart !== undefined) profile.imageShoulderRStart = state.imageShoulderRStart;
+    if (state.imageShoulderREnd !== undefined) profile.imageShoulderREnd = state.imageShoulderREnd;
+    
+    if (state.videoShoulderL !== undefined) profile.videoShoulderL = state.videoShoulderL;
+    if (state.videoShoulderR !== undefined) profile.videoShoulderR = state.videoShoulderR;
+    if (state.jointsShoulderL !== undefined) profile.jointsShoulderL = state.jointsShoulderL;
+    if (state.jointsShoulderR !== undefined) profile.jointsShoulderR = state.jointsShoulderR;
+
+    if (state.shoulderPeaks !== undefined) {
+      profile.shoulderPeaks = state.shoulderPeaks ? JSON.parse(JSON.stringify(state.shoulderPeaks)) : null;
     }
     
     await snapshotStore.saveProfile(profile);
@@ -6789,16 +7558,25 @@ export async function openProfileDetailsModal(profileId) {
           metricsT: null,
           metricsOverhead: null,
           squatPeaks: getDefaultSquatPeaks(),
+          shoulderPeaks: getDefaultShoulderPeaks(),
           imageA: null,
           imageT: null,
           imageOverhead: null,
           imageSquatL: null,
           imageSquatR: null,
           imageSquatFrontal: null,
+          imageShoulderLStart: null,
+          imageShoulderLEnd: null,
+          imageShoulderRStart: null,
+          imageShoulderREnd: null,
           videoSquatL: null,
           videoSquatR: null,
           videoSquatFrontal: null,
-          jointsOverhead: null
+          videoShoulderL: null,
+          videoShoulderR: null,
+          jointsOverhead: null,
+          jointsShoulderL: null,
+          jointsShoulderR: null
         };
 
         profile.sessions.push(newSession);
@@ -6810,13 +7588,22 @@ export async function openProfileDetailsModal(profileId) {
         state.metricsT = null;
         state.metricsOverhead = null;
         state.squatPeaks = getDefaultSquatPeaks();
+        state.shoulderPeaks = getDefaultShoulderPeaks();
         state.imageA = null;
         state.imageT = null;
         state.imageOverhead = null;
         state.imageSquatL = null;
         state.imageSquatR = null;
         state.imageSquatFrontal = null;
+        state.imageShoulderLStart = null;
+        state.imageShoulderLEnd = null;
+        state.imageShoulderRStart = null;
+        state.imageShoulderREnd = null;
+        state.videoShoulderL = null;
+        state.videoShoulderR = null;
         state.jointsOverhead = null;
+        state.jointsShoulderL = null;
+        state.jointsShoulderR = null;
 
         await snapshotStore.saveProfile(profile);
         await loadProfileIntoState(profileId);
@@ -6951,14 +7738,16 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    // 5. Pose status cards (now 6 items)
+    // 5. Pose status cards (now 8 items)
     const poses = [
       { key: 'a', metricsKey: 'metricsA', imgKey: 'imageA', title: 'A-Pose (Stature)', color: 'var(--color-scarlet)' },
       { key: 't', metricsKey: 'metricsT', imgKey: 'imageT', title: 'T-Pose (Wingspan)', color: 'var(--color-cyan)' },
       { key: 'overhead', metricsKey: 'metricsOverhead', imgKey: 'imageOverhead', title: 'Overhead (Reach)', color: '#d4a017' },
       { key: 'squat-l', metricsKey: 'squatPeaks', imgKey: 'imageSquatL', title: 'Left Overhead Squat', color: '#9333ea', isSquat: true, squatSide: 'kneeL' },
       { key: 'squat-r', metricsKey: 'squatPeaks', imgKey: 'imageSquatR', title: 'Right Overhead Squat', color: '#a855f7', isSquat: true, squatSide: 'kneeR' },
-      { key: 'squat-frontal', metricsKey: 'squatPeaks', imgKey: 'imageSquatFrontal', title: 'Frontal Overhead Squat', color: '#ec4899', isSquat: true, squatSide: 'frontal' }
+      { key: 'squat-frontal', metricsKey: 'squatPeaks', imgKey: 'imageSquatFrontal', title: 'Frontal Overhead Squat', color: '#ec4899', isSquat: true, squatSide: 'frontal' },
+      { key: 'shoulder-l', metricsKey: 'shoulderPeaks', imgKey: 'imageShoulderLStart', title: 'Left Shoulder Flexion', color: '#BA0C2F', isShoulder: true },
+      { key: 'shoulder-r', metricsKey: 'shoulderPeaks', imgKey: 'imageShoulderRStart', title: 'Right Shoulder Flexion', color: '#BA0C2F', isShoulder: true }
     ];
 
     poses.forEach(p => {
@@ -6986,6 +7775,20 @@ export async function openProfileDetailsModal(profileId) {
           }
         }
         hasData = !!imgSrc || hasVideo || hasPeaks;
+      } else if (p.isShoulder) {
+        const videoKey = p.key === 'shoulder-l' ? 'videoShoulderL' : 'videoShoulderR';
+        const sVideo = activeSession[videoKey];
+        hasVideo = !!(sVideo && sVideo.blob);
+        
+        let hasShoulderPeaks = false;
+        if (activeSession.shoulderPeaks) {
+          if (p.key === 'shoulder-l') {
+            hasShoulderPeaks = (activeSession.shoulderPeaks.excursionL > 0 || activeSession.shoulderPeaks.startAngleL !== null || activeSession.shoulderPeaks.endAngleL !== null);
+          } else {
+            hasShoulderPeaks = (activeSession.shoulderPeaks.excursionR > 0 || activeSession.shoulderPeaks.startAngleR !== null || activeSession.shoulderPeaks.endAngleR !== null);
+          }
+        }
+        hasData = !!imgSrc || hasVideo || hasShoulderPeaks;
       } else {
         hasData = !!imgSrc || !!activeSession[p.metricsKey];
       }
@@ -7127,6 +7930,64 @@ export async function openProfileDetailsModal(profileId) {
                 }, 1200);
               }
             });
+          } else if (p.isShoulder) {
+            // Support single snapshot image preview
+            if (imgSrc) {
+              const myImgEl = document.createElement('img');
+              myImgEl.src = imgSrc;
+              myImgEl.alt = `${p.title} Preview`;
+              myImgEl.style.cssText = 'width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block; border-radius: 4px; cursor: pointer; transition: transform 0.2s, border-color 0.2s;';
+              myImgEl.onmouseover = () => {
+                myImgEl.style.transform = 'scale(1.02)';
+                myImgEl.style.borderColor = 'rgba(0, 229, 255, 0.45)';
+              };
+              myImgEl.onmouseout = () => {
+                myImgEl.style.transform = 'scale(1)';
+                myImgEl.style.borderColor = 'rgba(255,255,255,0.05)';
+              };
+              myImgEl.onclick = (e) => {
+                e.stopPropagation();
+                if (window.expandLightboxImage) {
+                  window.expandLightboxImage(imgSrc, `${p.title} Snapshot`);
+                }
+              };
+              containerEl.appendChild(myImgEl);
+            }
+            
+            // Check if there is a recorded shoulder video to play as well!
+            const videoKey = p.key === 'shoulder-l' ? 'videoShoulderL' : 'videoShoulderR';
+            const sVideo = activeSession[videoKey];
+            if (sVideo && sVideo.blob) {
+              const videoUrl = URL.createObjectURL(sVideo.blob);
+              state.modalObjectUrls.push(videoUrl);
+
+              const playOverlayBtn = document.createElement('button');
+              playOverlayBtn.className = 'btn';
+              playOverlayBtn.textContent = '▶ Play Video Playout';
+              playOverlayBtn.style.cssText = 'width: 100%; margin-top: 6px; padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; font-weight: 600; cursor: pointer; background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.25); color: #00e5ff;';
+              
+              playOverlayBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const mainVideoPlayer = document.getElementById('profile-details-video-player');
+                const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
+                
+                // Seek player to video and highlight playlist item
+                const playlistRow = document.querySelector(`.profile-video-row-item[data-video-id="${sVideo.id}"]`);
+                if (playlistRow) {
+                  playlistRow.click();
+                } else {
+                  if (mainVideoPlayer) {
+                    mainVideoPlayer.src = videoUrl;
+                    mainVideoPlayer.style.display = 'block';
+                    if (videoPlaceholder) {
+                      videoPlaceholder.style.display = 'none';
+                    }
+                    mainVideoPlayer.play().catch(e => {});
+                  }
+                }
+              });
+              containerEl.appendChild(playOverlayBtn);
+            }
           } else if (imgSrc) {
             const myImgEl = document.createElement('img');
             myImgEl.src = imgSrc;
@@ -7163,8 +8024,8 @@ export async function openProfileDetailsModal(profileId) {
                 const videoKey = p.key === 'squat-l' ? 'videoSquatL' : (p.key === 'squat-r' ? 'videoSquatR' : 'videoSquatFrontal');
                 const sVideo = freshActiveSession[videoKey];
                 if (sVideo) {
-                  freshProfileMigrated.videos = (freshProfileMigrated.videos || []).filter(v => v.id !== sVideo.id);
-                  freshActiveSession[videoKey] = null;
+                   freshProfileMigrated.videos = (freshProfileMigrated.videos || []).filter(v => v.id !== sVideo.id);
+                   freshActiveSession[videoKey] = null;
                 }
                 
                 // Clear peaks
@@ -7185,6 +8046,34 @@ export async function openProfileDetailsModal(profileId) {
                     freshActiveSession.jointsOverhead = null;
                   }
                 }
+              } else if (p.isShoulder) {
+                // Clear video reference and filter from playlist
+                const videoKey = p.key === 'shoulder-l' ? 'videoShoulderL' : 'videoShoulderR';
+                const sVideo = freshActiveSession[videoKey];
+                if (sVideo) {
+                  freshProfileMigrated.videos = (freshProfileMigrated.videos || []).filter(v => v.id !== sVideo.id);
+                  freshActiveSession[videoKey] = null;
+                }
+
+                if (p.key === 'shoulder-l') {
+                  freshActiveSession.imageShoulderLStart = null;
+                  freshActiveSession.imageShoulderLEnd = null;
+                  if (freshActiveSession.shoulderPeaks) {
+                    freshActiveSession.shoulderPeaks.excursionL = 0;
+                    freshActiveSession.shoulderPeaks.startAngleL = null;
+                    freshActiveSession.shoulderPeaks.endAngleL = null;
+                    freshActiveSession.shoulderPeaks.jointsL = null;
+                  }
+                } else {
+                  freshActiveSession.imageShoulderRStart = null;
+                  freshActiveSession.imageShoulderREnd = null;
+                  if (freshActiveSession.shoulderPeaks) {
+                    freshActiveSession.shoulderPeaks.excursionR = 0;
+                    freshActiveSession.shoulderPeaks.startAngleR = null;
+                    freshActiveSession.shoulderPeaks.endAngleR = null;
+                    freshActiveSession.shoulderPeaks.jointsR = null;
+                  }
+                }
               } else {
                 // Clear metrics
                 freshActiveSession[p.metricsKey] = null;
@@ -7195,13 +8084,20 @@ export async function openProfileDetailsModal(profileId) {
               freshProfileMigrated.metricsT = freshActiveSession.metricsT;
               freshProfileMigrated.metricsOverhead = freshActiveSession.metricsOverhead;
               freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
+              freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
               freshProfileMigrated.imageA = freshActiveSession.imageA;
               freshProfileMigrated.imageT = freshActiveSession.imageT;
               freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
               freshProfileMigrated.imageSquatL = freshActiveSession.imageSquatL;
               freshProfileMigrated.imageSquatR = freshActiveSession.imageSquatR;
               freshProfileMigrated.imageSquatFrontal = freshActiveSession.imageSquatFrontal;
+              freshProfileMigrated.imageShoulderLStart = freshActiveSession.imageShoulderLStart;
+              freshProfileMigrated.imageShoulderLEnd = freshActiveSession.imageShoulderLEnd;
+              freshProfileMigrated.imageShoulderRStart = freshActiveSession.imageShoulderRStart;
+              freshProfileMigrated.imageShoulderREnd = freshActiveSession.imageShoulderREnd;
               freshProfileMigrated.jointsOverhead = freshActiveSession.jointsOverhead || null;
+              freshProfileMigrated.jointsShoulderL = freshActiveSession.jointsShoulderL || null;
+              freshProfileMigrated.jointsShoulderR = freshActiveSession.jointsShoulderR || null;
               
               await snapshotStore.saveProfile(freshProfileMigrated);
               state.allProfiles = await snapshotStore.getAllProfiles();
@@ -7579,12 +8475,35 @@ export async function openProfileDetailsModal(profileId) {
               const key = joint + side; // e.g. kneeL, kneeR, hipL, hipR, ankleL, ankleR
               freshActiveSession.squatPeaks[key] = val;
             });
+
+            // Save shoulder peaks mobility records in session
+            if (!freshActiveSession.shoulderPeaks) {
+              freshActiveSession.shoulderPeaks = getDefaultShoulderPeaks();
+            }
+            const shoulderInputs = document.querySelectorAll('.profile-shoulder-edit-input');
+            shoulderInputs.forEach(input => {
+              const side = input.getAttribute('data-side');
+              const rawVal = input.value.trim();
+              let val = 0;
+              if (rawVal !== "") {
+                const parsed = parseFloat(rawVal);
+                if (!isNaN(parsed)) {
+                  val = parsed;
+                }
+              }
+              if (side === 'L') {
+                freshActiveSession.shoulderPeaks.excursionL = val;
+              } else {
+                freshActiveSession.shoulderPeaks.excursionR = val;
+              }
+            });
             
             // Mirror back to legacy fields for redundancy
             freshProfileMigrated.metricsA = freshActiveSession.metricsA;
             freshProfileMigrated.metricsT = freshActiveSession.metricsT;
             freshProfileMigrated.metricsOverhead = freshActiveSession.metricsOverhead;
             freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
+            freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
             freshProfileMigrated.imageA = freshActiveSession.imageA;
             freshProfileMigrated.imageT = freshActiveSession.imageT;
             freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -7637,6 +8556,40 @@ export async function openProfileDetailsModal(profileId) {
     if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
+
+    // 9.5 Shoulder Flexion Peaks
+    const dshExcursionL = document.getElementById('detail-shoulder-excursion-l');
+    const dshExcursionR = document.getElementById('detail-shoulder-excursion-r');
+    const shPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
+
+    if (dshExcursionL) {
+      if (!state.isEditingProfileMetrics) {
+        dshExcursionL.innerHTML = shPeaks.excursionL ? `${shPeaks.excursionL.toFixed(1)}°` : '0°';
+      } else {
+        dshExcursionL.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-shoulder-edit-input profile-edit-input shoulder" 
+                   data-side="L" 
+                   value="${shPeaks.excursionL ? shPeaks.excursionL.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+    if (dshExcursionR) {
+      if (!state.isEditingProfileMetrics) {
+        dshExcursionR.innerHTML = shPeaks.excursionR ? `${shPeaks.excursionR.toFixed(1)}°` : '0°';
+      } else {
+        dshExcursionR.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-shoulder-edit-input profile-edit-input shoulder" 
+                   data-side="R" 
+                   value="${shPeaks.excursionR ? shPeaks.excursionR.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
 
     const dsqDepth = document.getElementById('detail-squat-depth');
     if (dsqDepth) {
@@ -8010,6 +8963,8 @@ export async function openProfileDetailsModal(profileId) {
                     if (s.videoSquatL && s.videoSquatL.id === video.id) s.videoSquatL = null;
                     if (s.videoSquatR && s.videoSquatR.id === video.id) s.videoSquatR = null;
                     if (s.videoSquatFrontal && s.videoSquatFrontal.id === video.id) s.videoSquatFrontal = null;
+                    if (s.videoShoulderL && s.videoShoulderL.id === video.id) s.videoShoulderL = null;
+                    if (s.videoShoulderR && s.videoShoulderR.id === video.id) s.videoShoulderR = null;
                   });
                 }
                 
@@ -8187,30 +9142,90 @@ export function drawModalVideoPoseOverlay(results) {
   state.canvasHeight = oldHeight;
 
   if (calculated) {
-    // Draw standard skeletal mesh elements
-    drawFullSkeletalMesh(calculated.all_landmarks, ctx);
-
-    // Draw skeletal bones and joint points
-    drawSkeletalFramework(calculated, ctx);
-
-    // Draw Angle Badges
-    drawAngleBadge(ctx, calculated.knee_l, calculated.kneeAngleL, '#10b981');
-    drawAngleBadge(ctx, calculated.hip_l, calculated.hipAngleL, '#d4a017');
-    drawAngleBadge(ctx, calculated.ankle_l, calculated.ankleAngleL, '#06b6d4');
-
-    drawAngleBadge(ctx, calculated.knee_r, calculated.kneeAngleR, '#10b981');
-    drawAngleBadge(ctx, calculated.hip_r, calculated.hipAngleR, '#d4a017');
-    drawAngleBadge(ctx, calculated.ankle_r, calculated.ankleAngleR, '#06b6d4');
-
-    // Frontal Knee Valgus Badges
-    const valgus = calculateValgusFromJoints(calculated);
-    const kneeMobL = 180 - (calculated.kneeAngleL || 180);
-    const kneeMobR = 180 - (calculated.kneeAngleR || 180);
-    if (kneeMobL >= 15 && valgus.pctL > 4.0) {
-      drawValgusBadge(ctx, calculated.knee_l, valgus.pctL);
+    let isShoulderVideo = false;
+    const activeItem = document.querySelector('.profile-video-row-item.active-playlist-item');
+    if (activeItem) {
+      const titleEl = activeItem.querySelector('.playlist-video-name');
+      if (titleEl) {
+        const txt = titleEl.textContent.toLowerCase();
+        if (txt.includes('shoulder') || txt.includes('flexion')) {
+          isShoulderVideo = true;
+        }
+      }
     }
-    if (kneeMobR >= 15 && valgus.pctR > 4.0) {
-      drawValgusBadge(ctx, calculated.knee_r, valgus.pctR);
+
+    if (isShoulderVideo) {
+      const activeItemName = activeItem.querySelector('.playlist-video-name').textContent.toLowerCase();
+      const side = activeItemName.includes('right') ? 'right' : 'left';
+      
+      const angleInfo = getShoulderWristAngle(results.poseLandmarks, side);
+      if (angleInfo) {
+        // Draw standard skeletal mesh elements
+        drawFullSkeletalMesh(calculated.all_landmarks, ctx);
+        
+        // Draw vertical reference line straight down from the shoulder
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
+        ctx.lineTo(angleInfo.shoulder.x, angleInfo.shoulder.y + 120); // vertical down
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw angle arc at the shoulder
+        const r = 40;
+        ctx.save();
+        ctx.strokeStyle = '#BA0C2F'; // Scarlet red
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        const armAngleRad = Math.atan2(angleInfo.wrist.y - angleInfo.shoulder.y, angleInfo.wrist.x - angleInfo.shoulder.x);
+        ctx.arc(angleInfo.shoulder.x, angleInfo.shoulder.y, r, Math.PI / 2, armAngleRad, armAngleRad < Math.PI / 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw a premium crimson glowing line for the active arm (shoulder to wrist)
+        ctx.save();
+        ctx.strokeStyle = '#BA0C2F';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#BA0C2F';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
+        ctx.lineTo(angleInfo.wrist.x, angleInfo.wrist.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw floating angle badge near the wrist
+        drawAngleBadge(ctx, angleInfo.wrist, Math.round(angleInfo.angleDeg), '#BA0C2F');
+      }
+    } else {
+      // Draw standard skeletal mesh elements
+      drawFullSkeletalMesh(calculated.all_landmarks, ctx);
+
+      // Draw skeletal bones and joint points
+      drawSkeletalFramework(calculated, ctx);
+
+      // Draw Angle Badges
+      drawAngleBadge(ctx, calculated.knee_l, calculated.kneeAngleL, '#10b981');
+      drawAngleBadge(ctx, calculated.hip_l, calculated.hipAngleL, '#d4a017');
+      drawAngleBadge(ctx, calculated.ankle_l, calculated.ankleAngleL, '#06b6d4');
+
+      drawAngleBadge(ctx, calculated.knee_r, calculated.kneeAngleR, '#10b981');
+      drawAngleBadge(ctx, calculated.hip_r, calculated.hipAngleR, '#d4a017');
+      drawAngleBadge(ctx, calculated.ankle_r, calculated.ankleAngleR, '#06b6d4');
+
+      // Frontal Knee Valgus Badges
+      const valgus = calculateValgusFromJoints(calculated);
+      const kneeMobL = 180 - (calculated.kneeAngleL || 180);
+      const kneeMobR = 180 - (calculated.kneeAngleR || 180);
+      if (kneeMobL >= 15 && valgus.pctL > 4.0) {
+        drawValgusBadge(ctx, calculated.knee_l, valgus.pctL);
+      }
+      if (kneeMobR >= 15 && valgus.pctR > 4.0) {
+        drawValgusBadge(ctx, calculated.knee_r, valgus.pctR);
+      }
     }
   }
 }
@@ -8405,7 +9420,11 @@ function initScarletRecorder() {
     // Draw joints split horizontally across columns to maximize viewport layout bounds
     drawDualColumnRow("Left Knee:", getEl(kneeAngleLDisp), "Right Knee:", getEl(kneeAngleRDisp), 205);
     drawDualColumnRow("Left Hip:", getEl(hipAngleLDisp), "Right Hip:", getEl(hipAngleRDisp), 261);
-    drawDualColumnRow("Left Elbow:", getEl(elbowAngleLDisp), "Right Elbow:", getEl(elbowAngleRDisp), 317);
+    if (state.currentMode === 'shoulder_flexion') {
+      drawDualColumnRow("Left Shoulder:", getEl(shoulderLiveAngleL), "Right Shoulder:", getEl(shoulderLiveAngleR), 317);
+    } else {
+      drawDualColumnRow("Left Elbow:", getEl(elbowAngleLDisp), "Right Elbow:", getEl(elbowAngleRDisp), 317);
+    }
 
     // Loop frame renders smoothly
     scarletAnimationId = requestAnimationFrame(renderRecordingFrame);

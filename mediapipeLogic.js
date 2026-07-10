@@ -671,7 +671,7 @@ export function calculatePoseMetrics(results) {
     liveMetrics.pose = detectedPose;
   }
 
-  return {
+  const output = {
     shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
     shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
     head_top, ground_y, all_landmarks,
@@ -679,6 +679,122 @@ export function calculatePoseMetrics(results) {
     ankleAngleL, ankleAngleR,
     liveMetrics
   };
+
+  // If using a mirrored user front webcam, swap left/right landmarks and metrics to match actual anatomy
+  if (state.currentFacingMode === "user" && !state.isUploadedMedia) {
+    // 1. Swap coordinate variables
+    const tempCoords = {
+      shoulder_l: output.shoulder_l,
+      elbow_l: output.elbow_l,
+      wrist_l: output.wrist_l,
+      hip_l: output.hip_l,
+      knee_l: output.knee_l,
+      ankle_l: output.ankle_l,
+      heel_l: output.heel_l,
+      toe_l: output.toe_l
+    };
+
+    output.shoulder_l = output.shoulder_r;
+    output.elbow_l = output.elbow_r;
+    output.wrist_l = output.wrist_r;
+    output.hip_l = output.hip_r;
+    output.knee_l = output.knee_r;
+    output.ankle_l = output.ankle_r;
+    output.heel_l = output.heel_r;
+    output.toe_l = output.toe_r;
+
+    output.shoulder_r = tempCoords.shoulder_l;
+    output.elbow_r = tempCoords.elbow_l;
+    output.wrist_r = tempCoords.wrist_l;
+    output.hip_r = tempCoords.hip_l;
+    output.knee_r = tempCoords.knee_l;
+    output.ankle_r = tempCoords.ankle_l;
+    output.heel_r = tempCoords.heel_l;
+    output.toe_r = tempCoords.toe_l;
+
+    // 2. Swap 3D/2D angles
+    const tempAngles = {
+      kneeAngleL: output.kneeAngleL,
+      hipAngleL: output.hipAngleL,
+      elbowAngleL: output.elbowAngleL,
+      ankleAngleL: output.ankleAngleL
+    };
+
+    output.kneeAngleL = output.kneeAngleR;
+    output.hipAngleL = output.hipAngleR;
+    output.elbowAngleL = output.elbowAngleR;
+    output.ankleAngleL = output.ankleAngleR;
+
+    output.kneeAngleR = tempAngles.kneeAngleL;
+    output.hipAngleR = tempAngles.hipAngleL;
+    output.elbowAngleR = tempAngles.elbowAngleL;
+    output.ankleAngleR = tempAngles.ankleAngleL;
+
+    // 3. Swap liveMetrics fields
+    if (output.liveMetrics) {
+      const tempMetrics = {
+        thigh_l: output.liveMetrics.thigh_l,
+        shin_l: output.liveMetrics.shin_l,
+        foot_l: output.liveMetrics.foot_l,
+        torso_l: output.liveMetrics.torso_l,
+        upperarm_l: output.liveMetrics.upperarm_l,
+        forearm_l: output.liveMetrics.forearm_l,
+        fingerToToeL: output.liveMetrics.fingerToToeL,
+        kneeAngleL: output.liveMetrics.kneeAngleL,
+        hipAngleL: output.liveMetrics.hipAngleL,
+        elbowAngleL: output.liveMetrics.elbowAngleL
+      };
+
+      output.liveMetrics.thigh_l = output.liveMetrics.thigh_r;
+      output.liveMetrics.shin_l = output.liveMetrics.shin_r;
+      output.liveMetrics.foot_l = output.liveMetrics.foot_r;
+      output.liveMetrics.torso_l = output.liveMetrics.torso_r;
+      output.liveMetrics.upperarm_l = output.liveMetrics.upperarm_r;
+      output.liveMetrics.forearm_l = output.liveMetrics.forearm_r;
+      output.liveMetrics.fingerToToeL = output.liveMetrics.fingerToToeR;
+      output.liveMetrics.kneeAngleL = output.liveMetrics.kneeAngleR;
+      output.liveMetrics.hipAngleL = output.liveMetrics.hipAngleR;
+      output.liveMetrics.elbowAngleL = output.liveMetrics.elbowAngleR;
+
+      output.liveMetrics.thigh_r = tempMetrics.thigh_l;
+      output.liveMetrics.shin_r = tempMetrics.shin_l;
+      output.liveMetrics.foot_r = tempMetrics.foot_l;
+      output.liveMetrics.torso_r = tempMetrics.torso_l;
+      output.liveMetrics.upperarm_r = tempMetrics.upperarm_l;
+      output.liveMetrics.forearm_r = tempMetrics.forearm_l;
+      output.liveMetrics.fingerToToeR = tempMetrics.fingerToToeL;
+      output.liveMetrics.kneeAngleR = tempMetrics.kneeAngleL;
+      output.liveMetrics.hipAngleR = tempMetrics.hipAngleL;
+      output.liveMetrics.elbowAngleR = tempMetrics.elbowAngleL;
+    }
+
+    // 4. Swap all left/right index pairs in all_landmarks for correct canvas connections
+    if (output.all_landmarks && output.all_landmarks.length >= 33) {
+      const pairs = [
+        [1, 4], [2, 5], [3, 6], // eyes
+        [7, 8],                 // ears
+        [9, 10],                // mouth
+        [11, 12],               // shoulders
+        [13, 14],               // elbows
+        [15, 16],               // wrists
+        [17, 18],               // pinkies
+        [19, 20],               // indexes
+        [21, 22],               // thumbs
+        [23, 24],               // hips
+        [25, 26],               // knees
+        [27, 28],               // ankles
+        [29, 30],               // heels
+        [31, 32]                // toes
+      ];
+      pairs.forEach(([l, r]) => {
+        const temp = output.all_landmarks[l];
+        output.all_landmarks[l] = output.all_landmarks[r];
+        output.all_landmarks[r] = temp;
+      });
+    }
+  }
+
+  return output;
 }
 
 /**
@@ -722,7 +838,12 @@ export function updateHandTracking(results) {
   if (multiLandmarks && multiHandedness) {
     multiLandmarks.forEach((landmarks, index) => {
       const handedness = multiHandedness[index];
-      const side = handedness.label; // 'Left' or 'Right'
+      let side = handedness.label; // 'Left' or 'Right'
+      
+      // If using a mirrored user front webcam, swap left/right handedness to match actual anatomy
+      if (state.currentFacingMode === "user" && !state.isUploadedMedia) {
+        side = (side === 'Left') ? 'Right' : 'Left';
+      }
       
       if (side === 'Left') leftDetected = true;
       if (side === 'Right') rightDetected = true;

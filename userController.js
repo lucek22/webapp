@@ -438,7 +438,10 @@ export function drawHandMesh(multiHandLandmarks, multiHandedness) {
   multiHandLandmarks.forEach((landmarks, handIdx) => {
     if (!landmarks || !Array.isArray(landmarks) || landmarks.length < 21) return;
     const handedness = multiHandedness ? multiHandedness[handIdx] : null;
-    const isLeft = handedness ? handedness.label === 'Left' : true;
+    let isLeft = handedness ? handedness.label === 'Left' : true;
+    if (state.currentFacingMode === "user" && !state.isUploadedMedia && handedness) {
+      isLeft = !isLeft;
+    }
     const sidePrefix = isLeft ? 'L' : 'R';
 
     const height = state.canvasHeight || 480;

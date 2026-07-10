@@ -305,13 +305,47 @@ export function calculatePoseMetrics(results) {
 
     const wl_left_index = wl[19] || wl[LEFT_WRIST];
     const wl_right_index = wl[20] || wl[RIGHT_WRIST];
+
+    // High-accuracy hand world landmarks from MediaPipe Holistic if available
+    const leftHandWorld = results.leftHandWorldLandmarks || results.left_hand_world_landmarks;
+    const rightHandWorld = results.rightHandWorldLandmarks || results.right_hand_world_landmarks;
+
+    let hand_l_wl = 0;
+    if (leftHandWorld && leftHandWorld[0] && leftHandWorld[12]) {
+      // Calculate exact physical hand length using the wrist (0) and middle fingertip (12) from Holistic Hands world landmarks
+      hand_l_wl = Math.hypot(
+        leftHandWorld[12].x - leftHandWorld[0].x,
+        leftHandWorld[12].y - leftHandWorld[0].y,
+        leftHandWorld[12].z - leftHandWorld[0].z
+      ) * 100;
+      state.cachedHandLengthL = hand_l_wl;
+    } else if (state.cachedHandLengthL) {
+      // Use calibrated hand length if hand tracking goes offline at the camera boundaries
+      hand_l_wl = state.cachedHandLengthL;
+    } else {
+      // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
+      hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
+    }
+
+    let hand_r_wl = 0;
+    if (rightHandWorld && rightHandWorld[0] && rightHandWorld[12]) {
+      // Calculate exact physical hand length using the wrist (0) and middle fingertip (12) from Holistic Hands world landmarks
+      hand_r_wl = Math.hypot(
+        rightHandWorld[12].x - rightHandWorld[0].x,
+        rightHandWorld[12].y - rightHandWorld[0].y,
+        rightHandWorld[12].z - rightHandWorld[0].z
+      ) * 100;
+      state.cachedHandLengthR = hand_r_wl;
+    } else if (state.cachedHandLengthR) {
+      // Use calibrated hand length if hand tracking goes offline at the camera boundaries
+      hand_r_wl = state.cachedHandLengthR;
+    } else {
+      // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
+      hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
+    }
+
     // Posture-independent, segment-summed path for 3D wingspan:
     // (Left hand + Left forearm + Left upper arm + Shoulder width + Right upper arm + Right forearm + Right hand)
-    // Note: We scale wrist-to-index distance by 1.42x to estimate the full hand length up to the middle fingertip,
-    // as MediaPipe Pose only tracks up to the index finger knuckle/tip.
-    const hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
-    const hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
-    // Note: We no longer apply the 1.11x correction factor, as 3D world landmarks have proved accurate enough without it.
     const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl);
 
     // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)

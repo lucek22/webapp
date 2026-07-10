@@ -21,6 +21,7 @@ import {
 
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
 import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
+import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt } from './ankleDorsi.js';
 
 export const videoElement = document.getElementById('webcam');
 export const canvasElement = document.getElementById('overlay');
@@ -790,7 +791,10 @@ export function onPoseResults(results) {
     if (results && results.poseLandmarks) {
       calculated = calculatePoseMetrics(results);
       if (calculated) {
-        const kneeAngleL = calculated.kneeAngleL;
+        if (state.currentMode === 'ankledorsi') {
+          processAnkleDorsi(calculated);
+        } else {
+          const kneeAngleL = calculated.kneeAngleL;
         const kneeAngleR = calculated.kneeAngleR;
         const hipAngleL = calculated.hipAngleL;
         const hipAngleR = calculated.hipAngleR;
@@ -843,6 +847,7 @@ export function onPoseResults(results) {
               state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, pctR);
             }
           }
+        }
         }
       }
     }
@@ -1161,23 +1166,39 @@ export function onPoseResults(results) {
       drawSkeletalFramework(calculated);
 
       // --- NEW: DIGITAL FLOATING BADGES & VALGUS ALERTS ---
-      drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
-      drawAngleBadge(canvasCtx, hip_l, hipAngleL, '#d4a017');
-      drawAngleBadge(canvasCtx, ankle_l, ankleAngleL, '#06b6d4');
+      if (state.currentMode === 'ankledorsi') {
+        const side = state.ankleDorsi.activeSide;
+        const activeAnkle = side === 'left' ? ankle_l : ankle_r;
+        const activeKnee = side === 'left' ? knee_l : knee_r;
+        
+        // Draw Tibial Inclination (Dorsiflexion) angle badge at the midpoint of the shin
+        if (activeAnkle && activeKnee) {
+          const shinMidpoint = {
+            x: (activeAnkle.x + activeKnee.x) / 2,
+            y: (activeAnkle.y + activeKnee.y) / 2
+          };
+          const liveShinTilt = (side === 'left') ? calculateShinTilt(ankle_l, knee_l) : calculateShinTilt(ankle_r, knee_r);
+          drawAngleBadge(canvasCtx, shinMidpoint, liveShinTilt, '#06b6d4'); // Cyan for DF / Tibial Inclination
+        }
+      } else {
+        drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
+        drawAngleBadge(canvasCtx, hip_l, hipAngleL, '#d4a017');
+        drawAngleBadge(canvasCtx, ankle_l, ankleAngleL, '#06b6d4');
 
-      drawAngleBadge(canvasCtx, knee_r, kneeAngleR, '#10b981');
-      drawAngleBadge(canvasCtx, hip_r, hipAngleR, '#d4a017');
-      drawAngleBadge(canvasCtx, ankle_r, ankleAngleR, '#06b6d4');
+        drawAngleBadge(canvasCtx, knee_r, kneeAngleR, '#10b981');
+        drawAngleBadge(canvasCtx, hip_r, hipAngleR, '#d4a017');
+        drawAngleBadge(canvasCtx, ankle_r, ankleAngleR, '#06b6d4');
 
-      // Frontal Knee Valgus Badge
-      const valgus = calculateValgusFromJoints(calculated);
-      const kneeMobL = 180 - (kneeAngleL || 180);
-      const kneeMobR = 180 - (kneeAngleR || 180);
-      if (kneeMobL >= 15 && valgus.pctL > 4.0) {
-        drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
-      }
-      if (kneeMobR >= 15 && valgus.pctR > 4.0) {
-        drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+        // Frontal Knee Valgus Badge
+        const valgus = calculateValgusFromJoints(calculated);
+        const kneeMobL = 180 - (kneeAngleL || 180);
+        const kneeMobR = 180 - (kneeAngleR || 180);
+        if (kneeMobL >= 15 && valgus.pctL > 4.0) {
+          drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
+        }
+        if (kneeMobR >= 15 && valgus.pctR > 4.0) {
+          drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+        }
       }
 
       // Draw live stats HUD card unconditionally of calibration
@@ -1222,6 +1243,8 @@ export function onPoseResults(results) {
       // If in squat mode, update the Overhead Squat dashboard UI
       if (state.currentMode === 'squat') {
         updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated);
+      } else if (state.currentMode === 'ankledorsi') {
+        processAnkleDorsi(calculated);
       }
 
       // Draw real-time biometrics to dashboard and ruler if calibrated
@@ -5493,10 +5516,14 @@ if (btnModePosture) {
   btnModePosture.addEventListener('click', () => {
     state.currentMode = 'posture';
     btnModePosture.classList.add('active');
+    const btnModeAnkleDorsi = document.getElementById('btn-mode-ankledorsi');
     if (btnModeSquat) btnModeSquat.classList.remove('active');
+    if (btnModeAnkleDorsi) btnModeAnkleDorsi.classList.remove('active');
     
     if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
     if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+    const ankledorsiSidebar = document.getElementById('ankledorsi-sidebar-content');
+    if (ankledorsiSidebar) ankledorsiSidebar.classList.add('hidden');
     
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
@@ -5510,10 +5537,14 @@ if (btnModeSquat) {
   btnModeSquat.addEventListener('click', () => {
     state.currentMode = 'squat';
     btnModeSquat.classList.add('active');
+    const btnModeAnkleDorsi = document.getElementById('btn-mode-ankledorsi');
     if (btnModePosture) btnModePosture.classList.remove('active');
+    if (btnModeAnkleDorsi) btnModeAnkleDorsi.classList.remove('active');
     
     if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
     if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
+    const ankledorsiSidebar = document.getElementById('ankledorsi-sidebar-content');
+    if (ankledorsiSidebar) ankledorsiSidebar.classList.add('hidden');
     
     updateSquatSideUI(); // Ensure side selector states are active on sidebar open
 
@@ -5524,6 +5555,9 @@ if (btnModeSquat) {
     }
   });
 }
+
+// Bind Ankle Dorsiflexion Interface listeners
+setupAnkleDorsiEvents(onPoseResults);
 
 // Wire up Testing Side selector buttons
 if (btnSquatSideLeft) {

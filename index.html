@@ -34,6 +34,7 @@
       <div class="main-mode-tabs">
         <button id="btn-mode-posture" class="main-mode-btn active">Posture & Stature Scan</button>
         <button id="btn-mode-squat" class="main-mode-btn">Overhead Squat Analyzer</button>
+        <button id="btn-mode-ankledorsi" class="main-mode-btn">Ankle Dorsiflexion ROM</button>
       </div>
 
       <!-- Calibration Panel -->
@@ -543,6 +544,122 @@
               <span class="guide-bullet bullet-ankle" style="color: var(--color-cyan);">●</span>
               <div class="guide-text">
                 <strong>Ankle Dorsiflexion:</strong> Targets 15° - 25° of forward shin tilt. Tracked as <code>max(0, 115° - AnkleAngle)</code>.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ankle Dorsiflexion ROM Dashboard content -->
+      <div id="ankledorsi-sidebar-content" class="hidden">
+         
+         <!-- Performance Overview Card -->
+         <div class="panel-section dorsi-performance-section">
+          <div class="section-title dorsi-perf-title" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Ankle Dorsiflexion ROM
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="dorsi-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+            <div class="metric-row" id="dorsi-asymmetry-row" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">L/R Shin Asymmetry:</span>
+              <span id="dorsi-asymmetry-val" style="font-size: 0.85rem; font-weight: 700; color: #10b981;">None</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testing Section -->
+        <div class="panel-section">
+          <div class="section-title">Ankle Dorsiflexion Test</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Keeping heel flat on the floor, drive your knee forward as far as possible. Peak angles are automatically captured in real-time.
+          </div>
+          
+          <!-- Testing Side Selector -->
+          <div class="dorsi-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-dorsi-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">LEFT</button>
+                <button id="btn-dorsi-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Heel Status Selector -->
+          <div class="dorsi-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Heel Position:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-heel-flat" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: #10b981; color: white; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);">FLAT</button>
+                <button id="btn-heel-lifted" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: transparent; color: #a7b1b7;">LIFTED</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid" style="grid-template-columns: repeat(2, 1fr);">
+            <!-- Ankle Dorsiflexion (DF) / Tibial Inclination -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Ankle Dorsiflexion (DF)</div>
+              <div id="dorsi-peak-shin-l" class="angle-val left-color">0°</div>
+              <div id="dorsi-class-shin-l" style="font-size: 0.7rem; font-weight: 700; margin: 3px 0; color: #a7b1b7; text-transform: uppercase; letter-spacing: 0.5px;">--</div>
+              <div class="angle-sub-lbl">Live: <span id="dorsi-live-shin-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Ankle Dorsiflexion (DF)</div>
+              <div id="dorsi-peak-shin-r" class="angle-val right-color">0°</div>
+              <div id="dorsi-class-shin-r" style="font-size: 0.7rem; font-weight: 700; margin: 3px 0; color: #a7b1b7; text-transform: uppercase; letter-spacing: 0.5px;">--</div>
+              <div class="angle-sub-lbl">Live: <span id="dorsi-live-shin-r">0°</span></div>
+            </div>
+          </div>
+
+          <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Test Results
+          </button>
+          
+          <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #3b82f6, #2563eb);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Record Dorsiflexion Assessment
+          </button>
+        </div>
+
+         <!-- Ankle Dorsiflexion Reference Guide -->
+        <div class="panel-section dorsi-guide-section">
+          <div class="section-title guide-title">Tibial Inclination Reference</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet" style="color: #10b981;">●</span>
+              <div class="guide-text">
+                <strong>Optimal (&ge; 38°):</strong> Full squat capacity; no upstream compensation expected.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet" style="color: #fbbf24;">●</span>
+              <div class="guide-text">
+                <strong>Functional (30°–38°):</strong> Minor limitation; monitor under fatigue and load.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet" style="color: #f87171;">●</span>
+              <div class="guide-text">
+                <strong>Restricted (&lt; 30°):</strong> Compensatory knee valgus, hip drop, or lumbar flexion in squat/lunge patterns.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet" style="color: #6366f1;">●</span>
+              <div class="guide-text">
+                <strong>Asymmetry Risk:</strong> A difference of &gt; 5° between sides is a primary predictor of lower limb athletic injury.
               </div>
             </div>
           </div>

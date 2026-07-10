@@ -34,6 +34,7 @@
       <div class="main-mode-tabs">
         <button id="btn-mode-posture" class="main-mode-btn active">Posture & Stature Scan</button>
         <button id="btn-mode-squat" class="main-mode-btn">Overhead Squat Analyzer</button>
+        <button id="btn-mode-shoulder" class="main-mode-btn">Shoulder Flexion Analyzer</button>
       </div>
 
       <!-- Calibration Panel -->
@@ -538,6 +539,121 @@
         </div>
       </div>
 
+      <!-- Shoulder Flexion Mobility Dashboard content -->
+      <div id="shoulder-sidebar-content" class="hidden">
+        
+        <!-- Shoulder Flexion Performance Overview Card -->
+        <div class="panel-section shoulder-performance-section">
+          <div class="section-title shoulder-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Shoulder Flexion Analyzer
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="shoulder-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobility Analysis Dashboard Section -->
+        <div class="panel-section">
+          <div class="section-title">Shoulder Mobility Peak Scores</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Calculates shoulder flexion excursion angle from start (90° raised position) to end frame.
+          </div>
+          
+          <!-- Testing Side Selector -->
+          <div class="shoulder-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Testing Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-shoulder-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: linear-gradient(135deg, #BA0C2F 0%, #8c051e 100%); color: white;">LEFT</button>
+                <button id="btn-shoulder-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: transparent; color: #a7b1b7;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid">
+            <!-- Total Excursion -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Excursion (Angle Change)</div>
+              <div id="shoulder-peak-excursion-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live Forearm: <span id="shoulder-live-angle-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Excursion (Angle Change)</div>
+              <div id="shoulder-peak-excursion-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live Forearm: <span id="shoulder-live-angle-r">0°</span></div>
+            </div>
+
+            <!-- Start Angle -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Start Position Angle</div>
+              <div id="shoulder-start-angle-l" class="angle-val left-color">--</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Start Position Angle</div>
+              <div id="shoulder-start-angle-r" class="angle-val right-color">--</div>
+            </div>
+
+            <!-- End Angle -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">End Position Angle</div>
+              <div id="shoulder-end-angle-l" class="angle-val left-color">--</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">End Position Angle</div>
+              <div id="shoulder-end-angle-r" class="angle-val right-color">--</div>
+            </div>
+          </div>
+          
+          <button id="btn-reset-shoulder-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+          <button id="btn-save-shoulder-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Flexion Snapshot
+          </button>
+        </div>
+
+        <!-- Shoulder Biomechanics Reference Guide -->
+        <div class="panel-section squat-guide-section">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                <strong>Start Frame:</strong> Captured with arm raised straight upward (near 90° flexion).
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-hip" style="color: var(--color-gold);">●</span>
+              <div class="guide-text">
+                <strong>End Frame:</strong> Captured at the lowest point of the lowering motion.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-ankle" style="color: var(--color-cyan);">●</span>
+              <div class="guide-text">
+                <strong>Excursion Angle:</strong> Total range of motion from initial elevation to terminal lowering.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </aside>
   </div>
 
@@ -942,7 +1058,40 @@
               </div>
             </div>
 
-          </div>
+            <!-- Left Shoulder Flexion -->
+            <div class="pose-status-card" id="detail-card-shoulder-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #0ea5e9; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-L</div>
+                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Flexion</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-shoulder-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
+              </div>
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                <img id="detail-preview-img-shoulder-l" src="" alt="Left Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              </div>
+            </div>
+
+            <!-- Right Shoulder Flexion -->
+            <div class="pose-status-card" id="detail-card-shoulder-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #06b6d4; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-R</div>
+                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Flexion</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-shoulder-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
+              </div>
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                <img id="detail-preview-img-shoulder-r" src="" alt="Right Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              </div>
+            </div>
+            </div>
 
           <!-- Saved Video Recordings -->
           <div class="details-section-title">Saved Video Recordings</div>
@@ -1101,6 +1250,18 @@
           </div>
           <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">
             Knee Cave-In Tracking: No current squat metrics.
+          </div>
+
+          <div class="details-section-title" style="margin-top: 1rem;">Shoulder Flexion Mobility Peak Records</div>
+          <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem; margin-top: 0.5rem;">
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Left Excursion</span>
+              <span class="squat-peak-detail-val" id="detail-shoulder-excursion-l">0°</span>
+            </div>
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Right Excursion</span>
+              <span class="squat-peak-detail-val" id="detail-shoulder-excursion-r">0°</span>
+            </div>
           </div>
 
         </div>

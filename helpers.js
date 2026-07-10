@@ -206,6 +206,17 @@ export const state = {
     valgusPeakTimestamp: null,
     valgusPeakScore: 0
   },
+  shoulderTestingSide: "left",
+  shoulderPeaks: {
+    excursionL: 0,
+    excursionR: 0,
+    startAngleL: 0,
+    startAngleR: 0,
+    endAngleL: 0,
+    endAngleR: 0,
+    jointsL: null,
+    jointsR: null
+  },
   isUploadedMedia: false,
   uploadedMediaType: null,
   latestPoseResults: null,
@@ -273,6 +284,12 @@ export const state = {
   videoSquatL: null,
   videoSquatR: null,
   videoSquatFrontal: null,
+  imageShoulderLStart: null,
+  imageShoulderLEnd: null,
+  imageShoulderRStart: null,
+  imageShoulderREnd: null,
+  videoShoulderL: null,
+  videoShoulderR: null,
   videos: []
 };
 

@@ -279,6 +279,10 @@ export function compileAndDownloadCombinedSession() {
       peakAnkleDorsiflexionL: state.squatPeaks.ankleL || 0,
       peakAnkleDorsiflexionR: state.squatPeaks.ankleR || 0
     },
+    shoulderFlexionMobility: {
+      peakFlexionL: state.shoulderPeaks?.excursionL || 0,
+      peakFlexionR: state.shoulderPeaks?.excursionR || 0
+    },
     anglesA: state.metricsA,
     anglesT: state.metricsT,
     anglesOverhead: state.metricsOverhead

@@ -351,7 +351,7 @@ export function calculateAngle(p_vertex, p_arm1, p_arm2) {
 
 export function getCanvasX(normX) {
   const width = state.canvasWidth || 640;
-  if (state.isUploadedMedia) {
+  if (state.isUploadedMedia || state.activeModalVideoProcessing) {
     return normX * width;
   }
   return state.currentFacingMode === "user" ? (1.0 - normX) * width : normX * width;

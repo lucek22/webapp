@@ -6,7 +6,7 @@ import {
   snapshotStore,
   getDomMeasurementCm
 } from './helpers.js';
-import { autoSyncToActiveProfile } from './userController.js';
+import { autoSyncToActiveProfile } from './profileManager.js';
 
 /**
  * Sanitizes a filename to ensure safe downloading on various OS systems.

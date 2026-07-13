@@ -14,6 +14,8 @@ state.ankleDorsi = {
   isRecording: false,       // Tracking/recording state for peak angles
   neutralAngleL: null,      // Calibrated standing neutral ankle angle (Left)
   neutralAngleR: null,      // Calibrated standing neutral ankle angle (Right)
+  neutralFootPitchL: null,  // Calibrated standing neutral foot pitch (Left)
+  neutralFootPitchR: null,  // Calibrated standing neutral foot pitch (Right)
   peaks: {
     shinAngleL: null,       // Peak (maximum) forward shin tilt (Left)
     shinAngleR: null,       // Peak (maximum) forward shin tilt (Right)
@@ -25,13 +27,15 @@ state.ankleDorsi = {
 /**
  * Calculates forward shin tilt angle relative to vertical.
  * 0° means vertical shin. Positive values represent forward knee drive.
+ * Clamped to physiological max of 65° to filter out tracking glitches.
  */
 export function calculateShinTilt(ankle, knee) {
   if (!ankle || !knee) return 0;
   const dx = knee.x - ankle.x;
   const dy = ankle.y - knee.y; // Upwards dy is positive
   const angleRad = Math.atan2(Math.abs(dx), dy);
-  return Math.max(0, angleRad * (180 / Math.PI));
+  const angleDeg = angleRad * (180 / Math.PI);
+  return Math.min(65, Math.max(0, angleDeg));
 }
 
 /**
@@ -57,28 +61,50 @@ export function processAnkleDorsi(calculated) {
       liveShinTilt = calculateShinTilt(ankle_l, knee_l);
     }
     if (ankleAngleL !== undefined && ankleAngleL !== null) {
+      // Clamp joint angle to physiological limits [70°, 130°] to reject tracking outliers
+      const clampedAnkleL = Math.max(70, Math.min(130, ankleAngleL));
+
       // Dynamic neutral calibration when standing upright (shin tilt < 5°)
-      if (liveShinTilt < 5) {
-        if (!state.ankleDorsi.neutralAngleL || ankleAngleL > state.ankleDorsi.neutralAngleL) {
-          state.ankleDorsi.neutralAngleL = ankleAngleL;
+      // Must fall in a normal anatomical standing range [100°, 125°]
+      if (liveShinTilt < 5 && clampedAnkleL >= 100 && clampedAnkleL <= 125) {
+        if (!state.ankleDorsi.neutralAngleL) {
+          state.ankleDorsi.neutralAngleL = clampedAnkleL;
+        } else {
+          // Low-pass exponential filter to smoothly adapt and discard single-frame spikes
+          state.ankleDorsi.neutralAngleL = 0.95 * state.ankleDorsi.neutralAngleL + 0.05 * clampedAnkleL;
         }
       }
+
       const neutralL = state.ankleDorsi.neutralAngleL || 115;
-      liveAnkleDorsi = Math.max(0, neutralL - ankleAngleL);
+      // Net joint dorsiflexion is the difference from calibrated neutral standing
+      liveAnkleDorsi = Math.max(0, neutralL - clampedAnkleL);
+      // Clamp ROM to absolute physical limit of 45°
+      liveAnkleDorsi = Math.min(45, liveAnkleDorsi);
     }
   } else {
     if (ankle_r && knee_r) {
       liveShinTilt = calculateShinTilt(ankle_r, knee_r);
     }
     if (ankleAngleR !== undefined && ankleAngleR !== null) {
+      // Clamp joint angle to physiological limits [70°, 130°] to reject tracking outliers
+      const clampedAnkleR = Math.max(70, Math.min(130, ankleAngleR));
+
       // Dynamic neutral calibration when standing upright (shin tilt < 5°)
-      if (liveShinTilt < 5) {
-        if (!state.ankleDorsi.neutralAngleR || ankleAngleR > state.ankleDorsi.neutralAngleR) {
-          state.ankleDorsi.neutralAngleR = ankleAngleR;
+      // Must fall in a normal anatomical standing range [100°, 125°]
+      if (liveShinTilt < 5 && clampedAnkleR >= 100 && clampedAnkleR <= 125) {
+        if (!state.ankleDorsi.neutralAngleR) {
+          state.ankleDorsi.neutralAngleR = clampedAnkleR;
+        } else {
+          // Low-pass exponential filter to smoothly adapt and discard single-frame spikes
+          state.ankleDorsi.neutralAngleR = 0.95 * state.ankleDorsi.neutralAngleR + 0.05 * clampedAnkleR;
         }
       }
+
       const neutralR = state.ankleDorsi.neutralAngleR || 115;
-      liveAnkleDorsi = Math.max(0, neutralR - ankleAngleR);
+      // Net joint dorsiflexion is the difference from calibrated neutral standing
+      liveAnkleDorsi = Math.max(0, neutralR - clampedAnkleR);
+      // Clamp ROM to absolute physical limit of 45°
+      liveAnkleDorsi = Math.min(45, liveAnkleDorsi);
     }
   }
 
@@ -93,8 +119,8 @@ export function processAnkleDorsi(calculated) {
     const toeIndex = (side === 'left') ? 31 : 32;
     const heelLm = raw_lm[heelIndex];
     const toeLm = raw_lm[toeIndex];
-    // Visibility threshold is 0.5
-    if (!heelLm || heelLm.visibility < 0.5 || !toeLm || toeLm.visibility < 0.5) {
+    // Lower visibility threshold to 0.35 to keep tracking active in darker/shaded feet conditions
+    if (!heelLm || heelLm.visibility < 0.35 || !toeLm || toeLm.visibility < 0.35) {
       heelVisible = false;
     }
   } else {
@@ -103,22 +129,49 @@ export function processAnkleDorsi(calculated) {
     }
   }
 
+  // Calculate live foot pitch (angle of foot sole relative to horizontal floor)
+  let liveFootPitch = 0;
+  if (heel && toe) {
+    const dx = toe.x - heel.x;
+    const dy = toe.y - heel.y;
+    const footLength = Math.hypot(dx, dy);
+    if (footLength > 0) {
+      const heightDiff = toe.y - heel.y; // positive if heel is higher (y is smaller) than toe
+      const angleRatio = heightDiff / footLength;
+      liveFootPitch = Math.asin(Math.max(-1, Math.min(1, angleRatio))) * (180 / Math.PI);
+    }
+  }
+
+  // Dynamic standing neutral foot-pitch calibration (when standing upright with shin tilt < 5° and heel visible)
+  if (liveShinTilt < 5 && heelVisible) {
+    if (side === 'left') {
+      if (state.ankleDorsi.neutralFootPitchL === null || state.ankleDorsi.neutralFootPitchL === undefined) {
+        state.ankleDorsi.neutralFootPitchL = liveFootPitch;
+      } else {
+        // Smooth exponential moving average to filter out posture sway
+        state.ankleDorsi.neutralFootPitchL = 0.95 * state.ankleDorsi.neutralFootPitchL + 0.05 * liveFootPitch;
+      }
+    } else {
+      if (state.ankleDorsi.neutralFootPitchR === null || state.ankleDorsi.neutralFootPitchR === undefined) {
+        state.ankleDorsi.neutralFootPitchR = liveFootPitch;
+      } else {
+        state.ankleDorsi.neutralFootPitchR = 0.95 * state.ankleDorsi.neutralFootPitchR + 0.05 * liveFootPitch;
+      }
+    }
+  }
+
   let actualHeelLifted = false;
   if (!heelVisible) {
     // If heel is not visible, set it as lifted (data not captured)
     actualHeelLifted = true;
   } else if (state.ankleDorsi.autoDetectHeel) {
-    // Autodetect heel lift: check 2D pitch of the foot
-    const dx = toe.x - heel.x;
-    const dy = toe.y - heel.y; // positive if heel is higher (y-value is smaller on canvas) than toe
-    const footLength = Math.hypot(dx, dy);
-    if (footLength > 0) {
-      const heightDiff = toe.y - heel.y;
-      const angleRatio = heightDiff / footLength;
-      // Threshold: 12 degrees pitch angle (sin(12°) ≈ 0.2079)
-      if (angleRatio > 0.20) {
-        actualHeelLifted = true;
-      }
+    const neutralPitch = (side === 'left') ? state.ankleDorsi.neutralFootPitchL : state.ankleDorsi.neutralFootPitchR;
+    // Fallback to 10° normal anatomical foot incline if calibration is not yet recorded
+    const baselinePitch = (neutralPitch !== null && neutralPitch !== undefined) ? neutralPitch : 10;
+    
+    // We flag as lifted only when the foot pitch rises by 7.0° or more relative to their flat upright standing baseline
+    if (liveFootPitch - baselinePitch > 7.0) {
+      actualHeelLifted = true;
     }
   } else {
     // Manual mode
@@ -486,6 +539,8 @@ export function resetAnkleDorsi() {
   };
   state.ankleDorsi.neutralAngleL = null;
   state.ankleDorsi.neutralAngleR = null;
+  state.ankleDorsi.neutralFootPitchL = null;
+  state.ankleDorsi.neutralFootPitchR = null;
   state.ankleDorsi.isRecording = false;
 
   const peakShinLDisp = document.getElementById('dorsi-peak-shin-l');

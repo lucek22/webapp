@@ -318,6 +318,7 @@ export function clearSmoothBuffer(key) {
 
 
 export function calculateAngle(p_vertex, p_arm1, p_arm2) {
+  if (!p_vertex || !p_arm1 || !p_arm2 || p_vertex.x === undefined || p_arm1.x === undefined || p_arm2.x === undefined) return 0;
   const v1 = { x: p_arm1.x - p_vertex.x, y: p_arm1.y - p_vertex.y };
   const v2 = { x: p_arm2.x - p_vertex.x, y: p_arm2.y - p_vertex.y };
   

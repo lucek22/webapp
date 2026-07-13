@@ -7,10 +7,18 @@ import { state, snapshotStore } from './helpers.js';
 // Extend state with ankle dorsiflexion properties
 state.ankleDorsi = {
   activeSide: 'left',       // 'left' or 'right'
-  heelLifted: false,        // Real-time heel status
+  heelLifted: false,        // Manual heel lift override status
+  autoDetectHeel: true,     // Automatically detect heel lift
+  actualHeelLifted: false,  // Evaluated actual heel status (auto or manual)
+  heelVisible: true,        // Visibility status of active heel landmark
+  isRecording: false,       // Tracking/recording state for peak angles
+  neutralAngleL: null,      // Calibrated standing neutral ankle angle (Left)
+  neutralAngleR: null,      // Calibrated standing neutral ankle angle (Right)
   peaks: {
     shinAngleL: null,       // Peak (maximum) forward shin tilt (Left)
     shinAngleR: null,       // Peak (maximum) forward shin tilt (Right)
+    ankleDorsiL: null,      // Peak (maximum) ankle joint dorsiflexion (Left)
+    ankleDorsiR: null       // Peak (maximum) ankle joint dorsiflexion (Right)
   }
 };
 
@@ -26,8 +34,6 @@ export function calculateShinTilt(ankle, knee) {
   return Math.max(0, angleRad * (180 / Math.PI));
 }
 
-
-
 /**
  * Main real-time processor for Ankle Dorsiflexion ROM mode.
  * Invoked during the pose results pipeline.
@@ -36,43 +42,121 @@ export function processAnkleDorsi(calculated) {
   if (!calculated) return;
 
   const {
-    knee_l, ankle_l,
-    knee_r, ankle_r
+    knee_l, ankle_l, ankleAngleL,
+    knee_r, ankle_r, ankleAngleR
   } = calculated;
 
   const side = state.ankleDorsi.activeSide;
 
   // 1. Calculate live values based on active side
   let liveShinTilt = 0;
+  let liveAnkleDorsi = 0;
 
   if (side === 'left') {
     if (ankle_l && knee_l) {
       liveShinTilt = calculateShinTilt(ankle_l, knee_l);
     }
+    if (ankleAngleL !== undefined && ankleAngleL !== null) {
+      // Dynamic neutral calibration when standing upright (shin tilt < 5°)
+      if (liveShinTilt < 5) {
+        if (!state.ankleDorsi.neutralAngleL || ankleAngleL > state.ankleDorsi.neutralAngleL) {
+          state.ankleDorsi.neutralAngleL = ankleAngleL;
+        }
+      }
+      const neutralL = state.ankleDorsi.neutralAngleL || 115;
+      liveAnkleDorsi = Math.max(0, neutralL - ankleAngleL);
+    }
   } else {
     if (ankle_r && knee_r) {
       liveShinTilt = calculateShinTilt(ankle_r, knee_r);
     }
+    if (ankleAngleR !== undefined && ankleAngleR !== null) {
+      // Dynamic neutral calibration when standing upright (shin tilt < 5°)
+      if (liveShinTilt < 5) {
+        if (!state.ankleDorsi.neutralAngleR || ankleAngleR > state.ankleDorsi.neutralAngleR) {
+          state.ankleDorsi.neutralAngleR = ankleAngleR;
+        }
+      }
+      const neutralR = state.ankleDorsi.neutralAngleR || 115;
+      liveAnkleDorsi = Math.max(0, neutralR - ankleAngleR);
+    }
   }
 
-  // 2. Retrieve the manually selected heel status
-  const isHeelLifted = state.ankleDorsi.heelLifted || false;
+  // 2. Heel visibility check & auto-detection of heel lift
+  const heel = (side === 'left') ? calculated.heel_l : calculated.heel_r;
+  const toe = (side === 'left') ? calculated.toe_l : calculated.toe_r;
+  const raw_lm = calculated.raw_lm;
 
-  // 3. Update peaks if heel is flat on the floor
-  if (!isHeelLifted && liveShinTilt > 0) {
-    if (side === 'left') {
-      if (state.ankleDorsi.peaks.shinAngleL === null || liveShinTilt > state.ankleDorsi.peaks.shinAngleL) {
-        state.ankleDorsi.peaks.shinAngleL = liveShinTilt;
+  let heelVisible = true;
+  if (raw_lm) {
+    const heelIndex = (side === 'left') ? 29 : 30;
+    const toeIndex = (side === 'left') ? 31 : 32;
+    const heelLm = raw_lm[heelIndex];
+    const toeLm = raw_lm[toeIndex];
+    // Visibility threshold is 0.5
+    if (!heelLm || heelLm.visibility < 0.5 || !toeLm || toeLm.visibility < 0.5) {
+      heelVisible = false;
+    }
+  } else {
+    if (!heel || !toe) {
+      heelVisible = false;
+    }
+  }
+
+  let actualHeelLifted = false;
+  if (!heelVisible) {
+    // If heel is not visible, set it as lifted (data not captured)
+    actualHeelLifted = true;
+  } else if (state.ankleDorsi.autoDetectHeel) {
+    // Autodetect heel lift: check 2D pitch of the foot
+    const dx = toe.x - heel.x;
+    const dy = toe.y - heel.y; // positive if heel is higher (y-value is smaller on canvas) than toe
+    const footLength = Math.hypot(dx, dy);
+    if (footLength > 0) {
+      const heightDiff = toe.y - heel.y;
+      const angleRatio = heightDiff / footLength;
+      // Threshold: 12 degrees pitch angle (sin(12°) ≈ 0.2079)
+      if (angleRatio > 0.20) {
+        actualHeelLifted = true;
       }
-    } else {
-      if (state.ankleDorsi.peaks.shinAngleR === null || liveShinTilt > state.ankleDorsi.peaks.shinAngleR) {
-        state.ankleDorsi.peaks.shinAngleR = liveShinTilt;
+    }
+  } else {
+    // Manual mode
+    actualHeelLifted = state.ankleDorsi.heelLifted || false;
+  }
+
+  // Update states
+  state.ankleDorsi.heelVisible = heelVisible;
+  state.ankleDorsi.actualHeelLifted = actualHeelLifted;
+
+  // 3. Update peaks if heel is flat on the floor (not lifted) and recording is active
+  if (!actualHeelLifted && state.ankleDorsi.isRecording) {
+    if (liveShinTilt > 0) {
+      if (side === 'left') {
+        if (state.ankleDorsi.peaks.shinAngleL === null || liveShinTilt > state.ankleDorsi.peaks.shinAngleL) {
+          state.ankleDorsi.peaks.shinAngleL = liveShinTilt;
+        }
+      } else {
+        if (state.ankleDorsi.peaks.shinAngleR === null || liveShinTilt > state.ankleDorsi.peaks.shinAngleR) {
+          state.ankleDorsi.peaks.shinAngleR = liveShinTilt;
+        }
+      }
+    }
+    if (liveAnkleDorsi > 0) {
+      if (side === 'left') {
+        if (state.ankleDorsi.peaks.ankleDorsiL === null || liveAnkleDorsi > state.ankleDorsi.peaks.ankleDorsiL) {
+          state.ankleDorsi.peaks.ankleDorsiL = liveAnkleDorsi;
+        }
+      } else {
+        if (state.ankleDorsi.peaks.ankleDorsiR === null || liveAnkleDorsi > state.ankleDorsi.peaks.ankleDorsiR) {
+          state.ankleDorsi.peaks.ankleDorsiR = liveAnkleDorsi;
+        }
       }
     }
   }
 
   // 4. Update the live UI displays
-  updateDorsiLiveUI(liveShinTilt, isHeelLifted);
+  updateDorsiLiveUI(liveShinTilt, liveAnkleDorsi, actualHeelLifted);
 }
 
 /**
@@ -92,22 +176,42 @@ export function getTibialClassification(angle) {
 }
 
 /**
+ * Helper to classify ankle dorsiflexion ROM angle
+ */
+export function getAnkleDorsiClassification(angle) {
+  if (angle === null || angle === undefined) {
+    return { label: '--', color: '#a7b1b7' };
+  }
+  if (angle >= 20) {
+    return { label: 'Optimal', color: '#10b981' };
+  } else if (angle >= 15) {
+    return { label: 'Functional', color: '#fbbf24' };
+  } else {
+    return { label: 'Restricted', color: '#f87171' };
+  }
+}
+
+/**
  * Updates all real-time and static values in the Ankle Dorsiflexion UI
  */
-export function updateDorsiLiveUI(liveShinTilt = 0, isHeelLifted = false) {
+export function updateDorsiLiveUI(liveShinTilt = 0, liveAnkleDorsi = 0, isHeelLifted = false) {
   // Update Live angle values
   const side = state.ankleDorsi.activeSide;
   
   const liveShinLDisp = document.getElementById('dorsi-live-shin-l');
   const liveShinRDisp = document.getElementById('dorsi-live-shin-r');
+  const liveAnkleLDisp = document.getElementById('dorsi-live-ankle-l');
+  const liveAnkleRDisp = document.getElementById('dorsi-live-ankle-r');
 
   if (side === 'left') {
     if (liveShinLDisp) liveShinLDisp.textContent = `${Math.round(liveShinTilt)}°`;
+    if (liveAnkleLDisp) liveAnkleLDisp.textContent = `${Math.round(liveAnkleDorsi)}°`;
   } else {
     if (liveShinRDisp) liveShinRDisp.textContent = `${Math.round(liveShinTilt)}°`;
+    if (liveAnkleRDisp) liveAnkleRDisp.textContent = `${Math.round(liveAnkleDorsi)}°`;
   }
 
-  // Update Peak angle values
+  // Update Peak Tibial Inclination angle values
   const peakShinLDisp = document.getElementById('dorsi-peak-shin-l');
   const peakShinRDisp = document.getElementById('dorsi-peak-shin-r');
   const classShinLDisp = document.getElementById('dorsi-class-shin-l');
@@ -153,31 +257,159 @@ export function updateDorsiLiveUI(liveShinTilt = 0, isHeelLifted = false) {
     }
   }
 
-  // Update Heel Position manual toggle selection styles in the UI
+  // Update Peak Ankle Dorsiflexion angle values
+  const peakAnkleLDisp = document.getElementById('dorsi-peak-ankle-l');
+  const peakAnkleRDisp = document.getElementById('dorsi-peak-ankle-r');
+  const classAnkleLDisp = document.getElementById('dorsi-class-ankle-l');
+  const classAnkleRDisp = document.getElementById('dorsi-class-ankle-r');
+
+  if (peakAnkleLDisp) {
+    if (state.ankleDorsi.peaks.ankleDorsiL !== null) {
+      const angle = state.ankleDorsi.peaks.ankleDorsiL;
+      peakAnkleLDisp.textContent = `${Math.round(angle)}°`;
+      const classification = getAnkleDorsiClassification(angle);
+      peakAnkleLDisp.style.color = classification.color;
+      if (classAnkleLDisp) {
+        classAnkleLDisp.textContent = classification.label;
+        classAnkleLDisp.style.color = classification.color;
+      }
+    } else {
+      peakAnkleLDisp.textContent = '0°';
+      peakAnkleLDisp.style.color = '';
+      if (classAnkleLDisp) {
+        classAnkleLDisp.textContent = '--';
+        classAnkleLDisp.style.color = '#a7b1b7';
+      }
+    }
+  }
+
+  if (peakAnkleRDisp) {
+    if (state.ankleDorsi.peaks.ankleDorsiR !== null) {
+      const angle = state.ankleDorsi.peaks.ankleDorsiR;
+      peakAnkleRDisp.textContent = `${Math.round(angle)}°`;
+      const classification = getAnkleDorsiClassification(angle);
+      peakAnkleRDisp.style.color = classification.color;
+      if (classAnkleRDisp) {
+        classAnkleRDisp.textContent = classification.label;
+        classAnkleRDisp.style.color = classification.color;
+      }
+    } else {
+      peakAnkleRDisp.textContent = '0°';
+      peakAnkleRDisp.style.color = '';
+      if (classAnkleRDisp) {
+        classAnkleRDisp.textContent = '--';
+        classAnkleRDisp.style.color = '#a7b1b7';
+      }
+    }
+  }
+
+  // Update Heel Autodetection Toggle selection styles in the UI
+  const btnAutoOn = document.getElementById('btn-auto-heel-on');
+  const btnAutoOff = document.getElementById('btn-auto-heel-off');
+  const isAuto = state.ankleDorsi.autoDetectHeel;
+
+  if (btnAutoOn && btnAutoOff) {
+    if (isAuto) {
+      // ON is active (cyan)
+      btnAutoOn.style.background = '#00e5ff';
+      btnAutoOn.style.color = '#0f172a';
+      btnAutoOn.style.boxShadow = '0 2px 8px rgba(0, 229, 255, 0.4)';
+
+      // OFF is inactive
+      btnAutoOff.style.background = 'transparent';
+      btnAutoOff.style.color = '#a7b1b7';
+      btnAutoOff.style.boxShadow = 'none';
+    } else {
+      // ON is inactive
+      btnAutoOn.style.background = 'transparent';
+      btnAutoOn.style.color = '#a7b1b7';
+      btnAutoOn.style.boxShadow = 'none';
+
+      // OFF is active (slate)
+      btnAutoOff.style.background = '#475569';
+      btnAutoOff.style.color = 'white';
+      btnAutoOff.style.boxShadow = '0 2px 8px rgba(71, 85, 105, 0.4)';
+    }
+  }
+
+  // Update Heel Position manual/auto status and buttons
   const btnHeelFlat = document.getElementById('btn-heel-flat');
   const btnHeelLifted = document.getElementById('btn-heel-lifted');
+  const lblHeelStatus = document.getElementById('lbl-heel-status');
+  const heelVisible = state.ankleDorsi.heelVisible !== false;
+
+  // Status Label
+  if (lblHeelStatus) {
+    if (!heelVisible) {
+      lblHeelStatus.textContent = '⚠️ NOT VISIBLE';
+      lblHeelStatus.style.color = '#ef4444';
+    } else if (isAuto) {
+      lblHeelStatus.textContent = `AUTO: ${isHeelLifted ? 'LIFTED' : 'FLAT'}`;
+      lblHeelStatus.style.color = isHeelLifted ? '#ef4444' : '#10b981';
+    } else {
+      lblHeelStatus.textContent = `MANUAL: ${isHeelLifted ? 'LIFTED' : 'FLAT'}`;
+      lblHeelStatus.style.color = isHeelLifted ? '#ef4444' : '#10b981';
+    }
+  }
 
   if (btnHeelFlat && btnHeelLifted) {
+    // Styling manual FLAT / LIFTED buttons
     if (isHeelLifted) {
-      // FLAT button is inactive
+      // FLAT is inactive
       btnHeelFlat.style.background = 'transparent';
       btnHeelFlat.style.color = '#a7b1b7';
       btnHeelFlat.style.boxShadow = 'none';
 
-      // LIFTED button is active (red)
+      // LIFTED is active (red)
       btnHeelLifted.style.background = '#ef4444';
       btnHeelLifted.style.color = 'white';
       btnHeelLifted.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.4)';
     } else {
-      // FLAT button is active (green)
+      // FLAT is active (green)
       btnHeelFlat.style.background = '#10b981';
       btnHeelFlat.style.color = 'white';
       btnHeelFlat.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.4)';
 
-      // LIFTED button is inactive
+      // LIFTED is inactive
       btnHeelLifted.style.background = 'transparent';
       btnHeelLifted.style.color = '#a7b1b7';
       btnHeelLifted.style.boxShadow = 'none';
+    }
+
+    // If auto mode, make the manual buttons look read-only and disable interaction
+    if (isAuto) {
+      btnHeelFlat.style.opacity = '0.5';
+      btnHeelLifted.style.opacity = '0.5';
+      btnHeelFlat.style.pointerEvents = 'none';
+      btnHeelLifted.style.pointerEvents = 'none';
+      btnHeelFlat.style.cursor = 'default';
+      btnHeelLifted.style.cursor = 'default';
+    } else {
+      btnHeelFlat.style.opacity = '1.0';
+      btnHeelLifted.style.opacity = '1.0';
+      btnHeelFlat.style.pointerEvents = 'auto';
+      btnHeelLifted.style.pointerEvents = 'auto';
+      btnHeelFlat.style.cursor = 'pointer';
+      btnHeelLifted.style.cursor = 'pointer';
+    }
+  }
+
+  // Update Record/Tracking Toggle button styling
+  const btnRecordToggle = document.getElementById('btn-record-dorsi-toggle');
+  const dotRecord = document.getElementById('dot-record-dorsi');
+  const txtRecord = document.getElementById('txt-record-dorsi');
+
+  if (btnRecordToggle && dotRecord && txtRecord) {
+    if (state.ankleDorsi.isRecording) {
+      btnRecordToggle.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      txtRecord.textContent = 'Stop Recording';
+      dotRecord.classList.add('recording-active-dot');
+      btnRecordToggle.style.boxShadow = '0 2px 10px rgba(239, 68, 68, 0.4)';
+    } else {
+      btnRecordToggle.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      txtRecord.textContent = 'Start Recording';
+      dotRecord.classList.remove('recording-active-dot');
+      btnRecordToggle.style.boxShadow = '0 2px 10px rgba(16, 185, 129, 0.3)';
     }
   }
 
@@ -185,11 +417,19 @@ export function updateDorsiLiveUI(liveShinTilt = 0, isHeelLifted = false) {
   const statusVal = document.getElementById('dorsi-status-val');
   if (statusVal) {
     if (state.latestPoseResults && state.latestPoseResults.poseLandmarks) {
-      statusVal.textContent = 'Active Tracking';
-      statusVal.className = 'metric-val text-green';
+      if (state.ankleDorsi.isRecording) {
+        statusVal.textContent = 'Recording Active';
+        statusVal.className = 'metric-val text-red';
+        statusVal.style.color = '#ef4444';
+      } else {
+        statusVal.textContent = 'Ready to Record';
+        statusVal.className = 'metric-val text-amber';
+        statusVal.style.color = '#fbbf24';
+      }
     } else {
       statusVal.textContent = 'Awaiting Subject';
       statusVal.className = 'metric-val text-slate';
+      statusVal.style.color = '#a7b1b7';
     }
   }
 
@@ -240,18 +480,31 @@ export function updateAsymmetryUI() {
 export function resetAnkleDorsi() {
   state.ankleDorsi.peaks = {
     shinAngleL: null,
-    shinAngleR: null
+    shinAngleR: null,
+    ankleDorsiL: null,
+    ankleDorsiR: null
   };
+  state.ankleDorsi.neutralAngleL = null;
+  state.ankleDorsi.neutralAngleR = null;
+  state.ankleDorsi.isRecording = false;
 
   const peakShinLDisp = document.getElementById('dorsi-peak-shin-l');
   const peakShinRDisp = document.getElementById('dorsi-peak-shin-r');
+  const peakAnkleLDisp = document.getElementById('dorsi-peak-ankle-l');
+  const peakAnkleRDisp = document.getElementById('dorsi-peak-ankle-r');
   const liveShinLDisp = document.getElementById('dorsi-live-shin-l');
   const liveShinRDisp = document.getElementById('dorsi-live-shin-r');
+  const liveAnkleLDisp = document.getElementById('dorsi-live-ankle-l');
+  const liveAnkleRDisp = document.getElementById('dorsi-live-ankle-r');
 
   if (peakShinLDisp) peakShinLDisp.textContent = '0°';
   if (peakShinRDisp) peakShinRDisp.textContent = '0°';
+  if (peakAnkleLDisp) peakAnkleLDisp.textContent = '0°';
+  if (peakAnkleRDisp) peakAnkleRDisp.textContent = '0°';
   if (liveShinLDisp) liveShinLDisp.textContent = '0°';
   if (liveShinRDisp) liveShinRDisp.textContent = '0°';
+  if (liveAnkleLDisp) liveAnkleLDisp.textContent = '0°';
+  if (liveAnkleRDisp) liveAnkleRDisp.textContent = '0°';
 
   updateDorsiLiveUI();
 }
@@ -308,6 +561,22 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
     });
   }
 
+  // Heel Autodetection Selector listeners
+  const btnAutoHeelOn = document.getElementById('btn-auto-heel-on');
+  const btnAutoHeelOff = document.getElementById('btn-auto-heel-off');
+
+  if (btnAutoHeelOn && btnAutoHeelOff) {
+    btnAutoHeelOn.addEventListener('click', () => {
+      state.ankleDorsi.autoDetectHeel = true;
+      updateDorsiLiveUI();
+    });
+
+    btnAutoHeelOff.addEventListener('click', () => {
+      state.ankleDorsi.autoDetectHeel = false;
+      updateDorsiLiveUI();
+    });
+  }
+
   // Heel Status Selector listeners
   const btnHeelFlat = document.getElementById('btn-heel-flat');
   const btnHeelLifted = document.getElementById('btn-heel-lifted');
@@ -320,6 +589,15 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
 
     btnHeelLifted.addEventListener('click', () => {
       state.ankleDorsi.heelLifted = true;
+      updateDorsiLiveUI();
+    });
+  }
+
+  // Start/Stop Recording Toggle button listener
+  const btnRecordToggle = document.getElementById('btn-record-dorsi-toggle');
+  if (btnRecordToggle) {
+    btnRecordToggle.addEventListener('click', () => {
+      state.ankleDorsi.isRecording = !state.ankleDorsi.isRecording;
       updateDorsiLiveUI();
     });
   }
@@ -339,8 +617,8 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
   if (btnSaveDorsi) {
     btnSaveDorsi.addEventListener('click', async () => {
       const peaks = state.ankleDorsi.peaks;
-      if (peaks.shinAngleL === null && peaks.shinAngleR === null) {
-        alert("No peak angle metrics have been captured yet. Please perform a lunge with flat heels to capture peak angles!");
+      if (peaks.shinAngleL === null && peaks.shinAngleR === null && peaks.ankleDorsiL === null && peaks.ankleDorsiR === null) {
+        alert("No peak ROM metrics have been captured yet. Please perform a lunge with flat heels to capture peak angles!");
         return;
       }
 
@@ -357,7 +635,7 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
         }
       }
 
-      const label = state.activeProfileId ? `${activeProfileName} - Ankle Dorsiflexion` : "Guest - Ankle Dorsiflexion";
+      const label = state.activeProfileId ? `${activeProfileName} - Tibial & Ankle ROM` : "Guest - Tibial & Ankle ROM";
       const canvasElement = document.getElementById('main-canvas');
 
       const snapshotRecord = {
@@ -383,7 +661,7 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
               }
             }
             await snapshotStore.saveProfile(profile);
-            alert(`💾 Ankle Dorsiflexion results successfully recorded to player profile "${profile.name}"!`);
+            alert(`💾 Tibial & Ankle ROM results successfully recorded to player profile "${profile.name}"!`);
           }
         } else {
           // In Guest Mode, register in the general store if possible
@@ -391,8 +669,8 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
           alert("💾 Assessment recorded to general local snapshots successfully!");
         }
       } catch (err) {
-        console.error("Failed to record Ankle Dorsiflexion assessment:", err);
-        alert("Could not save ankle dorsiflexion results. See developer console for errors.");
+        console.error("Failed to record Tibial & Ankle ROM assessment:", err);
+        alert("Could not save tibial & ankle ROM results. See developer console for errors.");
       }
     });
   }

@@ -21,7 +21,7 @@ import {
 
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
 import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
-import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt } from './ankleDorsi.js';
+import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt, updateDorsiLiveUI } from './ankleDorsi.js';
 
 export const videoElement = document.getElementById('webcam');
 export const canvasElement = document.getElementById('overlay');
@@ -242,6 +242,7 @@ const ANGLE_METRICS = [
 // ==========================================
 
 function drawJoint(point, color, ctx = canvasCtx) {
+  if (!point || point.x === undefined || point.y === undefined) return;
   ctx.beginPath();
   ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
   ctx.fillStyle = color;
@@ -252,6 +253,7 @@ function drawJoint(point, color, ctx = canvasCtx) {
 }
 
 function drawBone(p1, p2, color, ctx = canvasCtx) {
+  if (!p1 || p1.x === undefined || p1.y === undefined || !p2 || p2.x === undefined || p2.y === undefined) return;
   ctx.beginPath();
   ctx.moveTo(p1.x, p1.y);
   ctx.lineTo(p2.x, p2.y);
@@ -341,6 +343,20 @@ export function drawFullSkeletalMesh(landmarks, ctx = canvasCtx) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
   });
+}
+
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
 }
 
 function drawAngleBadge(ctx, point, value, color) {
@@ -632,9 +648,9 @@ function drawLiveStatsCard(ctx, calculated) {
   const rowSpacing = 14 * scale;
   
   const joints = [
-    { label: "Knee L / R", val: `${Math.round(calculated.kneeAngleL)}° / ${Math.round(calculated.kneeAngleR)}°` },
-    { label: "Hip L / R", val: `${Math.round(calculated.hipAngleL)}° / ${Math.round(calculated.hipAngleR)}°` },
-    { label: "Elbow L / R", val: `${Math.round(calculated.elbowAngleL)}° / ${Math.round(calculated.elbowAngleR)}°` }
+    { label: "Knee L / R", val: `${Math.round(calculated.kneeAngleL || 0)}° / ${Math.round(calculated.kneeAngleR || 0)}°` },
+    { label: "Hip L / R", val: `${Math.round(calculated.hipAngleL || 0)}° / ${Math.round(calculated.hipAngleR || 0)}°` },
+    { label: "Elbow L / R", val: `${Math.round(calculated.elbowAngleL || 0)}° / ${Math.round(calculated.elbowAngleR || 0)}°` }
   ];
   
   joints.forEach(j => {
@@ -897,7 +913,10 @@ export function onPoseResults(results) {
       drawJoint(head_top, '#FFFFFF');
 
       // Position ruler
-      const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+      const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+        .filter(p => p !== null && p !== undefined && p.x !== undefined)
+        .map(p => p.x);
+      if (body_xs.length === 0) body_xs.push(320);
       const min_x = Math.min(...body_xs);
       const max_x = Math.max(...body_xs);
       const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
@@ -1095,7 +1114,9 @@ export function onPoseResults(results) {
   }
 
   if (typeof calculatePoseMetrics === 'function') {
-    calculated = calculatePoseMetrics(results);
+    if (!calculated) {
+      calculated = calculatePoseMetrics(results);
+    }
 
     if (calculated) {
       state.lastCalculatedResults = calculated;
@@ -1170,15 +1191,23 @@ export function onPoseResults(results) {
         const side = state.ankleDorsi.activeSide;
         const activeAnkle = side === 'left' ? ankle_l : ankle_r;
         const activeKnee = side === 'left' ? knee_l : knee_r;
+        const activeAnkleAngle = side === 'left' ? calculated.ankleAngleL : calculated.ankleAngleR;
         
-        // Draw Tibial Inclination (Dorsiflexion) angle badge at the midpoint of the shin
+        // Draw Tibial Inclination angle badge at the midpoint of the shin
         if (activeAnkle && activeKnee) {
           const shinMidpoint = {
             x: (activeAnkle.x + activeKnee.x) / 2,
             y: (activeAnkle.y + activeKnee.y) / 2
           };
           const liveShinTilt = (side === 'left') ? calculateShinTilt(ankle_l, knee_l) : calculateShinTilt(ankle_r, knee_r);
-          drawAngleBadge(canvasCtx, shinMidpoint, liveShinTilt, '#06b6d4'); // Cyan for DF / Tibial Inclination
+          drawAngleBadge(canvasCtx, shinMidpoint, liveShinTilt, '#06b6d4'); // Cyan for Tibial Inclination
+        }
+
+        // Draw Ankle Dorsiflexion angle badge at the ankle joint
+        if (activeAnkle && activeAnkleAngle !== undefined && activeAnkleAngle !== null) {
+          const neutral = (side === 'left') ? (state.ankleDorsi.neutralAngleL || 115) : (state.ankleDorsi.neutralAngleR || 115);
+          const liveAnkleDorsi = Math.max(0, neutral - activeAnkleAngle);
+          drawAngleBadge(canvasCtx, activeAnkle, liveAnkleDorsi, '#10b981'); // Green for Ankle Dorsiflexion
         }
       } else {
         drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
@@ -1213,6 +1242,8 @@ export function onPoseResults(results) {
       elbowAngleRDisp.textContent = `${elbowAngleR}°`;
 
       // Overhead Squat Mobility calculations
+      const kneeMobL = 180 - (kneeAngleL || 180);
+      const kneeMobR = 180 - (kneeAngleR || 180);
       const hipMobL = 180 - (hipAngleL || 180);
       const hipMobR = 180 - (hipAngleR || 180);
       const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
@@ -1252,7 +1283,10 @@ export function onPoseResults(results) {
         renderDashboard(liveMetrics);
 
         // Position ruler on whichever side has more margin
-        const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+        const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+          .filter(p => p !== null && p !== undefined && p.x !== undefined)
+          .map(p => p.x);
+        if (body_xs.length === 0) body_xs.push(320);
         const min_x = Math.min(...body_xs);
         const max_x = Math.max(...body_xs);
         const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
@@ -3867,6 +3901,7 @@ export function exportCombinedAssessmentCard() {
   const jointRadius = Math.max(4.0, 5.0 * scale);
 
   const drawOffscreenJoint = (pt, color) => {
+    if (!pt || pt.x === undefined || pt.y === undefined) return;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, jointRadius, 0, 2 * Math.PI);
     ctx.fillStyle = color;
@@ -3877,6 +3912,7 @@ export function exportCombinedAssessmentCard() {
   };
 
   const drawOffscreenBone = (p1, p2, color) => {
+    if (!p1 || p1.x === undefined || p1.y === undefined || !p2 || p2.x === undefined || p2.y === undefined) return;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
@@ -3939,7 +3975,10 @@ export function exportCombinedAssessmentCard() {
 
   // Draw ruler
   if (state.pixelsPerCm && liveMetrics) {
-    const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+    const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+      .filter(p => p !== null && p !== undefined && p.x !== undefined)
+      .map(p => p.x);
+    if (body_xs.length === 0) body_xs.push(width / 2);
     const min_x = Math.min(...body_xs);
     const max_x = Math.max(...body_xs);
     const ruler_margin = 40 * scale;
@@ -6381,6 +6420,12 @@ export function ensureProfileSessions(profile) {
       metricsT: profile.metricsT || null,
       metricsOverhead: profile.metricsOverhead || null,
       squatPeaks: getDefaultSquatPeaks(profile.squatPeaks),
+      ankleDorsiPeaks: profile.ankleDorsiPeaks || {
+        shinAngleL: null,
+        shinAngleR: null,
+        ankleDorsiL: null,
+        ankleDorsiR: null
+      },
       imageA: profile.imageA || null,
       imageT: profile.imageT || null,
       imageOverhead: profile.imageOverhead || null,
@@ -6429,6 +6474,19 @@ export async function loadProfileIntoState(profileId) {
     state.metricsT = activeSession.metricsT || null;
     state.metricsOverhead = activeSession.metricsOverhead || null;
     state.squatPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
+    
+    if (activeSession.ankleDorsiPeaks) {
+      state.ankleDorsi.peaks = JSON.parse(JSON.stringify(activeSession.ankleDorsiPeaks));
+    } else {
+      state.ankleDorsi.peaks = {
+        shinAngleL: null,
+        shinAngleR: null,
+        ankleDorsiL: null,
+        ankleDorsiR: null
+      };
+    }
+    updateDorsiLiveUI();
+
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
@@ -6541,6 +6599,12 @@ export async function loadProfileIntoState(profileId) {
               metricsT: null,
               metricsOverhead: null,
               squatPeaks: getDefaultSquatPeaks(),
+              ankleDorsiPeaks: {
+                shinAngleL: null,
+                shinAngleR: null,
+                ankleDorsiL: null,
+                ankleDorsiR: null
+              },
               imageA: null,
               imageT: null,
               imageOverhead: null,
@@ -6806,6 +6870,12 @@ export async function openProfileDetailsModal(profileId) {
           metricsT: null,
           metricsOverhead: null,
           squatPeaks: getDefaultSquatPeaks(),
+          ankleDorsiPeaks: {
+            shinAngleL: null,
+            shinAngleR: null,
+            ankleDorsiL: null,
+            ankleDorsiR: null
+          },
           imageA: null,
           imageT: null,
           imageOverhead: null,
@@ -7580,6 +7650,14 @@ export async function openProfileDetailsModal(profileId) {
             // Save squat peaks mobility records in session
             if (!freshActiveSession.squatPeaks) {
               freshActiveSession.squatPeaks = getDefaultSquatPeaks();
+            }
+            if (!freshActiveSession.ankleDorsiPeaks) {
+              freshActiveSession.ankleDorsiPeaks = {
+                shinAngleL: null,
+                shinAngleR: null,
+                ankleDorsiL: null,
+                ankleDorsiR: null
+              };
             }
             const squatInputs = document.querySelectorAll('.profile-squat-edit-input');
             squatInputs.forEach(input => {

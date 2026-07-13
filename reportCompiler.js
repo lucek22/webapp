@@ -279,6 +279,12 @@ export function compileAndDownloadCombinedSession() {
       peakAnkleDorsiflexionL: state.squatPeaks.ankleL || 0,
       peakAnkleDorsiflexionR: state.squatPeaks.ankleR || 0
     },
+    tibialInclinationROM: {
+      peakTibialInclinationL: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.shinAngleL || 0 : 0,
+      peakTibialInclinationR: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.shinAngleR || 0 : 0,
+      peakAnkleDorsiflexionL: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.ankleDorsiL || 0 : 0,
+      peakAnkleDorsiflexionR: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.ankleDorsiR || 0 : 0
+    },
     anglesA: state.metricsA,
     anglesT: state.metricsT,
     anglesOverhead: state.metricsOverhead

@@ -2766,7 +2766,7 @@ export async function renderShoulderRotationGrading(activeSession) {
       return { grade: 1, label: "Poor", color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.3)" };
     }
     if (absVal <= thresh.high) {
-      return { grade: 2, label: "Average", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.3)" };
+      return { grade: 2, label: "Functional", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.3)" };
     }
     return { grade: 3, label: "Great", color: "#10b981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)" };
   };
@@ -3043,6 +3043,225 @@ export async function renderShoulderRotationGrading(activeSession) {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ADVICE / COACHING TAB HUB -->
+      <div style="background: rgba(0, 229, 255, 0.02); border: 1px dashed rgba(0, 229, 255, 0.20); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
+        <div style="font-size: 0.8rem; font-weight: bold; color: #00e5ff; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,229,255,0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
+          <span>💡 Dynamic Corrective Advice & Coaching</span>
+        </div>
+        
+        ${(() => {
+          const adviceItems = [];
+          
+          const hipIntL = hRot.maxInternalRotationL || 0;
+          const hipIntR = hRot.maxInternalRotationR || 0;
+          const hipExtL = hRot.maxExternalRotationL || 0;
+          const hipExtR = hRot.maxExternalRotationR || 0;
+          
+          const shIntL = shRot.maxInternalRotationL || 0;
+          const shIntR = shRot.maxInternalRotationR || 0;
+          const shExtL = shRot.maxExternalRotationL || 0;
+          const shExtR = shRot.maxExternalRotationR || 0;
+          
+          const shFlexL = shPeaks.excursionL || 0;
+          const shFlexR = shPeaks.excursionR || 0;
+
+          // ==========================================
+          // 1. HIP INTERNAL/EXTERNAL ROTATION RULES
+          // ==========================================
+          
+          // Rule 1.1: Hip Internal Rotation < 25° (on either side)
+          const hasLowHipIR_L = hipIntL > 0 && hipIntL < 25;
+          const hasLowHipIR_R = hipIntR > 0 && hipIntR < 25;
+          if (hasLowHipIR_L || hasLowHipIR_R) {
+            let sideLabel = "";
+            if (hasLowHipIR_L && hasLowHipIR_R) sideLabel = "Both Sides";
+            else if (hasLowHipIR_L) sideLabel = "Left Side";
+            else sideLabel = "Right Side";
+
+            adviceItems.push({
+              metric: "Hip IR < 25°",
+              sides: sideLabel,
+              icon: "⚠️",
+              title: "Restricted Hip Internal Rotation",
+              desc: "Mobility is below the recommended 25° functional baseline.",
+              bullets: [
+                "**90/90 hip stretch** (both IR and ER position)",
+                "**prone hip IR self-mob with belt**",
+                "**hip joint capsule posterior glide mobilisation**"
+              ]
+            });
+          }
+
+          // Rule 1.2: Hip Internal Rotation Asymmetry > 10°
+          if (hipIntL > 0 && hipIntR > 0) {
+            const diff = Math.abs(hipIntL - hipIntR);
+            if (diff > 10) {
+              const restrictedSide = hipIntL < hipIntR ? "Left Side" : "Right Side";
+              adviceItems.push({
+                metric: `Hip IR Asymmetry > 10° (Delta: ${diff.toFixed(1)}°)`,
+                sides: `${restrictedSide} Restricted`,
+                icon: "⚖️",
+                title: "Hip Internal Rotation Asymmetry",
+                desc: `Significant structural or muscular imbalance detected between sides (${diff.toFixed(1)}° difference).`,
+                bullets: [
+                  "**Prioritise restricted side**: SL hip IR strengthening (clamshell variation with IR bias)",
+                  "**manual therapy referral** if structural cause suspected"
+                ]
+              });
+            }
+          }
+
+          // Rule 1.3: Hip External Rotation < 35° (on either side)
+          const hasLowHipER_L = hipExtL > 0 && hipExtL < 35;
+          const hasLowHipER_R = hipExtR > 0 && hipExtR < 35;
+          if (hasLowHipER_L || hasLowHipER_R) {
+            let sideLabel = "";
+            if (hasLowHipER_L && hasLowHipER_R) sideLabel = "Both Sides";
+            else if (hasLowHipER_L) sideLabel = "Left Side";
+            else sideLabel = "Right Side";
+
+            adviceItems.push({
+              metric: "Hip ER < 35°",
+              sides: sideLabel,
+              icon: "🦵",
+              title: "Restricted Hip External Rotation",
+              desc: "Mobility is below the recommended 35° functional baseline.",
+              bullets: [
+                "**Figure-4 stretch**",
+                "**pigeon pose**",
+                "**lateral hip rotator mobilisation**",
+                "**seated hip ER with resistance band**"
+              ]
+            });
+          }
+
+          // ==========================================
+          // 2. SHOULDER INTERNAL/EXTERNAL ROTATION RULES
+          // ==========================================
+          
+          // Rule 2.1: Shoulder External Rotation < 70° bilateral (both sides under 70)
+          if (shExtL > 0 && shExtR > 0 && shExtL < 70 && shExtR < 70) {
+            adviceItems.push({
+              metric: "Shoulder ER < 70° Bilateral",
+              sides: "Bilateral",
+              icon: "🎽",
+              title: "Restricted Shoulder External Rotation",
+              desc: "Both shoulders fall short of the 70° external rotation baseline.",
+              bullets: [
+                "**Anterior capsule stretching** (sleeper modified, doorway stretch)",
+                "**subscapularis release**",
+                "**horizontal abduction stretch with arm at 90°**"
+              ]
+            });
+          }
+
+          // Rule 2.2: Net Arc Deficit > 10°
+          if (shIntL > 0 && shIntR > 0 && shExtL > 0 && shExtR > 0) {
+            const netArcL = shIntL + shExtL;
+            const netArcR = shIntR + shExtR;
+            const diff = Math.abs(netArcL - netArcR);
+            if (diff > 10) {
+              const restrictedSide = netArcL < netArcR ? "Left Side" : "Right Side";
+              adviceItems.push({
+                metric: `Net Arc Deficit > 10° (Delta: ${diff.toFixed(1)}°)`,
+                sides: `${restrictedSide} Restricted`,
+                icon: "🔄",
+                title: "Shoulder Total Motion Arc Deficit",
+                desc: `Imbalance in total rotational range (IR + ER) exceeds 10° (${diff.toFixed(1)}° difference).`,
+                bullets: [
+                  "**See Net Rotation Arc screen** — requires combined IR and ER intervention strategy based on where the arc is lost"
+                ]
+              });
+            }
+          }
+
+          // Rule 2.3: GIRD > 20° (Glenohumeral Internal Rotation Deficit)
+          if (shIntL > 0 && shIntR > 0) {
+            const diff = Math.abs(shIntL - shIntR);
+            if (diff > 20) {
+              const restrictedSide = shIntL < shIntR ? "Left Side" : "Right Side";
+              adviceItems.push({
+                metric: `GIRD > 20° (Delta: ${diff.toFixed(1)}°)`,
+                sides: `${restrictedSide} Restricted`,
+                icon: "📊",
+                title: "Shoulder Internal Rotation Deficit (GIRD)",
+                desc: `Imbalance in internal rotation between sides exceeds 20° (${diff.toFixed(1)}° difference).`,
+                bullets: [
+                  "**Sleeper stretch** (prone, arm over edge, gentle IR of humerus)",
+                  "**cross-body horizontal adduction stretch**",
+                  "**posterior capsule manual mobilisation**"
+                ]
+              });
+            }
+          }
+
+          // Rule 2.4: Bilateral IR < 50°
+          if (shIntL > 0 && shIntR > 0 && shIntL < 50 && shIntR < 50) {
+            adviceItems.push({
+              metric: "Shoulder IR < 50° Bilateral",
+              sides: "Bilateral",
+              icon: "⚠️",
+              title: "Bilateral Shoulder Internal Rotation Deficit",
+              desc: "Both shoulders fall short of the 50° internal rotation baseline.",
+              bullets: [
+                "**Bilateral posterior capsule tightness** — common in swimmers and weight room athletes",
+                "**foam roller lat release** + **bilateral sleeper stretch program**"
+              ]
+            });
+          }
+
+          // ==========================================
+          // 3. SHOULDER FLEXION RULES
+          // ==========================================
+          
+          // Rule 3.1: Shoulder Flexion < 150° Bilateral
+          if (shFlexL > 0 && shFlexR > 0 && shFlexL < 150 && shFlexR < 150) {
+            adviceItems.push({
+              metric: "Shoulder Flexion < 150° Bilateral",
+              sides: "Bilateral",
+              icon: "🙆",
+              title: "Restricted Shoulder Flexion",
+              desc: "Both shoulder flexion excursions are below the 150° functional baseline.",
+              bullets: [
+                "**Doorway stretch** (chest and anterior shoulder)",
+                "**overhead lat stretch**",
+                "**wall slide with thoracic extension**",
+                "**thoracic foam roll + arm reach overhead**"
+              ]
+            });
+          }
+
+          if (adviceItems.length > 0) {
+            return `
+              <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                ${adviceItems.map(item => `
+                  <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                      <span style="font-size: 0.75rem; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 4px;">
+                        <span>${item.icon}</span> ${item.title} (${item.sides})
+                      </span>
+                      <span style="font-size: 0.6rem; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: rgba(255, 159, 67, 0.15); border: 1px solid rgba(255, 159, 67, 0.3); color: #ff9f43;">
+                        ${item.metric}
+                      </span>
+                    </div>
+                    <div style="font-size: 0.7rem; color: #bbb; margin-bottom: 0.4rem;">${item.desc}</div>
+                    <ul style="margin: 0; padding-left: 1.1rem; font-size: 0.68rem; color: #eee; display: flex; flex-direction: column; gap: 3px;">
+                      ${item.bullets.map(bullet => `<li style="line-height: 1.2;">${bullet.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</li>`).join('')}
+                    </ul>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          } else {
+            return `
+              <div style="text-align: center; padding: 0.5rem; color: #888; font-size: 0.72rem;">
+                ✅ No significant range of motion issues detected across active hip or shoulder profiles.
+              </div>
+            `;
+          }
+        })()}
       </div>
 
     </div>

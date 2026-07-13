@@ -347,10 +347,12 @@ const btnSaveShoulderRotationPeaks = document.getElementById('btn-save-shoulder-
 // UI Calibration Toggles & Panels
 const tabHeightBtn = document.getElementById('tab-height-btn');
 const tabPortfolioBtn = document.getElementById('tab-portfolio-btn');
+const tabImportBtn = document.getElementById('tab-import-btn');
 
 const panelCard = document.getElementById('panel-card');
 const panelHeight = document.getElementById('panel-height');
 const panelPortfolio = document.getElementById('panel-portfolio');
+const panelImport = document.getElementById('panel-import');
 
 const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
 const btnApplyScale = document.getElementById('btn-apply-scale');
@@ -3628,14 +3630,14 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   clearSmoothBuffer('body_height_skeletal');
   clearSmoothBuffer('body_height_live');
   
-  [tabHeightBtn, tabPortfolioBtn].forEach(btn => {
+  [tabHeightBtn, tabPortfolioBtn, tabImportBtn].forEach(btn => {
     if (btn) {
       btn.classList.toggle('btn-tab-active', btn === activeBtn);
       btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
     }
   });
 
-  [panelHeight, panelPortfolio].forEach(panel => {
+  [panelHeight, panelPortfolio, panelImport].forEach(panel => {
     if (panel) {
       if (panel === activePanel) {
         panel.classList.remove('hidden');
@@ -3668,6 +3670,12 @@ if (tabPortfolioBtn) {
   });
 }
 
+if (tabImportBtn) {
+  tabImportBtn.addEventListener('click', () => {
+    switchCalibrationTab('import', tabImportBtn, panelImport);
+  });
+}
+
 // Premeasured scale factor pasting event listener
 if (btnApplyScale && inputPremeasuredScale) {
   btnApplyScale.addEventListener('click', () => {
@@ -3697,7 +3705,7 @@ if (btnApplyScale && inputPremeasuredScale) {
 
 // Prior portfolio JSON session importer event listeners
 if (btnImportPortfolio && textareaPortfolioJson) {
-  btnImportPortfolio.addEventListener('click', () => {
+  btnImportPortfolio.addEventListener('click', async () => {
     const rawVal = textareaPortfolioJson.value.trim();
     if (!rawVal) {
       alert("Please paste a session JSON report in the text area.");
@@ -3706,7 +3714,7 @@ if (btnImportPortfolio && textareaPortfolioJson) {
 
     try {
       const data = JSON.parse(rawVal);
-      importPriorPortfolio(data);
+      await importPriorPortfolio(data);
     } catch (e) {
       alert(`Invalid JSON format: ${e.message}\nPlease make sure you are pasting a valid JSON object.`);
     }
@@ -4247,7 +4255,7 @@ export async function startRealTimePlaybackExport() {
 
 
 
-export function importPriorPortfolio(report) {
+export async function importPriorPortfolio(report) {
   if (!report) return;
 
   // Try to extract active calculated metrics from the current cached results,
@@ -4325,32 +4333,64 @@ export function importPriorPortfolio(report) {
   state.lastProcessedScaleFactor = null;
   state.lastCalculatedResults = null;
 
-  // 1. Restore Subject Name & Automatically map to/load matching Profile
+  // 1. Create a brand new player profile based on the imported subject name
+  let nameVal = report.subjectName || "Imported Subject";
+  let baseName = nameVal;
+  let counter = 1;
+  while (state.allProfiles.some(p => p.name.toLowerCase() === nameVal.toLowerCase())) {
+    nameVal = `${baseName} (Imported ${counter})`;
+    counter++;
+  }
+
+  const newProfile = {
+    name: nameVal,
+    timestamp: Date.now(),
+    metricsA: null,
+    metricsT: null,
+    metricsOverhead: null,
+    squatPeaks: getDefaultSquatPeaks(),
+    imageA: null,
+    imageT: null,
+    imageOverhead: null,
+    pixelsPerCm: report.pixelsPerCm || null
+  };
+
   const subjectInput = document.getElementById('subject-name-input');
-  if (report.subjectName) {
-    if (subjectInput) subjectInput.value = report.subjectName;
-    
-    // Find matching profile by name (case-insensitive)
-    const matchingProfile = state.allProfiles.find(p => p.name.toLowerCase() === report.subjectName.toLowerCase());
-    if (matchingProfile) {
-      state.activeProfileId = matchingProfile.id;
-      // Sync dropdown select element
+  if (subjectInput) {
+    subjectInput.value = nameVal;
+  }
+
+  if (state.dbInitialized) {
+    try {
+      const newId = await snapshotStore.saveProfile(newProfile);
+      state.activeProfileId = newId;
+      state.allProfiles = await snapshotStore.getAllProfiles();
+      
+      // Sync dropdown select elements
       const profileSelect = document.getElementById('profile-select');
       if (profileSelect) {
-        profileSelect.value = String(matchingProfile.id);
+        populateDropdown(state.allProfiles);
+        profileSelect.value = String(newId);
+      }
+      const calProfileSelect = document.getElementById('cal-profile-select');
+      if (calProfileSelect) {
+        calProfileSelect.value = String(newId);
       }
       
       // Update status bar
       const activeProfileName = document.getElementById('active-profile-name');
-      if (activeProfileName) activeProfileName.textContent = matchingProfile.name;
+      if (activeProfileName) activeProfileName.textContent = nameVal;
       const profileStatusBar = document.getElementById('profile-status-bar');
       if (profileStatusBar) profileStatusBar.classList.remove('hidden');
       const btnDeleteProfile = document.getElementById('btn-delete-profile');
       if (btnDeleteProfile) btnDeleteProfile.classList.remove('hidden');
       
-      console.log(`[importPriorPortfolio] Found and automatically matched active profile: ${matchingProfile.name}`);
+      console.log(`[importPriorPortfolio] Created and saved new imported profile: ${nameVal} (ID: ${newId})`);
+    } catch (err) {
+      console.error("[importPriorPortfolio] Failed to save newly created profile:", err);
     }
   }
+
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
     subjectPanel.classList.remove('hidden');
@@ -4493,6 +4533,16 @@ export function importPriorPortfolio(report) {
   // Save to persistent state for live/image tracking overrides
   state.importedPortfolioMetrics = importedMetrics;
 
+  const squatMobility = report.overheadSquatMobility || {};
+  state.squatPeaks = {
+    kneeL: squatMobility.peakKneeFlexionL || 0,
+    kneeR: squatMobility.peakKneeFlexionR || 0,
+    hipL: squatMobility.peakHipFlexionL || 0,
+    hipR: squatMobility.peakHipFlexionR || 0,
+    ankleL: squatMobility.peakAnkleDorsiflexionL || 0,
+    ankleR: squatMobility.peakAnkleDorsiflexionR || 0
+  };
+
   // Re-render dashboard metrics instantly!
   renderDashboard(importedMetrics);
 
@@ -4562,7 +4612,7 @@ export function importPriorPortfolio(report) {
 
   // If a profile is active, sync the imported metrics to the database
   if (state.activeProfileId) {
-    autoSyncToActiveProfile();
+    await autoSyncToActiveProfile();
   }
 
   // High-end feedback animation on Import button

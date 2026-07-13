@@ -56,6 +56,7 @@
         <div class="calibration-tabs">
           <button id="tab-height-btn" class="btn btn-tab-active">Input Height</button>
           <button id="tab-portfolio-btn" class="btn btn-tab-inactive">Select Player Profile</button>
+          <button id="tab-import-btn" class="btn btn-tab-inactive">Import Player Profile</button>
         </div>
 
         <!-- Panel 2: Card Calibration (Manual) -->
@@ -99,6 +100,16 @@
             <select id="cal-profile-select" class="profile-dropdown" style="width: 100%;">
               <option value="">-- Guest Session (Unsaved) --</option>
             </select>
+          </div>
+        </div>
+
+        <!-- Panel 5: Import Player Profile -->
+        <div id="panel-import" class="cal-panel hidden">
+          <div class="calibration-row cal-instruction" style="margin-bottom: 0.5rem;">Paste a previously exported player profile JSON to import its saved scale factor and posture baseline.</div>
+          <div class="calibration-row" style="flex-direction: column; align-items: stretch; width: 100%;">
+            <label for="textarea-portfolio-json" style="margin-bottom: 0.25rem;">Pasted Player Profile JSON:</label>
+            <textarea id="textarea-portfolio-json" placeholder="Paste player profile JSON here..." style="width: 100%; height: 100px; background: rgba(15, 23, 42, 0.6); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 0.5rem; font-family: monospace; font-size: 0.75rem; resize: vertical; margin-bottom: 0.5rem; outline: none;"></textarea>
+            <button id="btn-import-portfolio" class="btn success" style="width: 100%; margin-top: 0.25rem;">Import Player Profile</button>
           </div>
         </div>
       </div>

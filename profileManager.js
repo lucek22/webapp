@@ -5,6 +5,7 @@
 import { state, snapshotStore, formatLength, clearSmoothBuffer } from './helpers.js';
 import { getDefaultSquatPeaks, calculateValgusFromJoints } from './squatController.js';
 import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI } from './shoulderController.js';
+import { getDefaultShoulderRotation } from './shoulderRotationController.js';
 import { compileAndDownloadCombinedSession } from './reportCompiler.js';
 import { pose, calculatePoseMetrics } from './mediapipeLogic.js';
 
@@ -612,6 +613,7 @@ export function ensureProfileSessions(profile) {
       metricsOverhead: profile.metricsOverhead || null,
       squatPeaks: getDefaultSquatPeaks(profile.squatPeaks),
       shoulderPeaks: getDefaultShoulderPeaks(profile.shoulderPeaks),
+      shoulderRotation: getDefaultShoulderRotation(profile.shoulderRotation),
       imageA: profile.imageA || null,
       imageT: profile.imageT || null,
       imageOverhead: profile.imageOverhead || null,
@@ -629,7 +631,9 @@ export function ensureProfileSessions(profile) {
       videoSquatR: profile.videoSquatR || null,
       videoSquatFrontal: profile.videoSquatFrontal || null,
       videoShoulderL: profile.videoShoulderL || null,
-      videoShoulderR: profile.videoShoulderR || null
+      videoShoulderR: profile.videoShoulderR || null,
+      videoShoulderRotationL: profile.videoShoulderRotationL || null,
+      videoShoulderRotationR: profile.videoShoulderRotationR || null
     };
     profile.sessions = [baselineSession];
     profile.activeSessionId = baselineSession.id;
@@ -668,6 +672,7 @@ export async function loadProfileIntoState(profileId) {
     state.metricsOverhead = activeSession.metricsOverhead || null;
     state.squatPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
     state.shoulderPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
+    state.shoulderRotation = getDefaultShoulderRotation(activeSession.shoulderRotation);
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
@@ -683,6 +688,8 @@ export async function loadProfileIntoState(profileId) {
     state.videoSquatFrontal = activeSession.videoSquatFrontal || null;
     state.videoShoulderL = activeSession.videoShoulderL || null;
     state.videoShoulderR = activeSession.videoShoulderR || null;
+    state.videoShoulderRotationL = activeSession.videoShoulderRotationL || null;
+    state.videoShoulderRotationR = activeSession.videoShoulderRotationR || null;
     state.jointsOverhead = activeSession.jointsOverhead || null;
     state.jointsShoulderL = activeSession.jointsShoulderL || null;
     state.jointsShoulderR = activeSession.jointsShoulderR || null;
@@ -878,6 +885,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     
     if (state.videoShoulderL !== undefined) session.videoShoulderL = state.videoShoulderL;
     if (state.videoShoulderR !== undefined) session.videoShoulderR = state.videoShoulderR;
+    if (state.videoShoulderRotationL !== undefined) session.videoShoulderRotationL = state.videoShoulderRotationL;
+    if (state.videoShoulderRotationR !== undefined) session.videoShoulderRotationR = state.videoShoulderRotationR;
     if (state.jointsShoulderL !== undefined) session.jointsShoulderL = state.jointsShoulderL;
     if (state.jointsShoulderR !== undefined) session.jointsShoulderR = state.jointsShoulderR;
 
@@ -885,11 +894,16 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
       session.shoulderPeaks = state.shoulderPeaks ? JSON.parse(JSON.stringify(state.shoulderPeaks)) : null;
     }
 
+    if (state.shoulderRotation !== undefined) {
+      session.shoulderRotation = state.shoulderRotation ? JSON.parse(JSON.stringify(state.shoulderRotation)) : null;
+    }
+
     profile.metricsA = session.metricsA;
     profile.metricsT = session.metricsT;
     profile.metricsOverhead = session.metricsOverhead;
     profile.squatPeaks = session.squatPeaks;
     profile.shoulderPeaks = session.shoulderPeaks;
+    profile.shoulderRotation = session.shoulderRotation;
     profile.imageA = session.imageA;
     profile.imageT = session.imageT;
     profile.imageOverhead = session.imageOverhead;
@@ -905,6 +919,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.videoSquatFrontal = session.videoSquatFrontal;
     profile.videoShoulderL = session.videoShoulderL;
     profile.videoShoulderR = session.videoShoulderR;
+    profile.videoShoulderRotationL = session.videoShoulderRotationL;
+    profile.videoShoulderRotationR = session.videoShoulderRotationR;
     profile.jointsOverhead = session.jointsOverhead;
     profile.jointsShoulderL = session.jointsShoulderL;
     profile.jointsShoulderR = session.jointsShoulderR;
@@ -1051,6 +1067,7 @@ export async function openProfileDetailsModal(profileId) {
           metricsOverhead: null,
           squatPeaks: getDefaultSquatPeaks(),
           shoulderPeaks: getDefaultShoulderPeaks(),
+          shoulderRotation: getDefaultShoulderRotation(),
           imageA: null,
           imageT: null,
           imageOverhead: null,
@@ -1080,6 +1097,7 @@ export async function openProfileDetailsModal(profileId) {
         state.metricsOverhead = null;
         state.squatPeaks = getDefaultSquatPeaks();
         state.shoulderPeaks = getDefaultShoulderPeaks();
+        state.shoulderRotation = getDefaultShoulderRotation();
         state.imageA = null;
         state.imageT = null;
         state.imageOverhead = null;
@@ -1231,7 +1249,9 @@ export async function openProfileDetailsModal(profileId) {
       { key: 'squat-r', metricsKey: 'squatPeaks', imgKey: 'imageSquatR', title: 'Right Overhead Squat', color: '#a855f7', isSquat: true, squatSide: 'kneeR' },
       { key: 'squat-frontal', metricsKey: 'squatPeaks', imgKey: 'imageSquatFrontal', title: 'Frontal Overhead Squat', color: '#ec4899', isSquat: true, squatSide: 'frontal' },
       { key: 'shoulder-l', metricsKey: 'shoulderPeaks', imgKey: 'imageShoulderLStart', title: 'Left Shoulder Flexion', color: '#BA0C2F', isShoulder: true },
-      { key: 'shoulder-r', metricsKey: 'shoulderPeaks', imgKey: 'imageShoulderRStart', title: 'Right Shoulder Flexion', color: '#BA0C2F', isShoulder: true }
+      { key: 'shoulder-r', metricsKey: 'shoulderPeaks', imgKey: 'imageShoulderRStart', title: 'Right Shoulder Flexion', color: '#BA0C2F', isShoulder: true },
+      { key: 'shoulder-rotation-l', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationL', title: 'Left Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true },
+      { key: 'shoulder-rotation-r', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationR', title: 'Right Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true }
     ];
 
     poses.forEach(p => {
@@ -1273,6 +1293,20 @@ export async function openProfileDetailsModal(profileId) {
           }
         }
         hasData = !!imgSrc || hasVideo || hasShoulderPeaks;
+      } else if (p.isShoulderRotation) {
+        const videoKey = p.key === 'shoulder-rotation-l' ? 'videoShoulderRotationL' : 'videoShoulderRotationR';
+        const sVideo = activeSession[videoKey];
+        hasVideo = !!(sVideo && sVideo.blob);
+        
+        let hasShoulderRotationPeaks = false;
+        if (activeSession.shoulderRotation) {
+          if (p.key === 'shoulder-rotation-l') {
+            hasShoulderRotationPeaks = (activeSession.shoulderRotation.maxExternalRotationL > 0 || activeSession.shoulderRotation.maxInternalRotationL < 0);
+          } else {
+            hasShoulderRotationPeaks = (activeSession.shoulderRotation.maxExternalRotationR > 0 || activeSession.shoulderRotation.maxInternalRotationR < 0);
+          }
+        }
+        hasData = !!imgSrc || hasVideo || hasShoulderRotationPeaks;
       } else {
         hasData = !!imgSrc || !!activeSession[p.metricsKey];
       }
@@ -1286,8 +1320,8 @@ export async function openProfileDetailsModal(profileId) {
           containerEl.classList.remove('hidden');
           containerEl.innerHTML = '';
 
-          if (p.isSquat && hasVideo) {
-            const videoKey = p.key === 'squat-l' ? 'videoSquatL' : (p.key === 'squat-r' ? 'videoSquatR' : 'videoSquatFrontal');
+          if ((p.isSquat || p.isShoulderRotation) && hasVideo) {
+            const videoKey = p.key === 'squat-l' ? 'videoSquatL' : (p.key === 'squat-r' ? 'videoSquatR' : (p.key === 'squat-frontal' ? 'videoSquatFrontal' : (p.key === 'shoulder-rotation-l' ? 'videoShoulderRotationL' : 'videoShoulderRotationR')));
             const sVideo = activeSession[videoKey];
             const videoUrl = URL.createObjectURL(sVideo.blob);
             state.modalObjectUrls.push(videoUrl);
@@ -1310,43 +1344,42 @@ export async function openProfileDetailsModal(profileId) {
             playOverlay.className = 'play-overlay-button';
             playOverlay.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(15, 22, 38, 0.45); backdrop-filter: blur(1px); transition: all 0.3s ease;';
 
-            const playIconSvg = `
-              <div class="glowing-play-circle" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #00e5ff; display: flex; align-items: center; justify-content: center; color: #00e5ff; background: rgba(0, 229, 255, 0.05); box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
+            playOverlay.innerHTML = `
+              <div class="glowing-play-circle" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(0, 229, 255, 0.08); border: 1.5px solid #00e5ff; display: flex; align-items: center; justify-content: center; color: #00e5ff; font-size: 11px; font-weight: bold; text-shadow: 0 0 5px rgba(0, 229, 255, 0.5); transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1);">
+                ▶
               </div>
-              <span style="font-size: 10px; font-weight: 700; color: #00e5ff; letter-spacing: 0.5px; text-transform: uppercase; text-shadow: 0 0 8px rgba(0,229,255,0.4);">Play with Overlay</span>
+              <span class="glowing-play-label" style="font-size: 9px; font-weight: 700; color: #a7b1b7; letter-spacing: 0.8px; text-transform: uppercase;">Review Video</span>
             `;
-            playOverlay.innerHTML = playIconSvg;
 
             cardWrapper.appendChild(previewVideo);
             cardWrapper.appendChild(playOverlay);
             containerEl.appendChild(cardWrapper);
 
             cardWrapper.addEventListener('mouseenter', () => {
-              cardWrapper.style.borderColor = 'rgba(0, 229, 255, 0.4)';
-              cardWrapper.style.boxShadow = '0 0 12px rgba(0, 229, 255, 0.2)';
-              previewVideo.style.filter = 'brightness(0.8) scale(1.04)';
+              cardWrapper.style.transform = 'translateY(-2px)';
+              cardWrapper.style.borderColor = '#00e5ff';
+              cardWrapper.style.boxShadow = '0 4px 12px rgba(0, 229, 255, 0.15)';
+              previewVideo.style.filter = 'brightness(0.85) contrast(1.02)';
               const circle = playOverlay.querySelector('.glowing-play-circle');
               if (circle) {
-                circle.style.transform = 'scale(1.15)';
+                circle.style.transform = 'scale(1.12)';
                 circle.style.background = '#00e5ff';
-                circle.style.color = '#000';
-                circle.style.boxShadow = '0 0 15px rgba(0, 229, 255, 0.6)';
+                circle.style.color = '#0b0f19';
+                circle.style.boxShadow = '0 0 15px #00e5ff';
               }
             });
 
             cardWrapper.addEventListener('mouseleave', () => {
+              cardWrapper.style.transform = 'translateY(0)';
               cardWrapper.style.borderColor = 'rgba(255, 255, 255, 0.08)';
               cardWrapper.style.boxShadow = 'none';
               previewVideo.style.filter = 'brightness(0.65) contrast(1.05)';
               const circle = playOverlay.querySelector('.glowing-play-circle');
               if (circle) {
                 circle.style.transform = 'scale(1)';
-                circle.style.background = 'rgba(0, 229, 255, 0.05)';
+                circle.style.background = 'rgba(0, 229, 255, 0.08)';
                 circle.style.color = '#00e5ff';
-                circle.style.boxShadow = '0 0 10px rgba(0, 229, 255, 0.2)';
+                circle.style.boxShadow = 'none';
               }
             });
 
@@ -1368,6 +1401,10 @@ export async function openProfileDetailsModal(profileId) {
                   state.squatTestingSide = 'frontal';
                   state.allowFrontalUpdateL = (!state.squatPeaks || (state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0));
                   state.allowFrontalUpdateR = (!state.squatPeaks || (state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0));
+                } else if (p.key === 'shoulder-rotation-l') {
+                  state.shoulderRotationTestingSide = 'left';
+                } else if (p.key === 'shoulder-rotation-r') {
+                  state.shoulderRotationTestingSide = 'right';
                 }
                 const mainVideoPlayer = document.getElementById('profile-details-video-player');
                 const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
@@ -1536,6 +1573,29 @@ export async function openProfileDetailsModal(profileId) {
                     freshActiveSession.shoulderPeaks.jointsR = null;
                   }
                 }
+              } else if (p.isShoulderRotation) {
+                const videoKey = p.key === 'shoulder-rotation-l' ? 'videoShoulderRotationL' : 'videoShoulderRotationR';
+                const sVideo = freshActiveSession[videoKey];
+                if (sVideo) {
+                  freshProfileMigrated.videos = (freshProfileMigrated.videos || []).filter(v => v.id !== sVideo.id);
+                  freshActiveSession[videoKey] = null;
+                }
+
+                if (p.key === 'shoulder-rotation-l') {
+                  freshActiveSession.imageShoulderRotationL = null;
+                  if (freshActiveSession.shoulderRotation) {
+                    freshActiveSession.shoulderRotation.maxExternalRotationL = 0;
+                    freshActiveSession.shoulderRotation.maxInternalRotationL = 0;
+                    freshActiveSession.shoulderRotation.timeSeriesL = [];
+                  }
+                } else {
+                  freshActiveSession.imageShoulderRotationR = null;
+                  if (freshActiveSession.shoulderRotation) {
+                    freshActiveSession.shoulderRotation.maxExternalRotationR = 0;
+                    freshActiveSession.shoulderRotation.maxInternalRotationR = 0;
+                    freshActiveSession.shoulderRotation.timeSeriesR = [];
+                  }
+                }
               } else {
                 freshActiveSession[p.metricsKey] = null;
               }
@@ -1545,6 +1605,7 @@ export async function openProfileDetailsModal(profileId) {
               freshProfileMigrated.metricsOverhead = freshActiveSession.metricsOverhead;
               freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
               freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
+              freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
               freshProfileMigrated.imageA = freshActiveSession.imageA;
               freshProfileMigrated.imageT = freshActiveSession.imageT;
               freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -1555,6 +1616,8 @@ export async function openProfileDetailsModal(profileId) {
               freshProfileMigrated.imageShoulderLEnd = freshActiveSession.imageShoulderLEnd;
               freshProfileMigrated.imageShoulderRStart = freshActiveSession.imageShoulderRStart;
               freshProfileMigrated.imageShoulderREnd = freshActiveSession.imageShoulderREnd;
+              freshProfileMigrated.imageShoulderRotationL = freshActiveSession.imageShoulderRotationL;
+              freshProfileMigrated.imageShoulderRotationR = freshActiveSession.imageShoulderRotationR;
               freshProfileMigrated.jointsOverhead = freshActiveSession.jointsOverhead || null;
               freshProfileMigrated.jointsShoulderL = freshActiveSession.jointsShoulderL || null;
               freshProfileMigrated.jointsShoulderR = freshActiveSession.jointsShoulderR || null;
@@ -1945,11 +2008,29 @@ export async function openProfileDetailsModal(profileId) {
               }
             });
             
+            if (!freshActiveSession.shoulderRotation) {
+              freshActiveSession.shoulderRotation = getDefaultShoulderRotation();
+            }
+            const shoulderRotationInputs = document.querySelectorAll('.profile-shoulder-rotation-edit-input');
+            shoulderRotationInputs.forEach(input => {
+              const key = input.getAttribute('data-key');
+              const rawVal = input.value.trim();
+              let val = 0;
+              if (rawVal !== "") {
+                const parsed = parseFloat(rawVal);
+                if (!isNaN(parsed)) {
+                  val = parsed;
+                }
+              }
+              freshActiveSession.shoulderRotation[key] = val;
+            });
+            
             freshProfileMigrated.metricsA = freshActiveSession.metricsA;
             freshProfileMigrated.metricsT = freshActiveSession.metricsT;
             freshProfileMigrated.metricsOverhead = freshActiveSession.metricsOverhead;
             freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
             freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
+            freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
             freshProfileMigrated.imageA = freshActiveSession.imageA;
             freshProfileMigrated.imageT = freshActiveSession.imageT;
             freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -2027,6 +2108,69 @@ export async function openProfileDetailsModal(profileId) {
             <input type="number" step="0.1" min="0" max="180" class="profile-shoulder-edit-input profile-edit-input shoulder" 
                    data-side="R" 
                    value="${shPeaks.excursionR ? shPeaks.excursionR.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+
+    const dshRotExtL = document.getElementById('detail-shoulder-rotation-external-l');
+    const dshRotIntL = document.getElementById('detail-shoulder-rotation-internal-l');
+    const dshRotExtR = document.getElementById('detail-shoulder-rotation-external-r');
+    const dshRotIntR = document.getElementById('detail-shoulder-rotation-internal-r');
+    const shRot = getDefaultShoulderRotation(activeSession.shoulderRotation);
+
+    if (dshRotExtL) {
+      if (!state.isEditingProfileMetrics) {
+        dshRotExtL.innerHTML = shRot.maxExternalRotationL ? `${shRot.maxExternalRotationL.toFixed(1)}°` : '0°';
+      } else {
+        dshRotExtL.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-shoulder-rotation-edit-input profile-edit-input" 
+                   data-key="maxExternalRotationL" 
+                   value="${shRot.maxExternalRotationL ? shRot.maxExternalRotationL.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+    if (dshRotIntL) {
+      if (!state.isEditingProfileMetrics) {
+        dshRotIntL.innerHTML = shRot.maxInternalRotationL ? `${shRot.maxInternalRotationL.toFixed(1)}°` : '0°';
+      } else {
+        dshRotIntL.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="-180" max="0" class="profile-shoulder-rotation-edit-input profile-edit-input" 
+                   data-key="maxInternalRotationL" 
+                   value="${shRot.maxInternalRotationL ? shRot.maxInternalRotationL.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+    if (dshRotExtR) {
+      if (!state.isEditingProfileMetrics) {
+        dshRotExtR.innerHTML = shRot.maxExternalRotationR ? `${shRot.maxExternalRotationR.toFixed(1)}°` : '0°';
+      } else {
+        dshRotExtR.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-shoulder-rotation-edit-input profile-edit-input" 
+                   data-key="maxExternalRotationR" 
+                   value="${shRot.maxExternalRotationR ? shRot.maxExternalRotationR.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+    if (dshRotIntR) {
+      if (!state.isEditingProfileMetrics) {
+        dshRotIntR.innerHTML = shRot.maxInternalRotationR ? `${shRot.maxInternalRotationR.toFixed(1)}°` : '0°';
+      } else {
+        dshRotIntR.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="-180" max="0" class="profile-shoulder-rotation-edit-input profile-edit-input" 
+                   data-key="maxInternalRotationR" 
+                   value="${shRot.maxInternalRotationR ? shRot.maxInternalRotationR.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
             <span style="font-size: 11px;">°</span>
           </div>
         `;

@@ -30,11 +30,20 @@
       </div>
       <div class="subtitle">Complete biomechanical movement segment analysis & joint angle tracking.</div>
       
-      <!-- Main Mode Switcher Tabs -->
-      <div class="main-mode-tabs">
-        <button id="btn-mode-posture" class="main-mode-btn active">Posture & Stature Scan</button>
-        <button id="btn-mode-squat" class="main-mode-btn">Overhead Squat Analyzer</button>
-        <button id="btn-mode-shoulder" class="main-mode-btn">Shoulder Flexion Analyzer</button>
+      <!-- Main Mode Dropdown Menu -->
+      <div class="main-mode-dropdown-container" style="margin-bottom: 1.25rem;">
+        <label for="select-test-mode" style="display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a7b1b7; margin-bottom: 6px;">Select Exercise Testing Mode:</label>
+        <div style="position: relative; display: flex; width: 100%;">
+          <select id="select-test-mode" style="width: 100%; height: 44px; background: rgba(11, 15, 25, 0.75); border: 2px solid rgba(255, 255, 255, 0.08); border-radius: 10px; color: #f3f4f6; padding: 0 16px; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; transition: all 0.2s ease;">
+            <option value="posture">🧍 Posture & Stature Scan</option>
+            <option value="squat">🏋️ Overhead Squat Analyzer</option>
+            <option value="shoulder">💪 Shoulder Flexion Analyzer</option>
+            <option value="shoulder-rotation">🔄 Shoulder Rotation Analyzer</option>
+          </select>
+          <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #a7b1b7; display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
       </div>
 
       <!-- Calibration Panel -->
@@ -654,6 +663,109 @@
         </div>
       </div>
 
+      <div id="shoulder-rotation-sidebar-content" class="hidden">
+        
+        <!-- Shoulder Rotation Performance Overview Card -->
+        <div class="panel-section shoulder-performance-section">
+          <div class="section-title shoulder-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-cyan); margin-right: 6px; display: inline-block; vertical-align: middle;">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+            Shoulder Rotation Analyzer
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="shoulder-rotation-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobility Analysis Dashboard Section -->
+        <div class="panel-section">
+          <div class="section-title">Shoulder Internal/External Rotation Peaks</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Measures internal and external shoulder rotation from a sagittal view. Elbow is bent at 90° with forearm pointing forward at 0° baseline.
+          </div>
+          
+          <!-- Testing Side Selector -->
+          <div class="shoulder-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Testing Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-shoulder-rotation-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: linear-gradient(135deg, #BA0C2F 0%, #8c051e 100%); color: white;">LEFT</button>
+                <button id="btn-shoulder-rotation-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: transparent; color: #a7b1b7;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid">
+            <!-- Max External Rotation -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Max External Rotation</div>
+              <div id="shoulder-rotation-peak-external-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live Angle: <span id="shoulder-rotation-live-angle-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Max External Rotation</div>
+              <div id="shoulder-rotation-peak-external-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live Angle: <span id="shoulder-rotation-live-angle-r">0°</span></div>
+            </div>
+
+            <!-- Max Internal Rotation -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Max Internal Rotation</div>
+              <div id="shoulder-rotation-peak-internal-l" class="angle-val left-color">0°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Max Internal Rotation</div>
+              <div id="shoulder-rotation-peak-internal-r" class="angle-val right-color">0°</div>
+            </div>
+          </div>
+          
+          <button id="btn-reset-shoulder-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+          <button id="btn-save-shoulder-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Rotation Snapshot
+          </button>
+        </div>
+
+        <!-- Shoulder Rotation Biomechanics Reference Guide -->
+        <div class="panel-section squat-guide-section">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-cyan);">●</span>
+              <div class="guide-text">
+                <strong>0° Baseline Position:</strong> Upper arm vertical, elbow bent 90°, forearm parallel to ground pointing forward.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-hip" style="color: var(--color-green);">●</span>
+              <div class="guide-text">
+                <strong>External Rotation:</strong> Forearm rotates backward (toward head). Measured as positive angle relative to baseline.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-ankle" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                <strong>Internal Rotation:</strong> Forearm rotates forward (toward stomach). Measured as negative angle relative to baseline.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </aside>
   </div>
 
@@ -1091,6 +1203,40 @@
                 <img id="detail-preview-img-shoulder-r" src="" alt="Right Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
               </div>
             </div>
+
+            <!-- Left Shoulder Rotation -->
+            <div class="pose-status-card" id="detail-card-shoulder-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-L</div>
+                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Rotation</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-shoulder-rotation-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
+              </div>
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                <img id="detail-preview-img-shoulder-rotation-l" src="" alt="Left Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              </div>
+            </div>
+
+            <!-- Right Shoulder Rotation -->
+            <div class="pose-status-card" id="detail-card-shoulder-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-R</div>
+                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Rotation</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="pose-card-status" id="detail-status-shoulder-rotation-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                </div>
+              </div>
+              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                <img id="detail-preview-img-shoulder-rotation-r" src="" alt="Right Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              </div>
+            </div>
             </div>
 
           <!-- Saved Video Recordings -->
@@ -1261,6 +1407,26 @@
             <div class="squat-peak-detail-box">
               <span class="squat-peak-detail-lbl">Right Excursion</span>
               <span class="squat-peak-detail-val" id="detail-shoulder-excursion-r">0°</span>
+            </div>
+          </div>
+
+          <div class="details-section-title" style="margin-top: 1.25rem;">Shoulder Internal/External Rotation Peak Records</div>
+          <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Left Max Internal</span>
+              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-l">0°</span>
+            </div>
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Right Max Internal</span>
+              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-r">0°</span>
+            </div>
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Left Max External</span>
+              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-l">0°</span>
+            </div>
+            <div class="squat-peak-detail-box">
+              <span class="squat-peak-detail-lbl">Right Max External</span>
+              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-r">0°</span>
             </div>
           </div>
 

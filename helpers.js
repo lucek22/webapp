@@ -217,6 +217,14 @@ export const state = {
     jointsL: null,
     jointsR: null
   },
+  shoulderRotation: {
+    maxExternalRotationL: 0,
+    maxInternalRotationL: 0,
+    maxExternalRotationR: 0,
+    maxInternalRotationR: 0,
+    timeSeriesL: [],
+    timeSeriesR: []
+  },
   isUploadedMedia: false,
   uploadedMediaType: null,
   latestPoseResults: null,

@@ -339,6 +339,10 @@ export async function saveImportedVideoToProfile(file, target, durationSec) {
     if (target === 'squat-l') labelPrefix = "Left Overhead Squat";
     else if (target === 'squat-r') labelPrefix = "Right Overhead Squat";
     else if (target === 'squat-frontal') labelPrefix = "Frontal Overhead Squat";
+    else if (target === 'shoulder-l') labelPrefix = "Left Shoulder Flexion";
+    else if (target === 'shoulder-r') labelPrefix = "Right Shoulder Flexion";
+    else if (target === 'shoulder-rotation-l') labelPrefix = "Left Shoulder Rotation";
+    else if (target === 'shoulder-rotation-r') labelPrefix = "Right Shoulder Rotation";
     else if (target === 'playlist') labelPrefix = "Imported Recording";
 
     const fileExt = file.name.split('.').pop() || 'mp4';
@@ -369,6 +373,18 @@ export async function saveImportedVideoToProfile(file, target, durationSec) {
         } else if (target === 'squat-frontal') {
           activeSession.videoSquatFrontal = videoEntry;
           state.videoSquatFrontal = videoEntry;
+        } else if (target === 'shoulder-l') {
+          activeSession.videoShoulderL = videoEntry;
+          state.videoShoulderL = videoEntry;
+        } else if (target === 'shoulder-r') {
+          activeSession.videoShoulderR = videoEntry;
+          state.videoShoulderR = videoEntry;
+        } else if (target === 'shoulder-rotation-l') {
+          activeSession.videoShoulderRotationL = videoEntry;
+          state.videoShoulderRotationL = videoEntry;
+        } else if (target === 'shoulder-rotation-r') {
+          activeSession.videoShoulderRotationR = videoEntry;
+          state.videoShoulderRotationR = videoEntry;
         }
       }
     }

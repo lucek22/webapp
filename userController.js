@@ -57,6 +57,16 @@ import {
 } from './shoulderController.js';
 
 import {
+  setupShoulderRotationListeners,
+  updateShoulderRotationSideUI,
+  updateShoulderRotationSidebarUI,
+  getDefaultShoulderRotation,
+  processShoulderRotationFromPreprocessedFrames,
+  resetShoulderRotationPeaksUI,
+  ShoulderRotationMeasurer
+} from './shoulderRotationController.js';
+
+import {
   setupSquatListeners,
   resetSquatPeaks,
   calculateValgusFromJoints,
@@ -273,10 +283,8 @@ const hipAngleRDisp = document.getElementById('angle-hip-r');
 const elbowAngleLDisp = document.getElementById('angle-elbow-l');
 const elbowAngleRDisp = document.getElementById('angle-elbow-r');
 
-// UI Overhead Squat Elements
-const btnModePosture = document.getElementById('btn-mode-posture');
-const btnModeSquat = document.getElementById('btn-mode-squat');
-const btnModeShoulder = document.getElementById('btn-mode-shoulder');
+// UI Exercise Mode Dropdown
+const selectTestMode = document.getElementById('select-test-mode');
 const postureSidebarContent = document.getElementById('posture-sidebar-content');
 const squatSidebarContent = document.getElementById('squat-sidebar-content');
 const shoulderSidebarContent = document.getElementById('shoulder-sidebar-content');
@@ -317,6 +325,23 @@ const shoulderStatusVal = document.getElementById('shoulder-status-val');
 
 const btnShoulderSideLeft = document.getElementById('btn-shoulder-side-left');
 const btnShoulderSideRight = document.getElementById('btn-shoulder-side-right');
+
+// UI Shoulder Rotation Elements
+const shoulderRotationSidebarContent = document.getElementById('shoulder-rotation-sidebar-content');
+
+const shoulderRotationPeakExternalL = document.getElementById('shoulder-rotation-peak-external-l');
+const shoulderRotationLiveAngleL = document.getElementById('shoulder-rotation-live-angle-l');
+const shoulderRotationPeakExternalR = document.getElementById('shoulder-rotation-peak-external-r');
+const shoulderRotationLiveAngleR = document.getElementById('shoulder-rotation-live-angle-r');
+
+const shoulderRotationPeakInternalL = document.getElementById('shoulder-rotation-peak-internal-l');
+const shoulderRotationPeakInternalR = document.getElementById('shoulder-rotation-peak-internal-r');
+
+const shoulderRotationStatusVal = document.getElementById('shoulder-rotation-status-val');
+
+const btnShoulderRotationSideLeft = document.getElementById('btn-shoulder-rotation-side-left');
+const btnShoulderRotationSideRight = document.getElementById('btn-shoulder-rotation-side-right');
+const btnSaveShoulderRotationPeaks = document.getElementById('btn-save-shoulder-rotation-peaks');
 
 
 // UI Calibration Toggles & Panels
@@ -1137,6 +1162,128 @@ export function onPoseResults(results) {
           if (shoulderStatusVal) {
             shoulderStatusVal.textContent = 'Offline';
             shoulderStatusVal.className = 'text-slate';
+          }
+        }
+      } else if (state.currentMode === 'shoulder_rotation') {
+        const side = state.shoulderRotationTestingSide || 'left';
+        
+        // Ensure live measurer is initialized
+        if (!state.liveShoulderRotationMeasurer) {
+          state.liveShoulderRotationMeasurer = new ShoulderRotationMeasurer();
+        }
+        
+        // Get current video playhead or index-based timestamp
+        const videoElement = document.getElementById('uploaded-video');
+        const ts = (videoElement && !videoElement.paused) ? videoElement.currentTime : (Date.now() / 1000);
+        
+        const isRecording = !!state.isShoulderRotationRecording;
+        const angle = state.liveShoulderRotationMeasurer.processFrame(results.poseLandmarks, side, ts, isRecording);
+        
+        if (angle !== null) {
+          if (side === 'left') {
+            if (shoulderRotationLiveAngleL) shoulderRotationLiveAngleL.textContent = `${Math.round(angle)}°`;
+            if (shoulderRotationLiveAngleR) shoulderRotationLiveAngleR.textContent = '--°';
+          } else {
+            if (shoulderRotationLiveAngleR) shoulderRotationLiveAngleR.textContent = `${Math.round(angle)}°`;
+            if (shoulderRotationLiveAngleL) shoulderRotationLiveAngleL.textContent = '--°';
+          }
+
+          if (shoulderRotationStatusVal) {
+            if (isRecording) {
+              shoulderRotationStatusVal.textContent = 'Recording Peak Angles...';
+              shoulderRotationStatusVal.className = 'text-amber';
+            } else {
+              shoulderRotationStatusVal.textContent = 'Active Tracking (Ready)';
+              shoulderRotationStatusVal.className = 'text-emerald';
+            }
+          }
+
+          const shoulderIdx = side === 'left' ? 11 : 12;
+          const elbowIdx = side === 'left' ? 13 : 14;
+          const wristIdx = side === 'left' ? 15 : 16;
+          
+          const rawShoulder = results.poseLandmarks[shoulderIdx];
+          const rawElbow = results.poseLandmarks[elbowIdx];
+          const rawWrist = results.poseLandmarks[wristIdx];
+          
+          if (rawShoulder && rawElbow && rawWrist) {
+            const height = state.canvasHeight || 480;
+            const shoulder = { x: getCanvasX(rawShoulder.x), y: rawShoulder.y * height };
+            const elbow = { x: getCanvasX(rawElbow.x), y: rawElbow.y * height };
+            const wrist = { x: getCanvasX(rawWrist.x), y: rawWrist.y * height };
+
+            // 1. Draw horizontal reference line (0° forearm position) starting from the elbow
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            canvasCtx.setLineDash([5, 5]);
+            canvasCtx.lineWidth = 1.5;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(elbow.x, elbow.y);
+            const sign = state.liveShoulderRotationMeasurer.facingDirection === 'right' ? 1 : -1;
+            const forearmLen = Math.sqrt((wrist.x - elbow.x) ** 2 + (wrist.y - elbow.y) ** 2) || 80;
+            canvasCtx.lineTo(elbow.x + sign * forearmLen, elbow.y); // Horizontal baseline
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 2. Draw angle arc at the elbow
+            const r = Math.min(30, forearmLen / 2);
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#00e5ff'; // Glowing cyan
+            canvasCtx.lineWidth = 2.5;
+            canvasCtx.beginPath();
+            const forearmAngleRad = Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x);
+            const baselineAngleRad = Math.atan2(0, sign);
+            canvasCtx.arc(elbow.x, elbow.y, r, baselineAngleRad, forearmAngleRad, forearmAngleRad < baselineAngleRad);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 3. Draw premium glowing line for the forearm (elbow to wrist)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#00e5ff';
+            canvasCtx.lineWidth = 4;
+            canvasCtx.shadowColor = '#00e5ff';
+            canvasCtx.shadowBlur = 10;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(elbow.x, elbow.y);
+            canvasCtx.lineTo(wrist.x, wrist.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 4. Draw vertical upper arm line (shoulder to elbow)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
+            canvasCtx.lineWidth = 3;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(shoulder.x, shoulder.y);
+            canvasCtx.lineTo(elbow.x, elbow.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 5. Draw floating angle badge near the wrist
+            drawAngleBadge(canvasCtx, wrist, Math.round(angle), '#00e5ff');
+          }
+
+          if (isRecording) {
+            const res = state.liveShoulderRotationMeasurer.getResults();
+            if (!state.shoulderRotation) {
+              state.shoulderRotation = getDefaultShoulderRotation();
+            }
+            if (side === 'left') {
+              state.shoulderRotation.maxExternalRotationL = res.maxExternalRotation;
+              state.shoulderRotation.maxInternalRotationL = res.maxInternalRotation;
+              state.shoulderRotation.timeSeriesL = res.timeSeries;
+            } else {
+              state.shoulderRotation.maxExternalRotationR = res.maxExternalRotation;
+              state.shoulderRotation.maxInternalRotationR = res.maxInternalRotation;
+              state.shoulderRotation.timeSeriesR = res.timeSeries;
+            }
+
+            updateShoulderRotationSidebarUI();
+          }
+        } else {
+          if (shoulderRotationStatusVal) {
+            shoulderRotationStatusVal.textContent = 'Offline';
+            shoulderRotationStatusVal.className = 'text-slate';
           }
         }
       }
@@ -2174,81 +2321,99 @@ export function showImportDestinationModal(file) {
       
       <p style="font-size: 14px; font-weight: 600; color: #e5e7eb; margin: 0 0 14px 0;">Select destination for this recording:</p>
       
-      <div id="import-options-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
+      <div id="import-options-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
         <!-- Option 1: Saved Video Recordings Playlist -->
-        <div class="import-opt-card" data-value="playlist" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📂 Saved Video Recordings Playlist</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Adds video to subject's saved playlist without updating active test slots.</div>
-          </div>
-        </div>
-
-        <!-- Option 2: Left Overhead Squat -->
-        <div class="import-opt-card" data-value="squat-l" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Left Overhead Squat Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Left sagittal view squat slot and calculates peak mobility stats.</div>
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="playlist" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📂 Saved Video Recordings Playlist</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Adds video to subject's saved playlist without updating active test slots.</div>
+            </div>
           </div>
         </div>
 
-        <!-- Option 3: Right Overhead Squat -->
-        <div class="import-opt-card" data-value="squat-r" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+        <!-- Option 2: Overhead Squat Parent -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="squat-parent" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Overhead Squat Video</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Analyze knee mobility, depth peaks, and frontal valgus/varus alignment.</div>
+            </div>
           </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Right Overhead Squat Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Right sagittal view squat slot and calculates peak mobility stats.</div>
-          </div>
-        </div>
-
-        <!-- Option 4: Frontal Overhead Squat -->
-        <div class="import-opt-card" data-value="squat-frontal" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Frontal Overhead Squat Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Frontal view squat slot and calculates peak knee cave-in stats.</div>
-          </div>
-        </div>
-
-        <!-- Option 5: Left Shoulder Flexion -->
-        <div class="import-opt-card" data-value="shoulder-l" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
-          </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">💪 Left Shoulder Flexion Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Left Shoulder Flexion lowering slot and computes peak mobility excursion.</div>
+          <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select perspective option:</div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="squat-sub" value="squat-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Sagittal Squat
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="squat-sub" value="squat-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Sagittal Squat
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="squat-sub" value="squat-frontal" style="width: 14px; height: 14px; accent-color: #818cf8;"> Frontal Squat (Knee Valgus)
+            </label>
           </div>
         </div>
 
-        <!-- Option 6: Right Shoulder Flexion -->
-        <div class="import-opt-card" data-value="shoulder-r" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+        <!-- Option 3: Shoulder Flexion Parent -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="shoulder-parent" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">💪 Shoulder Flexion Video</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Compute shoulder flexion range of motion and extension angles.</div>
+            </div>
           </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">💪 Right Shoulder Flexion Video</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Assigns to Right Shoulder Flexion lowering slot and computes peak mobility excursion.</div>
+          <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-sub" value="shoulder-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Flexion
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-sub" value="shoulder-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Flexion
+            </label>
           </div>
         </div>
 
-        <!-- Option 7: Analyze Video (No save) -->
-        <div class="import-opt-card" data-value="analyze-only" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
-          <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
-            <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+        <!-- Option 4: Shoulder Rotation Parent -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="shoulder-rotation-parent" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🔄 Shoulder Rotation Video</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Compute shoulder internal and external rotation angles (sagittal view).</div>
+            </div>
           </div>
-          <div>
-            <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📺 Analyze Video (Don't Save)</div>
-            <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Loads transiently on the viewport for temporary analysis without database commit.</div>
+          <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Rotation
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Rotation
+            </label>
+          </div>
+        </div>
+
+        <!-- Option 5: Analyze Video (No save) -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="analyze-only" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📺 Analyze Video (Don't Save)</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Loads transiently on the viewport for temporary analysis without database commit.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -2293,6 +2458,18 @@ export function showImportDestinationModal(file) {
       optCard.addEventListener('click', () => {
         selectedValue = optCard.dataset.value;
 
+        // Hide all sub panels
+        const subPanels = card.querySelectorAll('.import-sub-options-panel');
+        subPanels.forEach(p => {
+          p.style.display = 'none';
+        });
+
+        // Show sub panel if applicable
+        const subPanel = optCard.parentElement.querySelector('.import-sub-options-panel');
+        if (subPanel) {
+          subPanel.style.display = 'flex';
+        }
+
         // Update all options' styling
         optionCards.forEach((otherCard) => {
           const radio = otherCard.querySelector('.import-radio');
@@ -2335,7 +2512,18 @@ export function showImportDestinationModal(file) {
 
     confirmBtn.addEventListener('click', () => {
       if (selectedValue) {
-        closeWithResult(selectedValue);
+        let finalValue = selectedValue;
+        if (selectedValue === 'squat-parent') {
+          const checkedRadio = card.querySelector('input[name="squat-sub"]:checked');
+          finalValue = checkedRadio ? checkedRadio.value : 'squat-l';
+        } else if (selectedValue === 'shoulder-parent') {
+          const checkedRadio = card.querySelector('input[name="shoulder-sub"]:checked');
+          finalValue = checkedRadio ? checkedRadio.value : 'shoulder-l';
+        } else if (selectedValue === 'shoulder-rotation-parent') {
+          const checkedRadio = card.querySelector('input[name="shoulder-rotation-sub"]:checked');
+          finalValue = checkedRadio ? checkedRadio.value : 'shoulder-rotation-l';
+        }
+        closeWithResult(finalValue);
       }
     });
 
@@ -2527,11 +2715,7 @@ export async function handleUploadedFile(file) {
             }
 
             // Sync the active mode and side selectors in the UI
-            if (btnModeSquat) btnModeSquat.classList.add('active');
-            if (btnModePosture) btnModePosture.classList.remove('active');
-            if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
-            if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
-            updateSquatSideUI();
+            setExerciseMode('squat');
           } else if (importTarget === 'shoulder-l' || importTarget === 'shoulder-r') {
             state.currentMode = 'shoulder_flexion';
             state.shoulderPeaks = getDefaultShoulderPeaks(state.shoulderPeaks);
@@ -2556,32 +2740,28 @@ export async function handleUploadedFile(file) {
             }
 
             // Sync the active mode and side selectors in the UI
-            if (btnModeSquat) btnModeSquat.classList.remove('active');
-            if (btnModePosture) btnModePosture.classList.remove('active');
-            if (btnModeShoulder) btnModeShoulder.classList.add('active');
-            if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
-            if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
-            if (shoulderSidebarContent) shoulderSidebarContent.classList.remove('hidden');
-
-            // Highlight current shoulder testing side
-            if (btnShoulderSideLeft && btnShoulderSideRight) {
-              if (state.shoulderTestingSide === 'left') {
-                btnShoulderSideLeft.classList.add('active');
-                btnShoulderSideRight.classList.remove('active');
-              } else {
-                btnShoulderSideRight.classList.add('active');
-                btnShoulderSideLeft.classList.remove('active');
-              }
+            setExerciseMode('shoulder');
+          } else if (importTarget === 'shoulder-rotation-l' || importTarget === 'shoulder-rotation-r') {
+            state.currentMode = 'shoulder_rotation';
+            state.shoulderRotation = getDefaultShoulderRotation(state.shoulderRotation);
+            if (importTarget === 'shoulder-rotation-l') {
+              state.shoulderRotationTestingSide = 'left';
+              state.shoulderRotation.maxExternalRotationL = 0;
+              state.shoulderRotation.maxInternalRotationL = 0;
+              state.shoulderRotation.timeSeriesL = [];
+              state.imageShoulderRotationL = null;
+            } else if (importTarget === 'shoulder-rotation-r') {
+              state.shoulderRotationTestingSide = 'right';
+              state.shoulderRotation.maxExternalRotationR = 0;
+              state.shoulderRotation.maxInternalRotationR = 0;
+              state.shoulderRotation.timeSeriesR = [];
+              state.imageShoulderRotationR = null;
             }
-            updateShoulderSidebarUI();
+
+            // Sync the active mode and side selectors in the UI
+            setExerciseMode('shoulder-rotation');
           } else if (importTarget === 'playlist') {
-            state.currentMode = 'posture';
-            if (btnModeSquat) btnModeSquat.classList.remove('active');
-            if (btnModePosture) btnModePosture.classList.add('active');
-            if (btnModeShoulder) btnModeShoulder.classList.remove('active');
-            if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
-            if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
-            if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
+            setExerciseMode('posture');
           }
 
           // Trigger high-fidelity pre-processing + automatic playout export!
@@ -3997,6 +4177,14 @@ export async function runVideoFramePreprocessing() {
         }
       }
 
+      if (state.currentMode === 'shoulder_rotation') {
+        try {
+          await processShoulderRotationFromPreprocessedFrames();
+        } catch (err) {
+          console.error("[ShoulderRotationProcessing] Error processing preprocessed frames:", err);
+        }
+      }
+
       // Start the Playout phase!
       await startRealTimePlaybackExport();
     }
@@ -4582,66 +4770,66 @@ export function updateDashboardOfflinePlaceholders() {
   });
 }
 
-// BIND OVERHEAD SQUAT INTERFACE LISTENERS
-if (btnModePosture) {
-  btnModePosture.addEventListener('click', () => {
-    state.currentMode = 'posture';
-    btnModePosture.classList.add('active');
-    if (btnModeSquat) btnModeSquat.classList.remove('active');
-    if (btnModeShoulder) btnModeShoulder.classList.remove('active');
-    
+// BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
+function setExerciseMode(mode) {
+  if (!mode) return;
+  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : mode));
+
+  if (selectTestMode) {
+    // Normalise key names to match dropdown option values
+    let optValue = mode;
+    if (mode === 'shoulder_flexion') optValue = 'shoulder';
+    if (mode === 'shoulder-rotation') optValue = 'shoulder-rotation';
+    selectTestMode.value = optValue;
+  }
+
+  // Hide all sidebar sections first
+  if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
+  if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+  if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
+  if (shoulderRotationSidebarContent) shoulderRotationSidebarContent.classList.add('hidden');
+
+  // Show and sync active sidebar
+  if (state.currentMode === 'posture') {
     if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
-    if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
-    if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
-    
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateDashboardOfflinePlaceholders();
     }
-  });
-}
-
-if (btnModeSquat) {
-  btnModeSquat.addEventListener('click', () => {
-    state.currentMode = 'squat';
-    btnModeSquat.classList.add('active');
-    if (btnModePosture) btnModePosture.classList.remove('active');
-    if (btnModeShoulder) btnModeShoulder.classList.remove('active');
-    
+  } else if (state.currentMode === 'squat') {
     if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
-    if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
-    if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
-    
-    updateSquatSideUI(); // Ensure side selector states are active on sidebar open
-
+    updateSquatSideUI();
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateSquatDashboardOffline();
     }
-  });
-}
-
-if (btnModeShoulder) {
-  btnModeShoulder.addEventListener('click', () => {
-    state.currentMode = 'shoulder_flexion';
-    btnModeShoulder.classList.add('active');
-    if (btnModePosture) btnModePosture.classList.remove('active');
-    if (btnModeSquat) btnModeSquat.classList.remove('active');
-    
+  } else if (state.currentMode === 'shoulder_flexion') {
     if (shoulderSidebarContent) shoulderSidebarContent.classList.remove('hidden');
-    if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
-    if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
-    
     updateShoulderSideUI();
     updateShoulderSidebarUI();
-    
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateShoulderSidebarUI();
     }
+  } else if (state.currentMode === 'shoulder_rotation') {
+    if (shoulderRotationSidebarContent) shoulderRotationSidebarContent.classList.remove('hidden');
+    updateShoulderRotationSideUI();
+    updateShoulderRotationSidebarUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateShoulderRotationSidebarUI();
+    }
+  }
+}
+
+// Bind dropdown selection change event
+if (selectTestMode) {
+  selectTestMode.addEventListener('change', (e) => {
+    setExerciseMode(e.target.value);
   });
 }
 
@@ -4916,6 +5104,7 @@ registerProfileCallbacks({
 });
 
 setupShoulderListeners(onPoseResults, updateDashboardOfflinePlaceholders);
+setupShoulderRotationListeners(onPoseResults);
 setupSquatListeners(onPoseResults, updateDashboardOfflinePlaceholders);
 setupVideoControls(pose, hands, onPoseResults, drawHandMesh);
 
@@ -4924,6 +5113,8 @@ setTimeout(() => {
   updateSquatSideUI();
   updateShoulderSideUI();
   updateShoulderSidebarUI();
+  updateShoulderRotationSideUI();
+  updateShoulderRotationSidebarUI();
 }, 200);
 
 window.addEventListener('load', initScarletRecorder);

@@ -212,47 +212,52 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
   const p = state.squatPeaks || getDefaultSquatPeaks();
   const activeSide = state.squatTestingSide || 'left';
 
-  if (activeSide === 'left') {
-    if (kneeMobL > 0 && (p.kneeL === 0 || kneeMobL < p.kneeL)) {
-      p.kneeL = kneeMobL;
-    }
-    if (hipMobL > 0 && (p.hipL === 0 || hipMobL < p.hipL)) {
-      p.hipL = hipMobL;
-    }
-    if (ankleMobL > 0 && (p.ankleL === 0 || ankleMobL > p.ankleL)) {
-      p.ankleL = ankleMobL;
-    }
-  } else if (activeSide === 'right') {
-    if (kneeMobR > 0 && (p.kneeR === 0 || kneeMobR < p.kneeR)) {
-      p.kneeR = kneeMobR;
-    }
-    if (hipMobR > 0 && (p.hipR === 0 || hipMobR < p.hipR)) {
-      p.hipR = hipMobR;
-    }
-    if (ankleMobR > 0 && (p.ankleR === 0 || ankleMobR > p.ankleR)) {
-      p.ankleR = ankleMobR;
-    }
-  } else if (activeSide === 'frontal') {
-    const landmarks = calculated ? calculated.landmarks : null;
-    if (landmarks) {
-      const valgus = calculateValgusFromJoints(landmarks);
-      
-      if (valgus.pctL > p.maxKneeCaveL) {
-        p.maxKneeCaveL = valgus.pctL;
-      }
-      if (valgus.pctR > p.maxKneeCaveR) {
-        p.maxKneeCaveR = valgus.pctR;
-      }
+  const isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+  const shouldUpdatePeaks = !isWebcamLive || !!state.isRecordingAssessment || !!state.isExportingFrameByFrame;
 
-      const activeScore = Math.max(valgus.pctL, valgus.pctR);
-      if (activeScore > 5) {
-        const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
-        if (p.valgusFirstTimestamp === null && timeSec !== null) {
-          p.valgusFirstTimestamp = timeSec;
+  if (shouldUpdatePeaks) {
+    if (activeSide === 'left') {
+      if (kneeMobL > 0 && (p.kneeL === 0 || kneeMobL > p.kneeL)) { // Note: larger knee mobility means a deeper squat!
+        p.kneeL = kneeMobL;
+      }
+      if (hipMobL > 0 && (p.hipL === 0 || hipMobL > p.hipL)) { // Note: deeper squat has larger hip mobility!
+        p.hipL = hipMobL;
+      }
+      if (ankleMobL > 0 && (p.ankleL === 0 || ankleMobL > p.ankleL)) {
+        p.ankleL = ankleMobL;
+      }
+    } else if (activeSide === 'right') {
+      if (kneeMobR > 0 && (p.kneeR === 0 || kneeMobR > p.kneeR)) {
+        p.kneeR = kneeMobR;
+      }
+      if (hipMobR > 0 && (p.hipR === 0 || hipMobR > p.hipR)) {
+        p.hipR = hipMobR;
+      }
+      if (ankleMobR > 0 && (p.ankleR === 0 || ankleMobR > p.ankleR)) {
+        p.ankleR = ankleMobR;
+      }
+    } else if (activeSide === 'frontal') {
+      const landmarks = calculated ? calculated.landmarks : null;
+      if (landmarks) {
+        const valgus = calculateValgusFromJoints(landmarks);
+        
+        if (valgus.pctL > p.maxKneeCaveL) {
+          p.maxKneeCaveL = valgus.pctL;
         }
-        if (activeScore > p.valgusPeakScore) {
-          p.valgusPeakScore = activeScore;
-          p.valgusPeakTimestamp = timeSec;
+        if (valgus.pctR > p.maxKneeCaveR) {
+          p.maxKneeCaveR = valgus.pctR;
+        }
+
+        const activeScore = Math.max(valgus.pctL, valgus.pctR);
+        if (activeScore > 5) {
+          const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+          if (p.valgusFirstTimestamp === null && timeSec !== null) {
+            p.valgusFirstTimestamp = timeSec;
+          }
+          if (activeScore > p.valgusPeakScore) {
+            p.valgusPeakScore = activeScore;
+            p.valgusPeakTimestamp = timeSec;
+          }
         }
       }
     }
@@ -588,6 +593,7 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
           }
           return;
         } else {
+          state.isRecordingAssessment = false;
           btnSaveSquatPeaks.innerHTML = `Record Squat Assessment`;
           btnSaveSquatPeaks.style.background = 'linear-gradient(135deg, #BA0C2F, #8A0824)';
           btnSaveSquatPeaks.style.borderColor = 'rgba(186, 12, 47, 0.4)';
@@ -606,8 +612,36 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
             }
           }
           
+          let activeProfileName = "Guest";
+          if (state.activeProfileId) {
+            try {
+              const profile = await snapshotStore.getProfile(state.activeProfileId);
+              if (profile) {
+                activeProfileName = profile.name;
+              }
+            } catch (err) {
+              console.error("Error fetching active profile for peak saving:", err);
+            }
+          }
+
           if (stopVideoRecordingFn) {
             stopVideoRecordingFn();
+          }
+
+          if (state.activeProfileId) {
+            try {
+              await autoSyncToActiveProfile(true);
+              if (statusElement) {
+                statusElement.textContent = `💾 Peak mobility metrics for "${activeProfileName}" successfully saved to portfolio!`;
+              }
+              alert(`Overhead squat peaks saved and synchronized to ${activeProfileName}'s profile successfully!`);
+              openProfileDetailsModal(state.activeProfileId);
+            } catch (err) {
+              console.error("Failed to sync squat peaks on recording stop:", err);
+              alert("Could not sync squat peaks to profile. See developer console for details.");
+            }
+          } else {
+            alert("No active profile loaded. Recording saved as guest.");
           }
           return;
         }

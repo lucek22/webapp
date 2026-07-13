@@ -420,20 +420,21 @@ export async function initializeProfilesSelector() {
       }
     });
 
-    // Robustly manage tracking overlays and canvas clearance based on playback states
+    // Replay Mode: Disable pose detection and drawing during replay
     mainVideoPlayer.addEventListener('play', () => {
-      state.activeModalVideoProcessing = true;
-      startModalVideoInferenceLoop();
+      state.activeModalVideoProcessing = false;
+      clearModalCanvas();
     });
 
     mainVideoPlayer.addEventListener('playing', () => {
-      state.activeModalVideoProcessing = true;
-      startModalVideoInferenceLoop();
+      state.activeModalVideoProcessing = false;
+      clearModalCanvas();
     });
 
     const clearModalCanvas = () => {
       const canvas = document.getElementById('profile-details-video-canvas');
       if (canvas) {
+        canvas.style.display = 'none'; // Ensure canvas is hidden during replay
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
@@ -454,9 +455,6 @@ export async function initializeProfilesSelector() {
 
     mainVideoPlayer.addEventListener('seeked', () => {
       clearModalCanvas();
-      if (mainVideoPlayer.paused) {
-        triggerSingleModalVideoInference();
-      }
     });
 
     mainVideoPlayer.addEventListener('emptied', () => {
@@ -2277,6 +2275,7 @@ export async function openProfileDetailsModal(profileId) {
 
               const canvas = document.getElementById('profile-details-video-canvas');
               if (canvas) {
+                canvas.style.display = 'none';
                 const ctx = canvas.getContext('2d');
                 if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
               }
@@ -2292,9 +2291,8 @@ export async function openProfileDetailsModal(profileId) {
                 btnFullscreen.style.display = 'flex';
               }
               
-              // Enable real-time pose tracking overlays on the modal player if it is selected
-              state.activeModalVideoProcessing = true;
-              startModalVideoInferenceLoop();
+              // Replay Mode: Do not generate or draw pose overlays during replay
+              state.activeModalVideoProcessing = false;
               
               mainVideoPlayer.play().catch(e => console.log("[VideoPlay] Autoplay blocked:", e));
             }
@@ -2321,8 +2319,14 @@ export async function openProfileDetailsModal(profileId) {
               if (btnFullscreen) {
                 btnFullscreen.style.display = 'flex';
               }
-              state.activeModalVideoProcessing = true;
-              startModalVideoInferenceLoop();
+              const canvas = document.getElementById('profile-details-video-canvas');
+              if (canvas) {
+                canvas.style.display = 'none';
+                const ctx = canvas.getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+              }
+              // Replay Mode: Do not generate or draw pose overlays during replay
+              state.activeModalVideoProcessing = false;
             }
 
             const lowerName = (video.name || '').toLowerCase();
@@ -2502,167 +2506,19 @@ export function closeProfileDetailsModal() {
 }
 
 export function startModalVideoInferenceLoop() {
-  if (state.isModalVideoInferenceLoopRunning) return;
-  state.isModalVideoInferenceLoopRunning = true;
-
-  async function modalVideoInferenceLoop() {
-    const video = document.getElementById('profile-details-video-player');
-    if (!state.activeModalVideoProcessing || !video || video.paused || video.ended || !video.src || video.readyState < 2) {
-      state.isModalVideoInferenceLoopRunning = false;
-      return;
-    }
-
-    const startTime = Date.now();
-    try {
-      state.lastModalInferenceSrc = video.src;
-      await pose.send({ image: video });
-    } catch (err) {
-      console.warn("[ModalVideoInference] MediaPipe parsing error:", err);
-    }
-
-    const elapsed = Date.now() - startTime;
-    const delay = Math.max(50 - elapsed, 1);
-    if (state.activeModalVideoProcessing) {
-      setTimeout(modalVideoInferenceLoop, delay);
-    } else {
-      state.isModalVideoInferenceLoopRunning = false;
-    }
-  }
-
-  modalVideoInferenceLoop();
+  // Replay Mode: Disable pose detection and drawing during replay
+  state.isModalVideoInferenceLoopRunning = false;
 }
 
 export async function triggerSingleModalVideoInference() {
-  const video = document.getElementById('profile-details-video-player');
-  if (!video || !video.src || video.readyState < 2) return;
-  try {
-    state.lastModalInferenceSrc = video.src;
-    await pose.send({ image: video });
-  } catch (err) {
-    console.warn("[ModalVideoSingleInference] MediaPipe parsing error:", err);
-  }
+  // Replay Mode: Disable single frame inference
 }
 
 export function drawModalVideoPoseOverlay(results) {
   const canvas = document.getElementById('profile-details-video-canvas');
-  if (!canvas) return;
-
-  const video = document.getElementById('profile-details-video-player');
-  if (!video) return;
-
-  // Safeguard: If we're not actively processing, or the video is seeking, or the source doesn't match, clear and exit!
-  if (!state.activeModalVideoProcessing && (!video.paused || video.seeking)) {
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    return;
-  }
-
-  if (video.seeking || !video.src || video.src !== state.lastModalInferenceSrc) {
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    return;
-  }
-
-  if (!results || !results.poseLandmarks) {
+  if (canvas) {
     canvas.style.display = 'none';
     const ctx = canvas.getContext('2d');
     if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    return;
-  }
-
-  if (canvas.width !== video.clientWidth || canvas.height !== video.clientHeight) {
-    canvas.width = video.clientWidth;
-    canvas.height = video.clientHeight;
-  }
-
-  canvas.style.display = 'block';
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const oldWidth = state.canvasWidth;
-  const oldHeight = state.canvasHeight;
-  state.canvasWidth = video.clientWidth || 640;
-  state.canvasHeight = video.clientHeight || 480;
-
-  const calculated = calculatePoseMetrics(results);
-
-  state.canvasWidth = oldWidth;
-  state.canvasHeight = oldHeight;
-
-  if (calculated) {
-    let isShoulderVideo = false;
-    const activeItem = document.querySelector('.profile-video-row-item.active-playlist-item');
-    if (activeItem) {
-      const titleEl = activeItem.querySelector('.playlist-video-name');
-      if (titleEl) {
-        const txt = titleEl.textContent.toLowerCase();
-        if (txt.includes('shoulder') || txt.includes('flexion')) {
-          isShoulderVideo = true;
-        }
-      }
-    }
-
-    if (isShoulderVideo) {
-      const activeItemName = activeItem.querySelector('.playlist-video-name').textContent.toLowerCase();
-      const side = activeItemName.includes('right') ? 'right' : 'left';
-      
-      const angleInfo = getShoulderWristAngle(results.poseLandmarks, side);
-      if (angleInfo) {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.setLineDash([5, 5]);
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
-        ctx.lineTo(angleInfo.shoulder.x, angleInfo.shoulder.y + 120);
-        ctx.stroke();
-        ctx.restore();
-
-        const r = 40;
-        ctx.save();
-        ctx.strokeStyle = '#BA0C2F';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        const armAngleRad = Math.atan2(angleInfo.wrist.y - angleInfo.shoulder.y, angleInfo.wrist.x - angleInfo.shoulder.x);
-        ctx.arc(angleInfo.shoulder.x, angleInfo.shoulder.y, r, Math.PI / 2, armAngleRad, armAngleRad < Math.PI / 2);
-        ctx.stroke();
-        ctx.restore();
-
-        ctx.save();
-        ctx.strokeStyle = '#BA0C2F';
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#BA0C2F';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
-        ctx.lineTo(angleInfo.wrist.x, angleInfo.wrist.y);
-        ctx.stroke();
-        ctx.restore();
-
-        drawAngleBadge(ctx, angleInfo.wrist, Math.round(angleInfo.angleDeg), '#BA0C2F');
-      }
-    } else {
-      drawSkeletalFramework(calculated, ctx);
-
-      drawAngleBadge(ctx, calculated.knee_l, calculated.kneeAngleL, '#10b981');
-      drawAngleBadge(ctx, calculated.hip_l, calculated.hipAngleL, '#d4a017');
-      drawAngleBadge(ctx, calculated.ankle_l, calculated.ankleAngleL, '#06b6d4');
-
-      drawAngleBadge(ctx, calculated.knee_r, calculated.kneeAngleR, '#10b981');
-      drawAngleBadge(ctx, calculated.hip_r, calculated.hipAngleR, '#d4a017');
-      drawAngleBadge(ctx, calculated.ankle_r, calculated.ankleAngleR, '#06b6d4');
-
-      const valgus = calculateValgusFromJoints(calculated);
-      const kneeMobL = 180 - (calculated.kneeAngleL || 180);
-      const kneeMobR = 180 - (calculated.kneeAngleR || 180);
-      if (kneeMobL >= 15 && valgus.pctL > 4.0) {
-        drawValgusBadge(ctx, calculated.knee_l, valgus.pctL);
-      }
-      if (kneeMobR >= 15 && valgus.pctR > 4.0) {
-        drawValgusBadge(ctx, calculated.knee_r, valgus.pctR);
-      }
-    }
   }
 }

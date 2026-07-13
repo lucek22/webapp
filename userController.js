@@ -74,7 +74,8 @@ import {
   scanVideoForSquatPeaks,
   updateSquatDashboardOffline,
   updateSquatDashboardUI,
-  updateSquatSideUI
+  updateSquatSideUI,
+  registerSquatCallbacks
 } from './squatController.js';
 
 import {
@@ -1074,7 +1075,10 @@ export function onPoseResults(results) {
       const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
 
       // Always update peaks state when a valid frame is processed in squat mode
-      if (state.currentMode === 'squat') {
+      const isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+      const shouldUpdatePeaks = !isWebcamLive || !!state.isRecordingAssessment || !!state.isExportingFrameByFrame;
+
+      if (state.currentMode === 'squat' && shouldUpdatePeaks) {
         if (state.squatTestingSide === 'left') {
           state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
           state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
@@ -5101,6 +5105,15 @@ registerProfileCallbacks({
   renderDashboard,
   updateDashboardOfflinePlaceholders,
   setUnitSystem
+});
+
+registerSquatCallbacks({
+  startVideoRecording,
+  stopVideoRecording,
+  showAnalysisProgressOverlay,
+  hideAnalysisProgressOverlay,
+  updateRecordButtonUI,
+  getPoseModel: () => pose
 });
 
 setupShoulderListeners(onPoseResults, updateDashboardOfflinePlaceholders);

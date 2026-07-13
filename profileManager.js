@@ -6,6 +6,7 @@ import { state, snapshotStore, formatLength, clearSmoothBuffer, getROMThresholds
 import { getDefaultSquatPeaks, calculateValgusFromJoints } from './squatController.js';
 import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI } from './shoulderController.js';
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
+import { getDefaultHipRotation } from './hipRotationController.js';
 import { compileAndDownloadCombinedSession } from './reportCompiler.js';
 import { pose, calculatePoseMetrics } from './mediapipeLogic.js';
 
@@ -614,6 +615,7 @@ export function ensureProfileSessions(profile) {
       squatPeaks: getDefaultSquatPeaks(profile.squatPeaks),
       shoulderPeaks: getDefaultShoulderPeaks(profile.shoulderPeaks),
       shoulderRotation: getDefaultShoulderRotation(profile.shoulderRotation),
+      hipRotation: getDefaultHipRotation(profile.hipRotation),
       imageA: profile.imageA || null,
       imageT: profile.imageT || null,
       imageOverhead: profile.imageOverhead || null,
@@ -633,7 +635,9 @@ export function ensureProfileSessions(profile) {
       videoShoulderL: profile.videoShoulderL || null,
       videoShoulderR: profile.videoShoulderR || null,
       videoShoulderRotationL: profile.videoShoulderRotationL || null,
-      videoShoulderRotationR: profile.videoShoulderRotationR || null
+      videoShoulderRotationR: profile.videoShoulderRotationR || null,
+      videoHipRotationL: profile.videoHipRotationL || null,
+      videoHipRotationR: profile.videoHipRotationR || null
     };
     profile.sessions = [baselineSession];
     profile.activeSessionId = baselineSession.id;
@@ -673,6 +677,7 @@ export async function loadProfileIntoState(profileId) {
     state.squatPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
     state.shoulderPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
     state.shoulderRotation = getDefaultShoulderRotation(activeSession.shoulderRotation);
+    state.hipRotation = getDefaultHipRotation(activeSession.hipRotation);
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
@@ -690,6 +695,8 @@ export async function loadProfileIntoState(profileId) {
     state.videoShoulderR = activeSession.videoShoulderR || null;
     state.videoShoulderRotationL = activeSession.videoShoulderRotationL || null;
     state.videoShoulderRotationR = activeSession.videoShoulderRotationR || null;
+    state.videoHipRotationL = activeSession.videoHipRotationL || null;
+    state.videoHipRotationR = activeSession.videoHipRotationR || null;
     state.jointsOverhead = activeSession.jointsOverhead || null;
     state.jointsShoulderL = activeSession.jointsShoulderL || null;
     state.jointsShoulderR = activeSession.jointsShoulderR || null;
@@ -898,12 +905,23 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
       session.shoulderRotation = state.shoulderRotation ? JSON.parse(JSON.stringify(state.shoulderRotation)) : null;
     }
 
+    if (state.hipRotation !== undefined) {
+      session.hipRotation = state.hipRotation ? JSON.parse(JSON.stringify(state.hipRotation)) : null;
+    }
+
+    if (state.videoHipRotationL !== undefined) session.videoHipRotationL = state.videoHipRotationL;
+    if (state.videoHipRotationR !== undefined) session.videoHipRotationR = state.videoHipRotationR;
+
+    if (state.imageHipRotationL !== undefined) session.imageHipRotationL = state.imageHipRotationL;
+    if (state.imageHipRotationR !== undefined) session.imageHipRotationR = state.imageHipRotationR;
+
     profile.metricsA = session.metricsA;
     profile.metricsT = session.metricsT;
     profile.metricsOverhead = session.metricsOverhead;
     profile.squatPeaks = session.squatPeaks;
     profile.shoulderPeaks = session.shoulderPeaks;
     profile.shoulderRotation = session.shoulderRotation;
+    profile.hipRotation = session.hipRotation;
     profile.imageA = session.imageA;
     profile.imageT = session.imageT;
     profile.imageOverhead = session.imageOverhead;
@@ -914,6 +932,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.imageShoulderLEnd = session.imageShoulderLEnd;
     profile.imageShoulderRStart = session.imageShoulderRStart;
     profile.imageShoulderREnd = session.imageShoulderREnd;
+    profile.imageHipRotationL = session.imageHipRotationL;
+    profile.imageHipRotationR = session.imageHipRotationR;
     profile.videoSquatL = session.videoSquatL;
     profile.videoSquatR = session.videoSquatR;
     profile.videoSquatFrontal = session.videoSquatFrontal;
@@ -921,6 +941,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.videoShoulderR = session.videoShoulderR;
     profile.videoShoulderRotationL = session.videoShoulderRotationL;
     profile.videoShoulderRotationR = session.videoShoulderRotationR;
+    profile.videoHipRotationL = session.videoHipRotationL;
+    profile.videoHipRotationR = session.videoHipRotationR;
     profile.jointsOverhead = session.jointsOverhead;
     profile.jointsShoulderL = session.jointsShoulderL;
     profile.jointsShoulderR = session.jointsShoulderR;
@@ -1251,7 +1273,9 @@ export async function openProfileDetailsModal(profileId) {
       { key: 'shoulder-l', metricsKey: 'shoulderPeaks', imgKey: 'imageShoulderLStart', title: 'Left Shoulder Flexion', color: '#BA0C2F', isShoulder: true },
       { key: 'shoulder-r', metricsKey: 'shoulderPeaks', imgKey: 'imageShoulderRStart', title: 'Right Shoulder Flexion', color: '#BA0C2F', isShoulder: true },
       { key: 'shoulder-rotation-l', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationL', title: 'Left Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true },
-      { key: 'shoulder-rotation-r', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationR', title: 'Right Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true }
+      { key: 'shoulder-rotation-r', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationR', title: 'Right Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true },
+      { key: 'hip-rotation-l', metricsKey: 'hipRotation', imgKey: 'imageHipRotationL', title: 'Left Hip Rotation', color: '#10b981', isHipRotation: true },
+      { key: 'hip-rotation-r', metricsKey: 'hipRotation', imgKey: 'imageHipRotationR', title: 'Right Hip Rotation', color: '#10b981', isHipRotation: true }
     ];
 
     poses.forEach(p => {
@@ -1307,6 +1331,20 @@ export async function openProfileDetailsModal(profileId) {
           }
         }
         hasData = !!imgSrc || hasVideo || hasShoulderRotationPeaks;
+      } else if (p.isHipRotation) {
+        const videoKey = p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 'videoHipRotationR';
+        const sVideo = activeSession[videoKey];
+        hasVideo = !!(sVideo && sVideo.blob);
+        
+        let hasHipRotationPeaks = false;
+        if (activeSession.hipRotation) {
+          if (p.key === 'hip-rotation-l') {
+            hasHipRotationPeaks = (activeSession.hipRotation.maxExternalRotationL > 0 || activeSession.hipRotation.maxInternalRotationL < 0);
+          } else {
+            hasHipRotationPeaks = (activeSession.hipRotation.maxExternalRotationR > 0 || activeSession.hipRotation.maxInternalRotationR < 0);
+          }
+        }
+        hasData = !!imgSrc || hasVideo || hasHipRotationPeaks;
       } else {
         hasData = !!imgSrc || !!activeSession[p.metricsKey];
       }
@@ -1320,8 +1358,13 @@ export async function openProfileDetailsModal(profileId) {
           containerEl.classList.remove('hidden');
           containerEl.innerHTML = '';
 
-          if ((p.isSquat || p.isShoulderRotation) && hasVideo) {
-            const videoKey = p.key === 'squat-l' ? 'videoSquatL' : (p.key === 'squat-r' ? 'videoSquatR' : (p.key === 'squat-frontal' ? 'videoSquatFrontal' : (p.key === 'shoulder-rotation-l' ? 'videoShoulderRotationL' : 'videoShoulderRotationR')));
+          if ((p.isSquat || p.isShoulderRotation || p.isHipRotation) && hasVideo) {
+            const videoKey = p.key === 'squat-l' ? 'videoSquatL' : 
+                             (p.key === 'squat-r' ? 'videoSquatR' : 
+                             (p.key === 'squat-frontal' ? 'videoSquatFrontal' : 
+                             (p.key === 'shoulder-rotation-l' ? 'videoShoulderRotationL' : 
+                             (p.key === 'shoulder-rotation-r' ? 'videoShoulderRotationR' : 
+                             (p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 'videoHipRotationR')))));
             const sVideo = activeSession[videoKey];
             const videoUrl = URL.createObjectURL(sVideo.blob);
             state.modalObjectUrls.push(videoUrl);
@@ -1405,6 +1448,10 @@ export async function openProfileDetailsModal(profileId) {
                   state.shoulderRotationTestingSide = 'left';
                 } else if (p.key === 'shoulder-rotation-r') {
                   state.shoulderRotationTestingSide = 'right';
+                } else if (p.key === 'hip-rotation-l') {
+                  state.hipRotationTestingSide = 'left';
+                } else if (p.key === 'hip-rotation-r') {
+                  state.hipRotationTestingSide = 'right';
                 }
                 const mainVideoPlayer = document.getElementById('profile-details-video-player');
                 const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
@@ -1596,6 +1643,29 @@ export async function openProfileDetailsModal(profileId) {
                     freshActiveSession.shoulderRotation.timeSeriesR = [];
                   }
                 }
+              } else if (p.isHipRotation) {
+                const videoKey = p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 'videoHipRotationR';
+                const sVideo = freshActiveSession[videoKey];
+                if (sVideo) {
+                  freshProfileMigrated.videos = (freshProfileMigrated.videos || []).filter(v => v.id !== sVideo.id);
+                  freshActiveSession[videoKey] = null;
+                }
+
+                if (p.key === 'hip-rotation-l') {
+                  freshActiveSession.imageHipRotationL = null;
+                  if (freshActiveSession.hipRotation) {
+                    freshActiveSession.hipRotation.maxExternalRotationL = 0;
+                    freshActiveSession.hipRotation.maxInternalRotationL = 0;
+                    freshActiveSession.hipRotation.timeSeriesL = [];
+                  }
+                } else {
+                  freshActiveSession.imageHipRotationR = null;
+                  if (freshActiveSession.hipRotation) {
+                    freshActiveSession.hipRotation.maxExternalRotationR = 0;
+                    freshActiveSession.hipRotation.maxInternalRotationR = 0;
+                    freshActiveSession.hipRotation.timeSeriesR = [];
+                  }
+                }
               } else {
                 freshActiveSession[p.metricsKey] = null;
               }
@@ -1606,6 +1676,7 @@ export async function openProfileDetailsModal(profileId) {
               freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
               freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
               freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
+              freshProfileMigrated.hipRotation = freshActiveSession.hipRotation;
               freshProfileMigrated.imageA = freshActiveSession.imageA;
               freshProfileMigrated.imageT = freshActiveSession.imageT;
               freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -1618,6 +1689,8 @@ export async function openProfileDetailsModal(profileId) {
               freshProfileMigrated.imageShoulderREnd = freshActiveSession.imageShoulderREnd;
               freshProfileMigrated.imageShoulderRotationL = freshActiveSession.imageShoulderRotationL;
               freshProfileMigrated.imageShoulderRotationR = freshActiveSession.imageShoulderRotationR;
+              freshProfileMigrated.imageHipRotationL = freshActiveSession.imageHipRotationL || null;
+              freshProfileMigrated.imageHipRotationR = freshActiveSession.imageHipRotationR || null;
               freshProfileMigrated.jointsOverhead = freshActiveSession.jointsOverhead || null;
               freshProfileMigrated.jointsShoulderL = freshActiveSession.jointsShoulderL || null;
               freshProfileMigrated.jointsShoulderR = freshActiveSession.jointsShoulderR || null;
@@ -2024,6 +2097,23 @@ export async function openProfileDetailsModal(profileId) {
               }
               freshActiveSession.shoulderRotation[key] = val;
             });
+
+            if (!freshActiveSession.hipRotation) {
+              freshActiveSession.hipRotation = getDefaultHipRotation();
+            }
+            const hipRotationInputs = document.querySelectorAll('.profile-hip-rotation-edit-input');
+            hipRotationInputs.forEach(input => {
+              const key = input.getAttribute('data-key');
+              const rawVal = input.value.trim();
+              let val = 0;
+              if (rawVal !== "") {
+                const parsed = parseFloat(rawVal);
+                if (!isNaN(parsed)) {
+                  val = parsed;
+                }
+              }
+              freshActiveSession.hipRotation[key] = val;
+            });
             
             freshProfileMigrated.metricsA = freshActiveSession.metricsA;
             freshProfileMigrated.metricsT = freshActiveSession.metricsT;
@@ -2031,6 +2121,7 @@ export async function openProfileDetailsModal(profileId) {
             freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
             freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
             freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
+            freshProfileMigrated.hipRotation = freshActiveSession.hipRotation;
             freshProfileMigrated.imageA = freshActiveSession.imageA;
             freshProfileMigrated.imageT = freshActiveSession.imageT;
             freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -2171,6 +2262,69 @@ export async function openProfileDetailsModal(profileId) {
             <input type="number" step="0.1" min="-180" max="0" class="profile-shoulder-rotation-edit-input profile-edit-input" 
                    data-key="maxInternalRotationR" 
                    value="${shRot.maxInternalRotationR ? shRot.maxInternalRotationR.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+
+    const dhipRotExtL = document.getElementById('detail-hip-rotation-external-l');
+    const dhipRotIntL = document.getElementById('detail-hip-rotation-internal-l');
+    const dhipRotExtR = document.getElementById('detail-hip-rotation-external-r');
+    const dhipRotIntR = document.getElementById('detail-hip-rotation-internal-r');
+    const hRot = getDefaultHipRotation(activeSession.hipRotation);
+
+    if (dhipRotExtL) {
+      if (!state.isEditingProfileMetrics) {
+        dhipRotExtL.innerHTML = hRot.maxExternalRotationL ? `${hRot.maxExternalRotationL.toFixed(1)}°` : '0°';
+      } else {
+        dhipRotExtL.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-hip-rotation-edit-input profile-edit-input" 
+                   data-key="maxExternalRotationL" 
+                   value="${hRot.maxExternalRotationL ? hRot.maxExternalRotationL.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+    if (dhipRotIntL) {
+      if (!state.isEditingProfileMetrics) {
+        dhipRotIntL.innerHTML = hRot.maxInternalRotationL ? `${hRot.maxInternalRotationL.toFixed(1)}°` : '0°';
+      } else {
+        dhipRotIntL.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-hip-rotation-edit-input profile-edit-input" 
+                   data-key="maxInternalRotationL" 
+                   value="${hRot.maxInternalRotationL ? hRot.maxInternalRotationL.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+    if (dhipRotExtR) {
+      if (!state.isEditingProfileMetrics) {
+        dhipRotExtR.innerHTML = hRot.maxExternalRotationR ? `${hRot.maxExternalRotationR.toFixed(1)}°` : '0°';
+      } else {
+        dhipRotExtR.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-hip-rotation-edit-input profile-edit-input" 
+                   data-key="maxExternalRotationR" 
+                   value="${hRot.maxExternalRotationR ? hRot.maxExternalRotationR.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
+    if (dhipRotIntR) {
+      if (!state.isEditingProfileMetrics) {
+        dhipRotIntR.innerHTML = hRot.maxInternalRotationR ? `${hRot.maxInternalRotationR.toFixed(1)}°` : '0°';
+      } else {
+        dhipRotIntR.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-hip-rotation-edit-input profile-edit-input" 
+                   data-key="maxInternalRotationR" 
+                   value="${hRot.maxInternalRotationR ? hRot.maxInternalRotationR.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
             <span style="font-size: 11px;">°</span>
           </div>
         `;
@@ -2592,6 +2746,7 @@ export async function renderShoulderRotationGrading(activeSession) {
   const shRot = getDefaultShoulderRotation(activeSession.shoulderRotation);
   const shPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
   const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
+  const hRot = getDefaultHipRotation(activeSession.hipRotation);
   
   const thresholds = await getROMThresholds();
   
@@ -2599,6 +2754,8 @@ export async function renderShoulderRotationGrading(activeSession) {
   const intThresh = thresholds["Internal Rotation"] || { low: 50, high: 75 };
   const flexThresh = thresholds["Shoulder Flexion"] || { low: 150, high: 170 };
   const kneeThresh = thresholds["Knee Flexion"] || { low: 80, high: 110 };
+  const hipExtThresh = thresholds["Hip External Rotation"] || { low: 30, high: 45 };
+  const hipIntThresh = thresholds["Hip Internal Rotation"] || { low: 30, high: 45 };
 
   const getGradeInfo = (val, thresh) => {
     const absVal = Math.abs(val);
@@ -2627,6 +2784,12 @@ export async function renderShoulderRotationGrading(activeSession) {
   // 3. Knee Flexion Grades
   const kneeGradeL = getGradeInfo(sPeaks.kneeL, kneeThresh);
   const kneeGradeR = getGradeInfo(sPeaks.kneeR, kneeThresh);
+
+  // 4. Hip Rotation Grades
+  const hipExtGradeL = getGradeInfo(hRot.maxExternalRotationL, hipExtThresh);
+  const hipIntGradeL = getGradeInfo(hRot.maxInternalRotationL, hipIntThresh);
+  const hipExtGradeR = getGradeInfo(hRot.maxExternalRotationR, hipExtThresh);
+  const hipIntGradeR = getGradeInfo(hRot.maxInternalRotationR, hipIntThresh);
 
   panel.innerHTML = `
     <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; font-family: inherit;">
@@ -2801,6 +2964,87 @@ export async function renderShoulderRotationGrading(activeSession) {
         </div>
 
       </div>
+
+      <!-- CATEGORY 3: HIP INTERNAL/EXTERNAL ROTATION -->
+      <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">
+        <div style="font-size: 0.8rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">
+          <span>Hip Internal / External Rotation</span>
+          <span style="font-size: 0.65rem; color: #aaa; font-weight: normal; text-transform: none;">Starting neutral/prone or seated view</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <!-- Left Hip Rotation -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #10b981; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(16,185,129,0.1); padding-bottom: 2px;">Left Side</div>
+            
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Internal Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${hRot.maxInternalRotationL ? `${Math.abs(hRot.maxInternalRotationL).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${hipIntGradeL.bg}; border: 1px solid ${hipIntGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${hipIntGradeL.color};">${hipIntGradeL.grade ? `Grade ${hipIntGradeL.grade} (${hipIntGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">External Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${hRot.maxExternalRotationL ? `${Math.abs(hRot.maxExternalRotationL).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${hipExtGradeL.bg}; border: 1px solid ${hipExtGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${hipExtGradeL.color};">${hipExtGradeL.grade ? `Grade ${hipExtGradeL.grade} (${hipExtGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Hip Rotation -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #10b981; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(16,185,129,0.1); padding-bottom: 2px;">Right Side</div>
+            
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Internal Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${hRot.maxInternalRotationR ? `${Math.abs(hRot.maxInternalRotationR).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${hipIntGradeR.bg}; border: 1px solid ${hipIntGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${hipIntGradeR.color};">${hipIntGradeR.grade ? `Grade ${hipIntGradeR.grade} (${hipIntGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">External Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${hRot.maxExternalRotationR ? `${Math.abs(hRot.maxExternalRotationR).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${hipExtGradeR.bg}; border: 1px solid ${hipExtGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${hipExtGradeR.color};">${hipExtGradeR.grade ? `Grade ${hipExtGradeR.grade} (${hipExtGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Threshold Legend (Hip Rotation) -->
+        <div style="margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.06); display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div>
+            <div style="font-size: 0.65rem; font-weight: bold; color: #aaa; margin-bottom: 1px;">Hip Internal Rotation Cutoffs:</div>
+            <div style="font-size: 0.6rem; color: #888; display: flex; justify-content: space-between;">
+              <span>G1: &le; ${hipIntThresh.low}°</span> <span>G2: ${hipIntThresh.low + 1}-${hipIntThresh.high}°</span> <span>G3: &gt; ${hipIntThresh.high}°</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 0.65rem; font-weight: bold; color: #aaa; margin-bottom: 1px;">Hip External Rotation Cutoffs:</div>
+            <div style="font-size: 0.6rem; color: #888; display: flex; justify-content: space-between;">
+              <span>G1: &le; ${hipExtThresh.low}°</span> <span>G2: ${hipExtThresh.low + 1}-${hipExtThresh.high}°</span> <span>G3: &gt; ${hipExtThresh.high}°</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   `;
 }

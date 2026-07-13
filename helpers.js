@@ -225,6 +225,14 @@ export const state = {
     timeSeriesL: [],
     timeSeriesR: []
   },
+  hipRotation: {
+    maxExternalRotationL: 0,
+    maxInternalRotationL: 0,
+    maxExternalRotationR: 0,
+    maxInternalRotationR: 0,
+    timeSeriesL: [],
+    timeSeriesR: []
+  },
   isUploadedMedia: false,
   uploadedMediaType: null,
   latestPoseResults: null,
@@ -512,7 +520,9 @@ export function getDefaultROMThresholds() {
     "External Rotation": { low: 60, high: 85 },
     "Internal Rotation": { low: 50, high: 75 },
     "Shoulder Flexion": { low: 150, high: 170 },
-    "Knee Flexion": { low: 80, high: 110 }
+    "Knee Flexion": { low: 80, high: 110 },
+    "Hip External Rotation": { low: 30, high: 45 },
+    "Hip Internal Rotation": { low: 30, high: 45 }
   };
 }
 

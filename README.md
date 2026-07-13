@@ -29,3 +29,9 @@
     4. Start with your hand parallel to the ground in a 90 degree angle
         a. Perform an external rotation
         b. Perform an internal rotation
+# Managing the ROM grades
+    Grades are stored in the following format
+    Exercise Low | High
+    Anything lower than low is a grade 1
+    Anything higher than high is a grade 3
+    Anything in between is a grade 2

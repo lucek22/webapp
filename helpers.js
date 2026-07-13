@@ -217,6 +217,14 @@ export const state = {
     jointsL: null,
     jointsR: null
   },
+  shoulderRotation: {
+    maxExternalRotationL: 0,
+    maxInternalRotationL: 0,
+    maxExternalRotationR: 0,
+    maxInternalRotationR: 0,
+    timeSeriesL: [],
+    timeSeriesR: []
+  },
   isUploadedMedia: false,
   uploadedMediaType: null,
   latestPoseResults: null,
@@ -351,7 +359,7 @@ export function calculateAngle(p_vertex, p_arm1, p_arm2) {
 
 export function getCanvasX(normX) {
   const width = state.canvasWidth || 640;
-  if (state.isUploadedMedia) {
+  if (state.isUploadedMedia || state.activeModalVideoProcessing) {
     return normX * width;
   }
   return state.currentFacingMode === "user" ? (1.0 - normX) * width : normX * width;

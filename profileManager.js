@@ -2808,7 +2808,7 @@ export async function renderShoulderRotationGrading(activeSession) {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
           <!-- Left Rotation -->
           <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #00e5ff; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(0,229,255,0.1); padding-bottom: 2px;">Left Side</div>
+            <div style="font-size: 0.75rem; font-weight: 700; color: #BA0C2F; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 2px;">Left Side</div>
             
             <div style="margin-bottom: 0.4rem;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
@@ -2835,7 +2835,7 @@ export async function renderShoulderRotationGrading(activeSession) {
 
           <!-- Right Rotation -->
           <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #00e5ff; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(0,229,255,0.1); padding-bottom: 2px;">Right Side</div>
+            <div style="font-size: 0.75rem; font-weight: 700; color: #BA0C2F; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 2px;">Right Side</div>
             
             <div style="margin-bottom: 0.4rem;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
@@ -3046,8 +3046,8 @@ export async function renderShoulderRotationGrading(activeSession) {
       </div>
 
       <!-- ADVICE / COACHING TAB HUB -->
-      <div style="background: rgba(0, 229, 255, 0.02); border: 1px dashed rgba(0, 229, 255, 0.20); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
-        <div style="font-size: 0.8rem; font-weight: bold; color: #00e5ff; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(0,229,255,0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
+      <div style="background: rgba(186, 12, 47, 0.02); border: 1px dashed rgba(186, 12, 47, 0.25); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
+        <div style="font-size: 0.8rem; font-weight: bold; color: #BA0C2F; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
           <span>💡 Dynamic Corrective Advice & Coaching</span>
         </div>
         

@@ -67,6 +67,16 @@ import {
 } from './shoulderRotationController.js';
 
 import {
+  setupHipRotationListeners,
+  updateHipRotationSideUI,
+  updateHipRotationSidebarUI,
+  getDefaultHipRotation,
+  processHipRotationFromPreprocessedFrames,
+  resetHipRotationPeaksUI,
+  HipRotationMeasurer
+} from './hipRotationController.js';
+
+import {
   setupSquatListeners,
   resetSquatPeaks,
   calculateValgusFromJoints,
@@ -343,6 +353,23 @@ const shoulderRotationStatusVal = document.getElementById('shoulder-rotation-sta
 const btnShoulderRotationSideLeft = document.getElementById('btn-shoulder-rotation-side-left');
 const btnShoulderRotationSideRight = document.getElementById('btn-shoulder-rotation-side-right');
 const btnSaveShoulderRotationPeaks = document.getElementById('btn-save-shoulder-rotation-peaks');
+
+// UI Hip Rotation Elements
+const hipRotationSidebarContent = document.getElementById('hip-rotation-sidebar-content');
+
+const hipRotationPeakExternalL = document.getElementById('hip-rotation-peak-external-l');
+const hipRotationLiveAngleL = document.getElementById('hip-rotation-live-angle-l');
+const hipRotationPeakExternalR = document.getElementById('hip-rotation-peak-external-r');
+const hipRotationLiveAngleR = document.getElementById('hip-rotation-live-angle-r');
+
+const hipRotationPeakInternalL = document.getElementById('hip-rotation-peak-internal-l');
+const hipRotationPeakInternalR = document.getElementById('hip-rotation-peak-internal-r');
+
+const hipRotationStatusVal = document.getElementById('hip-rotation-status-val');
+
+const btnHipRotationSideLeft = document.getElementById('btn-hip-rotation-side-left');
+const btnHipRotationSideRight = document.getElementById('btn-hip-rotation-side-right');
+const btnSaveHipRotationPeaks = document.getElementById('btn-save-hip-rotation-peaks');
 
 
 // UI Calibration Toggles & Panels
@@ -1288,6 +1315,137 @@ export function onPoseResults(results) {
           if (shoulderRotationStatusVal) {
             shoulderRotationStatusVal.textContent = 'Offline';
             shoulderRotationStatusVal.className = 'text-slate';
+          }
+        }
+      } else if (state.currentMode === 'hip_rotation') {
+        const side = state.hipRotationTestingSide || 'left';
+        
+        // Ensure live measurer is initialized
+        if (!state.liveHipRotationMeasurer) {
+          state.liveHipRotationMeasurer = new HipRotationMeasurer();
+        }
+        
+        // Get current video playhead or index-based timestamp
+        const videoElement = document.getElementById('uploaded-video');
+        const ts = (videoElement && !videoElement.paused) ? videoElement.currentTime : (Date.now() / 1000);
+        
+        const isRecording = !!state.isHipRotationRecording;
+        const angle = state.liveHipRotationMeasurer.processFrame(results.poseLandmarks, side, ts, isRecording);
+        
+        if (angle !== null) {
+          if (side === 'left') {
+            if (hipRotationLiveAngleL) hipRotationLiveAngleL.textContent = `${Math.round(angle)}°`;
+            if (hipRotationLiveAngleR) hipRotationLiveAngleR.textContent = '--°';
+          } else {
+            if (hipRotationLiveAngleR) hipRotationLiveAngleR.textContent = `${Math.round(angle)}°`;
+            if (hipRotationLiveAngleL) hipRotationLiveAngleL.textContent = '--°';
+          }
+
+          if (hipRotationStatusVal) {
+            if (isRecording) {
+              hipRotationStatusVal.textContent = 'Recording Peak Angles...';
+              hipRotationStatusVal.className = 'text-amber';
+            } else {
+              hipRotationStatusVal.textContent = 'Active Tracking (Ready)';
+              hipRotationStatusVal.className = 'text-emerald';
+            }
+          }
+
+          // Draw rich visual overlays for Hip Rotation
+          const hipIdx = side === 'left' ? 23 : 24;
+          const kneeIdx = side === 'left' ? 25 : 26;
+          const ankleIdx = side === 'left' ? 27 : 28;
+          
+          const rawHip = results.poseLandmarks[hipIdx];
+          const rawKnee = results.poseLandmarks[kneeIdx];
+          const rawAnkle = results.poseLandmarks[ankleIdx];
+          
+          if (rawHip && rawKnee && rawAnkle) {
+            const height = state.canvasHeight || 480;
+            const hipLoc = { x: getCanvasX(rawHip.x), y: rawHip.y * height };
+            const kneeLoc = { x: getCanvasX(rawKnee.x), y: rawKnee.y * height };
+            const ankleLoc = { x: getCanvasX(rawAnkle.x), y: rawAnkle.y * height };
+
+            // 1. Draw vertical reference line (0° tibia position) starting from the knee
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            canvasCtx.setLineDash([5, 5]);
+            canvasCtx.lineWidth = 1.5;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(kneeLoc.x, kneeLoc.y);
+            const tibiaLen = Math.sqrt((ankleLoc.x - kneeLoc.x) ** 2 + (ankleLoc.y - kneeLoc.y) ** 2) || 80;
+            canvasCtx.lineTo(kneeLoc.x, kneeLoc.y + tibiaLen); // Vertically straight down
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 2. Draw angle arc at the knee
+            const r = Math.min(30, tibiaLen / 2);
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#10b981'; // Glowing emerald for Hip Rotation
+            canvasCtx.lineWidth = 2.5;
+            canvasCtx.beginPath();
+            const tibiaAngleRad = Math.atan2(ankleLoc.y - kneeLoc.y, ankleLoc.x - kneeLoc.x);
+            const baselineAngleRad = Math.PI / 2; // Straight down (y positive is down)
+            canvasCtx.arc(kneeLoc.x, kneeLoc.y, r, baselineAngleRad, tibiaAngleRad, tibiaAngleRad < baselineAngleRad);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 3. Draw premium glowing line for the tibia (knee to ankle)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#10b981';
+            canvasCtx.lineWidth = 4;
+            canvasCtx.shadowColor = '#10b981';
+            canvasCtx.shadowBlur = 10;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(kneeLoc.x, kneeLoc.y);
+            canvasCtx.lineTo(ankleLoc.x, ankleLoc.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 4. Draw upper leg femur line (hip to knee)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+            canvasCtx.lineWidth = 3;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(hipLoc.x, hipLoc.y);
+            canvasCtx.lineTo(kneeLoc.x, kneeLoc.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 5. Draw floating angle badge near the ankle
+            drawAngleBadge(canvasCtx, ankleLoc, Math.round(angle), '#10b981');
+          } else {
+            // Fallback: draw standard skeleton mesh
+            if (results.poseLandmarks) {
+              drawFullSkeletalMesh(canvasCtx, results.poseLandmarks);
+            }
+          }
+
+          if (isRecording) {
+            const res = state.liveHipRotationMeasurer.getResults();
+            if (!state.hipRotation) {
+              state.hipRotation = getDefaultHipRotation();
+            }
+            if (side === 'left') {
+              state.hipRotation.maxExternalRotationL = res.maxExternalRotation;
+              state.hipRotation.maxInternalRotationL = res.maxInternalRotation;
+              state.hipRotation.maxExternalRotationTimeL = res.maxExternalRotationTime;
+              state.hipRotation.maxInternalRotationTimeL = res.maxInternalRotationTime;
+              state.hipRotation.timeSeriesL = res.timeSeries;
+            } else {
+              state.hipRotation.maxExternalRotationR = res.maxExternalRotation;
+              state.hipRotation.maxInternalRotationR = res.maxInternalRotation;
+              state.hipRotation.maxExternalRotationTimeR = res.maxExternalRotationTime;
+              state.hipRotation.maxInternalRotationTimeR = res.maxInternalRotationTime;
+              state.hipRotation.timeSeriesR = res.timeSeries;
+            }
+
+            updateHipRotationSidebarUI();
+          }
+        } else {
+          if (hipRotationStatusVal) {
+            hipRotationStatusVal.textContent = 'Offline';
+            hipRotationStatusVal.className = 'text-slate';
           }
         }
       }
@@ -4189,6 +4347,14 @@ export async function runVideoFramePreprocessing() {
         }
       }
 
+      if (state.currentMode === 'hip_rotation') {
+        try {
+          await processHipRotationFromPreprocessedFrames();
+        } catch (err) {
+          console.error("[HipRotationProcessing] Error processing preprocessed frames:", err);
+        }
+      }
+
       // Start the Playout phase!
       await startRealTimePlaybackExport();
     }
@@ -4777,13 +4943,14 @@ export function updateDashboardOfflinePlaceholders() {
 // BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
 function setExerciseMode(mode) {
   if (!mode) return;
-  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : mode));
+  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : (mode === 'hip-rotation' ? 'hip_rotation' : mode)));
 
   if (selectTestMode) {
     // Normalise key names to match dropdown option values
     let optValue = mode;
     if (mode === 'shoulder_flexion') optValue = 'shoulder';
-    if (mode === 'shoulder-rotation') optValue = 'shoulder-rotation';
+    if (mode === 'shoulder_rotation') optValue = 'shoulder-rotation';
+    if (mode === 'hip_rotation') optValue = 'hip-rotation';
     selectTestMode.value = optValue;
   }
 
@@ -4792,6 +4959,7 @@ function setExerciseMode(mode) {
   if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
   if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
   if (shoulderRotationSidebarContent) shoulderRotationSidebarContent.classList.add('hidden');
+  if (hipRotationSidebarContent) hipRotationSidebarContent.classList.add('hidden');
 
   // Show and sync active sidebar
   if (state.currentMode === 'posture') {
@@ -4826,6 +4994,15 @@ function setExerciseMode(mode) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateShoulderRotationSidebarUI();
+    }
+  } else if (state.currentMode === 'hip_rotation') {
+    if (hipRotationSidebarContent) hipRotationSidebarContent.classList.remove('hidden');
+    updateHipRotationSideUI();
+    updateHipRotationSidebarUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateHipRotationSidebarUI();
     }
   }
 }
@@ -5118,6 +5295,7 @@ registerSquatCallbacks({
 
 setupShoulderListeners(onPoseResults, updateDashboardOfflinePlaceholders);
 setupShoulderRotationListeners(onPoseResults);
+setupHipRotationListeners(onPoseResults);
 setupSquatListeners(onPoseResults, updateDashboardOfflinePlaceholders);
 setupVideoControls(pose, hands, onPoseResults, drawHandMesh);
 
@@ -5128,6 +5306,8 @@ setTimeout(() => {
   updateShoulderSidebarUI();
   updateShoulderRotationSideUI();
   updateShoulderRotationSidebarUI();
+  updateHipRotationSideUI();
+  updateHipRotationSidebarUI();
 }, 200);
 
 window.addEventListener('load', initScarletRecorder);

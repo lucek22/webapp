@@ -2,7 +2,7 @@
 // BUCKEYE PERSISTENT SUBJECT PROFILES MANAGER MODULE
 // =========================================================
 
-import { state, snapshotStore, formatLength, clearSmoothBuffer } from './helpers.js';
+import { state, snapshotStore, formatLength, clearSmoothBuffer, getROMThresholds, getDefaultROMThresholds, calculateROMGrade } from './helpers.js';
 import { getDefaultSquatPeaks, calculateValgusFromJoints } from './squatController.js';
 import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI } from './shoulderController.js';
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
@@ -2177,6 +2177,8 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
+    await renderShoulderRotationGrading(activeSession);
+
     const dsqDepth = document.getElementById('detail-squat-depth');
     if (dsqDepth) {
       const maxKneeMob = Math.max(sPeaks.kneeL || 0, sPeaks.kneeR || 0);
@@ -2581,6 +2583,226 @@ export async function openProfileDetailsModal(profileId) {
   } catch (err) {
     console.error("[openProfileDetailsModal] Error showing profile details modal:", err);
   }
+}
+
+export async function renderShoulderRotationGrading(activeSession) {
+  const panel = document.getElementById('shoulder-rotation-grading-panel');
+  if (!panel) return;
+
+  const shRot = getDefaultShoulderRotation(activeSession.shoulderRotation);
+  const shPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
+  const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
+  
+  const thresholds = await getROMThresholds();
+  
+  const extThresh = thresholds["External Rotation"] || { low: 60, high: 85 };
+  const intThresh = thresholds["Internal Rotation"] || { low: 50, high: 75 };
+  const flexThresh = thresholds["Shoulder Flexion"] || { low: 150, high: 170 };
+  const kneeThresh = thresholds["Knee Flexion"] || { low: 80, high: 110 };
+
+  const getGradeInfo = (val, thresh) => {
+    const absVal = Math.abs(val);
+    if (absVal === 0 || isNaN(absVal)) {
+      return { grade: null, label: "Unrecorded", color: "#888", bg: "rgba(255,255,255,0.02)", border: "rgba(255,255,255,0.05)" };
+    }
+    if (absVal <= thresh.low) {
+      return { grade: 1, label: "Poor", color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.3)" };
+    }
+    if (absVal <= thresh.high) {
+      return { grade: 2, label: "Average", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)", border: "rgba(245, 158, 11, 0.3)" };
+    }
+    return { grade: 3, label: "Great", color: "#10b981", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.3)" };
+  };
+
+  // 1. Rotation Grades
+  const extGradeL = getGradeInfo(shRot.maxExternalRotationL, extThresh);
+  const intGradeL = getGradeInfo(shRot.maxInternalRotationL, intThresh);
+  const extGradeR = getGradeInfo(shRot.maxExternalRotationR, extThresh);
+  const intGradeR = getGradeInfo(shRot.maxInternalRotationR, intThresh);
+
+  // 2. Flexion Grades
+  const flexGradeL = getGradeInfo(shPeaks.excursionL, flexThresh);
+  const flexGradeR = getGradeInfo(shPeaks.excursionR, flexThresh);
+
+  // 3. Knee Flexion Grades
+  const kneeGradeL = getGradeInfo(sPeaks.kneeL, kneeThresh);
+  const kneeGradeR = getGradeInfo(sPeaks.kneeR, kneeThresh);
+
+  panel.innerHTML = `
+    <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; font-family: inherit;">
+      <span style="display: flex; align-items: center; gap: 6px;">📊 COMPREHENSIVE RANGE OF MOTION (ROM) ASSESSMENT</span>
+      <span style="font-size: 0.65rem; color: #888; font-weight: normal;">Source: rom_thresholds.txt</span>
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 1rem; font-family: inherit;">
+      <!-- CATEGORY 1: SHOULDER INTERNAL/EXTERNAL ROTATION -->
+      <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">
+        <div style="font-size: 0.8rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">
+          <span>Shoulder Internal / External Rotation</span>
+          <span style="font-size: 0.65rem; color: #aaa; font-weight: normal; text-transform: none;">Starting 90° Abduction, Sagittal view</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <!-- Left Rotation -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #00e5ff; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(0,229,255,0.1); padding-bottom: 2px;">Left Side</div>
+            
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Internal Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${shRot.maxInternalRotationL ? `${Math.abs(shRot.maxInternalRotationL).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${intGradeL.bg}; border: 1px solid ${intGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${intGradeL.color};">${intGradeL.grade ? `Grade ${intGradeL.grade} (${intGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">External Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${shRot.maxExternalRotationL ? `${Math.abs(shRot.maxExternalRotationL).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${extGradeL.bg}; border: 1px solid ${extGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${extGradeL.color};">${extGradeL.grade ? `Grade ${extGradeL.grade} (${extGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Rotation -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #00e5ff; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(0,229,255,0.1); padding-bottom: 2px;">Right Side</div>
+            
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Internal Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${shRot.maxInternalRotationR ? `${Math.abs(shRot.maxInternalRotationR).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${intGradeR.bg}; border: 1px solid ${intGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${intGradeR.color};">${intGradeR.grade ? `Grade ${intGradeR.grade} (${intGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">External Rotation:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${shRot.maxExternalRotationR ? `${Math.abs(shRot.maxExternalRotationR).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${extGradeR.bg}; border: 1px solid ${extGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${extGradeR.color};">${extGradeR.grade ? `Grade ${extGradeR.grade} (${extGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Threshold Legend (Rotation) -->
+        <div style="margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.06); display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div>
+            <div style="font-size: 0.65rem; font-weight: bold; color: #aaa; margin-bottom: 1px;">Internal Rotation Cutoffs:</div>
+            <div style="font-size: 0.6rem; color: #888; display: flex; justify-content: space-between;">
+              <span>G1: &le; ${intThresh.low}°</span> <span>G2: ${intThresh.low + 1}-${intThresh.high}°</span> <span>G3: &gt; ${intThresh.high}°</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 0.65rem; font-weight: bold; color: #aaa; margin-bottom: 1px;">External Rotation Cutoffs:</div>
+            <div style="font-size: 0.6rem; color: #888; display: flex; justify-content: space-between;">
+              <span>G1: &le; ${extThresh.low}°</span> <span>G2: ${extThresh.low + 1}-${extThresh.high}°</span> <span>G3: &gt; ${extThresh.high}°</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CATEGORY 2: SHOULDER FLEXION EXCURSION & SQUAT KNEE FLEXION -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        
+        <!-- Shoulder Flexion Card -->
+        <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.6rem; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="font-size: 0.75rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.4rem; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 2px; text-transform: uppercase;">
+              Shoulder Flexion
+            </div>
+            
+            <!-- Left Flexion -->
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1px;">
+                <span style="font-size: 0.68rem; color: #ccc;">Left Excursion:</span>
+                <span style="font-size: 0.7rem; font-weight: bold; color: #fff;">${shPeaks.excursionL ? `${shPeaks.excursionL.toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${flexGradeL.bg}; border: 1px solid ${flexGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.58rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.62rem; font-weight: bold; color: ${flexGradeL.color};">${flexGradeL.grade ? `Grade ${flexGradeL.grade} (${flexGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+
+            <!-- Right Flexion -->
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1px;">
+                <span style="font-size: 0.68rem; color: #ccc;">Right Excursion:</span>
+                <span style="font-size: 0.7rem; font-weight: bold; color: #fff;">${shPeaks.excursionR ? `${shPeaks.excursionR.toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${flexGradeR.bg}; border: 1px solid ${flexGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.58rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.62rem; font-weight: bold; color: ${flexGradeR.color};">${flexGradeR.grade ? `Grade ${flexGradeR.grade} (${flexGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thresholds -->
+          <div style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 0.62rem; font-weight: bold; color: #aaa; margin-bottom: 1px;">Shoulder Flexion Cutoffs:</div>
+            <div style="font-size: 0.58rem; color: #888; display: flex; justify-content: space-between;">
+              <span>G1: &le; ${flexThresh.low}°</span> <span>G2: ${flexThresh.low + 1}-${flexThresh.high}°</span> <span>G3: &gt; ${flexThresh.high}°</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Knee Flexion Card -->
+        <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.6rem; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <div style="font-size: 0.75rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.4rem; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 2px; text-transform: uppercase;">
+              Knee Flexion (Squat)
+            </div>
+            
+            <!-- Left Knee -->
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1px;">
+                <span style="font-size: 0.68rem; color: #ccc;">Left Knee:</span>
+                <span style="font-size: 0.7rem; font-weight: bold; color: #fff;">${sPeaks.kneeL ? `${sPeaks.kneeL.toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${kneeGradeL.bg}; border: 1px solid ${kneeGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.58rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.62rem; font-weight: bold; color: ${kneeGradeL.color};">${kneeGradeL.grade ? `Grade ${kneeGradeL.grade} (${kneeGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+
+            <!-- Right Knee -->
+            <div style="margin-bottom: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1px;">
+                <span style="font-size: 0.68rem; color: #ccc;">Right Knee:</span>
+                <span style="font-size: 0.7rem; font-weight: bold; color: #fff;">${sPeaks.kneeR ? `${sPeaks.kneeR.toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${kneeGradeR.bg}; border: 1px solid ${kneeGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.58rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.62rem; font-weight: bold; color: ${kneeGradeR.color};">${kneeGradeR.grade ? `Grade ${kneeGradeR.grade} (${kneeGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thresholds -->
+          <div style="margin-top: 0.4rem; padding-top: 0.3rem; border-top: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 0.62rem; font-weight: bold; color: #aaa; margin-bottom: 1px;">Knee Flexion Cutoffs:</div>
+            <div style="font-size: 0.58rem; color: #888; display: flex; justify-content: space-between;">
+              <span>G1: &le; ${kneeThresh.low}°</span> <span>G2: ${kneeThresh.low + 1}-${kneeThresh.high}°</span> <span>G3: &gt; ${kneeThresh.high}°</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  `;
 }
 
 export function closeProfileDetailsModal() {

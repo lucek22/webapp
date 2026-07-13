@@ -460,3 +460,77 @@ export function triggerFlashEffect() {
   }, 30);
 }
 
+let cachedROMThresholds = null;
+
+export async function getROMThresholds() {
+  if (cachedROMThresholds) return cachedROMThresholds;
+  try {
+    const response = await fetch('rom_thresholds.txt');
+    if (response.ok) {
+      const text = await response.text();
+      cachedROMThresholds = parseROMThresholds(text);
+      console.log("[ROM] Loaded ROM thresholds from file:", cachedROMThresholds);
+    } else {
+      console.warn("[ROM] Could not load rom_thresholds.txt, using defaults");
+      cachedROMThresholds = getDefaultROMThresholds();
+    }
+  } catch (err) {
+    console.error("[ROM] Error reading rom_thresholds.txt, using defaults:", err);
+    cachedROMThresholds = getDefaultROMThresholds();
+  }
+  return cachedROMThresholds;
+}
+
+export function parseROMThresholds(text) {
+  const thresholds = {};
+  const lines = text.split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (!line || line.startsWith('#') || line.startsWith('//')) continue;
+    
+    const parts = line.split('|');
+    if (parts.length === 2) {
+      const highVal = parseFloat(parts[1].trim());
+      const leftPart = parts[0].trim();
+      
+      const spaceIdx = leftPart.lastIndexOf(' ');
+      if (spaceIdx !== -1) {
+        const testName = leftPart.substring(0, spaceIdx).trim();
+        const lowVal = parseFloat(leftPart.substring(spaceIdx).trim());
+        
+        if (!isNaN(lowVal) && !isNaN(highVal)) {
+          thresholds[testName] = { low: lowVal, high: highVal };
+        }
+      }
+    }
+  }
+  return thresholds;
+}
+
+export function getDefaultROMThresholds() {
+  return {
+    "External Rotation": { low: 60, high: 85 },
+    "Internal Rotation": { low: 50, high: 75 },
+    "Shoulder Flexion": { low: 150, high: 170 },
+    "Knee Flexion": { low: 80, high: 110 }
+  };
+}
+
+export function calculateROMGrade(value, low, high) {
+  const absVal = Math.abs(value);
+  if (absVal === 0) return null; // Avoid grading unrecorded sessions
+  if (absVal <= low) return 1;
+  if (absVal <= high) return 2;
+  return 3;
+}
+
+export function updateShoulderRotationGrades(shRot, thresholds) {
+  const extT = thresholds?.["External Rotation"] || { low: 60, high: 85 };
+  const intT = thresholds?.["Internal Rotation"] || { low: 50, high: 75 };
+  
+  shRot.gradeExternalL = calculateROMGrade(shRot.maxExternalRotationL, extT.low, extT.high);
+  shRot.gradeInternalL = calculateROMGrade(shRot.maxInternalRotationL, intT.low, intT.high);
+  shRot.gradeExternalR = calculateROMGrade(shRot.maxExternalRotationR, extT.low, extT.high);
+  shRot.gradeInternalR = calculateROMGrade(shRot.maxInternalRotationR, intT.low, intT.high);
+}
+

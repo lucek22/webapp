@@ -329,6 +329,24 @@ export async function initializeProfilesSelector() {
     btnCloseProfileDetailsFooter.addEventListener('click', closeProfileDetailsModal);
   }
 
+  // Initialize Athlete Tabs switching
+  const tabButtons = document.querySelectorAll('.athlete-tab-btn');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const tabPanes = document.querySelectorAll('.athlete-tab-pane');
+      tabPanes.forEach(pane => pane.classList.add('hidden'));
+
+      const targetTabId = btn.getAttribute('data-tab');
+      const targetPane = document.getElementById(targetTabId);
+      if (targetPane) {
+        targetPane.classList.remove('hidden');
+      }
+    });
+  });
+
   const mainVideoPlayer = document.getElementById('profile-details-video-player');
   if (mainVideoPlayer) {
     const container = document.getElementById('profile-details-video-player-container');
@@ -486,12 +504,33 @@ export async function initializeProfilesSelector() {
   const lightboxModal = document.getElementById('image-lightbox-modal');
   const btnCloseLightbox = document.getElementById('btn-close-lightbox');
   const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxVideo = document.getElementById('lightbox-video');
   const lightboxTitle = document.getElementById('lightbox-title');
 
   if (lightboxModal && btnCloseLightbox && lightboxImg) {
     window.expandLightboxImage = function(src, title) {
       if (!src) return;
+      if (lightboxVideo) {
+        lightboxVideo.pause();
+        lightboxVideo.src = '';
+        lightboxVideo.style.display = 'none';
+      }
       lightboxImg.src = src;
+      lightboxImg.style.display = 'block';
+      if (lightboxTitle) {
+        lightboxTitle.textContent = title;
+      }
+      lightboxModal.classList.add('active');
+    };
+
+    window.expandLightboxVideo = function(src, title) {
+      if (!src) return;
+      lightboxImg.style.display = 'none';
+      if (lightboxVideo) {
+        lightboxVideo.src = src;
+        lightboxVideo.style.display = 'block';
+        lightboxVideo.play().catch(err => console.log("[LightboxVideo] Autoplay blocked:", err));
+      }
       if (lightboxTitle) {
         lightboxTitle.textContent = title;
       }
@@ -499,6 +538,11 @@ export async function initializeProfilesSelector() {
     };
 
     const closeLightbox = () => {
+      if (lightboxVideo) {
+        lightboxVideo.pause();
+        lightboxVideo.src = '';
+        lightboxVideo.style.display = 'none';
+      }
       lightboxModal.classList.remove('active');
     };
 
@@ -1428,61 +1472,8 @@ export async function openProfileDetailsModal(profileId) {
 
             cardWrapper.addEventListener('click', (e) => {
               e.stopPropagation();
-              const playlistRow = document.querySelector(`.profile-video-row-item[data-video-id="${sVideo.id}"]`);
-              if (playlistRow) {
-                playlistRow.click();
-              } else {
-                if (p.key === 'squat-l') {
-                  state.squatTestingSide = 'left';
-                  state.allowFrontalUpdateL = false;
-                  state.allowFrontalUpdateR = false;
-                } else if (p.key === 'squat-r') {
-                  state.squatTestingSide = 'right';
-                  state.allowFrontalUpdateL = false;
-                  state.allowFrontalUpdateR = false;
-                } else if (p.key === 'squat-frontal') {
-                  state.squatTestingSide = 'frontal';
-                  state.allowFrontalUpdateL = (!state.squatPeaks || (state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0));
-                  state.allowFrontalUpdateR = (!state.squatPeaks || (state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0));
-                } else if (p.key === 'shoulder-rotation-l') {
-                  state.shoulderRotationTestingSide = 'left';
-                } else if (p.key === 'shoulder-rotation-r') {
-                  state.shoulderRotationTestingSide = 'right';
-                } else if (p.key === 'hip-rotation-l') {
-                  state.hipRotationTestingSide = 'left';
-                } else if (p.key === 'hip-rotation-r') {
-                  state.hipRotationTestingSide = 'right';
-                }
-                const mainVideoPlayer = document.getElementById('profile-details-video-player');
-                const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
-                if (mainVideoPlayer) {
-                  const canvas = document.getElementById('profile-details-video-canvas');
-                  if (canvas) {
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-                  }
-                  mainVideoPlayer.src = videoUrl;
-                  mainVideoPlayer.style.display = 'block';
-                  if (videoPlaceholder) {
-                    videoPlaceholder.style.display = 'none';
-                  }
-                  const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
-                  if (btnFullscreen) {
-                    btnFullscreen.style.display = 'flex';
-                  }
-                  mainVideoPlayer.play().catch(err => console.log("[VideoPlay] Autoplay blocked:", err));
-                }
-              }
-
-              const playerContainer = document.getElementById('profile-details-video-player-container');
-              if (playerContainer) {
-                playerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                playerContainer.style.borderColor = '#00e5ff';
-                playerContainer.style.boxShadow = '0 0 15px rgba(0, 229, 255, 0.35)';
-                setTimeout(() => {
-                  playerContainer.style.borderColor = 'rgba(255,255,255,0.08)';
-                  playerContainer.style.boxShadow = 'none';
-                }, 1200);
+              if (window.expandLightboxVideo) {
+                window.expandLightboxVideo(videoUrl, `${p.title} Video Capture`);
               }
             });
           } else if (p.isShoulder) {
@@ -1521,21 +1512,8 @@ export async function openProfileDetailsModal(profileId) {
               
               playOverlayBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const mainVideoPlayer = document.getElementById('profile-details-video-player');
-                const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
-                
-                const playlistRow = document.querySelector(`.profile-video-row-item[data-video-id="${sVideo.id}"]`);
-                if (playlistRow) {
-                  playlistRow.click();
-                } else {
-                  if (mainVideoPlayer) {
-                    mainVideoPlayer.src = videoUrl;
-                    mainVideoPlayer.style.display = 'block';
-                    if (videoPlaceholder) {
-                      videoPlaceholder.style.display = 'none';
-                    }
-                    mainVideoPlayer.play().catch(e => {});
-                  }
+                if (window.expandLightboxVideo) {
+                  window.expandLightboxVideo(videoUrl, `${p.title} Video Capture`);
                 }
               });
               containerEl.appendChild(playOverlayBtn);
@@ -2732,6 +2710,10 @@ export async function openProfileDetailsModal(profileId) {
     const profileDetailsModal = document.getElementById('profile-details-modal');
     if (profileDetailsModal) {
       profileDetailsModal.classList.add('active');
+      const firstTabBtn = document.querySelector('.athlete-tab-btn[data-tab="tab-anthropometrics"]');
+      if (firstTabBtn) {
+        firstTabBtn.click();
+      }
     }
 
   } catch (err) {

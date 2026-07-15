@@ -3535,3 +3535,49 @@ div[style*="color: #10b981"] {
 #profile-details-video-player::picture-in-picture {
   display: none !important;
 }
+
+/* Athlete Profile Tabs System */
+.athlete-tabs-nav {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.athlete-tab-btn {
+  background: none;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #a7b1b7;
+  cursor: pointer;
+  border-radius: 6px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.athlete-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.athlete-tab-btn.active {
+  color: var(--color-scarlet) !important;
+  border-bottom: 2px solid var(--color-scarlet) !important;
+  background: rgba(186, 12, 47, 0.05);
+}
+
+.athlete-tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.athlete-tab-pane.hidden {
+  display: none !important;
+}
+

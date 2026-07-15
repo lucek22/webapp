@@ -453,6 +453,15 @@ export function setupShoulderRotationListeners(onPoseResultsCallback) {
         // --- STOP RECORDING & SAVE ---
         state.isShoulderRotationRecording = false;
 
+        const canvasElement = document.getElementById('overlay');
+        const capturedImg = canvasElement ? canvasElement.toDataURL('image/png') : null;
+        const side = state.shoulderRotationTestingSide || 'left';
+        if (side === 'left') {
+          state.imageShoulderRotationL = capturedImg;
+        } else {
+          state.imageShoulderRotationR = capturedImg;
+        }
+
         if (isWebcamLive && stopVideoRecordingFn) {
           stopVideoRecordingFn();
         }

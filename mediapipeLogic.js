@@ -104,8 +104,13 @@ export function calculatePoseMetrics(results) {
 
   const lm = results.poseLandmarks;
 
-  // Safety check: Require only the critical structural joints (shoulders, hips, knees, ankles)
-  const requiredIndices = [11, 12, 23, 24, 25, 26, 27, 28];
+  // Safety check: Require structural joints depending on mode
+  let requiredIndices = [11, 12, 23, 24, 25, 26, 27, 28];
+  if (state.currentMode === 'ankledorsi') {
+    const side = state.ankleDorsi ? state.ankleDorsi.activeSide : 'left';
+    requiredIndices = (side === 'left') ? [25, 27, 31] : [26, 28, 32];
+  }
+
   for (const idx of requiredIndices) {
     if (!lm[idx]) {
       console.warn(`Missing critical required landmark index ${idx} in calculatePoseMetrics`);
@@ -116,40 +121,41 @@ export function calculatePoseMetrics(results) {
   const mirrorX = getCanvasX;
   const height = state.canvasHeight || 480;
 
-  // Resolve normalized coordinates to pixels (LEFT) - CRITICAL JOINTS
-  const shoulder_l = { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * height };
-  const hip_l = { x: mirrorX(lm[LEFT_HIP].x), y: lm[LEFT_HIP].y * height };
-  const knee_l = { x: mirrorX(lm[LEFT_KNEE].x), y: lm[LEFT_KNEE].y * height };
-  const ankle_l = { x: mirrorX(lm[LEFT_ANKLE].x), y: lm[LEFT_ANKLE].y * height };
+  // Resolve normalized coordinates to pixels (LEFT) - CRITICAL JOINTS with null-safety
+  const shoulder_l = lm[LEFT_SHOULDER] ? { x: mirrorX(lm[LEFT_SHOULDER].x), y: lm[LEFT_SHOULDER].y * height } : null;
+  const hip_l = lm[LEFT_HIP] ? { x: mirrorX(lm[LEFT_HIP].x), y: lm[LEFT_HIP].y * height } : null;
+  const knee_l = lm[LEFT_KNEE] ? { x: mirrorX(lm[LEFT_KNEE].x), y: lm[LEFT_KNEE].y * height } : null;
+  const ankle_l = lm[LEFT_ANKLE] ? { x: mirrorX(lm[LEFT_ANKLE].x), y: lm[LEFT_ANKLE].y * height } : null;
 
-  // Resolve normalized coordinates to pixels (RIGHT) - CRITICAL JOINTS
-  const shoulder_r = { x: mirrorX(lm[RIGHT_SHOULDER].x), y: lm[RIGHT_SHOULDER].y * height };
-  const hip_r = { x: mirrorX(lm[RIGHT_HIP].x), y: lm[RIGHT_HIP].y * height };
-  const knee_r = { x: mirrorX(lm[RIGHT_KNEE].x), y: lm[RIGHT_KNEE].y * height };
-  const ankle_r = { x: mirrorX(lm[RIGHT_ANKLE].x), y: lm[RIGHT_ANKLE].y * height };
+  // Resolve normalized coordinates to pixels (RIGHT) - CRITICAL JOINTS with null-safety
+  const shoulder_r = lm[RIGHT_SHOULDER] ? { x: mirrorX(lm[RIGHT_SHOULDER].x), y: lm[RIGHT_SHOULDER].y * height } : null;
+  const hip_r = lm[RIGHT_HIP] ? { x: mirrorX(lm[RIGHT_HIP].x), y: lm[RIGHT_HIP].y * height } : null;
+  const knee_r = lm[RIGHT_KNEE] ? { x: mirrorX(lm[RIGHT_KNEE].x), y: lm[RIGHT_KNEE].y * height } : null;
+  const ankle_r = lm[RIGHT_ANKLE] ? { x: mirrorX(lm[RIGHT_ANKLE].x), y: lm[RIGHT_ANKLE].y * height } : null;
 
   // Resolve normalized coordinates to pixels (OPTIONAL JOINTS WITH ANATOMICAL FALLBACKS)
-  const elbow_l = lm[13] ? { x: mirrorX(lm[13].x), y: lm[13].y * height } : { ...shoulder_l };
-  const wrist_l = lm[15] ? { x: mirrorX(lm[15].x), y: lm[15].y * height } : { ...elbow_l };
-  const heel_l = lm[29] ? { x: mirrorX(lm[29].x), y: lm[29].y * height } : { ...ankle_l };
-  const toe_l = lm[31] ? { x: mirrorX(lm[31].x), y: lm[31].y * height } : { ...ankle_l };
+  const elbow_l = lm[13] ? { x: mirrorX(lm[13].x), y: lm[13].y * height } : (shoulder_l ? { ...shoulder_l } : null);
+  const wrist_l = lm[15] ? { x: mirrorX(lm[15].x), y: lm[15].y * height } : (elbow_l ? { ...elbow_l } : null);
+  const heel_l = lm[29] ? { x: mirrorX(lm[29].x), y: lm[29].y * height } : (ankle_l ? { ...ankle_l } : null);
+  const toe_l = lm[31] ? { x: mirrorX(lm[31].x), y: lm[31].y * height } : (ankle_l ? { ...ankle_l } : null);
 
-  const elbow_r = lm[14] ? { x: mirrorX(lm[14].x), y: lm[14].y * height } : { ...shoulder_r };
-  const wrist_r = lm[16] ? { x: mirrorX(lm[16].x), y: lm[16].y * height } : { ...elbow_r };
-  const heel_r = lm[30] ? { x: mirrorX(lm[30].x), y: lm[30].y * height } : { ...ankle_r };
-  const toe_r = lm[32] ? { x: mirrorX(lm[32].x), y: lm[32].y * height } : { ...ankle_r };
+  const elbow_r = lm[14] ? { x: mirrorX(lm[14].x), y: lm[14].y * height } : (shoulder_r ? { ...shoulder_r } : null);
+  const wrist_r = lm[16] ? { x: mirrorX(lm[16].x), y: lm[16].y * height } : (elbow_r ? { ...elbow_r } : null);
+  const heel_r = lm[30] ? { x: mirrorX(lm[30].x), y: lm[30].y * height } : (ankle_r ? { ...ankle_r } : null);
+  const toe_r = lm[32] ? { x: mirrorX(lm[32].x), y: lm[32].y * height } : (ankle_r ? { ...ankle_r } : null);
 
   // --- CALCULATE HEAD TOP ---
-  const shoulder_mid = {
+  const shoulder_mid = (shoulder_l && shoulder_r) ? {
     x: (shoulder_l.x + shoulder_r.x) / 2,
     y: (shoulder_l.y + shoulder_r.y) / 2
-  };
-  const hip_mid_x = (hip_l.x + hip_r.x) / 2;
-  const hip_mid_y = (hip_l.y + hip_r.y) / 2;
+  } : { x: 0, y: 0 };
+  
+  const hip_mid_x = (hip_l && hip_r) ? (hip_l.x + hip_r.x) / 2 : 0;
+  const hip_mid_y = (hip_l && hip_r) ? (hip_l.y + hip_r.y) / 2 : 0;
 
   let ear_mid;
   let ear_to_crown_px;
-  const shoulder_width_px = Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y);
+  const shoulder_width_px = (shoulder_l && shoulder_r) ? Math.hypot(shoulder_l.x - shoulder_r.x, shoulder_l.y - shoulder_r.y) : 100;
 
   if (lm[7] && lm[8]) {
     ear_mid = {
@@ -184,16 +190,16 @@ export function calculatePoseMetrics(results) {
   const ankleAngleL = calculateAngle(ankle_l, knee_l, toe_l);
   const ankleAngleR = calculateAngle(ankle_r, knee_r, toe_r);
 
-  // Vertical height ground plane
-  const foot_l_bottom = Math.max(heel_l.y, toe_l.y);
-  const foot_r_bottom = Math.max(heel_r.y, toe_r.y);
+  // Vertical height ground plane with null checks
+  const foot_l_bottom = (heel_l && toe_l) ? Math.max(heel_l.y, toe_l.y) : (heel_l ? heel_l.y : (toe_l ? toe_l.y : height));
+  const foot_r_bottom = (heel_r && toe_r) ? Math.max(heel_r.y, toe_r.y) : (heel_r ? heel_r.y : (toe_r ? toe_r.y : height));
   const ground_y = (foot_l_bottom + foot_r_bottom) / 2;
 
   let liveMetrics = null;
   const wl = results.poseWorldLandmarks || results.ea || results.za || results.pose_world_landmarks;
 
   // Auto-calibrate state.pixelsPerCm using pre-measured portfolio stature if present
-  if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) {
+  if (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height && shoulder_l && shoulder_r && hip_l && hip_r && knee_l && knee_r && ankle_l && ankle_r && heel_l && heel_r) {
     const head_segment_px = Math.hypot(head_top.x - shoulder_mid.x, head_top.y - shoulder_mid.y);
     const hip_mid_x = (hip_l.x + hip_r.x) / 2;
     const hip_mid_y = (hip_l.y + hip_r.y) / 2;
@@ -677,7 +683,8 @@ export function calculatePoseMetrics(results) {
     head_top, ground_y, all_landmarks,
     kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
     ankleAngleL, ankleAngleR,
-    liveMetrics
+    liveMetrics,
+    raw_lm: lm
   };
 
   // If using a mirrored user front webcam, swap left/right landmarks and metrics to match actual anatomy

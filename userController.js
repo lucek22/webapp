@@ -21,6 +21,7 @@ import {
 
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
 import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
+import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt, updateDorsiLiveUI } from './ankleDorsi.js';
 
 import {
   drawJoint,
@@ -172,6 +173,12 @@ const videoSeekbar = document.getElementById('video-seekbar');
 const videoTimeDisplay = document.getElementById('video-time-display');
 const videoSpeedBtn = document.getElementById('video-speed-btn');
 
+// Profile DOMS for switching between modes
+
+const profileSearchBar = document.getElementById('profile-search-wrapper');
+const profileDropdown = document.getElementById('profile-controls-row');
+const newProfileContainter = document.getElementById('new-profile-input-container');
+
 
 // Helper canvas for caching frozen frames
 export const frozenFrameCanvas = document.createElement('canvas');
@@ -301,6 +308,7 @@ const selectTestMode = document.getElementById('select-test-mode');
 const postureSidebarContent = document.getElementById('posture-sidebar-content');
 const squatSidebarContent = document.getElementById('squat-sidebar-content');
 const shoulderSidebarContent = document.getElementById('shoulder-sidebar-content');
+const ankledorsiSidebarContent = document.getElementById('ankledorsi-sidebar-content');
 
 const squatPeakKneeL = document.getElementById('squat-peak-knee-l');
 const squatLiveKneeL = document.getElementById('squat-live-knee-l');
@@ -415,8 +423,9 @@ const ANGLE_METRICS = [
   { element: elbowAngleRDisp, key: 'elbowAngleR' }
 ];
 
-// ==========================================
-// // Drawing functions are now imported from ./canvasRenderer.js
+// =====================================================================
+// CANVAS DRAWING COMPONENT UTILITIES (NOW IN canvasRenderer.js)
+// =====================================================================
 
 function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_inches_str, heel_l, heel_r) {
   // Draw bottom of the feet ground contact point
@@ -539,9 +548,9 @@ function drawLiveStatsCard(ctx, calculated) {
   const rowSpacing = 14 * scale;
   
   const joints = [
-    { label: "Knee L / R", val: `${Math.round(calculated.kneeAngleL)}° / ${Math.round(calculated.kneeAngleR)}°` },
-    { label: "Hip L / R", val: `${Math.round(calculated.hipAngleL)}° / ${Math.round(calculated.hipAngleR)}°` },
-    { label: "Elbow L / R", val: `${Math.round(calculated.elbowAngleL)}° / ${Math.round(calculated.elbowAngleR)}°` }
+    { label: "Knee L / R", val: `${Math.round(calculated.kneeAngleL || 0)}° / ${Math.round(calculated.kneeAngleR || 0)}°` },
+    { label: "Hip L / R", val: `${Math.round(calculated.hipAngleL || 0)}° / ${Math.round(calculated.hipAngleR || 0)}°` },
+    { label: "Elbow L / R", val: `${Math.round(calculated.elbowAngleL || 0)}° / ${Math.round(calculated.elbowAngleR || 0)}°` }
   ];
   
   joints.forEach(j => {
@@ -698,7 +707,10 @@ export function onPoseResults(results) {
     if (results && results.poseLandmarks) {
       calculated = calculatePoseMetrics(results);
       if (calculated) {
-        const kneeAngleL = calculated.kneeAngleL;
+        if (state.currentMode === 'ankledorsi') {
+          processAnkleDorsi(calculated);
+        } else {
+          const kneeAngleL = calculated.kneeAngleL;
         const kneeAngleR = calculated.kneeAngleR;
         const hipAngleL = calculated.hipAngleL;
         const hipAngleR = calculated.hipAngleR;
@@ -752,6 +764,7 @@ export function onPoseResults(results) {
             }
           }
         }
+        }
       }
     }
 
@@ -800,7 +813,10 @@ export function onPoseResults(results) {
       drawJoint(head_top, '#FFFFFF');
 
       // Position ruler
-      const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+      const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+        .filter(p => p !== null && p !== undefined && p.x !== undefined)
+        .map(p => p.x);
+      if (body_xs.length === 0) body_xs.push(320);
       const min_x = Math.min(...body_xs);
       const max_x = Math.max(...body_xs);
       const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
@@ -998,7 +1014,9 @@ export function onPoseResults(results) {
   }
 
   if (typeof calculatePoseMetrics === 'function') {
-    calculated = calculatePoseMetrics(results);
+    if (!calculated) {
+      calculated = calculatePoseMetrics(results);
+    }
 
     if (calculated) {
       state.lastCalculatedResults = calculated;
@@ -1069,23 +1087,39 @@ export function onPoseResults(results) {
       drawSkeletalFramework(calculated);
 
       // --- NEW: DIGITAL FLOATING BADGES & VALGUS ALERTS ---
-      drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
-      drawAngleBadge(canvasCtx, hip_l, hipAngleL, '#d4a017');
-      drawAngleBadge(canvasCtx, ankle_l, ankleAngleL, '#06b6d4');
+      if (state.currentMode === 'ankledorsi') {
+        const side = state.ankleDorsi.activeSide;
+        const activeAnkle = side === 'left' ? ankle_l : ankle_r;
+        const activeKnee = side === 'left' ? knee_l : knee_r;
+        
+        // Draw Tibial Inclination angle badge at the midpoint of the shin
+        if (activeAnkle && activeKnee) {
+          const shinMidpoint = {
+            x: (activeAnkle.x + activeKnee.x) / 2,
+            y: (activeAnkle.y + activeKnee.y) / 2
+          };
+          const liveShinTilt = (side === 'left') ? calculateShinTilt(ankle_l, knee_l) : calculateShinTilt(ankle_r, knee_r);
+          drawAngleBadge(canvasCtx, shinMidpoint, liveShinTilt, '#06b6d4'); // Cyan for Tibial Inclination
+        }
+      } else {
+        drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
+        drawAngleBadge(canvasCtx, hip_l, hipAngleL, '#d4a017');
+        drawAngleBadge(canvasCtx, ankle_l, ankleAngleL, '#06b6d4');
 
-      drawAngleBadge(canvasCtx, knee_r, kneeAngleR, '#10b981');
-      drawAngleBadge(canvasCtx, hip_r, hipAngleR, '#d4a017');
-      drawAngleBadge(canvasCtx, ankle_r, ankleAngleR, '#06b6d4');
+        drawAngleBadge(canvasCtx, knee_r, kneeAngleR, '#10b981');
+        drawAngleBadge(canvasCtx, hip_r, hipAngleR, '#d4a017');
+        drawAngleBadge(canvasCtx, ankle_r, ankleAngleR, '#06b6d4');
 
-      // Frontal Knee Valgus Badge
-      const valgus = calculateValgusFromJoints(calculated);
-      const kneeMobL = 180 - (kneeAngleL || 180);
-      const kneeMobR = 180 - (kneeAngleR || 180);
-      if (kneeMobL >= 15 && valgus.pctL > 4.0) {
-        drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
-      }
-      if (kneeMobR >= 15 && valgus.pctR > 4.0) {
-        drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+        // Frontal Knee Valgus Badge
+        const valgus = calculateValgusFromJoints(calculated);
+        const kneeMobL = 180 - (kneeAngleL || 180);
+        const kneeMobR = 180 - (kneeAngleR || 180);
+        if (kneeMobL >= 15 && valgus.pctL > 4.0) {
+          drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
+        }
+        if (kneeMobR >= 15 && valgus.pctR > 4.0) {
+          drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+        }
       }
 
       // Draw live stats HUD card unconditionally of calibration
@@ -1100,6 +1134,8 @@ export function onPoseResults(results) {
       elbowAngleRDisp.textContent = `${elbowAngleR}°`;
 
       // Overhead Squat Mobility calculations
+      const kneeMobL = 180 - (kneeAngleL || 180);
+      const kneeMobR = 180 - (kneeAngleR || 180);
       const hipMobL = 180 - (hipAngleL || 180);
       const hipMobR = 180 - (hipAngleR || 180);
       const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
@@ -1135,6 +1171,8 @@ export function onPoseResults(results) {
       // If in squat mode, update the Overhead Squat dashboard UI
       if (state.currentMode === 'squat') {
         updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated);
+      } else if (state.currentMode === 'ankledorsi') {
+        processAnkleDorsi(calculated);
       } else if (state.currentMode === 'shoulder_flexion') {
         const side = state.shoulderTestingSide || 'left';
         const angleInfo = getShoulderWristAngle(results.poseLandmarks, side);
@@ -1459,7 +1497,10 @@ export function onPoseResults(results) {
         renderDashboard(liveMetrics);
 
         // Position ruler on whichever side has more margin
-        const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+        const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+          .filter(p => p !== null && p !== undefined && p.x !== undefined)
+          .map(p => p.x);
+        if (body_xs.length === 0) body_xs.push(320);
         const min_x = Math.min(...body_xs);
         const max_x = Math.max(...body_xs);
         const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
@@ -3813,20 +3854,20 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
     }
   });
 
-  // Set calibration state based on chosen method
   if (method === 'height') {
     state.pixelsPerCm = null; // Calculated dynamically in frame loop
     state.calLocked = true;   // Automatically consider locked/calibrated
-  }  else {
+  } else {
     state.pixelsPerCm = null;
     state.calLocked = false;
   }
 }
 
-tabHeightBtn.addEventListener('click', () => {
-  switchCalibrationTab('height', tabHeightBtn, panelHeight);
-});
-
+if (tabHeightBtn) {
+  tabHeightBtn.addEventListener('click', () => {
+    switchCalibrationTab('height', tabHeightBtn, panelHeight);
+  });
+}
 
 if (tabPortfolioBtn) {
   tabPortfolioBtn.addEventListener('click', () => {
@@ -3839,6 +3880,9 @@ if (tabImportBtn) {
     switchCalibrationTab('import', tabImportBtn, panelImport);
   });
 }
+
+// Set initial tab state on load
+switchCalibrationTab('height', tabHeightBtn || null, panelHeight);
 
 // Premeasured scale factor pasting event listener
 if (btnApplyScale && inputPremeasuredScale) {
@@ -3939,6 +3983,7 @@ export function exportCombinedAssessmentCard() {
   const jointRadius = Math.max(4.0, 5.0 * scale);
 
   const drawOffscreenJoint = (pt, color) => {
+    if (!pt || pt.x === undefined || pt.y === undefined) return;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, jointRadius, 0, 2 * Math.PI);
     ctx.fillStyle = color;
@@ -3949,6 +3994,7 @@ export function exportCombinedAssessmentCard() {
   };
 
   const drawOffscreenBone = (p1, p2, color) => {
+    if (!p1 || p1.x === undefined || p1.y === undefined || !p2 || p2.x === undefined || p2.y === undefined) return;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
@@ -4011,7 +4057,10 @@ export function exportCombinedAssessmentCard() {
 
   // Draw ruler
   if (state.pixelsPerCm && liveMetrics) {
-    const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+    const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+      .filter(p => p !== null && p !== undefined && p.x !== undefined)
+      .map(p => p.x);
+    if (body_xs.length === 0) body_xs.push(width / 2);
     const min_x = Math.min(...body_xs);
     const max_x = Math.max(...body_xs);
     const ruler_margin = 40 * scale;
@@ -4804,11 +4853,19 @@ function updateStateInputHeight() {
   const inputElem = document.getElementById('input-user-height');
   if (!inputElem) return;
   const inputVal = parseFloat(inputElem.value);
-  if (!isNaN(inputVal)) {
-    if (state.useInches) {
-      state.inputHeightCm = inputVal * 2.54;
-    } else {
-      state.inputHeightCm = inputVal;
+  if (!isNaN(inputVal) && inputVal > 0) {
+    const heightCm = state.useInches ? inputVal * 2.54 : inputVal;
+    state.inputHeightCm = heightCm;
+
+    // Persist updated height if a profile is loaded
+    if (state.activeProfileId && state.allProfiles && snapshotStore) {
+      const profile = state.allProfiles.find(p => p.id === state.activeProfileId);
+      if (profile && profile.heightCm !== heightCm) {
+        profile.heightCm = heightCm;
+        snapshotStore.saveProfile(profile).catch(err => {
+          console.error("Failed to save updated profile height:", err);
+        });
+      }
     }
   }
 }
@@ -4995,7 +5052,7 @@ export function updateDashboardOfflinePlaceholders() {
 // BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
 function setExerciseMode(mode) {
   if (!mode) return;
-  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : (mode === 'hip-rotation' ? 'hip_rotation' : mode)));
+  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : (mode === 'hip-rotation' ? 'hip_rotation' : (mode === 'ankle-dorsi' ? 'ankledorsi' : mode))));
 
   if (selectTestMode) {
     // Normalise key names to match dropdown option values
@@ -5003,6 +5060,7 @@ function setExerciseMode(mode) {
     if (mode === 'shoulder_flexion') optValue = 'shoulder';
     if (mode === 'shoulder_rotation') optValue = 'shoulder-rotation';
     if (mode === 'hip_rotation') optValue = 'hip-rotation';
+    if (mode === 'ankledorsi' || mode === 'ankle-dorsi') optValue = 'ankle-dorsi';
     selectTestMode.value = optValue;
   }
 
@@ -5012,6 +5070,7 @@ function setExerciseMode(mode) {
   if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
   if (shoulderRotationSidebarContent) shoulderRotationSidebarContent.classList.add('hidden');
   if (hipRotationSidebarContent) hipRotationSidebarContent.classList.add('hidden');
+  if (ankledorsiSidebarContent) ankledorsiSidebarContent.classList.add('hidden');
 
   // Show and sync active sidebar
   if (state.currentMode === 'posture') {
@@ -5028,6 +5087,13 @@ function setExerciseMode(mode) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateSquatDashboardOffline();
+    }
+  } else if (state.currentMode === 'ankledorsi') {
+    if (ankledorsiSidebarContent) ankledorsiSidebarContent.classList.remove('hidden');
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateDorsiLiveUI();
     }
   } else if (state.currentMode === 'shoulder_flexion') {
     if (shoulderSidebarContent) shoulderSidebarContent.classList.remove('hidden');
@@ -5359,6 +5425,7 @@ setupShoulderListeners(onPoseResults, updateDashboardOfflinePlaceholders);
 setupShoulderRotationListeners(onPoseResults);
 setupHipRotationListeners(onPoseResults);
 setupSquatListeners(onPoseResults, updateDashboardOfflinePlaceholders);
+setupAnkleDorsiEvents(onPoseResults);
 setupVideoControls(pose, hands, onPoseResults, drawHandMesh);
 
 // Initial UI sync for side selectors
@@ -5370,6 +5437,7 @@ setTimeout(() => {
   updateShoulderRotationSidebarUI();
   updateHipRotationSideUI();
   updateHipRotationSidebarUI();
+  updateDorsiLiveUI();
 }, 200);
 
 window.addEventListener('load', initScarletRecorder);

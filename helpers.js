@@ -225,6 +225,10 @@ export const state = {
     timeSeriesL: [],
     timeSeriesR: []
   },
+  thoracicExtension: {
+    peakAngle: 0,
+    liveAngle: 0
+  },
   hipRotation: {
     maxExternalRotationL: 0,
     maxInternalRotationL: 0,

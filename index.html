@@ -40,6 +40,7 @@
             <option value="shoulder">Shoulder Flexion</option>
             <option value="shoulder-rotation">Shoulder Rotation</option>
             <option value="hip-rotation">Hip Rotation</option>
+            <option value="thoracic-extension">Thoracic Extension</option>
           </select>
           <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #a7b1b7; display: flex; align-items: center; justify-content: center;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -772,6 +773,58 @@
               <span class="guide-bullet bullet-ankle" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
                 <strong>Internal Rotation:</strong> Forearm rotates forward (toward stomach). Measured as negative angle relative to baseline.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="thoracic-sidebar-content" class="hidden">
+        <div class="panel-section shoulder-performance-section">
+          <div class="section-title shoulder-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
+              <path d="M12 3v18"></path><path d="M3 8l9 4 9-4"></path><path d="M3 16l9 4 9-4"></path>
+            </svg>
+            Thoracic Extension
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="thoracic-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-title">Live Thoracic Extension</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Tracks the torso line against the hip line to show how much thoracic extension is present.
+          </div>
+          <div class="angle-box-grid">
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Live Angle</div>
+              <div id="thoracic-live-angle" class="angle-val left-color">0°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Peak Angle</div>
+              <div id="thoracic-peak-angle" class="angle-val right-color">0°</div>
+            </div>
+          </div>
+          <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Thoracic Track
+          </button>
+        </div>
+
+        <div class="panel-section squat-guide-section">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-cyan);">●</span>
+              <div class="guide-text">
+                <strong>Thoracic Extension:</strong> A larger angle indicates more opening through the upper back and thoracic spine.
               </div>
             </div>
           </div>

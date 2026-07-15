@@ -67,17 +67,8 @@ export async function initializeProfilesSelector() {
     const currentSelected = profileSelect.value;
     profileSelect.innerHTML = '';
     
-    const guestOpt = document.createElement('option');
-    guestOpt.value = '';
-    guestOpt.textContent = '-- Guest Session (Unsaved) --';
-    profileSelect.appendChild(guestOpt);
-
     if (calProfileSelect) {
       calProfileSelect.innerHTML = '';
-      const calGuestOpt = document.createElement('option');
-      calGuestOpt.value = '';
-      calGuestOpt.textContent = '-- Guest Session (Unsaved) --';
-      calProfileSelect.appendChild(calGuestOpt);
     }
     
     filteredProfiles.forEach(p => {
@@ -93,16 +84,16 @@ export async function initializeProfilesSelector() {
         calProfileSelect.appendChild(calOpt);
       }
     });
-    
+
     const createOpt = document.createElement('option');
     createOpt.value = 'new';
-    createOpt.textContent = '+ Create New Profile...';
+    createOpt.textContent = 'Select Existing Profile';
     profileSelect.appendChild(createOpt);
-
+    
     if (currentSelected && [...profileSelect.options].some(o => o.value === currentSelected)) {
       profileSelect.value = currentSelected;
     } else {
-      profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
+      profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : 'new';
     }
 
     if (calProfileSelect) {
@@ -115,8 +106,16 @@ export async function initializeProfilesSelector() {
     populateDropdown(state.allProfiles);
     if (state.activeProfileId) {
       if (profileActionRow) profileActionRow.classList.remove('hidden');
+      if (newProfileInputContainer) {
+        newProfileInputContainer.classList.add('hidden');
+        newProfileInputContainer.classList.remove('visible-flex');
+      }
     } else {
       if (profileActionRow) profileActionRow.classList.add('hidden');
+      if (newProfileInputContainer) {
+        newProfileInputContainer.classList.remove('hidden');
+        newProfileInputContainer.classList.add('visible-flex');
+      }
     }
   } catch (err) {
     console.error("[initializeProfilesSelector] Failed to load initial profiles:", err);
@@ -140,6 +139,7 @@ export async function initializeProfilesSelector() {
     if (selectedVal === 'new') {
       if (profileSelect) profileSelect.value = 'new';
       if (calProfileSelect) calProfileSelect.value = '';
+      
       if (newProfileInputContainer) {
         newProfileInputContainer.classList.remove('hidden');
         newProfileInputContainer.classList.add('visible-flex');
@@ -209,15 +209,26 @@ export async function initializeProfilesSelector() {
         return;
       }
 
+      const inputUserHeight = document.getElementById('input-user-height');
+      if (!inputUserHeight) return;
+      const heightVal = parseFloat(inputUserHeight.value);
+      if (isNaN(heightVal) || heightVal <= 0) {
+        alert("Please enter a valid height to create a profile.");
+        return;
+      }
+
       const isDuplicate = state.allProfiles.some(p => p.name.toLowerCase() === nameVal.toLowerCase());
       if (isDuplicate) {
         alert(`A profile named "${nameVal}" already exists. Please choose a different name.`);
         return;
       }
 
+      const heightCm = state.useInches ? heightVal * 2.54 : heightVal;
+
       const newProfile = {
         name: nameVal,
         timestamp: Date.now(),
+        heightCm: heightCm,
         metricsA: null,
         metricsT: null,
         metricsOverhead: null,
@@ -285,10 +296,15 @@ export async function initializeProfilesSelector() {
         
         if (profileSearchInput) profileSearchInput.value = '';
         populateDropdown(state.allProfiles);
-        profileSelect.value = '';
+        profileSelect.value = 'new';
         if (calProfileSelect) calProfileSelect.value = '';
         
         if (updateDashboardOfflinePlaceholdersFn) updateDashboardOfflinePlaceholdersFn();
+
+        if (newProfileInputContainer) {
+          newProfileInputContainer.classList.remove('hidden');
+          newProfileInputContainer.classList.add('visible-flex');
+        }
 
         if (profileStatusBar) {
           const activeProfileName = document.getElementById('active-profile-name');
@@ -302,7 +318,7 @@ export async function initializeProfilesSelector() {
         if (sessionContainer) sessionContainer.classList.add('hidden');
 
         if (statusElement) {
-          statusElement.textContent = `Profile deleted successfully. Switched back to Guest Mode.`;
+          statusElement.textContent = `Profile deleted successfully. Switched back to Select Existing Profile mode.`;
         }
       } catch (err) {
         console.error("[initializeProfilesSelector] Failed to delete profile:", err);
@@ -749,8 +765,9 @@ export async function loadProfileIntoState(profileId) {
     
     state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile, activeSession.id);
 
-    const activeHeightCm = state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height;
+    const activeHeightCm = (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) || profile.heightCm;
     if (activeHeightCm) {
+      state.inputHeightCm = activeHeightCm;
       const inputUserHeight = document.getElementById('input-user-height');
       if (inputUserHeight) {
         if (state.useInches) {

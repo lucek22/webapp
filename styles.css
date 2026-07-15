@@ -597,6 +597,7 @@
 #subject-profile-panel {
   margin-top: 0.5rem;
   margin-bottom: 0.25rem;
+  width: 100%;
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -3580,4 +3581,3 @@ div[style*="color: #10b981"] {
 .athlete-tab-pane.hidden {
   display: none !important;
 }
-

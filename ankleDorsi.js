@@ -153,7 +153,7 @@ export function processAnkleDorsi(calculated) {
   }
 
   // 4. Update the live UI displays
-  updateDorsiLiveUI(liveShinTilt, liveAnkleDorsi, actualHeelLifted);
+  updateDorsiLiveUI(liveShinTilt, 0, actualHeelLifted);
 }
 
 /**

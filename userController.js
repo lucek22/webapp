@@ -173,6 +173,12 @@ const videoSeekbar = document.getElementById('video-seekbar');
 const videoTimeDisplay = document.getElementById('video-time-display');
 const videoSpeedBtn = document.getElementById('video-speed-btn');
 
+// Profile DOMS for switching between modes
+
+const profileSearchBar = document.getElementById('profile-search-wrapper');
+const profileDropdown = document.getElementById('profile-controls-row');
+const newProfileContainter = document.getElementById('new-profile-input-container');
+
 
 // Helper canvas for caching frozen frames
 export const frozenFrameCanvas = document.createElement('canvas');
@@ -3848,20 +3854,20 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
     }
   });
 
-  // Set calibration state based on chosen method
   if (method === 'height') {
     state.pixelsPerCm = null; // Calculated dynamically in frame loop
     state.calLocked = true;   // Automatically consider locked/calibrated
-  }  else {
+  } else {
     state.pixelsPerCm = null;
     state.calLocked = false;
   }
 }
 
-tabHeightBtn.addEventListener('click', () => {
-  switchCalibrationTab('height', tabHeightBtn, panelHeight);
-});
-
+if (tabHeightBtn) {
+  tabHeightBtn.addEventListener('click', () => {
+    switchCalibrationTab('height', tabHeightBtn, panelHeight);
+  });
+}
 
 if (tabPortfolioBtn) {
   tabPortfolioBtn.addEventListener('click', () => {
@@ -3874,6 +3880,9 @@ if (tabImportBtn) {
     switchCalibrationTab('import', tabImportBtn, panelImport);
   });
 }
+
+// Set initial tab state on load
+switchCalibrationTab('height', tabHeightBtn || null, panelHeight);
 
 // Premeasured scale factor pasting event listener
 if (btnApplyScale && inputPremeasuredScale) {
@@ -4844,11 +4853,19 @@ function updateStateInputHeight() {
   const inputElem = document.getElementById('input-user-height');
   if (!inputElem) return;
   const inputVal = parseFloat(inputElem.value);
-  if (!isNaN(inputVal)) {
-    if (state.useInches) {
-      state.inputHeightCm = inputVal * 2.54;
-    } else {
-      state.inputHeightCm = inputVal;
+  if (!isNaN(inputVal) && inputVal > 0) {
+    const heightCm = state.useInches ? inputVal * 2.54 : inputVal;
+    state.inputHeightCm = heightCm;
+
+    // Persist updated height if a profile is loaded
+    if (state.activeProfileId && state.allProfiles && snapshotStore) {
+      const profile = state.allProfiles.find(p => p.id === state.activeProfileId);
+      if (profile && profile.heightCm !== heightCm) {
+        profile.heightCm = heightCm;
+        snapshotStore.saveProfile(profile).catch(err => {
+          console.error("Failed to save updated profile height:", err);
+        });
+      }
     }
   }
 }

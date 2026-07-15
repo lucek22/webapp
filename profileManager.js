@@ -933,6 +933,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     if (state.imageShoulderLEnd !== undefined) session.imageShoulderLEnd = state.imageShoulderLEnd;
     if (state.imageShoulderRStart !== undefined) session.imageShoulderRStart = state.imageShoulderRStart;
     if (state.imageShoulderREnd !== undefined) session.imageShoulderREnd = state.imageShoulderREnd;
+    if (state.imageShoulderRotationL !== undefined) session.imageShoulderRotationL = state.imageShoulderRotationL;
+    if (state.imageShoulderRotationR !== undefined) session.imageShoulderRotationR = state.imageShoulderRotationR;
     
     if (state.videoShoulderL !== undefined) session.videoShoulderL = state.videoShoulderL;
     if (state.videoShoulderR !== undefined) session.videoShoulderR = state.videoShoulderR;
@@ -976,6 +978,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.imageShoulderLEnd = session.imageShoulderLEnd;
     profile.imageShoulderRStart = session.imageShoulderRStart;
     profile.imageShoulderREnd = session.imageShoulderREnd;
+    profile.imageShoulderRotationL = session.imageShoulderRotationL;
+    profile.imageShoulderRotationR = session.imageShoulderRotationR;
     profile.imageHipRotationL = session.imageHipRotationL;
     profile.imageHipRotationR = session.imageHipRotationR;
     profile.videoSquatL = session.videoSquatL;
@@ -1369,9 +1373,9 @@ export async function openProfileDetailsModal(profileId) {
         let hasShoulderRotationPeaks = false;
         if (activeSession.shoulderRotation) {
           if (p.key === 'shoulder-rotation-l') {
-            hasShoulderRotationPeaks = (activeSession.shoulderRotation.maxExternalRotationL > 0 || activeSession.shoulderRotation.maxInternalRotationL < 0);
+            hasShoulderRotationPeaks = (activeSession.shoulderRotation.maxExternalRotationL > 0 || activeSession.shoulderRotation.maxInternalRotationL > 0);
           } else {
-            hasShoulderRotationPeaks = (activeSession.shoulderRotation.maxExternalRotationR > 0 || activeSession.shoulderRotation.maxInternalRotationR < 0);
+            hasShoulderRotationPeaks = (activeSession.shoulderRotation.maxExternalRotationR > 0 || activeSession.shoulderRotation.maxInternalRotationR > 0);
           }
         }
         hasData = !!imgSrc || hasVideo || hasShoulderRotationPeaks;
@@ -1383,9 +1387,9 @@ export async function openProfileDetailsModal(profileId) {
         let hasHipRotationPeaks = false;
         if (activeSession.hipRotation) {
           if (p.key === 'hip-rotation-l') {
-            hasHipRotationPeaks = (activeSession.hipRotation.maxExternalRotationL > 0 || activeSession.hipRotation.maxInternalRotationL < 0);
+            hasHipRotationPeaks = (activeSession.hipRotation.maxExternalRotationL > 0 || activeSession.hipRotation.maxInternalRotationL > 0);
           } else {
-            hasHipRotationPeaks = (activeSession.hipRotation.maxExternalRotationR > 0 || activeSession.hipRotation.maxInternalRotationR < 0);
+            hasHipRotationPeaks = (activeSession.hipRotation.maxExternalRotationR > 0 || activeSession.hipRotation.maxInternalRotationR > 0);
           }
         }
         hasData = !!imgSrc || hasVideo || hasHipRotationPeaks;
@@ -2473,17 +2477,32 @@ export async function openProfileDetailsModal(profileId) {
     if (videosListEl) {
       videosListEl.innerHTML = '';
       
-      const savedVideos = profile.videos || [];
+      const metricVideoIds = new Set();
+      if (profile.sessions && Array.isArray(profile.sessions)) {
+        profile.sessions.forEach(s => {
+          if (s.videoSquatL) metricVideoIds.add(s.videoSquatL.id);
+          if (s.videoSquatR) metricVideoIds.add(s.videoSquatR.id);
+          if (s.videoSquatFrontal) metricVideoIds.add(s.videoSquatFrontal.id);
+          if (s.videoShoulderL) metricVideoIds.add(s.videoShoulderL.id);
+          if (s.videoShoulderR) metricVideoIds.add(s.videoShoulderR.id);
+          if (s.videoShoulderRotationL) metricVideoIds.add(s.videoShoulderRotationL.id);
+          if (s.videoShoulderRotationR) metricVideoIds.add(s.videoShoulderRotationR.id);
+          if (s.videoHipRotationL) metricVideoIds.add(s.videoHipRotationL.id);
+          if (s.videoHipRotationR) metricVideoIds.add(s.videoHipRotationR.id);
+        });
+      }
+      const savedVideos = (profile.videos || []).filter(v => !metricVideoIds.has(v.id));
+
       if (savedVideos.length === 0) {
         if (videoPlaceholder) {
           videoPlaceholder.innerHTML = `
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="playlist-placeholder-icon-empty"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-            <span class="playlist-empty-text">No video recordings saved for this profile yet.</span>
+            <span class="playlist-empty-text">No uploaded videos saved for this profile yet.</span>
           `;
         }
         videosListEl.innerHTML = `
           <div class="playlist-empty-placeholder">
-            🎥 Playlist Empty
+            Playlist Empty
           </div>
         `;
       } else {

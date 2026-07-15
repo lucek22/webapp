@@ -461,6 +461,15 @@ export function setupHipRotationListeners(onPoseResultsCallback) {
         // --- STOP RECORDING & SAVE ---
         state.isHipRotationRecording = false;
 
+        const canvasElement = document.getElementById('overlay');
+        const capturedImg = canvasElement ? canvasElement.toDataURL('image/png') : null;
+        const side = state.hipRotationTestingSide || 'left';
+        if (side === 'left') {
+          state.imageHipRotationL = capturedImg;
+        } else {
+          state.imageHipRotationR = capturedImg;
+        }
+
         if (isWebcamLive && stopVideoRecordingFn) {
           stopVideoRecordingFn();
         }

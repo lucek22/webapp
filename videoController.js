@@ -306,6 +306,70 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
       if (activeSessionId) {
         const activeSession = profileMigrated.sessions.find(s => String(s.id) === String(activeSessionId));
         if (activeSession) {
+          // --- PREVENT RACE CONDITIONS AND CLOBBERING DURING ASYNC VIDEO SAVE ---
+          // Ensure all active peak angles and calculated metrics currently in state are synced 
+          // to this active session before we persist it back to the database.
+          if (state.shoulderRotation !== undefined) {
+            activeSession.shoulderRotation = state.shoulderRotation ? JSON.parse(JSON.stringify(state.shoulderRotation)) : null;
+            profileMigrated.shoulderRotation = activeSession.shoulderRotation;
+          }
+          if (state.hipRotation !== undefined) {
+            activeSession.hipRotation = state.hipRotation ? JSON.parse(JSON.stringify(state.hipRotation)) : null;
+            profileMigrated.hipRotation = activeSession.hipRotation;
+          }
+          if (state.squatPeaks !== undefined) {
+            activeSession.squatPeaks = state.squatPeaks ? JSON.parse(JSON.stringify(state.squatPeaks)) : null;
+            profileMigrated.squatPeaks = activeSession.squatPeaks;
+          }
+          if (state.shoulderPeaks !== undefined) {
+            activeSession.shoulderPeaks = state.shoulderPeaks ? JSON.parse(JSON.stringify(state.shoulderPeaks)) : null;
+            profileMigrated.shoulderPeaks = activeSession.shoulderPeaks;
+          }
+          if (state.imageHipRotationL !== undefined) {
+            activeSession.imageHipRotationL = state.imageHipRotationL;
+            profileMigrated.imageHipRotationL = state.imageHipRotationL;
+          }
+          if (state.imageHipRotationR !== undefined) {
+            activeSession.imageHipRotationR = state.imageHipRotationR;
+            profileMigrated.imageHipRotationR = state.imageHipRotationR;
+          }
+          if (state.imageShoulderRotationL !== undefined) {
+            activeSession.imageShoulderRotationL = state.imageShoulderRotationL;
+            profileMigrated.imageShoulderRotationL = state.imageShoulderRotationL;
+          }
+          if (state.imageShoulderRotationR !== undefined) {
+            activeSession.imageShoulderRotationR = state.imageShoulderRotationR;
+            profileMigrated.imageShoulderRotationR = state.imageShoulderRotationR;
+          }
+          if (state.imageSquatL !== undefined) {
+            activeSession.imageSquatL = state.imageSquatL;
+            profileMigrated.imageSquatL = state.imageSquatL;
+          }
+          if (state.imageSquatR !== undefined) {
+            activeSession.imageSquatR = state.imageSquatR;
+            profileMigrated.imageSquatR = state.imageSquatR;
+          }
+          if (state.imageSquatFrontal !== undefined) {
+            activeSession.imageSquatFrontal = state.imageSquatFrontal;
+            profileMigrated.imageSquatFrontal = state.imageSquatFrontal;
+          }
+          if (state.imageShoulderLStart !== undefined) {
+            activeSession.imageShoulderLStart = state.imageShoulderLStart;
+            profileMigrated.imageShoulderLStart = state.imageShoulderLStart;
+          }
+          if (state.imageShoulderLEnd !== undefined) {
+            activeSession.imageShoulderLEnd = state.imageShoulderLEnd;
+            profileMigrated.imageShoulderLEnd = state.imageShoulderLEnd;
+          }
+          if (state.imageShoulderRStart !== undefined) {
+            activeSession.imageShoulderRStart = state.imageShoulderRStart;
+            profileMigrated.imageShoulderRStart = state.imageShoulderRStart;
+          }
+          if (state.imageShoulderREnd !== undefined) {
+            activeSession.imageShoulderREnd = state.imageShoulderREnd;
+            profileMigrated.imageShoulderREnd = state.imageShoulderREnd;
+          }
+
           if (state.currentMode === 'squat') {
             if (state.squatTestingSide === 'left') {
               activeSession.videoSquatL = videoEntry;

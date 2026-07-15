@@ -27,7 +27,6 @@ state.ankleDorsi = {
 /**
  * Calculates forward shin tilt angle relative to vertical.
  * 0° means vertical shin. Positive values represent forward knee drive.
- * Clamped to physiological max of 65° to filter out tracking glitches.
  */
 export function calculateShinTilt(ankle, knee) {
   if (!ankle || !knee) return 0;
@@ -35,7 +34,7 @@ export function calculateShinTilt(ankle, knee) {
   const dy = ankle.y - knee.y; // Upwards dy is positive
   const angleRad = Math.atan2(Math.abs(dx), dy);
   const angleDeg = angleRad * (180 / Math.PI);
-  return Math.min(65, Math.max(0, angleDeg));
+  return Math.max(0, angleDeg);
 }
 
 /**
@@ -54,7 +53,6 @@ export function processAnkleDorsi(calculated) {
 
   // 1. Calculate live values based on active side
   let liveShinTilt = 0;
-  let liveAnkleDorsi = 0; // Keep at 0 as it is removed
 
   if (side === 'left') {
     if (ankle_l && knee_l) {
@@ -124,7 +122,6 @@ export function processAnkleDorsi(calculated) {
     actualHeelLifted = true;
   } else if (state.ankleDorsi.autoDetectHeel) {
     const neutralPitch = (side === 'left') ? state.ankleDorsi.neutralFootPitchL : state.ankleDorsi.neutralFootPitchR;
-    // Fallback to 10° normal anatomical foot incline if calibration is not yet recorded
     const baselinePitch = (neutralPitch !== null && neutralPitch !== undefined) ? neutralPitch : 10;
     
     // We flag as lifted only when the foot pitch rises by 7.0° or more relative to their flat upright standing baseline

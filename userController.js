@@ -1083,7 +1083,6 @@ export function onPoseResults(results) {
         const side = state.ankleDorsi.activeSide;
         const activeAnkle = side === 'left' ? ankle_l : ankle_r;
         const activeKnee = side === 'left' ? knee_l : knee_r;
-        const activeAnkleAngle = side === 'left' ? calculated.ankleAngleL : calculated.ankleAngleR;
         
         // Draw Tibial Inclination angle badge at the midpoint of the shin
         if (activeAnkle && activeKnee) {
@@ -1093,13 +1092,6 @@ export function onPoseResults(results) {
           };
           const liveShinTilt = (side === 'left') ? calculateShinTilt(ankle_l, knee_l) : calculateShinTilt(ankle_r, knee_r);
           drawAngleBadge(canvasCtx, shinMidpoint, liveShinTilt, '#06b6d4'); // Cyan for Tibial Inclination
-        }
-
-        // Draw Ankle Dorsiflexion angle badge at the ankle joint
-        if (activeAnkle && activeAnkleAngle !== undefined && activeAnkleAngle !== null) {
-          const neutral = (side === 'left') ? (state.ankleDorsi.neutralAngleL || 115) : (state.ankleDorsi.neutralAngleR || 115);
-          const liveAnkleDorsi = Math.max(0, neutral - activeAnkleAngle);
-          drawAngleBadge(canvasCtx, activeAnkle, liveAnkleDorsi, '#10b981'); // Green for Ankle Dorsiflexion
         }
       } else {
         drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');

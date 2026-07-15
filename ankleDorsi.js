@@ -12,8 +12,8 @@ state.ankleDorsi = {
   actualHeelLifted: false,  // Evaluated actual heel status (auto or manual)
   heelVisible: true,        // Visibility status of active heel landmark
   isRecording: false,       // Tracking/recording state for peak angles
-  neutralAngleL: null,      // Calibrated standing neutral ankle angle (Left)
-  neutralAngleR: null,      // Calibrated standing neutral ankle angle (Right)
+  neutralAngleL: 90,        // Static standing neutral ankle angle (Left)
+  neutralAngleR: 90,        // Static standing neutral ankle angle (Right)
   neutralFootPitchL: null,  // Calibrated standing neutral foot pitch (Left)
   neutralFootPitchR: null,  // Calibrated standing neutral foot pitch (Right)
   peaks: {
@@ -46,65 +46,23 @@ export function processAnkleDorsi(calculated) {
   if (!calculated) return;
 
   const {
-    knee_l, ankle_l, ankleAngleL,
-    knee_r, ankle_r, ankleAngleR
+    knee_l, ankle_l,
+    knee_r, ankle_r
   } = calculated;
 
   const side = state.ankleDorsi.activeSide;
 
   // 1. Calculate live values based on active side
   let liveShinTilt = 0;
-  let liveAnkleDorsi = 0;
+  let liveAnkleDorsi = 0; // Keep at 0 as it is removed
 
   if (side === 'left') {
     if (ankle_l && knee_l) {
       liveShinTilt = calculateShinTilt(ankle_l, knee_l);
     }
-    if (ankleAngleL !== undefined && ankleAngleL !== null) {
-      // Clamp joint angle to physiological limits [70°, 130°] to reject tracking outliers
-      const clampedAnkleL = Math.max(70, Math.min(130, ankleAngleL));
-
-      // Dynamic neutral calibration when standing upright (shin tilt < 5°)
-      // Must fall in a normal anatomical standing range [100°, 125°]
-      if (liveShinTilt < 5 && clampedAnkleL >= 100 && clampedAnkleL <= 125) {
-        if (!state.ankleDorsi.neutralAngleL) {
-          state.ankleDorsi.neutralAngleL = clampedAnkleL;
-        } else {
-          // Low-pass exponential filter to smoothly adapt and discard single-frame spikes
-          state.ankleDorsi.neutralAngleL = 0.95 * state.ankleDorsi.neutralAngleL + 0.05 * clampedAnkleL;
-        }
-      }
-
-      const neutralL = state.ankleDorsi.neutralAngleL || 115;
-      // Net joint dorsiflexion is the difference from calibrated neutral standing
-      liveAnkleDorsi = Math.max(0, neutralL - clampedAnkleL);
-      // Clamp ROM to absolute physical limit of 45°
-      liveAnkleDorsi = Math.min(45, liveAnkleDorsi);
-    }
   } else {
     if (ankle_r && knee_r) {
       liveShinTilt = calculateShinTilt(ankle_r, knee_r);
-    }
-    if (ankleAngleR !== undefined && ankleAngleR !== null) {
-      // Clamp joint angle to physiological limits [70°, 130°] to reject tracking outliers
-      const clampedAnkleR = Math.max(70, Math.min(130, ankleAngleR));
-
-      // Dynamic neutral calibration when standing upright (shin tilt < 5°)
-      // Must fall in a normal anatomical standing range [100°, 125°]
-      if (liveShinTilt < 5 && clampedAnkleR >= 100 && clampedAnkleR <= 125) {
-        if (!state.ankleDorsi.neutralAngleR) {
-          state.ankleDorsi.neutralAngleR = clampedAnkleR;
-        } else {
-          // Low-pass exponential filter to smoothly adapt and discard single-frame spikes
-          state.ankleDorsi.neutralAngleR = 0.95 * state.ankleDorsi.neutralAngleR + 0.05 * clampedAnkleR;
-        }
-      }
-
-      const neutralR = state.ankleDorsi.neutralAngleR || 115;
-      // Net joint dorsiflexion is the difference from calibrated neutral standing
-      liveAnkleDorsi = Math.max(0, neutralR - clampedAnkleR);
-      // Clamp ROM to absolute physical limit of 45°
-      liveAnkleDorsi = Math.min(45, liveAnkleDorsi);
     }
   }
 
@@ -195,17 +153,6 @@ export function processAnkleDorsi(calculated) {
         }
       }
     }
-    if (liveAnkleDorsi > 0) {
-      if (side === 'left') {
-        if (state.ankleDorsi.peaks.ankleDorsiL === null || liveAnkleDorsi > state.ankleDorsi.peaks.ankleDorsiL) {
-          state.ankleDorsi.peaks.ankleDorsiL = liveAnkleDorsi;
-        }
-      } else {
-        if (state.ankleDorsi.peaks.ankleDorsiR === null || liveAnkleDorsi > state.ankleDorsi.peaks.ankleDorsiR) {
-          state.ankleDorsi.peaks.ankleDorsiR = liveAnkleDorsi;
-        }
-      }
-    }
   }
 
   // 4. Update the live UI displays
@@ -229,22 +176,6 @@ export function getTibialClassification(angle) {
 }
 
 /**
- * Helper to classify ankle dorsiflexion ROM angle
- */
-export function getAnkleDorsiClassification(angle) {
-  if (angle === null || angle === undefined) {
-    return { label: '--', color: '#a7b1b7' };
-  }
-  if (angle >= 20) {
-    return { label: 'Optimal', color: '#10b981' };
-  } else if (angle >= 15) {
-    return { label: 'Functional', color: '#fbbf24' };
-  } else {
-    return { label: 'Restricted', color: '#f87171' };
-  }
-}
-
-/**
  * Updates all real-time and static values in the Ankle Dorsiflexion UI
  */
 export function updateDorsiLiveUI(liveShinTilt = 0, liveAnkleDorsi = 0, isHeelLifted = false) {
@@ -253,15 +184,11 @@ export function updateDorsiLiveUI(liveShinTilt = 0, liveAnkleDorsi = 0, isHeelLi
   
   const liveShinLDisp = document.getElementById('dorsi-live-shin-l');
   const liveShinRDisp = document.getElementById('dorsi-live-shin-r');
-  const liveAnkleLDisp = document.getElementById('dorsi-live-ankle-l');
-  const liveAnkleRDisp = document.getElementById('dorsi-live-ankle-r');
 
   if (side === 'left') {
     if (liveShinLDisp) liveShinLDisp.textContent = `${Math.round(liveShinTilt)}°`;
-    if (liveAnkleLDisp) liveAnkleLDisp.textContent = `${Math.round(liveAnkleDorsi)}°`;
   } else {
     if (liveShinRDisp) liveShinRDisp.textContent = `${Math.round(liveShinTilt)}°`;
-    if (liveAnkleRDisp) liveAnkleRDisp.textContent = `${Math.round(liveAnkleDorsi)}°`;
   }
 
   // Update Peak Tibial Inclination angle values
@@ -306,52 +233,6 @@ export function updateDorsiLiveUI(liveShinTilt = 0, liveAnkleDorsi = 0, isHeelLi
       if (classShinRDisp) {
         classShinRDisp.textContent = '--';
         classShinRDisp.style.color = '#a7b1b7';
-      }
-    }
-  }
-
-  // Update Peak Ankle Dorsiflexion angle values
-  const peakAnkleLDisp = document.getElementById('dorsi-peak-ankle-l');
-  const peakAnkleRDisp = document.getElementById('dorsi-peak-ankle-r');
-  const classAnkleLDisp = document.getElementById('dorsi-class-ankle-l');
-  const classAnkleRDisp = document.getElementById('dorsi-class-ankle-r');
-
-  if (peakAnkleLDisp) {
-    if (state.ankleDorsi.peaks.ankleDorsiL !== null) {
-      const angle = state.ankleDorsi.peaks.ankleDorsiL;
-      peakAnkleLDisp.textContent = `${Math.round(angle)}°`;
-      const classification = getAnkleDorsiClassification(angle);
-      peakAnkleLDisp.style.color = classification.color;
-      if (classAnkleLDisp) {
-        classAnkleLDisp.textContent = classification.label;
-        classAnkleLDisp.style.color = classification.color;
-      }
-    } else {
-      peakAnkleLDisp.textContent = '0°';
-      peakAnkleLDisp.style.color = '';
-      if (classAnkleLDisp) {
-        classAnkleLDisp.textContent = '--';
-        classAnkleLDisp.style.color = '#a7b1b7';
-      }
-    }
-  }
-
-  if (peakAnkleRDisp) {
-    if (state.ankleDorsi.peaks.ankleDorsiR !== null) {
-      const angle = state.ankleDorsi.peaks.ankleDorsiR;
-      peakAnkleRDisp.textContent = `${Math.round(angle)}°`;
-      const classification = getAnkleDorsiClassification(angle);
-      peakAnkleRDisp.style.color = classification.color;
-      if (classAnkleRDisp) {
-        classAnkleRDisp.textContent = classification.label;
-        classAnkleRDisp.style.color = classification.color;
-      }
-    } else {
-      peakAnkleRDisp.textContent = '0°';
-      peakAnkleRDisp.style.color = '';
-      if (classAnkleRDisp) {
-        classAnkleRDisp.textContent = '--';
-        classAnkleRDisp.style.color = '#a7b1b7';
       }
     }
   }
@@ -537,8 +418,8 @@ export function resetAnkleDorsi() {
     ankleDorsiL: null,
     ankleDorsiR: null
   };
-  state.ankleDorsi.neutralAngleL = null;
-  state.ankleDorsi.neutralAngleR = null;
+  state.ankleDorsi.neutralAngleL = 90;
+  state.ankleDorsi.neutralAngleR = 90;
   state.ankleDorsi.neutralFootPitchL = null;
   state.ankleDorsi.neutralFootPitchR = null;
   state.ankleDorsi.isRecording = false;
@@ -672,7 +553,7 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
   if (btnSaveDorsi) {
     btnSaveDorsi.addEventListener('click', async () => {
       const peaks = state.ankleDorsi.peaks;
-      if (peaks.shinAngleL === null && peaks.shinAngleR === null && peaks.ankleDorsiL === null && peaks.ankleDorsiR === null) {
+      if (peaks.shinAngleL === null && peaks.shinAngleR === null) {
         alert("No peak ROM metrics have been captured yet. Please perform a lunge with flat heels to capture peak angles!");
         return;
       }
@@ -690,7 +571,7 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
         }
       }
 
-      const label = state.activeProfileId ? `${activeProfileName} - Tibial & Ankle ROM` : "Guest - Tibial & Ankle ROM";
+      const label = state.activeProfileId ? `${activeProfileName} - Tibial Inclination` : "Guest - Tibial Inclination";
       const canvasElement = document.getElementById('main-canvas');
 
       const snapshotRecord = {
@@ -716,7 +597,7 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
               }
             }
             await snapshotStore.saveProfile(profile);
-            alert(`💾 Tibial & Ankle ROM results successfully recorded to player profile "${profile.name}"!`);
+            alert(`💾 Tibial Inclination results successfully recorded to player profile "${profile.name}"!`);
           }
         } else {
           // In Guest Mode, register in the general store if possible
@@ -724,8 +605,8 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
           alert("💾 Assessment recorded to general local snapshots successfully!");
         }
       } catch (err) {
-        console.error("Failed to record Tibial & Ankle ROM assessment:", err);
-        alert("Could not save tibial & ankle ROM results. See developer console for errors.");
+        console.error("Failed to record Tibial Inclination assessment:", err);
+        alert("Could not save tibial inclination results. See developer console for errors.");
       }
     });
   }

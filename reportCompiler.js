@@ -6,7 +6,7 @@ import {
   snapshotStore,
   getDomMeasurementCm
 } from './helpers.js';
-import { autoSyncToActiveProfile } from './userController.js';
+import { autoSyncToActiveProfile } from './profileManager.js';
 
 /**
  * Sanitizes a filename to ensure safe downloading on various OS systems.
@@ -284,6 +284,10 @@ export function compileAndDownloadCombinedSession() {
       peakTibialInclinationR: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.shinAngleR || 0 : 0,
       peakAnkleDorsiflexionL: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.ankleDorsiL || 0 : 0,
       peakAnkleDorsiflexionR: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.ankleDorsiR || 0 : 0
+    },
+    shoulderFlexionMobility: {
+      peakFlexionL: state.shoulderPeaks?.excursionL || 0,
+      peakFlexionR: state.shoulderPeaks?.excursionR || 0
     },
     anglesA: state.metricsA,
     anglesT: state.metricsT,

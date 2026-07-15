@@ -303,21 +303,99 @@ export function calculatePoseMetrics(results) {
     const shoulderW_wl = Math.hypot(wl_shoulder_l.x - wl_shoulder_r.x, wl_shoulder_l.y - wl_shoulder_r.y, wl_shoulder_l.z - wl_shoulder_r.z) * 100;
     const hipW_wl = Math.hypot(wl_hip_l.x - wl_hip_r.x, wl_hip_l.y - wl_hip_r.y, wl_hip_l.z - wl_hip_r.z) * 100;
 
-    const wl_finger_l = wl[19] || wl[LEFT_WRIST];
-    const fingerToToeL_wl = Math.hypot(wl_finger_l.x - wl_toe_l.x, wl_finger_l.y - wl_toe_l.y, wl_finger_l.z - wl_toe_l.z) * 100;
-
-    const wl_finger_r = wl[20] || wl[RIGHT_WRIST];
-    const fingerToToeR_wl = Math.hypot(wl_finger_r.x - wl_toe_r.x, wl_finger_r.y - wl_toe_r.y, wl_finger_r.z - wl_toe_r.z) * 100;
-
     const wl_left_index = wl[19] || wl[LEFT_WRIST];
     const wl_right_index = wl[20] || wl[RIGHT_WRIST];
+
+    // High-accuracy hand world landmarks from MediaPipe Holistic if available
+    const leftHandWorld = results.leftHandWorldLandmarks || results.left_hand_world_landmarks;
+    const rightHandWorld = results.rightHandWorldLandmarks || results.right_hand_world_landmarks;
+
+    let hand_l_wl = 0;
+    let wl_middle_finger_l = null;
+    if (leftHandWorld && leftHandWorld[0] && leftHandWorld[12]) {
+      // Calculate exact physical hand length using the wrist (0) and middle fingertip (12) from Holistic Hands world landmarks
+      hand_l_wl = Math.hypot(
+        leftHandWorld[12].x - leftHandWorld[0].x,
+        leftHandWorld[12].y - leftHandWorld[0].y,
+        leftHandWorld[12].z - leftHandWorld[0].z
+      ) * 100;
+      state.cachedHandLengthL = hand_l_wl;
+
+      // Project absolute 3D position of the middle fingertip in Pose world coordinate space
+      wl_middle_finger_l = {
+        x: wl_wrist_l.x + (leftHandWorld[12].x - leftHandWorld[0].x),
+        y: wl_wrist_l.y + (leftHandWorld[12].y - leftHandWorld[0].y),
+        z: wl_wrist_l.z + (leftHandWorld[12].z - leftHandWorld[0].z)
+      };
+    } else {
+      if (state.cachedHandLengthL) {
+        // Use calibrated hand length if hand tracking goes offline at the camera boundaries
+        hand_l_wl = state.cachedHandLengthL;
+      } else {
+        // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
+        hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
+      }
+
+      // Fallback/offline middle fingertip projection: Extend the forearm vector (elbow to wrist) by the hand length
+      const forearm_len = Math.hypot(wl_wrist_l.x - wl_elbow_l.x, wl_wrist_l.y - wl_elbow_l.y, wl_wrist_l.z - wl_elbow_l.z);
+      if (forearm_len > 0.001) {
+        const hand_len_m = hand_l_wl / 100;
+        wl_middle_finger_l = {
+          x: wl_wrist_l.x + (wl_wrist_l.x - wl_elbow_l.x) / forearm_len * hand_len_m,
+          y: wl_wrist_l.y + (wl_wrist_l.y - wl_elbow_l.y) / forearm_len * hand_len_m,
+          z: wl_wrist_l.z + (wl_wrist_l.z - wl_elbow_l.z) / forearm_len * hand_len_m
+        };
+      } else {
+        wl_middle_finger_l = wl_left_index;
+      }
+    }
+
+    let hand_r_wl = 0;
+    let wl_middle_finger_r = null;
+    if (rightHandWorld && rightHandWorld[0] && rightHandWorld[12]) {
+      // Calculate exact physical hand length using the wrist (0) and middle fingertip (12) from Holistic Hands world landmarks
+      hand_r_wl = Math.hypot(
+        rightHandWorld[12].x - rightHandWorld[0].x,
+        rightHandWorld[12].y - rightHandWorld[0].y,
+        rightHandWorld[12].z - rightHandWorld[0].z
+      ) * 100;
+      state.cachedHandLengthR = hand_r_wl;
+
+      // Project absolute 3D position of the middle fingertip in Pose world coordinate space
+      wl_middle_finger_r = {
+        x: wl_wrist_r.x + (rightHandWorld[12].x - rightHandWorld[0].x),
+        y: wl_wrist_r.y + (rightHandWorld[12].y - rightHandWorld[0].y),
+        z: wl_wrist_r.z + (rightHandWorld[12].z - rightHandWorld[0].z)
+      };
+    } else {
+      if (state.cachedHandLengthR) {
+        // Use calibrated hand length if hand tracking goes offline at the camera boundaries
+        hand_r_wl = state.cachedHandLengthR;
+      } else {
+        // Fallback: Scale wrist-to-index distance by 1.42x if Holistic Hands is unavailable
+        hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
+      }
+
+      // Fallback/offline middle fingertip projection: Extend the forearm vector (elbow to wrist) by the hand length
+      const forearm_len = Math.hypot(wl_wrist_r.x - wl_elbow_r.x, wl_wrist_r.y - wl_elbow_r.y, wl_wrist_r.z - wl_elbow_r.z);
+      if (forearm_len > 0.001) {
+        const hand_len_m = hand_r_wl / 100;
+        wl_middle_finger_r = {
+          x: wl_wrist_r.x + (wl_wrist_r.x - wl_elbow_r.x) / forearm_len * hand_len_m,
+          y: wl_wrist_r.y + (wl_wrist_r.y - wl_elbow_r.y) / forearm_len * hand_len_m,
+          z: wl_wrist_r.z + (wl_wrist_r.z - wl_elbow_r.z) / forearm_len * hand_len_m
+        };
+      } else {
+        wl_middle_finger_r = wl_right_index;
+      }
+    }
+
+    // High-accuracy, posture-independent finger-to-toe distance using projected middle fingertips
+    const fingerToToeL_wl = Math.hypot(wl_middle_finger_l.x - wl_toe_l.x, wl_middle_finger_l.y - wl_toe_l.y, wl_middle_finger_l.z - wl_toe_l.z) * 100;
+    const fingerToToeR_wl = Math.hypot(wl_middle_finger_r.x - wl_toe_r.x, wl_middle_finger_r.y - wl_toe_r.y, wl_middle_finger_r.z - wl_toe_r.z) * 100;
+
     // Posture-independent, segment-summed path for 3D wingspan:
     // (Left hand + Left forearm + Left upper arm + Shoulder width + Right upper arm + Right forearm + Right hand)
-    // Note: We scale wrist-to-index distance by 1.42x to estimate the full hand length up to the middle fingertip,
-    // as MediaPipe Pose only tracks up to the index finger knuckle/tip.
-    const hand_l_wl = Math.hypot(wl_wrist_l.x - wl_left_index.x, wl_wrist_l.y - wl_left_index.y, wl_wrist_l.z - wl_left_index.z) * 100 * 1.42;
-    const hand_r_wl = Math.hypot(wl_wrist_r.x - wl_right_index.x, wl_wrist_r.y - wl_right_index.y, wl_wrist_r.z - wl_right_index.z) * 100 * 1.42;
-    // Note: We no longer apply the 1.11x correction factor, as 3D world landmarks have proved accurate enough without it.
     const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl);
 
     // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
@@ -599,7 +677,7 @@ export function calculatePoseMetrics(results) {
     liveMetrics.pose = detectedPose;
   }
 
-  return {
+  const output = {
     shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
     shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
     head_top, ground_y, all_landmarks,
@@ -608,6 +686,122 @@ export function calculatePoseMetrics(results) {
     liveMetrics,
     raw_lm: lm
   };
+
+  // If using a mirrored user front webcam, swap left/right landmarks and metrics to match actual anatomy
+  if (state.currentFacingMode === "user" && !state.isUploadedMedia) {
+    // 1. Swap coordinate variables
+    const tempCoords = {
+      shoulder_l: output.shoulder_l,
+      elbow_l: output.elbow_l,
+      wrist_l: output.wrist_l,
+      hip_l: output.hip_l,
+      knee_l: output.knee_l,
+      ankle_l: output.ankle_l,
+      heel_l: output.heel_l,
+      toe_l: output.toe_l
+    };
+
+    output.shoulder_l = output.shoulder_r;
+    output.elbow_l = output.elbow_r;
+    output.wrist_l = output.wrist_r;
+    output.hip_l = output.hip_r;
+    output.knee_l = output.knee_r;
+    output.ankle_l = output.ankle_r;
+    output.heel_l = output.heel_r;
+    output.toe_l = output.toe_r;
+
+    output.shoulder_r = tempCoords.shoulder_l;
+    output.elbow_r = tempCoords.elbow_l;
+    output.wrist_r = tempCoords.wrist_l;
+    output.hip_r = tempCoords.hip_l;
+    output.knee_r = tempCoords.knee_l;
+    output.ankle_r = tempCoords.ankle_l;
+    output.heel_r = tempCoords.heel_l;
+    output.toe_r = tempCoords.toe_l;
+
+    // 2. Swap 3D/2D angles
+    const tempAngles = {
+      kneeAngleL: output.kneeAngleL,
+      hipAngleL: output.hipAngleL,
+      elbowAngleL: output.elbowAngleL,
+      ankleAngleL: output.ankleAngleL
+    };
+
+    output.kneeAngleL = output.kneeAngleR;
+    output.hipAngleL = output.hipAngleR;
+    output.elbowAngleL = output.elbowAngleR;
+    output.ankleAngleL = output.ankleAngleR;
+
+    output.kneeAngleR = tempAngles.kneeAngleL;
+    output.hipAngleR = tempAngles.hipAngleL;
+    output.elbowAngleR = tempAngles.elbowAngleL;
+    output.ankleAngleR = tempAngles.ankleAngleL;
+
+    // 3. Swap liveMetrics fields
+    if (output.liveMetrics) {
+      const tempMetrics = {
+        thigh_l: output.liveMetrics.thigh_l,
+        shin_l: output.liveMetrics.shin_l,
+        foot_l: output.liveMetrics.foot_l,
+        torso_l: output.liveMetrics.torso_l,
+        upperarm_l: output.liveMetrics.upperarm_l,
+        forearm_l: output.liveMetrics.forearm_l,
+        fingerToToeL: output.liveMetrics.fingerToToeL,
+        kneeAngleL: output.liveMetrics.kneeAngleL,
+        hipAngleL: output.liveMetrics.hipAngleL,
+        elbowAngleL: output.liveMetrics.elbowAngleL
+      };
+
+      output.liveMetrics.thigh_l = output.liveMetrics.thigh_r;
+      output.liveMetrics.shin_l = output.liveMetrics.shin_r;
+      output.liveMetrics.foot_l = output.liveMetrics.foot_r;
+      output.liveMetrics.torso_l = output.liveMetrics.torso_r;
+      output.liveMetrics.upperarm_l = output.liveMetrics.upperarm_r;
+      output.liveMetrics.forearm_l = output.liveMetrics.forearm_r;
+      output.liveMetrics.fingerToToeL = output.liveMetrics.fingerToToeR;
+      output.liveMetrics.kneeAngleL = output.liveMetrics.kneeAngleR;
+      output.liveMetrics.hipAngleL = output.liveMetrics.hipAngleR;
+      output.liveMetrics.elbowAngleL = output.liveMetrics.elbowAngleR;
+
+      output.liveMetrics.thigh_r = tempMetrics.thigh_l;
+      output.liveMetrics.shin_r = tempMetrics.shin_l;
+      output.liveMetrics.foot_r = tempMetrics.foot_l;
+      output.liveMetrics.torso_r = tempMetrics.torso_l;
+      output.liveMetrics.upperarm_r = tempMetrics.upperarm_l;
+      output.liveMetrics.forearm_r = tempMetrics.forearm_l;
+      output.liveMetrics.fingerToToeR = tempMetrics.fingerToToeL;
+      output.liveMetrics.kneeAngleR = tempMetrics.kneeAngleL;
+      output.liveMetrics.hipAngleR = tempMetrics.hipAngleL;
+      output.liveMetrics.elbowAngleR = tempMetrics.elbowAngleL;
+    }
+
+    // 4. Swap all left/right index pairs in all_landmarks for correct canvas connections
+    if (output.all_landmarks && output.all_landmarks.length >= 33) {
+      const pairs = [
+        [1, 4], [2, 5], [3, 6], // eyes
+        [7, 8],                 // ears
+        [9, 10],                // mouth
+        [11, 12],               // shoulders
+        [13, 14],               // elbows
+        [15, 16],               // wrists
+        [17, 18],               // pinkies
+        [19, 20],               // indexes
+        [21, 22],               // thumbs
+        [23, 24],               // hips
+        [25, 26],               // knees
+        [27, 28],               // ankles
+        [29, 30],               // heels
+        [31, 32]                // toes
+      ];
+      pairs.forEach(([l, r]) => {
+        const temp = output.all_landmarks[l];
+        output.all_landmarks[l] = output.all_landmarks[r];
+        output.all_landmarks[r] = temp;
+      });
+    }
+  }
+
+  return output;
 }
 
 /**
@@ -651,7 +845,12 @@ export function updateHandTracking(results) {
   if (multiLandmarks && multiHandedness) {
     multiLandmarks.forEach((landmarks, index) => {
       const handedness = multiHandedness[index];
-      const side = handedness.label; // 'Left' or 'Right'
+      let side = handedness.label; // 'Left' or 'Right'
+      
+      // If using a mirrored user front webcam, swap left/right handedness to match actual anatomy
+      if (state.currentFacingMode === "user" && !state.isUploadedMedia) {
+        side = (side === 'Left') ? 'Right' : 'Left';
+      }
       
       if (side === 'Left') leftDetected = true;
       if (side === 'Right') rightDetected = true;

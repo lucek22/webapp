@@ -35,11 +35,11 @@
         <label for="select-test-mode" style="display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a7b1b7; margin-bottom: 6px;">Select Exercise Testing Mode:</label>
         <div style="position: relative; display: flex; width: 100%;">
           <select id="select-test-mode" style="width: 100%; height: 44px; background: rgba(11, 15, 25, 0.75); border: 2px solid rgba(255, 255, 255, 0.08); border-radius: 10px; color: #f3f4f6; padding: 0 16px; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; transition: all 0.2s ease;">
-            <option value="posture">🧍 Posture & Stature Scan</option>
-            <option value="squat">🏋️ Overhead Squat Analyzer</option>
-            <option value="shoulder">💪 Shoulder Flexion Analyzer</option>
-            <option value="shoulder-rotation">🔄 Shoulder Rotation Analyzer</option>
-            <option value="hip-rotation">🦵 Hip Rotation Analyzer</option>
+            <option value="posture">Posture & Stature Scan</option>
+            <option value="squat">Overhead Squat Analyzer</option>
+            <option value="shoulder">Shoulder Flexion Analyzer</option>
+            <option value="shoulder-rotation">Shoulder Rotation Analyzer</option>
+            <option value="hip-rotation">Hip Rotation Analyzer</option>
           </select>
           <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #a7b1b7; display: flex; align-items: center; justify-content: center;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -82,7 +82,7 @@
         <!-- Panel 3: Height Calibration -->
         <div id="panel-height" class="cal-panel">
           <div class="calibration-row cal-status-success">
-            <span id="height-status-text">⚡ Auto-Calibrating Scale...</span>
+            <span id="height-status-text">Auto-Calibrating Scale...</span>
           </div>
           <div class="calibration-row cal-status-info">
             Enter your height. The scale calibrates automatically in real-time as you stand in view of the camera.
@@ -168,7 +168,7 @@
         </div>
         
         <div class="profile-search-wrapper">
-          <input type="text" id="profile-search-input" class="profile-search-input" placeholder="🔍 Search profiles...">
+          <input type="text" id="profile-search-input" class="profile-search-input" placeholder="Search profiles...">
         </div>
 
         <div class="profile-controls-row">
@@ -1144,7 +1144,7 @@
             <!-- Options populated dynamically -->
           </select>
           <button id="btn-profile-new-session" class="btn btn-profile-new-session" style="height: 100%; margin: 0; padding: 0 10px; display: flex; align-items: center;">
-            ➕ New Session
+            New Session
           </button>
           <div class="unit-switcher" style="display: flex; gap: 2px; align-items: center; min-width: 110px; max-width: 140px; margin-left: 0.5rem; height: 100%; padding: 2px;">
             <button id="modal-unit-inch-btn" class="unit-btn active" style="height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 8px; font-size: 0.75rem; border-radius: 14px;">Inches</button>
@@ -1153,232 +1153,467 @@
         </div>
         <button id="btn-close-profile-details" class="modal-close modal-close-btn" style="font-size: 1.75rem; margin-left: 0.5rem; line-height: 1;">&times;</button>
       </div>
-      <div class="modal-body profile-details-grid">
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.5rem; padding: 1.25rem; max-height: calc(85vh - 60px); overflow-y: auto;">
         
-        <!-- Column 1: Profile & Poses Status -->
-        <div class="profile-details-left">
-          <div class="profile-card-header-block">
-            <div class="profile-avatar-large">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <!-- Top Banner: Subject Profile Summary Card -->
+        <div class="profile-card-header-block" style="display: flex; align-items: center; gap: 1.25rem; padding: 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px;">
+          <div class="profile-avatar-large" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(186, 12, 47, 0.1); border: 1.5px solid #BA0C2F; color: #fff; border-radius: 50%;">
+            <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 2rem;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Athlete Name</span>
+              <h3 id="profile-detail-name" style="margin: 0; font-size: 1.2rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1;">John Doe</h3>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <h3 id="profile-detail-name" style="margin: 0; font-size: 1.3rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">John Doe</h3>
-              <div id="profile-detail-last-session" style="font-size: 0.8rem; color: #aaa;">Session Date: --</div>
-              <span id="profile-detail-scale" style="font-size: 0.8rem; color: var(--color-cyan);">Calibration: Uncalibrated</span>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Active Session</span>
+              <div id="profile-detail-last-session" style="font-size: 0.9rem; font-weight: 500; color: #eee;">Session Date: --</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Spatial Calibration</span>
+              <span id="profile-detail-scale" style="font-size: 0.9rem; font-weight: 600; color: var(--color-cyan);">Uncalibrated</span>
             </div>
           </div>
+        </div>
 
-          <div class="details-section-title">Posture Scans Status</div>
-          <div class="pose-status-cards-container">
+        <!-- Athlete Profile Tab Navigation -->
+        <div class="athlete-tabs-nav" style="border-bottom: 1.5px solid rgba(255, 255, 255, 0.06); padding-bottom: 6px; margin-bottom: 0.25rem;">
+          <button class="athlete-tab-btn active" data-tab="tab-anthropometrics">Anthropometrics</button>
+          <button class="athlete-tab-btn" data-tab="tab-mobility">Mobility Assessments</button>
+          <button class="athlete-tab-btn" data-tab="tab-videos">Uploaded Videos</button>
+        </div>
+
+        <!-- TAB 1: Anthropometrics (Static Measurements) -->
+        <div id="tab-anthropometrics" class="athlete-tab-pane">
+          <div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
             
-            <!-- A-Pose -->
-            <div class="pose-status-card" id="detail-card-a">
-              <div class="pose-card-main">
-                <div class="pose-card-info-wrap">
-                  <div class="pose-card-icon bg-scarlet">A</div>
-                  <span class="pose-card-title">A-Pose (Stature)</span>
+            <!-- Left Side: Static Pose Image Status Cards -->
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Static Posture Scans</div>
+              
+              <!-- A-Pose -->
+              <div class="pose-status-card" id="detail-card-a" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon bg-scarlet" style="width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">A</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">A-Pose (Stature)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-a" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-a" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-a" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-a" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-a" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-a" src="" alt="A-Pose Preview" class="pose-card-preview-img" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
                 </div>
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-a">
-                <img id="detail-preview-img-a" src="" alt="A-Pose Preview" class="pose-card-preview-img">
+
+              <!-- T-Pose -->
+              <div class="pose-status-card" id="detail-card-t" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon bg-cyan" style="width: 24px; height: 24px; border-radius: 50%; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">T</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">T-Pose (Wingspan)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-t" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-t" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-t" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-t" src="" alt="T-Pose Preview" class="pose-card-preview-img" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Overhead Pose -->
+              <div class="pose-status-card" id="detail-card-overhead" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon bg-gold" style="width: 24px; height: 24px; border-radius: 50%; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">O</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Overhead (Reach)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-overhead" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-overhead" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-overhead" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-overhead" src="" alt="Overhead Preview" class="pose-card-preview-img" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
               </div>
             </div>
 
-            <!-- T-Pose -->
-            <div class="pose-status-card" id="detail-card-t">
-              <div class="pose-card-main">
-                <div class="pose-card-info-wrap">
-                  <div class="pose-card-icon bg-cyan">T</div>
-                  <span class="pose-card-title">T-Pose (Wingspan)</span>
+            <!-- Right Side: Anthropometric Tables -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+              <div>
+                <div class="details-section-title flex-row" style="margin-top: 0; margin-bottom: 0.5rem;">
+                  <span>Consolidated Postural Baseline</span>
+                  <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">Edit Metrics</button>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-t" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-t" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                <div class="profile-metrics-comparison-table">
+                  <table class="profile-details-table">
+                    <thead>
+                      <tr class="profile-details-table-header-row">
+                        <th class="profile-details-th">Biometric Metric</th>
+                        <th class="profile-details-th">A-Pose</th>
+                        <th class="profile-details-th">T-Pose</th>
+                        <th class="profile-details-th">Overhead</th>
+                      </tr>
+                    </thead>
+                    <tbody class="profile-details-tbody">
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Stature Height</td>
+                        <td id="detail-table-height-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-height-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-height-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Wingspan / Reach</td>
+                        <td id="detail-table-wingspan-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-wingspan-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-wingspan-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Torso Length (L/R)</td>
+                        <td id="detail-table-torso-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-torso-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-torso-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Thigh Length (L/R)</td>
+                        <td id="detail-table-thigh-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-thigh-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-thigh-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Shank Length (L/R)</td>
+                        <td id="detail-table-shin-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-shin-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-shin-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Upper Arm (L/R)</td>
+                        <td id="detail-table-upperarm-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-upperarm-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-upperarm-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Forearm (L/R)</td>
+                        <td id="detail-table-forearm-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-forearm-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-forearm-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-t">
-                <img id="detail-preview-img-t" src="" alt="T-Pose Preview" class="pose-card-preview-img">
+
+              <div>
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Consolidated Athlete Baselines (Final)</div>
+                <div class="profile-consolidated-metrics-table">
+                  <table class="profile-details-table">
+                    <thead>
+                      <tr class="profile-consolidated-header-row">
+                        <th class="profile-consolidated-th-1">Consolidated Metric</th>
+                        <th class="profile-consolidated-th-2">Definitive Measurement</th>
+                      </tr>
+                    </thead>
+                    <tbody class="profile-details-tbody">
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Stature Height</td>
+                        <td id="consolidated-val-height" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Wingspan</td>
+                        <td id="consolidated-val-wingspan" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Overhead Reach (L/R)</td>
+                        <td id="consolidated-val-reach" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Torso Length (L/R)</td>
+                        <td id="consolidated-val-torso" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Thigh Length (L/R)</td>
+                        <td id="consolidated-val-thigh" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Shank Length (L/R)</td>
+                        <td id="consolidated-val-shin" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Upper Arm (L/R)</td>
+                        <td id="consolidated-val-upperarm" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Forearm (L/R)</td>
+                        <td id="consolidated-val-forearm" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
-            <!-- Overhead Pose -->
-            <div class="pose-status-card" id="detail-card-overhead">
-              <div class="pose-card-main">
-                <div class="pose-card-info-wrap">
-                  <div class="pose-card-icon bg-gold">O</div>
-                  <span class="pose-card-title">Overhead (Reach)</span>
+          </div>
+        </div>
+
+        <!-- TAB 2: Mobility Assessments (Dynamic Tests & ROM Scores) -->
+        <div id="tab-mobility" class="athlete-tab-pane hidden">
+          <div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+            
+            <!-- Left Side: Mobility Scans Status & Previews (Videos/Images) -->
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: calc(85vh - 240px); overflow-y: auto; padding-right: 0.5rem; border-right: 1px solid rgba(255,255,255,0.04);">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Mobility Scans Status</div>
+              
+              <!-- Left Overhead Squat -->
+              <div class="pose-status-card" id="detail-card-squat-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #9333ea; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Overhead Squat</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-squat-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-overhead" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-overhead" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-squat-l" src="" alt="Left Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
                 </div>
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-overhead">
-                <img id="detail-preview-img-overhead" src="" alt="Overhead Preview" class="pose-card-preview-img">
+
+              <!-- Right Overhead Squat -->
+              <div class="pose-status-card" id="detail-card-squat-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Overhead Squat</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-squat-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-squat-r" src="" alt="Right Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Frontal Overhead Squat -->
+              <div class="pose-status-card" id="detail-card-squat-frontal" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #ec4899; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-F</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Frontal Overhead Squat</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-squat-frontal" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-frontal" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-frontal" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-squat-frontal" src="" alt="Frontal Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Left Shoulder Flexion -->
+              <div class="pose-status-card" id="detail-card-shoulder-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #0ea5e9; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Flexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-l" src="" alt="Left Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Shoulder Flexion -->
+              <div class="pose-status-card" id="detail-card-shoulder-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #06b6d4; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Flexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-r" src="" alt="Right Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Left Shoulder Rotation -->
+              <div class="pose-status-card" id="detail-card-shoulder-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-rotation-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-rotation-l" src="" alt="Left Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Shoulder Rotation -->
+              <div class="pose-status-card" id="detail-card-shoulder-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-rotation-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-rotation-r" src="" alt="Right Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Left Hip Rotation -->
+              <div class="pose-status-card" id="detail-card-hip-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Hip Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-hip-rotation-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-hip-rotation-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-hip-rotation-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-hip-rotation-l" src="" alt="Left Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Hip Rotation -->
+              <div class="pose-status-card" id="detail-card-hip-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Hip Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-hip-rotation-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-hip-rotation-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-hip-rotation-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-hip-rotation-r" src="" alt="Right Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
               </div>
             </div>
 
-            <!-- Left Overhead Squat -->
-            <div class="pose-status-card" id="detail-card-squat-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #9333ea; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-L</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Overhead Squat</span>
+            <!-- Right Side: Peak Mobility Metrics & ROM Dashboard -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div>
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Overhead Squat Mobility Peak Records</div>
+                <div class="profile-squat-peaks-grid">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Knee Flexion (L/R)</span>
+                    <span class="squat-peak-detail-val" id="detail-squat-knee">0° / 0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Hip Flexion (L/R)</span>
+                    <span class="squat-peak-detail-val" id="detail-squat-hip">0° / 0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Ankle Dorsi (L/R)</span>
+                    <span class="squat-peak-detail-val" id="detail-squat-ankle">0° / 0°</span>
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-squat-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">
+                  Knee Cave-In Tracking: No current squat metrics.
                 </div>
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-squat-l" src="" alt="Left Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+
+              <div>
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Flexion Mobility Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Excursion</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-excursion-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Excursion</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-excursion-r">0°</span>
+                  </div>
+                </div>
               </div>
+
+              <div>
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Internal/External Rotation Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-r">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-r">0°</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Hip Internal/External Rotation Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-internal-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-internal-r">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-external-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-external-r">0°</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Shoulder/Hip Rotation ROM Grading Assessment Panel & Coaching Advice -->
+              <div id="shoulder-rotation-grading-panel" style="margin-top: 0.5rem; border-radius: 8px;"></div>
             </div>
 
-            <!-- Right Overhead Squat -->
-            <div class="pose-status-card" id="detail-card-squat-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-R</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Overhead Squat</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-squat-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-squat-r" src="" alt="Right Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
+          </div>
+        </div>
 
-            <!-- Frontal Overhead Squat -->
-            <div class="pose-status-card" id="detail-card-squat-frontal" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #ec4899; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-F</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Frontal Overhead Squat</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-squat-frontal" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-frontal" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-frontal" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-squat-frontal" src="" alt="Frontal Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-
-            <!-- Left Shoulder Flexion -->
-            <div class="pose-status-card" id="detail-card-shoulder-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #0ea5e9; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-L</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Flexion</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-shoulder-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-shoulder-l" src="" alt="Left Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-
-            <!-- Right Shoulder Flexion -->
-            <div class="pose-status-card" id="detail-card-shoulder-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #06b6d4; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-R</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Flexion</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-shoulder-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-shoulder-r" src="" alt="Right Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-
-            <!-- Left Shoulder Rotation -->
-            <div class="pose-status-card" id="detail-card-shoulder-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-L</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Rotation</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-shoulder-rotation-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-shoulder-rotation-l" src="" alt="Left Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-
-            <!-- Right Shoulder Rotation -->
-            <div class="pose-status-card" id="detail-card-shoulder-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-R</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Rotation</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-shoulder-rotation-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-shoulder-rotation-r" src="" alt="Right Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-
-            <!-- Left Hip Rotation -->
-            <div class="pose-status-card" id="detail-card-hip-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-L</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Hip Rotation</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-hip-rotation-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-hip-rotation-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-hip-rotation-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-hip-rotation-l" src="" alt="Left Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-
-            <!-- Right Hip Rotation -->
-            <div class="pose-status-card" id="detail-card-hip-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-R</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Hip Rotation</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                  <span class="pose-card-status" id="detail-status-hip-rotation-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-                  <button class="btn btn-delete-pose hidden" id="btn-delete-pose-hip-rotation-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
-                </div>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-hip-rotation-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-hip-rotation-r" src="" alt="Right Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-            </div>
-
-          <!-- Saved Video Recordings -->
-          <div class="details-section-title">Saved Video Recordings</div>
-          <div id="profile-details-videos-container" class="profile-details-videos-container">
+        <!-- TAB 3: Uploaded Videos -->
+        <div id="tab-videos" class="athlete-tab-pane hidden">
+          <div class="details-section-title" style="margin-top: 0;">Saved Video Recordings Archive</div>
+          <div id="profile-details-videos-container" class="profile-details-videos-container" style="margin-top: 0.5rem;">
             <!-- Central Video Player Display Area (Fixed 16:9 aspect ratio) -->
             <div id="profile-details-video-player-container" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;">
               <video id="profile-details-video-player" controls controlsList="nofullscreen" style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
@@ -1395,199 +1630,10 @@
             </div>
 
             <!-- Playlist Scroll Container -->
-            <div id="profile-details-videos-list" class="profile-details-videos-list">
+            <div id="profile-details-videos-list" class="profile-details-videos-list" style="max-height: 240px;">
               <!-- Playlist items populated dynamically -->
             </div>
-          </div>
-
         </div>
-
-        <!-- Column 2: Consolidated Metrics Grid & Tables -->
-        <div class="profile-details-right">
-          
-          <div class="details-section-title flex-row">
-            <span>Consolidated Postural Baseline</span>
-            <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">✏️ Edit Metrics</button>
-          </div>
-          <div class="profile-metrics-comparison-table">
-            <table class="profile-details-table">
-              <thead>
-                <tr class="profile-details-table-header-row">
-                  <th class="profile-details-th">Biometric Metric</th>
-                  <th class="profile-details-th">A-Pose</th>
-                  <th class="profile-details-th">T-Pose</th>
-                  <th class="profile-details-th">Overhead</th>
-                </tr>
-              </thead>
-              <tbody class="profile-details-tbody">
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Stature Height</td>
-                  <td id="detail-table-height-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-height-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-height-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Wingspan / Reach</td>
-                  <td id="detail-table-wingspan-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-wingspan-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-wingspan-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Torso Length (L/R)</td>
-                  <td id="detail-table-torso-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-torso-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-torso-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Thigh Length (L/R)</td>
-                  <td id="detail-table-thigh-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-thigh-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-thigh-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Shank Length (L/R)</td>
-                  <td id="detail-table-shin-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-shin-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-shin-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Upper Arm (L/R)</td>
-                  <td id="detail-table-upperarm-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-upperarm-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-upperarm-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Forearm (L/R)</td>
-                  <td id="detail-table-forearm-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-forearm-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-forearm-overhead" class="profile-details-td-val">--</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="details-section-title">Consolidated Athlete Baselines (Final)</div>
-          <div class="profile-consolidated-metrics-table">
-            <table class="profile-details-table">
-              <thead>
-                <tr class="profile-consolidated-header-row">
-                  <th class="profile-consolidated-th-1">Consolidated Metric</th>
-                  <th class="profile-consolidated-th-2">Definitive Measurement</th>
-                </tr>
-              </thead>
-              <tbody class="profile-details-tbody">
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Stature Height</td>
-                  <td id="consolidated-val-height" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Wingspan</td>
-                  <td id="consolidated-val-wingspan" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Overhead Reach (L/R)</td>
-                  <td id="consolidated-val-reach" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Torso Length (L/R)</td>
-                  <td id="consolidated-val-torso" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Thigh Length (L/R)</td>
-                  <td id="consolidated-val-thigh" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Shank Length (L/R)</td>
-                  <td id="consolidated-val-shin" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Upper Arm (L/R)</td>
-                  <td id="consolidated-val-upperarm" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Forearm (L/R)</td>
-                  <td id="consolidated-val-forearm" class="profile-consolidated-td-val">--</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="details-section-title">Overhead Squat Mobility Peak Records</div>
-          <div class="profile-squat-peaks-grid">
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Knee Flexion (L/R)</span>
-              <span class="squat-peak-detail-val" id="detail-squat-knee">0° / 0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Hip Flexion (L/R)</span>
-              <span class="squat-peak-detail-val" id="detail-squat-hip">0° / 0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Ankle Dorsi (L/R)</span>
-              <span class="squat-peak-detail-val" id="detail-squat-ankle">0° / 0°</span>
-            </div>
-          </div>
-          <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">
-            Knee Cave-In Tracking: No current squat metrics.
-          </div>
-
-          <div class="details-section-title" style="margin-top: 1rem;">Shoulder Flexion Mobility Peak Records</div>
-          <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem; margin-top: 0.5rem;">
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Left Excursion</span>
-              <span class="squat-peak-detail-val" id="detail-shoulder-excursion-l">0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Right Excursion</span>
-              <span class="squat-peak-detail-val" id="detail-shoulder-excursion-r">0°</span>
-            </div>
-          </div>
-
-          <div class="details-section-title" style="margin-top: 1.25rem;">Shoulder Internal/External Rotation Peak Records</div>
-          <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Left Max Internal</span>
-              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-l">0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Right Max Internal</span>
-              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-r">0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Left Max External</span>
-              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-l">0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Right Max External</span>
-              <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-r">0°</span>
-            </div>
-          </div>
-
-          <div class="details-section-title" style="margin-top: 1.25rem;">Hip Internal/External Rotation Peak Records</div>
-          <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Left Max Internal</span>
-              <span class="squat-peak-detail-val" id="detail-hip-rotation-internal-l">0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Right Max Internal</span>
-              <span class="squat-peak-detail-val" id="detail-hip-rotation-internal-r">0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Left Max External</span>
-              <span class="squat-peak-detail-val" id="detail-hip-rotation-external-l">0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Right Max External</span>
-              <span class="squat-peak-detail-val" id="detail-hip-rotation-external-r">0°</span>
-            </div>
-          </div>
-          
-          <!-- Shoulder Rotation ROM Grading Assessment Panel -->
-          <div id="shoulder-rotation-grading-panel" style="margin-top: 1rem; border-radius: 8px;"></div>
-
-        </div>
-
       </div>
       <div class="modal-actions profile-modal-actions">
         <button id="btn-profile-export-json" class="btn btn-export-json">
@@ -1606,6 +1652,7 @@
     <div id="lightbox-container" style="max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center; gap: 1rem; z-index: 10000; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
       <h3 id="lightbox-title" style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.8); text-align: center; font-family: inherit;">Pose Image</h3>
       <img id="lightbox-img" src="" alt="Expanded Preview" style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+      <video id="lightbox-video" controls autoplay style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none;"></video>
     </div>
   </div>
 

@@ -247,7 +247,7 @@ export async function initializeProfilesSelector() {
 
         await loadProfileIntoState(newId);
         if (statusElement) {
-          statusElement.textContent = `✅ Profile "${nameVal}" created successfully!`;
+          statusElement.textContent = `Profile "${nameVal}" created successfully!`;
         }
       } catch (err) {
         console.error("[initializeProfilesSelector] Failed to save new profile:", err);
@@ -263,7 +263,7 @@ export async function initializeProfilesSelector() {
       const activeProfile = state.allProfiles.find(p => p.id === state.activeProfileId);
       const nameToDelete = activeProfile ? activeProfile.name : "this profile";
       
-      if (!confirm(`⚠️ WARNING: Are you sure you want to permanently delete the profile "${nameToDelete}" and all of its compiled metrics?\n\nThis action cannot be undone.`)) {
+      if (!confirm(`WARNING: Are you sure you want to permanently delete the profile "${nameToDelete}" and all of its compiled metrics?\n\nThis action cannot be undone.`)) {
         return;
       }
 
@@ -302,7 +302,7 @@ export async function initializeProfilesSelector() {
         if (sessionContainer) sessionContainer.classList.add('hidden');
 
         if (statusElement) {
-          statusElement.textContent = `🗑️ Profile deleted successfully. Switched back to Guest Mode.`;
+          statusElement.textContent = `Profile deleted successfully. Switched back to Guest Mode.`;
         }
       } catch (err) {
         console.error("[initializeProfilesSelector] Failed to delete profile:", err);
@@ -328,6 +328,24 @@ export async function initializeProfilesSelector() {
   if (btnCloseProfileDetailsFooter) {
     btnCloseProfileDetailsFooter.addEventListener('click', closeProfileDetailsModal);
   }
+
+  // Initialize Athlete Tabs switching
+  const tabButtons = document.querySelectorAll('.athlete-tab-btn');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const tabPanes = document.querySelectorAll('.athlete-tab-pane');
+      tabPanes.forEach(pane => pane.classList.add('hidden'));
+
+      const targetTabId = btn.getAttribute('data-tab');
+      const targetPane = document.getElementById(targetTabId);
+      if (targetPane) {
+        targetPane.classList.remove('hidden');
+      }
+    });
+  });
 
   const mainVideoPlayer = document.getElementById('profile-details-video-player');
   if (mainVideoPlayer) {
@@ -486,12 +504,33 @@ export async function initializeProfilesSelector() {
   const lightboxModal = document.getElementById('image-lightbox-modal');
   const btnCloseLightbox = document.getElementById('btn-close-lightbox');
   const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxVideo = document.getElementById('lightbox-video');
   const lightboxTitle = document.getElementById('lightbox-title');
 
   if (lightboxModal && btnCloseLightbox && lightboxImg) {
     window.expandLightboxImage = function(src, title) {
       if (!src) return;
+      if (lightboxVideo) {
+        lightboxVideo.pause();
+        lightboxVideo.src = '';
+        lightboxVideo.style.display = 'none';
+      }
       lightboxImg.src = src;
+      lightboxImg.style.display = 'block';
+      if (lightboxTitle) {
+        lightboxTitle.textContent = title;
+      }
+      lightboxModal.classList.add('active');
+    };
+
+    window.expandLightboxVideo = function(src, title) {
+      if (!src) return;
+      lightboxImg.style.display = 'none';
+      if (lightboxVideo) {
+        lightboxVideo.src = src;
+        lightboxVideo.style.display = 'block';
+        lightboxVideo.play().catch(err => console.log("[LightboxVideo] Autoplay blocked:", err));
+      }
       if (lightboxTitle) {
         lightboxTitle.textContent = title;
       }
@@ -499,6 +538,11 @@ export async function initializeProfilesSelector() {
     };
 
     const closeLightbox = () => {
+      if (lightboxVideo) {
+        lightboxVideo.pause();
+        lightboxVideo.src = '';
+        lightboxVideo.style.display = 'none';
+      }
       lightboxModal.classList.remove('active');
     };
 
@@ -791,7 +835,7 @@ export async function loadProfileIntoState(profileId) {
       
       const newOpt = document.createElement('option');
       newOpt.value = 'new_session';
-      newOpt.textContent = '➕ Create New Session...';
+      newOpt.textContent = 'Create New Session...';
       sessionSelect.appendChild(newOpt);
       
       sessionSelect.value = state.activeSessionId;
@@ -1351,7 +1395,7 @@ export async function openProfileDetailsModal(profileId) {
 
       if (hasData) {
         if (statusEl) {
-          statusEl.textContent = "✅ Complete";
+          statusEl.textContent = "Complete";
           statusEl.className = 'text-emerald';
         }
         if (containerEl) {
@@ -1428,61 +1472,8 @@ export async function openProfileDetailsModal(profileId) {
 
             cardWrapper.addEventListener('click', (e) => {
               e.stopPropagation();
-              const playlistRow = document.querySelector(`.profile-video-row-item[data-video-id="${sVideo.id}"]`);
-              if (playlistRow) {
-                playlistRow.click();
-              } else {
-                if (p.key === 'squat-l') {
-                  state.squatTestingSide = 'left';
-                  state.allowFrontalUpdateL = false;
-                  state.allowFrontalUpdateR = false;
-                } else if (p.key === 'squat-r') {
-                  state.squatTestingSide = 'right';
-                  state.allowFrontalUpdateL = false;
-                  state.allowFrontalUpdateR = false;
-                } else if (p.key === 'squat-frontal') {
-                  state.squatTestingSide = 'frontal';
-                  state.allowFrontalUpdateL = (!state.squatPeaks || (state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0));
-                  state.allowFrontalUpdateR = (!state.squatPeaks || (state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0));
-                } else if (p.key === 'shoulder-rotation-l') {
-                  state.shoulderRotationTestingSide = 'left';
-                } else if (p.key === 'shoulder-rotation-r') {
-                  state.shoulderRotationTestingSide = 'right';
-                } else if (p.key === 'hip-rotation-l') {
-                  state.hipRotationTestingSide = 'left';
-                } else if (p.key === 'hip-rotation-r') {
-                  state.hipRotationTestingSide = 'right';
-                }
-                const mainVideoPlayer = document.getElementById('profile-details-video-player');
-                const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
-                if (mainVideoPlayer) {
-                  const canvas = document.getElementById('profile-details-video-canvas');
-                  if (canvas) {
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-                  }
-                  mainVideoPlayer.src = videoUrl;
-                  mainVideoPlayer.style.display = 'block';
-                  if (videoPlaceholder) {
-                    videoPlaceholder.style.display = 'none';
-                  }
-                  const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
-                  if (btnFullscreen) {
-                    btnFullscreen.style.display = 'flex';
-                  }
-                  mainVideoPlayer.play().catch(err => console.log("[VideoPlay] Autoplay blocked:", err));
-                }
-              }
-
-              const playerContainer = document.getElementById('profile-details-video-player-container');
-              if (playerContainer) {
-                playerContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                playerContainer.style.borderColor = '#00e5ff';
-                playerContainer.style.boxShadow = '0 0 15px rgba(0, 229, 255, 0.35)';
-                setTimeout(() => {
-                  playerContainer.style.borderColor = 'rgba(255,255,255,0.08)';
-                  playerContainer.style.boxShadow = 'none';
-                }, 1200);
+              if (window.expandLightboxVideo) {
+                window.expandLightboxVideo(videoUrl, `${p.title} Video Capture`);
               }
             });
           } else if (p.isShoulder) {
@@ -1521,21 +1512,8 @@ export async function openProfileDetailsModal(profileId) {
               
               playOverlayBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const mainVideoPlayer = document.getElementById('profile-details-video-player');
-                const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
-                
-                const playlistRow = document.querySelector(`.profile-video-row-item[data-video-id="${sVideo.id}"]`);
-                if (playlistRow) {
-                  playlistRow.click();
-                } else {
-                  if (mainVideoPlayer) {
-                    mainVideoPlayer.src = videoUrl;
-                    mainVideoPlayer.style.display = 'block';
-                    if (videoPlaceholder) {
-                      videoPlaceholder.style.display = 'none';
-                    }
-                    mainVideoPlayer.play().catch(e => {});
-                  }
+                if (window.expandLightboxVideo) {
+                  window.expandLightboxVideo(videoUrl, `${p.title} Video Capture`);
                 }
               });
               containerEl.appendChild(playOverlayBtn);
@@ -1711,7 +1689,7 @@ export async function openProfileDetailsModal(profileId) {
         }
       } else {
         if (statusEl) {
-          statusEl.textContent = "❌ Missing";
+          statusEl.textContent = "Missing";
           statusEl.className = 'text-red';
         }
         if (containerEl) containerEl.classList.add('hidden');
@@ -1996,7 +1974,7 @@ export async function openProfileDetailsModal(profileId) {
           cancelBtn = document.createElement('button');
           cancelBtn.id = 'btn-cancel-baseline-metrics';
           cancelBtn.className = 'btn btn-cancel-metrics';
-          cancelBtn.innerHTML = '❌ Cancel';
+          cancelBtn.innerHTML = 'Cancel';
           editBtn.parentNode.appendChild(cancelBtn);
         }
         
@@ -2145,7 +2123,7 @@ export async function openProfileDetailsModal(profileId) {
           }
         };
       } else {
-        editBtn.innerHTML = '✏️ Edit Metrics';
+        editBtn.innerHTML = 'Edit Metrics';
         editBtn.classList.add('btn-edit-metrics');
         
         const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
@@ -2404,14 +2382,14 @@ export async function openProfileDetailsModal(profileId) {
         const rStr = `${vidR.toFixed(1)}°`;
 
         let color = "#10b981";
-        let statusTitle = "✅ Stable Knee Alignment (Video Scan)";
+        let statusTitle = "Stable Knee Alignment (Video Scan)";
         let explanationText = `Knees tracking cleanly over feet. Peak deviation: L: ${lStr}, R: ${rStr}.`;
         let timestampText = "";
 
         if (maxVidCave > 8.0) {
           const isSevere = maxVidCave > 15.0;
           color = isSevere ? "#ef4444" : "#ff9f43";
-          statusTitle = isSevere ? "🚨 Severe Knee Valgus (Cave-In) Detected" : "⚠️ Moderate Knee Valgus (Cave-In) Detected";
+          statusTitle = isSevere ? "Severe Knee Valgus (Cave-In) Detected" : "Moderate Knee Valgus (Cave-In) Detected";
           explanationText = `Knees caved inward past safe tracking boundaries. Peak: L: ${lStr}, R: ${rStr}.`;
           
           const tFirst = sPeaks.valgusFirstTimestamp;
@@ -2420,20 +2398,20 @@ export async function openProfileDetailsModal(profileId) {
           if (tFirst !== null && tFirst !== undefined) {
             timestampText = `
               <div style="margin-top: 6px; font-size: 11px; color: #9ca3af; display: flex; flex-direction: column; gap: 2px;">
-                <span>⏱️ Valgus first appeared at: <strong>${tFirst.toFixed(1)}s</strong> in the video timeline.</span>
-                ${tPeak !== null && tPeak !== undefined ? `<span>🎯 Peak Valgus reached at: <strong>${tPeak.toFixed(1)}s</strong> (deviation of ${maxVidCave.toFixed(1)}°).</span>` : ""}
+                <span>Valgus first appeared at: <strong>${tFirst.toFixed(1)}s</strong> in the video timeline.</span>
+                ${tPeak !== null && tPeak !== undefined ? `<span>Peak Valgus reached at: <strong>${tPeak.toFixed(1)}s</strong> (deviation of ${maxVidCave.toFixed(1)}°).</span>` : ""}
               </div>
             `;
           } else {
             timestampText = `
               <div style="margin-top: 6px; font-size: 11px; color: #9ca3af;">
-                🎯 Peak deviation of <strong>${maxVidCave.toFixed(1)}°</strong> recorded during scan.
+                Peak deviation of <strong>${maxVidCave.toFixed(1)}°</strong> recorded during scan.
               </div>
             `;
           }
         } else if (maxVidCave >= 3.0) {
           color = "#ffb300";
-          statusTitle = "⚠️ Mild Knee Tracking Deviation";
+          statusTitle = "Mild Knee Tracking Deviation";
           explanationText = `Slight knee tracking deviation during squat video. Peak: L: ${lStr}, R: ${rStr}.`;
         }
 
@@ -2732,6 +2710,10 @@ export async function openProfileDetailsModal(profileId) {
     const profileDetailsModal = document.getElementById('profile-details-modal');
     if (profileDetailsModal) {
       profileDetailsModal.classList.add('active');
+      const firstTabBtn = document.querySelector('.athlete-tab-btn[data-tab="tab-anthropometrics"]');
+      if (firstTabBtn) {
+        firstTabBtn.click();
+      }
     }
 
   } catch (err) {
@@ -2793,8 +2775,7 @@ export async function renderShoulderRotationGrading(activeSession) {
 
   panel.innerHTML = `
     <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; font-family: inherit;">
-      <span style="display: flex; align-items: center; gap: 6px;">📊 COMPREHENSIVE RANGE OF MOTION (ROM) ASSESSMENT</span>
-      <span style="font-size: 0.65rem; color: #888; font-weight: normal;">Source: rom_thresholds.txt</span>
+      <span style="display: flex; align-items: center; gap: 6px;">COMPREHENSIVE RANGE OF MOTION (ROM) ASSESSMENT</span>
     </div>
     
     <div style="display: flex; flex-direction: column; gap: 1rem; font-family: inherit;">
@@ -2802,7 +2783,6 @@ export async function renderShoulderRotationGrading(activeSession) {
       <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">
         <div style="font-size: 0.8rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">
           <span>Shoulder Internal / External Rotation</span>
-          <span style="font-size: 0.65rem; color: #aaa; font-weight: normal; text-transform: none;">Starting 90° Abduction, Sagittal view</span>
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
@@ -2969,7 +2949,6 @@ export async function renderShoulderRotationGrading(activeSession) {
       <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">
         <div style="font-size: 0.8rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">
           <span>Hip Internal / External Rotation</span>
-          <span style="font-size: 0.65rem; color: #aaa; font-weight: normal; text-transform: none;">Starting neutral/prone or seated view</span>
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
@@ -3048,7 +3027,7 @@ export async function renderShoulderRotationGrading(activeSession) {
       <!-- ADVICE / COACHING TAB HUB -->
       <div style="background: rgba(186, 12, 47, 0.02); border: 1px dashed rgba(186, 12, 47, 0.25); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
         <div style="font-size: 0.8rem; font-weight: bold; color: #BA0C2F; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
-          <span>💡 Dynamic Corrective Advice & Coaching</span>
+          <span>Dynamic Corrective Advice & Coaching</span>
         </div>
         
         ${(() => {
@@ -3083,7 +3062,6 @@ export async function renderShoulderRotationGrading(activeSession) {
             adviceItems.push({
               metric: "Hip IR < 25°",
               sides: sideLabel,
-              icon: "⚠️",
               title: "Restricted Hip Internal Rotation",
               desc: "Mobility is below the recommended 25° functional baseline.",
               bullets: [
@@ -3102,7 +3080,6 @@ export async function renderShoulderRotationGrading(activeSession) {
               adviceItems.push({
                 metric: `Hip IR Asymmetry > 10° (Delta: ${diff.toFixed(1)}°)`,
                 sides: `${restrictedSide} Restricted`,
-                icon: "⚖️",
                 title: "Hip Internal Rotation Asymmetry",
                 desc: `Significant structural or muscular imbalance detected between sides (${diff.toFixed(1)}° difference).`,
                 bullets: [
@@ -3125,7 +3102,6 @@ export async function renderShoulderRotationGrading(activeSession) {
             adviceItems.push({
               metric: "Hip ER < 35°",
               sides: sideLabel,
-              icon: "🦵",
               title: "Restricted Hip External Rotation",
               desc: "Mobility is below the recommended 35° functional baseline.",
               bullets: [
@@ -3146,7 +3122,6 @@ export async function renderShoulderRotationGrading(activeSession) {
             adviceItems.push({
               metric: "Shoulder ER < 70° Bilateral",
               sides: "Bilateral",
-              icon: "🎽",
               title: "Restricted Shoulder External Rotation",
               desc: "Both shoulders fall short of the 70° external rotation baseline.",
               bullets: [
@@ -3167,7 +3142,6 @@ export async function renderShoulderRotationGrading(activeSession) {
               adviceItems.push({
                 metric: `Net Arc Deficit > 10° (Delta: ${diff.toFixed(1)}°)`,
                 sides: `${restrictedSide} Restricted`,
-                icon: "🔄",
                 title: "Shoulder Total Motion Arc Deficit",
                 desc: `Imbalance in total rotational range (IR + ER) exceeds 10° (${diff.toFixed(1)}° difference).`,
                 bullets: [
@@ -3185,7 +3159,6 @@ export async function renderShoulderRotationGrading(activeSession) {
               adviceItems.push({
                 metric: `GIRD > 20° (Delta: ${diff.toFixed(1)}°)`,
                 sides: `${restrictedSide} Restricted`,
-                icon: "📊",
                 title: "Shoulder Internal Rotation Deficit (GIRD)",
                 desc: `Imbalance in internal rotation between sides exceeds 20° (${diff.toFixed(1)}° difference).`,
                 bullets: [
@@ -3202,7 +3175,6 @@ export async function renderShoulderRotationGrading(activeSession) {
             adviceItems.push({
               metric: "Shoulder IR < 50° Bilateral",
               sides: "Bilateral",
-              icon: "⚠️",
               title: "Bilateral Shoulder Internal Rotation Deficit",
               desc: "Both shoulders fall short of the 50° internal rotation baseline.",
               bullets: [
@@ -3221,12 +3193,12 @@ export async function renderShoulderRotationGrading(activeSession) {
             adviceItems.push({
               metric: "Shoulder Flexion < 150° Bilateral",
               sides: "Bilateral",
-              icon: "🙆",
               title: "Restricted Shoulder Flexion",
               desc: "Both shoulder flexion excursions are below the 150° functional baseline.",
               bullets: [
                 "**Doorway stretch** (chest and anterior shoulder)",
                 "**overhead lat stretch**",
+                "**wall slide with thoracic extension**",
                 "**wall slide with thoracic extension**",
                 "**thoracic foam roll + arm reach overhead**"
               ]
@@ -3240,7 +3212,7 @@ export async function renderShoulderRotationGrading(activeSession) {
                   <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                       <span style="font-size: 0.75rem; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 4px;">
-                        <span>${item.icon}</span> ${item.title} (${item.sides})
+                        ${item.title} (${item.sides})
                       </span>
                       <span style="font-size: 0.6rem; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: rgba(255, 159, 67, 0.15); border: 1px solid rgba(255, 159, 67, 0.3); color: #ff9f43;">
                         ${item.metric}
@@ -3257,7 +3229,7 @@ export async function renderShoulderRotationGrading(activeSession) {
           } else {
             return `
               <div style="text-align: center; padding: 0.5rem; color: #888; font-size: 0.72rem;">
-                ✅ No significant range of motion issues detected across active hip or shoulder profiles.
+                No significant range of motion issues detected across active hip or shoulder profiles.
               </div>
             `;
           }

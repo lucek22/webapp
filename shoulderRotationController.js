@@ -5,6 +5,15 @@
 import { state, getROMThresholds, updateShoulderRotationGrades } from './helpers.js';
 import { autoSyncToActiveProfile, openProfileDetailsModal } from './profileManager.js';
 
+// Callbacks to prevent circular imports
+let startVideoRecordingFn = null;
+let stopVideoRecordingFn = null;
+
+export function registerShoulderRotationCallbacks(config) {
+  startVideoRecordingFn = config.startVideoRecording;
+  stopVideoRecordingFn = config.stopVideoRecording;
+}
+
 /**
  * Class for measuring shoulder internal and external rotation from a sagittal-view video.
  * Assumes the starting position (0°) has the upper arm vertical, the elbow bent at 90°,
@@ -396,6 +405,9 @@ export function setupShoulderRotationListeners(onPoseResultsCallback) {
         return;
       }
 
+      const videoElement = document.getElementById('webcam');
+      const isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+
       // Check current recording state
       if (!state.isShoulderRotationRecording) {
         // --- START RECORDING ---
@@ -420,6 +432,10 @@ export function setupShoulderRotationListeners(onPoseResultsCallback) {
         }
         updateShoulderRotationSidebarUI();
 
+        if (isWebcamLive && startVideoRecordingFn) {
+          startVideoRecordingFn();
+        }
+
         // Update button UI to recording style (red stop indicator)
         btnSaveShoulderRotationPeaks.innerHTML = `
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor"></rect></svg>
@@ -436,6 +452,10 @@ export function setupShoulderRotationListeners(onPoseResultsCallback) {
       } else {
         // --- STOP RECORDING & SAVE ---
         state.isShoulderRotationRecording = false;
+
+        if (isWebcamLive && stopVideoRecordingFn) {
+          stopVideoRecordingFn();
+        }
 
         // Restore button style
         btnSaveShoulderRotationPeaks.innerHTML = `

@@ -135,7 +135,7 @@ export function startVideoRecording(updateRecordButtonUI) {
   state.mediaRecorder.onerror = (event) => {
     console.error("[ExportDebug] MediaRecorder error:", event.error);
     if (statusElement) {
-      statusElement.textContent = `⚠️ Recording encoder error: ${event.error.name} - ${event.error.message}`;
+      statusElement.textContent = `Recording encoder error: ${event.error.name} - ${event.error.message}`;
     }
   };
 
@@ -150,7 +150,7 @@ export function startVideoRecording(updateRecordButtonUI) {
     if (state.recordedChunks.length === 0) {
       console.warn("No recorded chunks gathered!");
       if (statusElement) {
-        statusElement.textContent = "❌ Export failed: No video data captured.";
+        statusElement.textContent = "Export failed: No video data captured.";
       }
       return;
     }
@@ -208,7 +208,7 @@ export function startVideoRecording(updateRecordButtonUI) {
       
       const sizeMb = (blobToDownload.size / (1024 * 1024)).toFixed(2);
       const durationSec = (finalDuration / 1000).toFixed(1);
-      const successMsg = `✅ Video exported successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB, Format: ${fileExt.toUpperCase()}]`;
+      const successMsg = `Video exported successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB, Format: ${fileExt.toUpperCase()}]`;
       console.log(`[ExportDebug] Download triggered. ${successMsg}`);
       if (statusElement) {
         statusElement.textContent = successMsg;
@@ -227,7 +227,7 @@ export function startVideoRecording(updateRecordButtonUI) {
     updateRecordButtonUI();
   }
   if (statusElement) {
-    statusElement.textContent = "🔴 Video recording in progress... Click the red button to stop and save.";
+    statusElement.textContent = "Video recording in progress... Click the red button to stop and save.";
   }
 }
 
@@ -279,7 +279,14 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
       if (state.currentMode === 'squat') {
         labelPrefix = state.squatTestingSide === 'left' ? "Left Overhead Squat" : (state.squatTestingSide === 'right' ? "Right Overhead Squat" : "Frontal Overhead Squat");
       } else if (state.currentMode === 'shoulder_flexion') {
-        labelPrefix = "Shoulder Flexion Assessment";
+        const side = state.shoulderTestingSide || 'left';
+        labelPrefix = side === 'left' ? "Left Shoulder Flexion" : "Right Shoulder Flexion";
+      } else if (state.currentMode === 'shoulder_rotation') {
+        const side = state.shoulderRotationTestingSide || 'left';
+        labelPrefix = side === 'left' ? "Left Shoulder Rotation" : "Right Shoulder Rotation";
+      } else if (state.currentMode === 'hip_rotation') {
+        const side = state.hipRotationTestingSide || 'left';
+        labelPrefix = side === 'left' ? "Left Hip Rotation" : "Right Hip Rotation";
       }
 
       const videoEntry = {
@@ -299,6 +306,70 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
       if (activeSessionId) {
         const activeSession = profileMigrated.sessions.find(s => String(s.id) === String(activeSessionId));
         if (activeSession) {
+          // --- PREVENT RACE CONDITIONS AND CLOBBERING DURING ASYNC VIDEO SAVE ---
+          // Ensure all active peak angles and calculated metrics currently in state are synced 
+          // to this active session before we persist it back to the database.
+          if (state.shoulderRotation !== undefined) {
+            activeSession.shoulderRotation = state.shoulderRotation ? JSON.parse(JSON.stringify(state.shoulderRotation)) : null;
+            profileMigrated.shoulderRotation = activeSession.shoulderRotation;
+          }
+          if (state.hipRotation !== undefined) {
+            activeSession.hipRotation = state.hipRotation ? JSON.parse(JSON.stringify(state.hipRotation)) : null;
+            profileMigrated.hipRotation = activeSession.hipRotation;
+          }
+          if (state.squatPeaks !== undefined) {
+            activeSession.squatPeaks = state.squatPeaks ? JSON.parse(JSON.stringify(state.squatPeaks)) : null;
+            profileMigrated.squatPeaks = activeSession.squatPeaks;
+          }
+          if (state.shoulderPeaks !== undefined) {
+            activeSession.shoulderPeaks = state.shoulderPeaks ? JSON.parse(JSON.stringify(state.shoulderPeaks)) : null;
+            profileMigrated.shoulderPeaks = activeSession.shoulderPeaks;
+          }
+          if (state.imageHipRotationL !== undefined) {
+            activeSession.imageHipRotationL = state.imageHipRotationL;
+            profileMigrated.imageHipRotationL = state.imageHipRotationL;
+          }
+          if (state.imageHipRotationR !== undefined) {
+            activeSession.imageHipRotationR = state.imageHipRotationR;
+            profileMigrated.imageHipRotationR = state.imageHipRotationR;
+          }
+          if (state.imageShoulderRotationL !== undefined) {
+            activeSession.imageShoulderRotationL = state.imageShoulderRotationL;
+            profileMigrated.imageShoulderRotationL = state.imageShoulderRotationL;
+          }
+          if (state.imageShoulderRotationR !== undefined) {
+            activeSession.imageShoulderRotationR = state.imageShoulderRotationR;
+            profileMigrated.imageShoulderRotationR = state.imageShoulderRotationR;
+          }
+          if (state.imageSquatL !== undefined) {
+            activeSession.imageSquatL = state.imageSquatL;
+            profileMigrated.imageSquatL = state.imageSquatL;
+          }
+          if (state.imageSquatR !== undefined) {
+            activeSession.imageSquatR = state.imageSquatR;
+            profileMigrated.imageSquatR = state.imageSquatR;
+          }
+          if (state.imageSquatFrontal !== undefined) {
+            activeSession.imageSquatFrontal = state.imageSquatFrontal;
+            profileMigrated.imageSquatFrontal = state.imageSquatFrontal;
+          }
+          if (state.imageShoulderLStart !== undefined) {
+            activeSession.imageShoulderLStart = state.imageShoulderLStart;
+            profileMigrated.imageShoulderLStart = state.imageShoulderLStart;
+          }
+          if (state.imageShoulderLEnd !== undefined) {
+            activeSession.imageShoulderLEnd = state.imageShoulderLEnd;
+            profileMigrated.imageShoulderLEnd = state.imageShoulderLEnd;
+          }
+          if (state.imageShoulderRStart !== undefined) {
+            activeSession.imageShoulderRStart = state.imageShoulderRStart;
+            profileMigrated.imageShoulderRStart = state.imageShoulderRStart;
+          }
+          if (state.imageShoulderREnd !== undefined) {
+            activeSession.imageShoulderREnd = state.imageShoulderREnd;
+            profileMigrated.imageShoulderREnd = state.imageShoulderREnd;
+          }
+
           if (state.currentMode === 'squat') {
             if (state.squatTestingSide === 'left') {
               activeSession.videoSquatL = videoEntry;
@@ -309,6 +380,33 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
             } else if (state.squatTestingSide === 'frontal') {
               activeSession.videoSquatFrontal = videoEntry;
               state.videoSquatFrontal = videoEntry;
+            }
+          } else if (state.currentMode === 'shoulder_flexion') {
+            const side = state.shoulderTestingSide || 'left';
+            if (side === 'left') {
+              activeSession.videoShoulderL = videoEntry;
+              state.videoShoulderL = videoEntry;
+            } else {
+              activeSession.videoShoulderR = videoEntry;
+              state.videoShoulderR = videoEntry;
+            }
+          } else if (state.currentMode === 'shoulder_rotation') {
+            const side = state.shoulderRotationTestingSide || 'left';
+            if (side === 'left') {
+              activeSession.videoShoulderRotationL = videoEntry;
+              state.videoShoulderRotationL = videoEntry;
+            } else {
+              activeSession.videoShoulderRotationR = videoEntry;
+              state.videoShoulderRotationR = videoEntry;
+            }
+          } else if (state.currentMode === 'hip_rotation') {
+            const side = state.hipRotationTestingSide || 'left';
+            if (side === 'left') {
+              activeSession.videoHipRotationL = videoEntry;
+              state.videoHipRotationL = videoEntry;
+            } else {
+              activeSession.videoHipRotationR = videoEntry;
+              state.videoHipRotationR = videoEntry;
             }
           }
         }
@@ -343,6 +441,8 @@ export async function saveImportedVideoToProfile(file, target, durationSec) {
     else if (target === 'shoulder-r') labelPrefix = "Right Shoulder Flexion";
     else if (target === 'shoulder-rotation-l') labelPrefix = "Left Shoulder Rotation";
     else if (target === 'shoulder-rotation-r') labelPrefix = "Right Shoulder Rotation";
+    else if (target === 'hip-rotation-l') labelPrefix = "Left Hip Rotation";
+    else if (target === 'hip-rotation-r') labelPrefix = "Right Hip Rotation";
     else if (target === 'playlist') labelPrefix = "Imported Recording";
 
     const fileExt = file.name.split('.').pop() || 'mp4';
@@ -385,6 +485,12 @@ export async function saveImportedVideoToProfile(file, target, durationSec) {
         } else if (target === 'shoulder-rotation-r') {
           activeSession.videoShoulderRotationR = videoEntry;
           state.videoShoulderRotationR = videoEntry;
+        } else if (target === 'hip-rotation-l') {
+          activeSession.videoHipRotationL = videoEntry;
+          state.videoHipRotationL = videoEntry;
+        } else if (target === 'hip-rotation-r') {
+          activeSession.videoHipRotationR = videoEntry;
+          state.videoHipRotationR = videoEntry;
         }
       }
     }
@@ -496,7 +602,7 @@ export function toggleVideoRecording() {
     state.isExportingFrameByFrame = false;
     hideExportProgressOverlay();
     if (statusElement) {
-      statusElement.textContent = "❌ Export pre-processing cancelled.";
+      statusElement.textContent = "Export pre-processing cancelled.";
     }
     
     if (state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo) {

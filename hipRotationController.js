@@ -5,6 +5,15 @@
 import { state, getROMThresholds } from './helpers.js';
 import { autoSyncToActiveProfile, openProfileDetailsModal } from './profileManager.js';
 
+// Callbacks to prevent circular imports
+let startVideoRecordingFn = null;
+let stopVideoRecordingFn = null;
+
+export function registerHipRotationCallbacks(config) {
+  startVideoRecordingFn = config.startVideoRecording;
+  stopVideoRecordingFn = config.stopVideoRecording;
+}
+
 /**
  * Class for measuring hip internal and external rotation.
  */
@@ -95,6 +104,11 @@ export class HipRotationMeasurer {
     if (side === 'right') {
       angleDeg = -angleDeg;
     }
+
+    // Biomechanically, hip external rotation is when the ankle goes inwards (positive angle),
+    // and hip internal rotation is when the ankle goes outwards (negative angle).
+    // Since this is opposite to pure outward/inward lateral displacement sign, we invert the final sign.
+    angleDeg = -angleDeg;
 
     // Track peak internal and external rotation angles (internal peaks are tracked as positive values)
     if (recordPeaks) {
@@ -398,6 +412,9 @@ export function setupHipRotationListeners(onPoseResultsCallback) {
         return;
       }
 
+      const videoElement = document.getElementById('webcam');
+      const isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+
       if (!state.isHipRotationRecording) {
         // --- START RECORDING ---
         state.isHipRotationRecording = true;
@@ -424,6 +441,10 @@ export function setupHipRotationListeners(onPoseResultsCallback) {
         }
         updateHipRotationSidebarUI();
 
+        if (isWebcamLive && startVideoRecordingFn) {
+          startVideoRecordingFn();
+        }
+
         // Update button UI
         btnSaveHipRotationPeaks.innerHTML = `
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor"></rect></svg>
@@ -439,6 +460,19 @@ export function setupHipRotationListeners(onPoseResultsCallback) {
       } else {
         // --- STOP RECORDING & SAVE ---
         state.isHipRotationRecording = false;
+
+        const canvasElement = document.getElementById('overlay');
+        const capturedImg = canvasElement ? canvasElement.toDataURL('image/png') : null;
+        const side = state.hipRotationTestingSide || 'left';
+        if (side === 'left') {
+          state.imageHipRotationL = capturedImg;
+        } else {
+          state.imageHipRotationR = capturedImg;
+        }
+
+        if (isWebcamLive && stopVideoRecordingFn) {
+          stopVideoRecordingFn();
+        }
 
         btnSaveHipRotationPeaks.innerHTML = `
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>

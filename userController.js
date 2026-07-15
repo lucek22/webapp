@@ -64,7 +64,8 @@ import {
   getDefaultShoulderRotation,
   processShoulderRotationFromPreprocessedFrames,
   resetShoulderRotationPeaksUI,
-  ShoulderRotationMeasurer
+  ShoulderRotationMeasurer,
+  registerShoulderRotationCallbacks
 } from './shoulderRotationController.js';
 
 import {
@@ -74,7 +75,8 @@ import {
   getDefaultHipRotation,
   processHipRotationFromPreprocessedFrames,
   resetHipRotationPeaksUI,
-  HipRotationMeasurer
+  HipRotationMeasurer,
+  registerHipRotationCallbacks
 } from './hipRotationController.js';
 
 import {
@@ -950,10 +952,10 @@ export function onPoseResults(results) {
     // Reset status elements (only when not in playout recording to preserve "Recording playout is active..." status)
     if (!state.isRecordingPlayLoop) {
       if (state.autoActive) {
-        statusElement.textContent = "🔍 Waiting for subject to enter and align in view...";
+        statusElement.textContent = "Waiting for subject to enter and align in view...";
         state.holdTimerMs = 0; // Reset sequence hold timer
       } else {
-        statusElement.textContent = "🔍 Scanning for a person... Align yourself in view of the camera.";
+        statusElement.textContent = "Scanning for a person... Align yourself in view of the camera.";
       }
     }
 
@@ -997,7 +999,7 @@ export function onPoseResults(results) {
       canvasCtx.font = 'bold 11px sans-serif';
       canvasCtx.textAlign = 'center';
       canvasCtx.textBaseline = 'middle';
-      canvasCtx.fillText("⚠️  SUBJECT NOT DETECTED IN FRAME", canvasElement.width / 2, bannerY + bannerH / 2);
+      canvasCtx.fillText("  SUBJECT NOT DETECTED IN FRAME", canvasElement.width / 2, bannerY + bannerH / 2);
       canvasCtx.restore();
     }
 
@@ -1647,12 +1649,12 @@ export function onPoseResults(results) {
           }, liveMetrics, results);
         }
 
-        statusElement.textContent = `✅ Calibrated Tracking active. Real-time biometrics rendering.`;
+        statusElement.textContent = `Calibrated Tracking active. Real-time biometrics rendering.`;
       } else {
-        statusElement.textContent = "⚠️ Scale not calibrated yet. Lock your 200mm marker calibration first.";
+        statusElement.textContent = " Scale not calibrated yet. Lock your 200mm marker calibration first.";
       }
     } else {
-      statusElement.textContent = "🔍 Scanning for a person... Align your printed marker first.";
+      statusElement.textContent = "Scanning for a person... Align your printed marker first.";
     }
   }
 
@@ -1757,7 +1759,7 @@ function captureSnapshot(joints, metrics, results) {
   captureBtn.classList.remove('btn-capture');
   captureBtn.classList.add('btn-capture-reset');
   
-  statusElement.textContent = "📸 SNAPSHOT CAPTURED! Biomechanical statistics frozen on screen.";
+  statusElement.textContent = "SNAPSHOT CAPTURED! Biomechanical statistics frozen on screen.";
   
   // Set default label in input
   const nameInput = document.getElementById('snapshot-name-input');
@@ -1844,7 +1846,7 @@ export function drawLockoutTransitionOverlay() {
     nextPose = "Generating consolidated report...";
   }
   
-  canvasCtx.fillText(`✅ ${currentCap} CAPTURED!`, canvasElement.width / 2, panelY + 18);
+  canvasCtx.fillText(`${currentCap} CAPTURED!`, canvasElement.width / 2, panelY + 18);
   
   canvasCtx.fillStyle = '#e2e8f0';
   canvasCtx.font = '500 12px sans-serif';
@@ -2052,7 +2054,7 @@ function drawFrozenSnapshot() {
   canvasCtx.font = 'bold 12px sans-serif';
   canvasCtx.textAlign = 'center';
   canvasCtx.textBaseline = 'middle';
-  canvasCtx.fillText('📸 SNAPSHOT FROZEN', 0, 0);
+  canvasCtx.fillText('SNAPSHOT FROZEN', 0, 0);
   canvasCtx.restore();
 
   // 4. Draw camera flash if still active
@@ -2456,11 +2458,11 @@ export async function startCamera(preferredDeviceId = null) {
     console.error("Camera access failed:", err);
     startButton.classList.remove('hidden');
     if (err.name === 'NotAllowedError') {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
     } else if (err.name === 'NotReadableError') {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
     } else {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
+      statusElement.innerHTML = `<span class="text-red font-bold">Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
     }
   }
 }
@@ -2514,7 +2516,7 @@ export function showImportDestinationModal(file) {
     // 3. Create content
     card.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; text-align: center;">
-        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #818cf8, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">📥 Import Video Recording</h2>
+        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #818cf8, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Import Video Recording</h2>
         <p style="font-size: 13px; color: #9ca3af; margin: 0; word-break: break-all;">${file.name} (${fileSizeMB} MB)</p>
       </div>
       
@@ -2528,7 +2530,7 @@ export function showImportDestinationModal(file) {
               <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
             </div>
             <div>
-              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📂 Saved Video Recordings Playlist</div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Saved Video Recordings Playlist</div>
               <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Adds video to subject's saved playlist without updating active test slots.</div>
             </div>
           </div>
@@ -2541,7 +2543,7 @@ export function showImportDestinationModal(file) {
               <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
             </div>
             <div>
-              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🏋️ Overhead Squat Video</div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;"> Overhead Squat Video</div>
               <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Analyze knee mobility, depth peaks, and frontal valgus/varus alignment.</div>
             </div>
           </div>
@@ -2566,7 +2568,7 @@ export function showImportDestinationModal(file) {
               <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
             </div>
             <div>
-              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">💪 Shoulder Flexion Video</div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Shoulder Flexion Video</div>
               <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Compute shoulder flexion range of motion and extension angles.</div>
             </div>
           </div>
@@ -2588,7 +2590,7 @@ export function showImportDestinationModal(file) {
               <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
             </div>
             <div>
-              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">🔄 Shoulder Rotation Video</div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Shoulder Rotation Video</div>
               <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Compute shoulder internal and external rotation angles (sagittal view).</div>
             </div>
           </div>
@@ -2610,7 +2612,7 @@ export function showImportDestinationModal(file) {
               <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
             </div>
             <div>
-              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">📺 Analyze Video (Don't Save)</div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Analyze Video (Don't Save)</div>
               <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Loads transiently on the viewport for temporary analysis without database commit.</div>
             </div>
           </div>
@@ -2876,7 +2878,7 @@ export async function handleUploadedFile(file) {
           // Clear it immediately to prevent duplicate runs
           state.pendingImportTarget = null;
 
-          statusElement.textContent = "📥 Preparing imported video for high-fidelity export and peak analysis...";
+          statusElement.textContent = "Preparing imported video for high-fidelity export and peak analysis...";
           
           // Ensure state.squatPeaks is initialized
           state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
@@ -2983,13 +2985,13 @@ export async function handleUploadedFile(file) {
         console.log(`[ExportDebug] uploadedVideo.onended fired. isRecording: ${state.isRecording}, isRecordingPlayLoop: ${state.isRecordingPlayLoop}, currentTime: ${uploadedVideo.currentTime}, duration: ${uploadedVideo.duration}`);
         if (state.isRecording) {
           if (state.isRecordingPlayLoop) {
-            statusElement.textContent = `⏱️ Video ended at ${uploadedVideo.currentTime.toFixed(1)}s. Finishing export...`;
+            statusElement.textContent = ` Video ended at ${uploadedVideo.currentTime.toFixed(1)}s. Finishing export...`;
             setTimeout(() => {
               stopVideoRecording();
             }, 100);
           } else {
             // Wait 2.5 seconds to let the MediaPipe processing pipeline catch up and drain fully to prevent end truncation
-            statusElement.textContent = "⏱️ Finalizing export, compiling remaining frames... please wait.";
+            statusElement.textContent = " Finalizing export, compiling remaining frames... please wait.";
             setTimeout(() => {
               stopVideoRecording();
             }, 2500);
@@ -3510,7 +3512,7 @@ function deleteSnapshotHandler(id) {
   snapshotStore.delete(id)
     .then(() => {
       renderGallery();
-      statusElement.textContent = "🗑️ Snapshot deleted successfully.";
+      statusElement.textContent = " Snapshot deleted successfully.";
     })
     .catch(err => {
       console.error("Failed to delete snapshot:", err);
@@ -3551,7 +3553,7 @@ if (lockCalButton) {
     clearSmoothBuffer('body_height_skeletal');
     clearSmoothBuffer('body_height_live');
     
-    lockCalButton.textContent = "✅ Scale Locked!";
+    lockCalButton.textContent = "Scale Locked!";
     lockCalButton.classList.add('cal-btn-locked');
     lockCalButton.classList.remove('cal-btn-unlocked');
     if (statusElement) statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
@@ -3887,7 +3889,7 @@ if (btnApplyScale && inputPremeasuredScale) {
 
     // Visual feedback glow
     btnApplyScale.classList.add('btn-success-glow');
-    btnApplyScale.textContent = "Scale Applied! ✅";
+    btnApplyScale.textContent = "Scale Applied! ";
     
     setTimeout(() => {
       btnApplyScale.classList.remove('btn-success-glow');
@@ -4267,14 +4269,14 @@ export function updateRecordButtonUI() {
 
 export async function runVideoFramePreprocessing() {
   if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || !uploadedVideo) {
-    statusElement.textContent = "❌ No active uploaded video found for high-fidelity export.";
+    statusElement.textContent = "No active uploaded video found for high-fidelity export.";
     return;
   }
 
   // Prevent double triggers
   if (state.isExportingFrameByFrame || state.isRecordingPlayLoop) return;
 
-  statusElement.textContent = "⚙️ Initiating High-Fidelity Pre-processing...";
+  statusElement.textContent = " Initiating High-Fidelity Pre-processing...";
   state.isExportingFrameByFrame = true;
   state.exportFramesData = [];
   updateRecordButtonUI();
@@ -4295,7 +4297,7 @@ export async function runVideoFramePreprocessing() {
 
   const duration = uploadedVideo.duration;
   if (!duration || isNaN(duration)) {
-    statusElement.textContent = "❌ Failed to retrieve video duration. Cannot pre-process.";
+    statusElement.textContent = "Failed to retrieve video duration. Cannot pre-process.";
     state.isExportingFrameByFrame = false;
     updateRecordButtonUI();
     return;
@@ -4367,7 +4369,7 @@ export async function runVideoFramePreprocessing() {
       // 5. Update glassmorphic progress HUD
       const progressPercent = Math.min(100, (currentTime / duration) * 100);
       showExportProgressOverlay(progressPercent);
-      statusElement.textContent = `⚙️ Analyzing biomechanical movements... ${progressPercent.toFixed(0)}%`;
+      statusElement.textContent = ` Analyzing biomechanical movements... ${progressPercent.toFixed(0)}%`;
 
       // 6. Step forward
       currentTime += dt;
@@ -4375,7 +4377,7 @@ export async function runVideoFramePreprocessing() {
 
     // Pre-processing complete!
     if (state.isExportingFrameByFrame) {
-      statusElement.textContent = "✅ Pre-processing complete. Initializing zero-lag playout record...";
+      statusElement.textContent = "Pre-processing complete. Initializing zero-lag playout record...";
       state.isExportingFrameByFrame = false;
       updateRecordButtonUI();
 
@@ -4408,7 +4410,7 @@ export async function runVideoFramePreprocessing() {
     }
   } catch (err) {
     console.error("High-Fidelity Pre-processing failed:", err);
-    statusElement.textContent = "❌ High-Fidelity Pre-processing failed. Reverting to manual recording.";
+    statusElement.textContent = "High-Fidelity Pre-processing failed. Reverting to manual recording.";
     hideExportProgressOverlay();
     state.isExportingFrameByFrame = false;
     state.exportFramesData = [];
@@ -4428,7 +4430,7 @@ export async function startRealTimePlaybackExport() {
   // Set the playout recording flag early to ensure any seeked event triggered by resetting the currentTime is ignored by the manual single-frame inference listener
   state.isRecordingPlayLoop = true;
 
-  statusElement.textContent = "🔴 Starting recording playout at 1.0x speed...";
+  statusElement.textContent = "Starting recording playout at 1.0x speed...";
   
   // Set video to beginning and wait for seeked to complete
   await new Promise((resolve) => {
@@ -4459,7 +4461,7 @@ export async function startRealTimePlaybackExport() {
   // Play the video at standard 1.0x speed
   uploadedVideo.play();
   
-  statusElement.textContent = "🔴 Recording playout is active. Analyzing from cached timeline... please do not close this tab.";
+  statusElement.textContent = "Recording playout is active. Analyzing from cached timeline... please do not close this tab.";
   updateRecordButtonUI();
 }
 
@@ -4828,7 +4830,7 @@ export async function importPriorPortfolio(report) {
   // High-end feedback animation on Import button
   if (btnImportPortfolio) {
     btnImportPortfolio.classList.add('btn-success-glow');
-    btnImportPortfolio.textContent = "Session Imported Successfully! ✅";
+    btnImportPortfolio.textContent = "Session Imported Successfully! ";
     setTimeout(() => {
       btnImportPortfolio.classList.remove('btn-success-glow');
       btnImportPortfolio.textContent = "Import Prior Portfolio";
@@ -4953,7 +4955,7 @@ if (autoSequenceBtn) {
     autoSequenceBtn.textContent = "Cancel Auto Sequence";
     autoSequenceBtn.classList.add('active-cancel');
 
-    statusElement.textContent = "🚀 Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
+    statusElement.textContent = "Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
   });
 }
 
@@ -5360,7 +5362,7 @@ function initScarletRecorder() {
 
       scarletMediaRecorder.start(100);
       
-      recordBtn.textContent = '🛑 Stop Recording Video';
+      recordBtn.textContent = 'Stop Recording Video';
       recordBtn.style.backgroundColor = '#BA0C2F'; 
       
     } else {
@@ -5390,6 +5392,16 @@ registerSquatCallbacks({
   hideAnalysisProgressOverlay,
   updateRecordButtonUI,
   getPoseModel: () => pose
+});
+
+registerShoulderRotationCallbacks({
+  startVideoRecording,
+  stopVideoRecording
+});
+
+registerHipRotationCallbacks({
+  startVideoRecording,
+  stopVideoRecording
 });
 
 setupShoulderListeners(onPoseResults, updateDashboardOfflinePlaceholders);

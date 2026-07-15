@@ -1,0 +1,6 @@
+External Rotation 70 | 85
+Internal Rotation 50 | 65
+Shoulder Flexion 150 | 170
+Knee Flexion 80 | 110
+Hip External Rotation 25 | 35
+Hip Internal Rotation 35 | 45

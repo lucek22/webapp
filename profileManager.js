@@ -3224,6 +3224,48 @@ export async function renderShoulderRotationGrading(activeSession) {
             });
           }
 
+          // ==========================================
+          // 4. KNEE VALGUS (CAVE-IN) RULES
+          // ==========================================
+          const staticValgusL = (activeSession.jointsOverhead) ? (calculateValgusFromJoints(activeSession.jointsOverhead).pctL || 0) : 0;
+          const staticValgusR = (activeSession.jointsOverhead) ? (calculateValgusFromJoints(activeSession.jointsOverhead).pctR || 0) : 0;
+          const vidValgusL = sPeaks.maxKneeCaveL || 0;
+          const vidValgusR = sPeaks.maxKneeCaveR || 0;
+          
+          const maxStaticCave = Math.max(staticValgusL, staticValgusR);
+          const maxVideoCave = Math.max(vidValgusL, vidValgusR);
+          const peakCave = Math.max(maxStaticCave, maxVideoCave);
+          
+          if (peakCave >= 3.0) {
+            let severity = "Mild";
+            if (peakCave > 15.0) {
+              severity = "Severe";
+            } else if (peakCave > 8.0) {
+              severity = "Moderate";
+            }
+            
+            let sourceLabel = maxVideoCave >= maxStaticCave ? "Video" : "Static";
+            let sideLabel = "";
+            let lVal = maxVideoCave >= maxStaticCave ? vidValgusL : staticValgusL;
+            let rVal = maxVideoCave >= maxStaticCave ? vidValgusR : staticValgusR;
+            
+            if (lVal >= 3.0 && rVal >= 3.0) sideLabel = "Bilateral";
+            else if (lVal >= 3.0) sideLabel = "Left Side";
+            else sideLabel = "Right Side";
+            
+            adviceItems.push({
+              metric: `Knee Valgus (${sourceLabel}): ${peakCave.toFixed(1)}°`,
+              sides: sideLabel,
+              title: `${severity} Knee Valgus (Cave-In)`,
+              desc: `Knee tracking inward deviation detected during squat assessment (Peak: L: ${lVal.toFixed(1)}°, R: ${rVal.toFixed(1)}°).`,
+              bullets: [
+                "**Reactive Neuromuscular Training (RNT) Squats**: Perform squats with a resistance band looped around your knees pulling them inward to actively force hip abduction and outward tracking.",
+                "**Lateral Hip Rotator & Glute Strengthening**: Perform clamshells, monster walks, and single-leg glute bridges to strengthen hip abductors.",
+                "**Ankle Dorsiflexion Mobility**: Address restricted calf/soleus tissues and ankle joint capsule limitations using weight-bearing dorsiflexion stretches."
+              ]
+            });
+          }
+
           if (adviceItems.length > 0) {
             return `
               <div style="display: flex; flex-direction: column; gap: 0.6rem;">

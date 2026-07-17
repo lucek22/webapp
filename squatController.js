@@ -635,7 +635,7 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
                 statusElement.textContent = `💾 Peak mobility metrics for "${activeProfileName}" successfully saved to portfolio!`;
               }
               alert(`Overhead squat peaks saved and synchronized to ${activeProfileName}'s profile successfully!`);
-              openProfileDetailsModal(state.activeProfileId);
+              // openProfileDetailsModal(state.activeProfileId);
             } catch (err) {
               console.error("Failed to sync squat peaks on recording stop:", err);
               alert("Could not sync squat peaks to profile. See developer console for details.");
@@ -686,7 +686,7 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
             statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to portfolio!`;
           }
           alert(`Peak mobility metrics saved successfully for ${activeProfileName}!`);
-          openProfileDetailsModal(state.activeProfileId);
+          // openProfileDetailsModal(state.activeProfileId);
         } else {
           alert("You are currently in Guest Mode. To save these peak mobility scores to a player portfolio, please select or create a profile first, then click Save Peaks to Portfolio again.");
         }

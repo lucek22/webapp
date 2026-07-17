@@ -355,6 +355,7 @@ export function clearSmoothBuffer(key) {
 
 
 export function calculateAngle(p_vertex, p_arm1, p_arm2) {
+  if (!p_vertex || !p_arm1 || !p_arm2 || p_vertex.x === undefined || p_arm1.x === undefined || p_arm2.x === undefined) return 0;
   const v1 = { x: p_arm1.x - p_vertex.x, y: p_arm1.y - p_vertex.y };
   const v2 = { x: p_arm2.x - p_vertex.x, y: p_arm2.y - p_vertex.y };
   
@@ -526,7 +527,8 @@ export function getDefaultROMThresholds() {
     "Shoulder Flexion": { low: 150, high: 170 },
     "Knee Flexion": { low: 80, high: 110 },
     "Hip External Rotation": { low: 30, high: 45 },
-    "Hip Internal Rotation": { low: 30, high: 45 }
+    "Hip Internal Rotation": { low: 30, high: 45 },
+    "Ankle Dorsiflexion": { low: 30, high: 38 }
   };
 }
 
@@ -546,5 +548,14 @@ export function updateShoulderRotationGrades(shRot, thresholds) {
   shRot.gradeInternalL = calculateROMGrade(shRot.maxInternalRotationL, intT.low, intT.high);
   shRot.gradeExternalR = calculateROMGrade(shRot.maxExternalRotationR, extT.low, extT.high);
   shRot.gradeInternalR = calculateROMGrade(shRot.maxInternalRotationR, intT.low, intT.high);
+}
+
+export function getDefaultAnkleDorsiPeaks(existing = null) {
+  return {
+    shinAngleL: existing && existing.shinAngleL !== undefined ? existing.shinAngleL : null,
+    shinAngleR: existing && existing.shinAngleR !== undefined ? existing.shinAngleR : null,
+    ankleDorsiL: existing && existing.ankleDorsiL !== undefined ? existing.ankleDorsiL : null,
+    ankleDorsiR: existing && existing.ankleDorsiR !== undefined ? existing.ankleDorsiR : null
+  };
 }
 

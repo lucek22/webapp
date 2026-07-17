@@ -3803,7 +3803,7 @@ export function setUnitSystem(useInches) {
   const profileDetailsModal = document.getElementById('profile-details-modal');
   if (profileDetailsModal && profileDetailsModal.classList.contains('active')) {
     if (state.activeProfileId) {
-      openProfileDetailsModal(state.activeProfileId);
+      openProfileDetailsModal(state.activeProfileId, true);
     }
   }
 }

@@ -150,6 +150,15 @@ export async function initializeProfilesSelector() {
       
       const sessionContainer = document.getElementById('profile-session-select-container');
       if (sessionContainer) sessionContainer.classList.add('hidden');
+
+      // Reset left sidebar to guest card
+      const leftCard = document.getElementById('left-profile-active-card');
+      const guestCard = document.getElementById('left-profile-guest-card');
+      if (leftCard && guestCard) {
+        leftCard.classList.add('hidden');
+        guestCard.classList.remove('hidden');
+      }
+
     } else if (selectedVal === '') {
       if (profileSelect) profileSelect.value = '';
       if (calProfileSelect) calProfileSelect.value = '';
@@ -349,14 +358,17 @@ export async function initializeProfilesSelector() {
   const tabButtons = document.querySelectorAll('.athlete-tab-btn');
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      tabButtons.forEach(b => b.classList.remove('active'));
+      const container = btn.closest('.profile-modal-container') || btn.closest('.gallery-section') || document;
+      
+      const siblingBtns = container.querySelectorAll('.athlete-tab-btn');
+      siblingBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
-      const tabPanes = document.querySelectorAll('.athlete-tab-pane');
+      const tabPanes = container.querySelectorAll('.athlete-tab-pane');
       tabPanes.forEach(pane => pane.classList.add('hidden'));
 
       const targetTabId = btn.getAttribute('data-tab');
-      const targetPane = document.getElementById(targetTabId);
+      const targetPane = container.querySelector(`[id="${targetTabId}"]`);
       if (targetPane) {
         targetPane.classList.remove('hidden');
       }
@@ -900,6 +912,18 @@ export async function loadProfileIntoState(profileId) {
       };
     }
 
+    // Show active left card and hide guest placeholder card
+    const leftCard = document.getElementById('left-profile-active-card');
+    const guestCard = document.getElementById('left-profile-guest-card');
+    if (leftCard && guestCard) {
+      leftCard.classList.remove('hidden');
+      guestCard.classList.add('hidden');
+    }
+    const leftSidebar = document.getElementById('left-profile-sidebar');
+    if (leftSidebar) {
+      await populateProfileDetails(profileId, leftSidebar, true);
+    }
+
   } catch (err) {
     console.error("[loadProfile] Error loading profile into state:", err);
   }
@@ -1029,10 +1053,11 @@ export function autoSyncToActiveProfileDebounced() {
   }, 1000);
 }
 
-export async function openProfileDetailsModal(profileId) {
+export async function populateProfileDetails(profileId, container, preserveTab = false) {
+  if (!profileId || !container) return;
   if (!profileId) return;
 
-  const mainVideoPlayer = document.getElementById('profile-details-video-player');
+  const mainVideoPlayer = container.querySelector('#profile-details-video-player');
   state.activeModalVideoProcessing = false;
   clearSmoothBuffer('*');
   state.latestPoseResults = null;
@@ -1064,7 +1089,7 @@ export async function openProfileDetailsModal(profileId) {
       state.videos = profile.videos || [];
     }
 
-    const userSelect = document.getElementById('profile-detail-user-select');
+    const userSelect = container.querySelector('#profile-detail-user-select');
     if (userSelect) {
       userSelect.innerHTML = '';
       
@@ -1089,7 +1114,7 @@ export async function openProfileDetailsModal(profileId) {
         state.activeProfileId = selectedProfileId;
         state.activeSessionId = null;
         await loadProfileIntoState(selectedProfileId);
-        openProfileDetailsModal(selectedProfileId);
+        updateProfileUI(selectedProfileId);
       };
     }
 
@@ -1102,7 +1127,7 @@ export async function openProfileDetailsModal(profileId) {
     }
     state.activeSessionId = activeSession.id;
 
-    const sessionSelect = document.getElementById('profile-detail-session-select');
+    const sessionSelect = container.querySelector('#profile-detail-session-select');
     if (sessionSelect) {
       sessionSelect.innerHTML = '';
       profile.sessions.forEach(sess => {
@@ -1121,12 +1146,12 @@ export async function openProfileDetailsModal(profileId) {
         profile.activeSessionId = selectedSessId;
         await snapshotStore.saveProfile(profile);
         await loadProfileIntoState(profileId);
-        openProfileDetailsModal(profileId);
+        updateProfileUI(profileId);
       };
     }
 
-    const modalUnitInchBtn = document.getElementById('modal-unit-inch-btn');
-    const modalUnitCmBtn = document.getElementById('modal-unit-cm-btn');
+    const modalUnitInchBtn = container.querySelector('#modal-unit-inch-btn');
+    const modalUnitCmBtn = container.querySelector('#modal-unit-cm-btn');
     if (modalUnitInchBtn && modalUnitCmBtn) {
       if (state.useInches) {
         modalUnitInchBtn.classList.add('active');
@@ -1137,7 +1162,7 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const btnNewSession = document.getElementById('btn-profile-new-session');
+    const btnNewSession = container.querySelector('#btn-profile-new-session');
     if (btnNewSession) {
       btnNewSession.onclick = async () => {
         const sessionName = prompt("Enter a name for the new session (e.g., 'Set 2 - Post-practice'):");
@@ -1205,11 +1230,11 @@ export async function openProfileDetailsModal(profileId) {
         await loadProfileIntoState(profileId);
 
         alert(`New session "${trimmedName}" started! Dashboard metrics are reset for fresh video captures.`);
-        openProfileDetailsModal(profileId);
+        updateProfileUI(profileId);
       };
     }
 
-    const btnRenameSession = document.getElementById('btn-profile-rename-session');
+    const btnRenameSession = container.querySelector('#btn-profile-rename-session');
     if (btnRenameSession) {
       btnRenameSession.onclick = async () => {
         const currentSessionName = activeSession.name || `Session (${new Date(activeSession.timestamp).toLocaleDateString()})`;
@@ -1236,7 +1261,7 @@ export async function openProfileDetailsModal(profileId) {
               }
               
               alert(`Session renamed to "${trimmedName}" successfully!`);
-              openProfileDetailsModal(profileId);
+              updateProfileUI(profileId);
             }
           }
         } catch (err) {
@@ -1246,9 +1271,9 @@ export async function openProfileDetailsModal(profileId) {
       };
     }
 
-    const detailName = document.getElementById('profile-detail-name');
-    const detailScale = document.getElementById('profile-detail-scale');
-    const detailLastSession = document.getElementById('profile-detail-last-session');
+    const detailName = container.querySelector('#profile-detail-name');
+    const detailScale = container.querySelector('#profile-detail-scale');
+    const detailLastSession = container.querySelector('#profile-detail-last-session');
     
     if (detailName) {
       detailName.innerHTML = `
@@ -1303,7 +1328,7 @@ export async function openProfileDetailsModal(profileId) {
                 if (activeProfileName) activeProfileName.textContent = trimmedName;
               }
               
-              openProfileDetailsModal(profileId);
+              updateProfileUI(profileId);
             }
           } catch (err) {
             console.error("[ProfileRename] Failed to rename profile:", err);
@@ -1344,9 +1369,9 @@ export async function openProfileDetailsModal(profileId) {
     ];
 
     poses.forEach(p => {
-      const statusEl = document.getElementById(`detail-status-${p.key}`);
-      const imgEl = document.getElementById(`detail-preview-img-${p.key}`);
-      const containerEl = document.getElementById(`detail-preview-container-${p.key}`);
+      const statusEl = container.querySelector(`#detail-status-${p.key}`);
+      const imgEl = container.querySelector(`#detail-preview-img-${p.key}`);
+      const containerEl = container.querySelector(`#detail-preview-container-${p.key}`);
       
       let hasData = false;
       let imgSrc = activeSession[p.imgKey] || null;
@@ -1550,7 +1575,7 @@ export async function openProfileDetailsModal(profileId) {
           }
         }
 
-        const deleteBtn = document.getElementById(`btn-delete-pose-${p.key}`);
+        const deleteBtn = container.querySelector(`#btn-delete-pose-${p.key}`);
         if (deleteBtn) {
           deleteBtn.classList.remove('hidden');
           deleteBtn.onclick = async (e) => {
@@ -1701,7 +1726,7 @@ export async function openProfileDetailsModal(profileId) {
               }
               
               alert(`${p.title} data deleted successfully.`);
-              openProfileDetailsModal(profileId);
+              updateProfileUI(profileId);
             } catch (err) {
               console.error(`[DeletePoseData] Failed to delete data for ${p.key}:`, err);
               alert("Failed to delete posture data: " + err.message);
@@ -1716,7 +1741,7 @@ export async function openProfileDetailsModal(profileId) {
         if (containerEl) containerEl.classList.add('hidden');
         if (imgEl) imgEl.src = "";
 
-        const deleteBtn = document.getElementById(`btn-delete-pose-${p.key}`);
+        const deleteBtn = container.querySelector(`#btn-delete-pose-${p.key}`);
         if (deleteBtn) {
           deleteBtn.classList.add('hidden');
           deleteBtn.onclick = null;
@@ -1866,16 +1891,16 @@ export async function openProfileDetailsModal(profileId) {
       `;
     };
 
-    const thA = document.getElementById('detail-table-height-a');
-    const thT = document.getElementById('detail-table-height-t');
-    const thO = document.getElementById('detail-table-height-overhead');
+    const thA = container.querySelector('#detail-table-height-a');
+    const thT = container.querySelector('#detail-table-height-t');
+    const thO = container.querySelector('#detail-table-height-overhead');
     if (thA) thA.innerHTML = renderCellSingle('a', 'skeletal_height', getVal('a', 'skeletal_height', ['t', 'overhead']));
     if (thT) thT.innerHTML = renderCellSingle('t', 'skeletal_height', getVal('t', 'skeletal_height', ['a', 'overhead']));
     if (thO) thO.innerHTML = renderCellSingle('overhead', 'skeletal_height', getVal('overhead', 'skeletal_height', ['a', 't']));
 
-    const twA = document.getElementById('detail-table-wingspan-a');
-    const twT = document.getElementById('detail-table-wingspan-t');
-    const twO = document.getElementById('detail-table-wingspan-overhead');
+    const twA = container.querySelector('#detail-table-wingspan-a');
+    const twT = container.querySelector('#detail-table-wingspan-t');
+    const twO = container.querySelector('#detail-table-wingspan-overhead');
     if (twA) twA.innerHTML = renderCellSingle('a', 'wingspan', getVal('a', 'wingspan', ['t', 'overhead']));
     if (twT) twT.innerHTML = renderCellSingle('t', 'wingspan', getVal('t', 'wingspan', ['a', 'overhead']));
     if (twO) {
@@ -1883,9 +1908,9 @@ export async function openProfileDetailsModal(profileId) {
       twO.innerHTML = renderCellPair('overhead', 'fingerToToeL', 'fingerToToeR', reachL, reachR);
     }
 
-    const ttA = document.getElementById('detail-table-torso-a');
-    const ttT = document.getElementById('detail-table-torso-t');
-    const ttO = document.getElementById('detail-table-torso-overhead');
+    const ttA = container.querySelector('#detail-table-torso-a');
+    const ttT = container.querySelector('#detail-table-torso-t');
+    const ttO = container.querySelector('#detail-table-torso-overhead');
     if (ttA) {
       const [valL, valR] = getValPair('a', 'torso_l', 'torso_r', ['t', 'overhead']);
       ttA.innerHTML = renderCellPair('a', 'torso_l', 'torso_r', valL, valR);
@@ -1899,9 +1924,9 @@ export async function openProfileDetailsModal(profileId) {
       ttO.innerHTML = renderCellPair('overhead', 'torso_l', 'torso_r', valL, valR);
     }
 
-    const tthA = document.getElementById('detail-table-thigh-a');
-    const tthT = document.getElementById('detail-table-thigh-t');
-    const tthO = document.getElementById('detail-table-thigh-overhead');
+    const tthA = container.querySelector('#detail-table-thigh-a');
+    const tthT = container.querySelector('#detail-table-thigh-t');
+    const tthO = container.querySelector('#detail-table-thigh-overhead');
     if (tthA) {
       const [valL, valR] = getValPair('a', 'thigh_l', 'thigh_r', ['t', 'overhead']);
       tthA.innerHTML = renderCellPair('a', 'thigh_l', 'thigh_r', valL, valR);
@@ -1915,9 +1940,9 @@ export async function openProfileDetailsModal(profileId) {
       tthO.innerHTML = renderCellPair('overhead', 'thigh_l', 'thigh_r', valL, valR);
     }
 
-    const tsA = document.getElementById('detail-table-shin-a');
-    const tsT = document.getElementById('detail-table-shin-t');
-    const tsO = document.getElementById('detail-table-shin-overhead');
+    const tsA = container.querySelector('#detail-table-shin-a');
+    const tsT = container.querySelector('#detail-table-shin-t');
+    const tsO = container.querySelector('#detail-table-shin-overhead');
     if (tsA) {
       const [valL, valR] = getValPair('a', 'shin_l', 'shin_r', ['t', 'overhead']);
       tsA.innerHTML = renderCellPair('a', 'shin_l', 'shin_r', valL, valR);
@@ -1931,9 +1956,9 @@ export async function openProfileDetailsModal(profileId) {
       tsO.innerHTML = renderCellPair('overhead', 'shin_l', 'shin_r', valL, valR);
     }
 
-    const tuaA = document.getElementById('detail-table-upperarm-a');
-    const tuaT = document.getElementById('detail-table-upperarm-t');
-    const tuaO = document.getElementById('detail-table-upperarm-overhead');
+    const tuaA = container.querySelector('#detail-table-upperarm-a');
+    const tuaT = container.querySelector('#detail-table-upperarm-t');
+    const tuaO = container.querySelector('#detail-table-upperarm-overhead');
     if (tuaA) {
       const [valL, valR] = getValPair('a', 'upperarm_l', 'upperarm_r', ['t', 'overhead']);
       tuaA.innerHTML = renderCellPair('a', 'upperarm_l', 'upperarm_r', valL, valR);
@@ -1947,9 +1972,9 @@ export async function openProfileDetailsModal(profileId) {
       tuaO.innerHTML = renderCellPair('overhead', 'upperarm_l', 'upperarm_r', valL, valR);
     }
 
-    const tfaA = document.getElementById('detail-table-forearm-a');
-    const tfaT = document.getElementById('detail-table-forearm-t');
-    const tfaO = document.getElementById('detail-table-forearm-overhead');
+    const tfaA = container.querySelector('#detail-table-forearm-a');
+    const tfaT = container.querySelector('#detail-table-forearm-t');
+    const tfaO = container.querySelector('#detail-table-forearm-overhead');
     if (tfaA) {
       const [valL, valR] = getValPair('a', 'forearm_l', 'forearm_r', ['t', 'overhead']);
       tfaA.innerHTML = renderCellPair('a', 'forearm_l', 'forearm_r', valL, valR);
@@ -1963,14 +1988,14 @@ export async function openProfileDetailsModal(profileId) {
       tfaO.innerHTML = renderCellPair('overhead', 'forearm_l', 'forearm_r', valL, valR);
     }
 
-    const cHeight = document.getElementById('consolidated-val-height');
-    const cWingspan = document.getElementById('consolidated-val-wingspan');
-    const cReach = document.getElementById('consolidated-val-reach');
-    const cTorso = document.getElementById('consolidated-val-torso');
-    const cThigh = document.getElementById('consolidated-val-thigh');
-    const cShin = document.getElementById('consolidated-val-shin');
-    const cUpperarm = document.getElementById('consolidated-val-upperarm');
-    const cForearm = document.getElementById('consolidated-val-forearm');
+    const cHeight = container.querySelector('#consolidated-val-height');
+    const cWingspan = container.querySelector('#consolidated-val-wingspan');
+    const cReach = container.querySelector('#consolidated-val-reach');
+    const cTorso = container.querySelector('#consolidated-val-torso');
+    const cThigh = container.querySelector('#consolidated-val-thigh');
+    const cShin = container.querySelector('#consolidated-val-shin');
+    const cUpperarm = container.querySelector('#consolidated-val-upperarm');
+    const cForearm = container.querySelector('#consolidated-val-forearm');
 
     const compiled = compileImportedMetricsFromProfile(profile, activeSession.id) || {};
 
@@ -1983,14 +2008,14 @@ export async function openProfileDetailsModal(profileId) {
     if (cUpperarm) cUpperarm.innerHTML = formatPair(compiled.upperarm_l, compiled.upperarm_r);
     if (cForearm) cForearm.innerHTML = formatPair(compiled.forearm_l, compiled.forearm_r);
 
-    const editBtn = document.getElementById('btn-edit-baseline-metrics');
+    const editBtn = container.querySelector('#btn-edit-baseline-metrics');
     if (editBtn) {
       editBtn.classList.remove('btn-save-metrics', 'btn-edit-metrics');
       if (state.isEditingProfileMetrics) {
         editBtn.innerHTML = '💾 Save Metrics';
         editBtn.classList.add('btn-save-metrics');
         
-        let cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
+        let cancelBtn = container.querySelector('#btn-cancel-baseline-metrics');
         if (!cancelBtn) {
           cancelBtn = document.createElement('button');
           cancelBtn.id = 'btn-cancel-baseline-metrics';
@@ -2001,7 +2026,7 @@ export async function openProfileDetailsModal(profileId) {
         
         cancelBtn.onclick = () => {
           state.isEditingProfileMetrics = false;
-          openProfileDetailsModal(profileId);
+          updateProfileUI(profileId);
         };
         
         editBtn.onclick = async () => {
@@ -2137,7 +2162,7 @@ export async function openProfileDetailsModal(profileId) {
             
             state.isEditingProfileMetrics = false;
             alert("Metrics updated successfully!");
-            openProfileDetailsModal(profileId);
+            updateProfileUI(profileId);
           } catch (err) {
             console.error("[SaveMetrics] Failed to save metrics:", err);
             alert("Failed to save metrics: " + err.message);
@@ -2147,21 +2172,21 @@ export async function openProfileDetailsModal(profileId) {
         editBtn.innerHTML = 'Edit Metrics';
         editBtn.classList.add('btn-edit-metrics');
         
-        const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
+        const cancelBtn = container.querySelector('#btn-cancel-baseline-metrics');
         if (cancelBtn) {
           cancelBtn.parentNode.removeChild(cancelBtn);
         }
         
         editBtn.onclick = () => {
           state.isEditingProfileMetrics = true;
-          openProfileDetailsModal(profileId);
+          updateProfileUI(profileId);
         };
       }
     }
 
-    const dsqKnee = document.getElementById('detail-squat-knee');
-    const dsqHip = document.getElementById('detail-squat-hip');
-    const dsqAnkle = document.getElementById('detail-squat-ankle');
+    const dsqKnee = container.querySelector('#detail-squat-knee');
+    const dsqHip = container.querySelector('#detail-squat-hip');
+    const dsqAnkle = container.querySelector('#detail-squat-ankle');
     
     const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
     if (sPeaks.maxKneeCaveL > 90.0) sPeaks.maxKneeCaveL = 0;
@@ -2171,8 +2196,8 @@ export async function openProfileDetailsModal(profileId) {
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
 
-    const dshExcursionL = document.getElementById('detail-shoulder-excursion-l');
-    const dshExcursionR = document.getElementById('detail-shoulder-excursion-r');
+    const dshExcursionL = container.querySelector('#detail-shoulder-excursion-l');
+    const dshExcursionR = container.querySelector('#detail-shoulder-excursion-r');
     const shPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
 
     if (dshExcursionL) {
@@ -2204,10 +2229,10 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const dshRotExtL = document.getElementById('detail-shoulder-rotation-external-l');
-    const dshRotIntL = document.getElementById('detail-shoulder-rotation-internal-l');
-    const dshRotExtR = document.getElementById('detail-shoulder-rotation-external-r');
-    const dshRotIntR = document.getElementById('detail-shoulder-rotation-internal-r');
+    const dshRotExtL = container.querySelector('#detail-shoulder-rotation-external-l');
+    const dshRotIntL = container.querySelector('#detail-shoulder-rotation-internal-l');
+    const dshRotExtR = container.querySelector('#detail-shoulder-rotation-external-r');
+    const dshRotIntR = container.querySelector('#detail-shoulder-rotation-internal-r');
     const shRot = getDefaultShoulderRotation(activeSession.shoulderRotation);
 
     if (dshRotExtL) {
@@ -2267,10 +2292,10 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const dhipRotExtL = document.getElementById('detail-hip-rotation-external-l');
-    const dhipRotIntL = document.getElementById('detail-hip-rotation-internal-l');
-    const dhipRotExtR = document.getElementById('detail-hip-rotation-external-r');
-    const dhipRotIntR = document.getElementById('detail-hip-rotation-internal-r');
+    const dhipRotExtL = container.querySelector('#detail-hip-rotation-external-l');
+    const dhipRotIntL = container.querySelector('#detail-hip-rotation-internal-l');
+    const dhipRotExtR = container.querySelector('#detail-hip-rotation-external-r');
+    const dhipRotIntR = container.querySelector('#detail-hip-rotation-internal-r');
     const hRot = getDefaultHipRotation(activeSession.hipRotation);
 
     if (dhipRotExtL) {
@@ -2330,9 +2355,9 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    await renderShoulderRotationGrading(activeSession);
+    await renderShoulderRotationGrading(activeSession, container);
 
-    const dsqDepth = document.getElementById('detail-squat-depth');
+    const dsqDepth = container.querySelector('#detail-squat-depth');
     if (dsqDepth) {
       const maxKneeMob = Math.max(sPeaks.kneeL || 0, sPeaks.kneeR || 0);
       let depthStatus = "Standing Upright";
@@ -2353,7 +2378,7 @@ export async function openProfileDetailsModal(profileId) {
       dsqDepth.className = `squat-peak-detail-val ${statusClass}`;
     }
 
-    const detailSquatAsymmetrySummary = document.getElementById('detail-squat-asymmetry-summary');
+    const detailSquatAsymmetrySummary = container.querySelector('#detail-squat-asymmetry-summary');
     if (detailSquatAsymmetrySummary) {
       let imageHtml = "";
       let videoHtml = "";
@@ -2474,8 +2499,8 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const videosListEl = document.getElementById('profile-details-videos-list');
-    const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
+    const videosListEl = container.querySelector('#profile-details-videos-list');
+    const videoPlaceholder = container.querySelector('#profile-details-video-placeholder');
 
     if (mainVideoPlayer) {
       mainVideoPlayer.src = '';
@@ -2587,7 +2612,7 @@ export async function openProfileDetailsModal(profileId) {
               state.latestHandResults = null;
               state.lastModalInferenceSrc = null;
 
-              const canvas = document.getElementById('profile-details-video-canvas');
+              const canvas = container.querySelector('#profile-details-video-canvas');
               if (canvas) {
                 canvas.style.display = 'none';
                 const ctx = canvas.getContext('2d');
@@ -2600,7 +2625,7 @@ export async function openProfileDetailsModal(profileId) {
                 videoPlaceholder.classList.add('hidden');
                 videoPlaceholder.classList.remove('visible-flex');
               }
-              const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+              const btnFullscreen = container.querySelector('#btn-profile-video-fullscreen');
               if (btnFullscreen) {
                 btnFullscreen.style.display = 'flex';
               }
@@ -2629,11 +2654,11 @@ export async function openProfileDetailsModal(profileId) {
                 videoPlaceholder.classList.add('hidden');
                 videoPlaceholder.classList.remove('visible-flex');
               }
-              const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+              const btnFullscreen = container.querySelector('#btn-profile-video-fullscreen');
               if (btnFullscreen) {
                 btnFullscreen.style.display = 'flex';
               }
-              const canvas = document.getElementById('profile-details-video-canvas');
+              const canvas = container.querySelector('#profile-details-video-canvas');
               if (canvas) {
                 canvas.style.display = 'none';
                 const ctx = canvas.getContext('2d');
@@ -2680,7 +2705,7 @@ export async function openProfileDetailsModal(profileId) {
                   vToUpdate.name = trimmedName;
                   await snapshotStore.saveProfile(freshProfile);
                   state.allProfiles = await snapshotStore.getAllProfiles();
-                  openProfileDetailsModal(profileId);
+                  updateProfileUI(profileId);
                 }
               }
             } catch (err) {
@@ -2731,7 +2756,7 @@ export async function openProfileDetailsModal(profileId) {
                 if (state.activeProfileId === profileId) {
                   await loadProfileIntoState(profileId);
                 }
-                openProfileDetailsModal(profileId);
+                updateProfileUI(profileId);
               }
             } catch (err) {
               console.error("[VideoDelete] Failed to delete saved video:", err);
@@ -2743,7 +2768,7 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const profileDetailsModal = document.getElementById('profile-details-modal');
+    const profileDetailsModal = container.querySelector('#profile-details-modal');
     if (profileDetailsModal) {
       profileDetailsModal.classList.add('active');
       const firstTabBtn = document.querySelector('.athlete-tab-btn[data-tab="tab-anthropometrics"]');
@@ -2757,8 +2782,30 @@ export async function openProfileDetailsModal(profileId) {
   }
 }
 
-export async function renderShoulderRotationGrading(activeSession) {
-  const panel = document.getElementById('shoulder-rotation-grading-panel');
+
+export async function updateProfileUI(profileId, preserveTab = false) {
+  if (!profileId) return;
+  const modal = document.getElementById('profile-details-modal');
+  if (modal && modal.classList.contains('active')) {
+    await populateProfileDetails(profileId, modal, preserveTab);
+  }
+  const leftSidebar = document.getElementById('left-profile-sidebar');
+  if (leftSidebar && !leftSidebar.classList.contains('hidden')) {
+    await populateProfileDetails(profileId, leftSidebar, true);
+  }
+}
+
+export async function openProfileDetailsModal(profileId, preserveTab = false) {
+  if (!profileId) return;
+  const modal = document.getElementById('profile-details-modal');
+  if (modal) {
+    modal.classList.add('active');
+  }
+  await updateProfileUI(profileId, preserveTab);
+}
+
+export async function renderShoulderRotationGrading(activeSession, container = document) {
+  const panel = container.querySelector('#shoulder-rotation-grading-panel');
   if (!panel) return;
 
   const shRot = getDefaultShoulderRotation(activeSession.shoulderRotation);

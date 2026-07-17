@@ -401,7 +401,7 @@ export function setupShoulderListeners(onPoseResultsCallback, updateDashboardOff
             recordStatus.textContent = `💾 Shoulder flexion angle of ${Math.round(curAngle)}° for "${label}" successfully saved to portfolio!`;
           }
           alert(`Shoulder flexion angle of ${Math.round(curAngle)}° saved successfully for ${activeProfileName}!`);
-          openProfileDetailsModal(state.activeProfileId);
+          // openProfileDetailsModal(state.activeProfileId);
         } else {
           alert(`You are currently in Guest Mode. Your flexion angle is ${Math.round(curAngle)}°. To save these shoulder flexion scores to a player portfolio, please select or create a profile first, then click Capture Flexion Snapshot again.`);
         }

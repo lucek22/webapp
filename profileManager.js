@@ -3323,7 +3323,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       listA.forEach((v, index) => {
         const option = document.createElement('option');
         option.value = index;
-        option.textContent = `${v.typeName} - ${v.sessionName} (${new Date(v.timestamp).toLocaleDateString()})`;
+        option.textContent = `${v.name} (${new Date(v.timestamp).toLocaleDateString()})`;
         if (state.comparedVideoIndexA !== undefined && index === state.comparedVideoIndexA) {
           option.selected = true;
         }
@@ -3362,6 +3362,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             metaA.classList.remove('hidden');
             metaA.innerHTML = `
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: #aaa; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+                <div style="grid-column: span 2;"><strong>Name:</strong> ${v.name}</div>
                 <div><strong>Category:</strong> ${v.typeName}</div>
                 <div><strong>Session:</strong> ${v.sessionName}</div>
                 <div><strong>Recorded:</strong> ${new Date(v.timestamp).toLocaleString()}</div>
@@ -3417,7 +3418,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             listB.forEach((v, index) => {
               const option = document.createElement('option');
               option.value = index;
-              option.textContent = `${v.typeName} - ${v.sessionName} (${new Date(v.timestamp).toLocaleDateString()})`;
+              option.textContent = `${v.name} (${new Date(v.timestamp).toLocaleDateString()})`;
               if (state.comparedVideoIndexB !== undefined && index === state.comparedVideoIndexB) {
                 option.selected = true;
               }
@@ -3470,6 +3471,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             metaB.classList.remove('hidden');
             metaB.innerHTML = `
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: #aaa; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+                <div style="grid-column: span 2;"><strong>Name:</strong> ${v.name}</div>
                 <div><strong>Category:</strong> ${v.typeName}</div>
                 <div><strong>Session:</strong> ${v.sessionName}</div>
                 <div><strong>Recorded:</strong> ${new Date(v.timestamp).toLocaleString()}</div>

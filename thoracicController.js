@@ -37,10 +37,32 @@ export function calculateThoracicExtensionAngle(landmarks) {
   const len = Math.hypot(dx, dy);
   if (len < 1) return null;
 
-  // Measure how far the torso line deviates from a straight vertical line.
-  // Larger values indicate greater thoracic extension / postural opening.
-  const angleDeg = Math.abs(Math.atan2(dx, dy) * 180 / Math.PI);
+  // Use arc cosine to find the exact deviation from the "Up" vector (0, -1)
+  // This guarantees a smooth 0 to 180 range without coordinate wrapping.
+  const angleDeg = Math.acos(-dy / len) * (180 / Math.PI);
+  
   return parseFloat(angleDeg.toFixed(1));
+}
+
+export function processThoracicExtension(landmarks) {
+  const currentAngle = calculateThoracicExtensionAngle(landmarks);
+  if (currentAngle === null) return;
+
+  // Initialize the state object if it doesn't exist yet
+  if (!state.thoracicExtension) {
+    state.thoracicExtension = getDefaultThoracicExtension();
+  }
+
+  // Always update the live angle
+  state.thoracicExtension.liveAngle = currentAngle;
+
+  // Save the highest recorded angle (Peak)
+  if (currentAngle > state.thoracicExtension.peakAngle) {
+    state.thoracicExtension.peakAngle = currentAngle;
+  }
+
+  // Push the updated numbers to the HTML
+  updateThoracicExtensionSidebarUI();
 }
 
 export function getDefaultThoracicExtension(existing = null) {

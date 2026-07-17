@@ -43,7 +43,8 @@ import {
   autoSyncToActiveProfile,
   autoSyncToActiveProfileDebounced,
   drawModalVideoPoseOverlay,
-  registerProfileCallbacks
+  registerProfileCallbacks,
+  populateDropdown
 } from './profileManager.js';
 
 // Import specialized submodules
@@ -1374,6 +1375,7 @@ export function onPoseResults(results) {
           state.thoracicExtension.liveAngle = angle;
           if (angle > (state.thoracicExtension.peakAngle || 0)) {
             state.thoracicExtension.peakAngle = angle;
+            autoSyncToActiveProfileDebounced();
           }
           updateThoracicExtensionSidebarUI();
           setThoracicExtensionStatus('Active Tracking', 'text-emerald');
@@ -5445,7 +5447,8 @@ function initScarletRecorder() {
 registerProfileCallbacks({
   renderDashboard,
   updateDashboardOfflinePlaceholders,
-  setUnitSystem
+  setUnitSystem,
+  importPriorPortfolio
 });
 
 registerSquatCallbacks({

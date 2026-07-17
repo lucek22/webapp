@@ -3637,3 +3637,119 @@ div[style*="color: #10b981"] {
   border-radius: 4px !important;
   margin: 0 !important;
 }
+
+/* ==========================================================================
+   Athlete Comparison Tab CSS (Isolated from main layouts)
+   ========================================================================== */
+
+.compare-details-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: transparent;
+}
+
+.compare-header-row {
+  background: rgba(255, 255, 255, 0.015);
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
+}
+
+.compare-header-row th {
+  padding: 10px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.compare-details-tbody {
+  color: #eee;
+}
+
+.compare-details-tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background-color 0.2s ease;
+}
+
+.compare-details-tr:hover {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.compare-details-td-label {
+  padding: 0.6rem 0.5rem;
+  color: #aaa;
+  font-weight: 600;
+  text-align: left;
+}
+
+.compare-details-td-val-a {
+  padding: 0.6rem 0.5rem;
+  color: #eee;
+  text-align: center;
+  font-weight: 500;
+}
+
+.compare-details-td-val-b {
+  padding: 0.6rem 0.5rem;
+  color: #eee;
+  text-align: center;
+  font-weight: 500;
+}
+
+.compare-details-td-delta {
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.compare-panel-section {
+  background: rgba(22, 22, 22, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.compare-metrics-table-wrapper {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.compare-delta-positive {
+  color: #10b981;
+}
+
+.compare-delta-negative {
+  color: #ef4444;
+}
+
+.compare-delta-neutral {
+  color: #888;
+}
+
+/* Athlete selector customization */
+.athlete-select {
+  background: rgba(0, 0, 0, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.athlete-select:focus {
+  border-color: rgba(186, 12, 47, 0.6) !important;
+  box-shadow: 0 0 10px rgba(186, 12, 47, 0.25) !important;
+}
+
+.athlete-select:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}

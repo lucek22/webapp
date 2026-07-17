@@ -17,7 +17,47 @@
 <body>
 
   <div class="app-grid">
-    
+
+    <!-- Left Column: Saved Video Recordings Sidebar -->
+    <div class="gallery-section" id="left-videos-sidebar">
+      
+      <!-- Guest Placeholder: displayed when in Guest Mode (default) -->
+      <div class="guest-placeholder-card" id="left-videos-guest-card" style="padding: 2.5rem 1.5rem; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(30, 30, 30, 0.45); backdrop-filter: blur(10px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; width: 100%; box-sizing: border-box;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(186, 12, 47, 0.08); display: flex; align-items: center; justify-content: center; color: #BA0C2F; border: 1px solid rgba(186, 12, 47, 0.2); box-shadow: 0 4px 12px rgba(186, 12, 47, 0.15);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+        </div>
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">No Profile Loaded</h3>
+        <p style="margin: 0; font-size: 0.85rem; color: #888; line-height: 1.45; text-align: center; max-width: 280px;">Select an existing athlete profile or create a new one to access and play back their recorded trials.</p>
+      </div>
+
+      <!-- Active Recordings Panel (hidden by default) -->
+      <div id="left-videos-active-card" class="hidden" style="width: 100%;">
+        <div class="sidebar-videos-container" style="background: rgba(22, 22, 22, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(15px); border-radius: 12px; padding: 1.25rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35); box-sizing: border-box; width: 100%;">
+          <div class="details-section-title" style="margin-top: 0; font-size: 1.1rem; font-weight: 700; margin-bottom: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.06); padding-bottom: 8px;">Saved Recordings Archive</div>
+          
+          <!-- Central Video Player Display Area (Fixed 16:9 aspect ratio) -->
+          <div id="profile-details-video-player-container" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;">
+            <video id="profile-details-video-player" controls controlsList="nofullscreen" style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
+            <canvas id="profile-details-video-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; z-index: 2; display: none;"></canvas>
+            <button id="btn-profile-video-fullscreen" style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; width: 32px; height: 32px; border-radius: 6px; display: none; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s ease;" title="Expand Fullscreen">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+              </svg>
+            </button>
+            <div id="profile-details-video-placeholder" style="color: #888; font-size: 0.85rem; text-align: center; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+              <span>Select a recording from the playlist below to play</span>
+            </div>
+          </div>
+
+          <!-- Playlist Scroll Container -->
+          <div id="profile-details-videos-list" class="profile-details-videos-list" style="max-height: calc(100vh - 19.5rem); overflow-y: auto; margin-top: 0.85rem; display: flex; flex-direction: column; gap: 0.5rem;">
+            <!-- Playlist items populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Left Column: Video and Calibration Controls -->
     <div class="container">
       
@@ -1292,7 +1332,6 @@
         <div class="athlete-tabs-nav" style="border-bottom: 1.5px solid rgba(255, 255, 255, 0.06); padding-bottom: 6px; margin-bottom: 0.25rem;">
           <button class="athlete-tab-btn active" data-tab="tab-anthropometrics">Anthropometrics</button>
           <button class="athlete-tab-btn" data-tab="tab-mobility">Mobility Assessments</button>
-          <button class="athlete-tab-btn" data-tab="tab-videos">Uploaded Videos</button>
         </div>
 
         <!-- TAB 1: Anthropometrics (Static Measurements) -->
@@ -1357,11 +1396,8 @@
 
             <!-- Right Side: Anthropometric Tables -->
             <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-              <div style="display: none;">
-                <div class="details-section-title flex-row" style="margin-top: 0; margin-bottom: 0.5rem;">
-                  <span>Consolidated Postural Baseline</span>
-                  <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">Edit Metrics</button>
-                </div>
+              <div id="profile-edit-section-postural" style="display: none; margin-bottom: 1rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Consolidated Postural Baseline</div>
                 <div class="profile-metrics-comparison-table">
                   <table class="profile-details-table">
                     <thead>
@@ -1632,11 +1668,45 @@
                   <img id="detail-preview-img-hip-rotation-r" src="" alt="Right Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
                 </div>
               </div>
+
+              <!-- Left Ankle Dorsiflexion -->
+              <div class="pose-status-card" id="detail-card-ankle-dorsi-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Ankle Dorsiflexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-ankle-dorsi-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-ankle-dorsi-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-ankle-dorsi-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-ankle-dorsi-l" src="" alt="Left Ankle Dorsiflexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Ankle Dorsiflexion -->
+              <div class="pose-status-card" id="detail-card-ankle-dorsi-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Ankle Dorsiflexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-ankle-dorsi-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-ankle-dorsi-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-ankle-dorsi-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-ankle-dorsi-r" src="" alt="Right Ankle Dorsiflexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
             </div>
 
             <!-- Right Side: Peak Mobility Metrics & ROM Dashboard -->
             <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-              <div style="display: none;">
+              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Overhead Squat Mobility Peak Records</div>
                 <div class="profile-squat-peaks-grid">
                   <div class="squat-peak-detail-box">
@@ -1657,7 +1727,7 @@
                 </div>
               </div>
 
-              <div style="display: none;">
+              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Flexion Mobility Peak Records</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1671,7 +1741,7 @@
                 </div>
               </div>
 
-              <div style="display: none;">
+              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Internal/External Rotation Peak Records</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1693,7 +1763,7 @@
                 </div>
               </div>
 
-              <div style="display: none;">
+              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Hip Internal/External Rotation Peak Records</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1715,6 +1785,28 @@
                 </div>
               </div>
               
+              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Ankle Dorsiflexion (Tibial Inclination) Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Tibial Inclination</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-shin-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Tibial Inclination</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-shin-r">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Peak Dorsiflexion</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Peak Dorsiflexion</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-r">0°</span>
+                  </div>
+                </div>
+              </div>
+              
               <!-- Shoulder/Hip Rotation ROM Grading Assessment Panel & Coaching Advice -->
               <div id="shoulder-rotation-grading-panel" style="margin-top: 0.5rem; border-radius: 8px;"></div>
             </div>
@@ -1722,36 +1814,13 @@
           </div>
         </div>
 
-        <!-- TAB 3: Uploaded Videos -->
-        <div id="tab-videos" class="athlete-tab-pane hidden">
-          <div class="details-section-title" style="margin-top: 0;">Saved Video Recordings Archive</div>
-          <div id="profile-details-videos-container" class="profile-details-videos-container" style="margin-top: 0.5rem;">
-            <!-- Central Video Player Display Area (Fixed 16:9 aspect ratio) -->
-            <div id="profile-details-video-player-container" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;">
-              <video id="profile-details-video-player" controls controlsList="nofullscreen" style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
-              <canvas id="profile-details-video-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; z-index: 2; display: none;"></canvas>
-              <button id="btn-profile-video-fullscreen" style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; width: 32px; height: 32px; border-radius: 6px; display: none; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s ease;" title="Expand Fullscreen">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-                </svg>
-              </button>
-              <div id="profile-details-video-placeholder" style="color: #888; font-size: 0.85rem; text-align: center; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-                <span>Select a recording from the playlist below to play</span>
-              </div>
-            </div>
 
-            <!-- Playlist Scroll Container -->
-            <div id="profile-details-videos-list" class="profile-details-videos-list" style="max-height: 240px;">
-              <!-- Playlist items populated dynamically -->
-            </div>
-        </div>
-      </div>
       <div class="modal-actions profile-modal-actions">
         <button id="btn-profile-export-json" class="btn btn-export-json">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           Export Consolidated JSON
         </button>
+        <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">Edit Metrics</button>
         <button id="btn-close-profile-details-footer" class="btn btn-close-details">Close Details</button>
       </div>
       </div>

@@ -2,7 +2,7 @@
 // BUCKEYE PERSISTENT SUBJECT PROFILES MANAGER MODULE
 // =========================================================
 
-import { state, snapshotStore, formatLength, clearSmoothBuffer, getROMThresholds, getDefaultROMThresholds, calculateROMGrade } from './helpers.js';
+import { state, snapshotStore, formatLength, clearSmoothBuffer, getROMThresholds, getDefaultROMThresholds, calculateROMGrade, getDefaultAnkleDorsiPeaks } from './helpers.js';
 import { getDefaultSquatPeaks, calculateValgusFromJoints } from './squatController.js';
 import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI } from './shoulderController.js';
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
@@ -103,6 +103,13 @@ export async function initializeProfilesSelector() {
 
   try {
     state.allProfiles = await snapshotStore.getAllProfiles();
+    
+    // Restore active profile from localStorage if present and valid
+    const savedProfileId = localStorage.getItem('activeProfileId');
+    if (savedProfileId && state.allProfiles.some(p => String(p.id) === String(savedProfileId))) {
+      state.activeProfileId = Number(savedProfileId);
+    }
+    
     populateDropdown(state.allProfiles);
     if (state.activeProfileId) {
       if (profileActionRow) profileActionRow.classList.remove('hidden');
@@ -110,6 +117,7 @@ export async function initializeProfilesSelector() {
         newProfileInputContainer.classList.add('hidden');
         newProfileInputContainer.classList.remove('visible-flex');
       }
+      await loadProfileIntoState(state.activeProfileId);
     } else {
       if (profileActionRow) profileActionRow.classList.add('hidden');
       if (newProfileInputContainer) {
@@ -137,6 +145,8 @@ export async function initializeProfilesSelector() {
       return;
     }
     if (selectedVal === 'new') {
+      state.activeProfileId = null;
+      localStorage.removeItem('activeProfileId');
       if (profileSelect) profileSelect.value = 'new';
       if (calProfileSelect) calProfileSelect.value = '';
       
@@ -150,12 +160,22 @@ export async function initializeProfilesSelector() {
       
       const sessionContainer = document.getElementById('profile-session-select-container');
       if (sessionContainer) sessionContainer.classList.add('hidden');
+
+      // Reset left videos sidebar to guest card
+      const leftCard = document.getElementById('left-videos-active-card');
+      const guestCard = document.getElementById('left-videos-guest-card');
+      if (leftCard && guestCard) {
+        leftCard.classList.add('hidden');
+        guestCard.classList.remove('hidden');
+      }
+
     } else if (selectedVal === '') {
       if (profileSelect) profileSelect.value = '';
       if (calProfileSelect) calProfileSelect.value = '';
 
       // Cleanly reset Guest state caches
       state.activeProfileId = null;
+      localStorage.removeItem('activeProfileId');
       state.metricsA = null;
       state.metricsT = null;
       state.metricsOverhead = null;
@@ -281,6 +301,7 @@ export async function initializeProfilesSelector() {
       try {
         await snapshotStore.deleteProfile(state.activeProfileId);
         state.activeProfileId = null;
+        localStorage.removeItem('activeProfileId');
         state.metricsA = null;
         state.metricsT = null;
         state.metricsOverhead = null;
@@ -349,18 +370,47 @@ export async function initializeProfilesSelector() {
   const tabButtons = document.querySelectorAll('.athlete-tab-btn');
   tabButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      tabButtons.forEach(b => b.classList.remove('active'));
+      const container = btn.closest('.profile-modal-container') || btn.closest('.gallery-section') || document;
+      
+      const siblingBtns = container.querySelectorAll('.athlete-tab-btn');
+      siblingBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
-      const tabPanes = document.querySelectorAll('.athlete-tab-pane');
+      const tabPanes = container.querySelectorAll('.athlete-tab-pane');
       tabPanes.forEach(pane => pane.classList.add('hidden'));
 
       const targetTabId = btn.getAttribute('data-tab');
-      const targetPane = document.getElementById(targetTabId);
+      const targetPane = container.querySelector(`[id="${targetTabId}"]`);
       if (targetPane) {
         targetPane.classList.remove('hidden');
       }
     });
+  });
+
+  // Global Shortcut for CTRL + E / CMD + E to toggle Profile Edit Mode
+  document.addEventListener('keydown', (e) => {
+    // Check if Ctrl (or Cmd on Mac) and E are pressed
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+
+      if (!state.activeProfileId) {
+        alert("Please select or create an athlete profile first to use this shortcut.");
+        return;
+      }
+
+      const modal = document.getElementById('profile-details-modal');
+      const isModalOpen = modal && modal.classList.contains('active');
+
+      if (!isModalOpen) {
+        // If modal is closed, open it and instantly enter Edit Mode
+        state.isEditingProfileMetrics = true;
+        openProfileDetailsModal(state.activeProfileId);
+      } else {
+        // If modal is already open, toggle Edit Mode
+        state.isEditingProfileMetrics = !state.isEditingProfileMetrics;
+        updateProfileUI(state.activeProfileId);
+      }
+    }
   });
 
   const mainVideoPlayer = document.getElementById('profile-details-video-player');
@@ -720,6 +770,7 @@ export async function loadProfileIntoState(profileId) {
     }
 
     state.activeProfileId = profile.id;
+    localStorage.setItem('activeProfileId', String(profile.id));
     state.videos = profile.videos || [];
     
     let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
@@ -738,6 +789,8 @@ export async function loadProfileIntoState(profileId) {
     state.shoulderPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
     state.shoulderRotation = getDefaultShoulderRotation(activeSession.shoulderRotation);
     state.hipRotation = getDefaultHipRotation(activeSession.hipRotation);
+    if (!state.ankleDorsi) state.ankleDorsi = {};
+    state.ankleDorsi.peaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
@@ -900,6 +953,18 @@ export async function loadProfileIntoState(profileId) {
       };
     }
 
+    // Show active left card and hide guest placeholder card
+    const leftCard = document.getElementById('left-videos-active-card');
+    const guestCard = document.getElementById('left-videos-guest-card');
+    if (leftCard && guestCard) {
+      leftCard.classList.remove('hidden');
+      guestCard.classList.add('hidden');
+    }
+    const leftSidebar = document.getElementById('left-videos-sidebar');
+    if (leftSidebar) {
+      await populateProfileDetails(profileId, leftSidebar, true);
+    }
+
   } catch (err) {
     console.error("[loadProfile] Error loading profile into state:", err);
   }
@@ -1029,10 +1094,11 @@ export function autoSyncToActiveProfileDebounced() {
   }, 1000);
 }
 
-export async function openProfileDetailsModal(profileId) {
+export async function populateProfileDetails(profileId, container, preserveTab = false) {
+  if (!profileId || !container) return;
   if (!profileId) return;
 
-  const mainVideoPlayer = document.getElementById('profile-details-video-player');
+  const mainVideoPlayer = container.querySelector('#profile-details-video-player');
   state.activeModalVideoProcessing = false;
   clearSmoothBuffer('*');
   state.latestPoseResults = null;
@@ -1064,7 +1130,7 @@ export async function openProfileDetailsModal(profileId) {
       state.videos = profile.videos || [];
     }
 
-    const userSelect = document.getElementById('profile-detail-user-select');
+    const userSelect = container.querySelector('#profile-detail-user-select');
     if (userSelect) {
       userSelect.innerHTML = '';
       
@@ -1089,7 +1155,7 @@ export async function openProfileDetailsModal(profileId) {
         state.activeProfileId = selectedProfileId;
         state.activeSessionId = null;
         await loadProfileIntoState(selectedProfileId);
-        openProfileDetailsModal(selectedProfileId);
+        updateProfileUI(selectedProfileId);
       };
     }
 
@@ -1102,7 +1168,7 @@ export async function openProfileDetailsModal(profileId) {
     }
     state.activeSessionId = activeSession.id;
 
-    const sessionSelect = document.getElementById('profile-detail-session-select');
+    const sessionSelect = container.querySelector('#profile-detail-session-select');
     if (sessionSelect) {
       sessionSelect.innerHTML = '';
       profile.sessions.forEach(sess => {
@@ -1121,12 +1187,12 @@ export async function openProfileDetailsModal(profileId) {
         profile.activeSessionId = selectedSessId;
         await snapshotStore.saveProfile(profile);
         await loadProfileIntoState(profileId);
-        openProfileDetailsModal(profileId);
+        updateProfileUI(profileId);
       };
     }
 
-    const modalUnitInchBtn = document.getElementById('modal-unit-inch-btn');
-    const modalUnitCmBtn = document.getElementById('modal-unit-cm-btn');
+    const modalUnitInchBtn = container.querySelector('#modal-unit-inch-btn');
+    const modalUnitCmBtn = container.querySelector('#modal-unit-cm-btn');
     if (modalUnitInchBtn && modalUnitCmBtn) {
       if (state.useInches) {
         modalUnitInchBtn.classList.add('active');
@@ -1137,7 +1203,7 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const btnNewSession = document.getElementById('btn-profile-new-session');
+    const btnNewSession = container.querySelector('#btn-profile-new-session');
     if (btnNewSession) {
       btnNewSession.onclick = async () => {
         const sessionName = prompt("Enter a name for the new session (e.g., 'Set 2 - Post-practice'):");
@@ -1205,11 +1271,11 @@ export async function openProfileDetailsModal(profileId) {
         await loadProfileIntoState(profileId);
 
         alert(`New session "${trimmedName}" started! Dashboard metrics are reset for fresh video captures.`);
-        openProfileDetailsModal(profileId);
+        updateProfileUI(profileId);
       };
     }
 
-    const btnRenameSession = document.getElementById('btn-profile-rename-session');
+    const btnRenameSession = container.querySelector('#btn-profile-rename-session');
     if (btnRenameSession) {
       btnRenameSession.onclick = async () => {
         const currentSessionName = activeSession.name || `Session (${new Date(activeSession.timestamp).toLocaleDateString()})`;
@@ -1236,7 +1302,7 @@ export async function openProfileDetailsModal(profileId) {
               }
               
               alert(`Session renamed to "${trimmedName}" successfully!`);
-              openProfileDetailsModal(profileId);
+              updateProfileUI(profileId);
             }
           }
         } catch (err) {
@@ -1246,9 +1312,9 @@ export async function openProfileDetailsModal(profileId) {
       };
     }
 
-    const detailName = document.getElementById('profile-detail-name');
-    const detailScale = document.getElementById('profile-detail-scale');
-    const detailLastSession = document.getElementById('profile-detail-last-session');
+    const detailName = container.querySelector('#profile-detail-name');
+    const detailScale = container.querySelector('#profile-detail-scale');
+    const detailLastSession = container.querySelector('#profile-detail-last-session');
     
     if (detailName) {
       detailName.innerHTML = `
@@ -1303,7 +1369,7 @@ export async function openProfileDetailsModal(profileId) {
                 if (activeProfileName) activeProfileName.textContent = trimmedName;
               }
               
-              openProfileDetailsModal(profileId);
+              updateProfileUI(profileId);
             }
           } catch (err) {
             console.error("[ProfileRename] Failed to rename profile:", err);
@@ -1340,13 +1406,15 @@ export async function openProfileDetailsModal(profileId) {
       { key: 'shoulder-rotation-l', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationL', title: 'Left Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true },
       { key: 'shoulder-rotation-r', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationR', title: 'Right Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true },
       { key: 'hip-rotation-l', metricsKey: 'hipRotation', imgKey: 'imageHipRotationL', title: 'Left Hip Rotation', color: '#10b981', isHipRotation: true },
-      { key: 'hip-rotation-r', metricsKey: 'hipRotation', imgKey: 'imageHipRotationR', title: 'Right Hip Rotation', color: '#10b981', isHipRotation: true }
+      { key: 'hip-rotation-r', metricsKey: 'hipRotation', imgKey: 'imageHipRotationR', title: 'Right Hip Rotation', color: '#10b981', isHipRotation: true },
+      { key: 'ankle-dorsi-l', metricsKey: 'ankleDorsiPeaks', imgKey: 'imageAnkleDorsi', title: 'Left Ankle Dorsiflexion', color: '#10b981', isAnkleDorsi: true },
+      { key: 'ankle-dorsi-r', metricsKey: 'ankleDorsiPeaks', imgKey: 'imageAnkleDorsi', title: 'Right Ankle Dorsiflexion', color: '#10b981', isAnkleDorsi: true }
     ];
 
     poses.forEach(p => {
-      const statusEl = document.getElementById(`detail-status-${p.key}`);
-      const imgEl = document.getElementById(`detail-preview-img-${p.key}`);
-      const containerEl = document.getElementById(`detail-preview-container-${p.key}`);
+      const statusEl = container.querySelector(`#detail-status-${p.key}`);
+      const imgEl = container.querySelector(`#detail-preview-img-${p.key}`);
+      const containerEl = container.querySelector(`#detail-preview-container-${p.key}`);
       
       let hasData = false;
       let imgSrc = activeSession[p.imgKey] || null;
@@ -1410,6 +1478,20 @@ export async function openProfileDetailsModal(profileId) {
           }
         }
         hasData = !!imgSrc || hasVideo || hasHipRotationPeaks;
+      } else if (p.isAnkleDorsi) {
+        const videoKey = p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 'videoAnkleDorsiR';
+        const sVideo = activeSession[videoKey];
+        hasVideo = !!(sVideo && sVideo.blob);
+        
+        let hasAnklePeaks = false;
+        if (activeSession.ankleDorsiPeaks) {
+          if (p.key === 'ankle-dorsi-l') {
+            hasAnklePeaks = (activeSession.ankleDorsiPeaks.ankleDorsiL > 0 || activeSession.ankleDorsiPeaks.shinAngleL > 0);
+          } else {
+            hasAnklePeaks = (activeSession.ankleDorsiPeaks.ankleDorsiR > 0 || activeSession.ankleDorsiPeaks.shinAngleR > 0);
+          }
+        }
+        hasData = !!imgSrc || hasVideo || hasAnklePeaks;
       } else {
         hasData = !!imgSrc || !!activeSession[p.metricsKey];
       }
@@ -1423,13 +1505,15 @@ export async function openProfileDetailsModal(profileId) {
           containerEl.classList.remove('hidden');
           containerEl.innerHTML = '';
 
-          if ((p.isSquat || p.isShoulderRotation || p.isHipRotation) && hasVideo) {
+          if ((p.isSquat || p.isShoulderRotation || p.isHipRotation || p.isAnkleDorsi) && hasVideo) {
             const videoKey = p.key === 'squat-l' ? 'videoSquatL' : 
                              (p.key === 'squat-r' ? 'videoSquatR' : 
                              (p.key === 'squat-frontal' ? 'videoSquatFrontal' : 
                              (p.key === 'shoulder-rotation-l' ? 'videoShoulderRotationL' : 
                              (p.key === 'shoulder-rotation-r' ? 'videoShoulderRotationR' : 
-                             (p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 'videoHipRotationR')))));
+                             (p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 
+                             (p.key === 'hip-rotation-r' ? 'videoHipRotationR' : 
+                             (p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 'videoAnkleDorsiR')))))));
             const sVideo = activeSession[videoKey];
             const videoUrl = URL.createObjectURL(sVideo.blob);
             state.modalObjectUrls.push(videoUrl);
@@ -1550,7 +1634,7 @@ export async function openProfileDetailsModal(profileId) {
           }
         }
 
-        const deleteBtn = document.getElementById(`btn-delete-pose-${p.key}`);
+        const deleteBtn = container.querySelector(`#btn-delete-pose-${p.key}`);
         if (deleteBtn) {
           deleteBtn.classList.remove('hidden');
           deleteBtn.onclick = async (e) => {
@@ -1701,7 +1785,7 @@ export async function openProfileDetailsModal(profileId) {
               }
               
               alert(`${p.title} data deleted successfully.`);
-              openProfileDetailsModal(profileId);
+              updateProfileUI(profileId);
             } catch (err) {
               console.error(`[DeletePoseData] Failed to delete data for ${p.key}:`, err);
               alert("Failed to delete posture data: " + err.message);
@@ -1716,7 +1800,7 @@ export async function openProfileDetailsModal(profileId) {
         if (containerEl) containerEl.classList.add('hidden');
         if (imgEl) imgEl.src = "";
 
-        const deleteBtn = document.getElementById(`btn-delete-pose-${p.key}`);
+        const deleteBtn = container.querySelector(`#btn-delete-pose-${p.key}`);
         if (deleteBtn) {
           deleteBtn.classList.add('hidden');
           deleteBtn.onclick = null;
@@ -1866,16 +1950,16 @@ export async function openProfileDetailsModal(profileId) {
       `;
     };
 
-    const thA = document.getElementById('detail-table-height-a');
-    const thT = document.getElementById('detail-table-height-t');
-    const thO = document.getElementById('detail-table-height-overhead');
+    const thA = container.querySelector('#detail-table-height-a');
+    const thT = container.querySelector('#detail-table-height-t');
+    const thO = container.querySelector('#detail-table-height-overhead');
     if (thA) thA.innerHTML = renderCellSingle('a', 'skeletal_height', getVal('a', 'skeletal_height', ['t', 'overhead']));
     if (thT) thT.innerHTML = renderCellSingle('t', 'skeletal_height', getVal('t', 'skeletal_height', ['a', 'overhead']));
     if (thO) thO.innerHTML = renderCellSingle('overhead', 'skeletal_height', getVal('overhead', 'skeletal_height', ['a', 't']));
 
-    const twA = document.getElementById('detail-table-wingspan-a');
-    const twT = document.getElementById('detail-table-wingspan-t');
-    const twO = document.getElementById('detail-table-wingspan-overhead');
+    const twA = container.querySelector('#detail-table-wingspan-a');
+    const twT = container.querySelector('#detail-table-wingspan-t');
+    const twO = container.querySelector('#detail-table-wingspan-overhead');
     if (twA) twA.innerHTML = renderCellSingle('a', 'wingspan', getVal('a', 'wingspan', ['t', 'overhead']));
     if (twT) twT.innerHTML = renderCellSingle('t', 'wingspan', getVal('t', 'wingspan', ['a', 'overhead']));
     if (twO) {
@@ -1883,9 +1967,9 @@ export async function openProfileDetailsModal(profileId) {
       twO.innerHTML = renderCellPair('overhead', 'fingerToToeL', 'fingerToToeR', reachL, reachR);
     }
 
-    const ttA = document.getElementById('detail-table-torso-a');
-    const ttT = document.getElementById('detail-table-torso-t');
-    const ttO = document.getElementById('detail-table-torso-overhead');
+    const ttA = container.querySelector('#detail-table-torso-a');
+    const ttT = container.querySelector('#detail-table-torso-t');
+    const ttO = container.querySelector('#detail-table-torso-overhead');
     if (ttA) {
       const [valL, valR] = getValPair('a', 'torso_l', 'torso_r', ['t', 'overhead']);
       ttA.innerHTML = renderCellPair('a', 'torso_l', 'torso_r', valL, valR);
@@ -1899,9 +1983,9 @@ export async function openProfileDetailsModal(profileId) {
       ttO.innerHTML = renderCellPair('overhead', 'torso_l', 'torso_r', valL, valR);
     }
 
-    const tthA = document.getElementById('detail-table-thigh-a');
-    const tthT = document.getElementById('detail-table-thigh-t');
-    const tthO = document.getElementById('detail-table-thigh-overhead');
+    const tthA = container.querySelector('#detail-table-thigh-a');
+    const tthT = container.querySelector('#detail-table-thigh-t');
+    const tthO = container.querySelector('#detail-table-thigh-overhead');
     if (tthA) {
       const [valL, valR] = getValPair('a', 'thigh_l', 'thigh_r', ['t', 'overhead']);
       tthA.innerHTML = renderCellPair('a', 'thigh_l', 'thigh_r', valL, valR);
@@ -1915,9 +1999,9 @@ export async function openProfileDetailsModal(profileId) {
       tthO.innerHTML = renderCellPair('overhead', 'thigh_l', 'thigh_r', valL, valR);
     }
 
-    const tsA = document.getElementById('detail-table-shin-a');
-    const tsT = document.getElementById('detail-table-shin-t');
-    const tsO = document.getElementById('detail-table-shin-overhead');
+    const tsA = container.querySelector('#detail-table-shin-a');
+    const tsT = container.querySelector('#detail-table-shin-t');
+    const tsO = container.querySelector('#detail-table-shin-overhead');
     if (tsA) {
       const [valL, valR] = getValPair('a', 'shin_l', 'shin_r', ['t', 'overhead']);
       tsA.innerHTML = renderCellPair('a', 'shin_l', 'shin_r', valL, valR);
@@ -1931,9 +2015,9 @@ export async function openProfileDetailsModal(profileId) {
       tsO.innerHTML = renderCellPair('overhead', 'shin_l', 'shin_r', valL, valR);
     }
 
-    const tuaA = document.getElementById('detail-table-upperarm-a');
-    const tuaT = document.getElementById('detail-table-upperarm-t');
-    const tuaO = document.getElementById('detail-table-upperarm-overhead');
+    const tuaA = container.querySelector('#detail-table-upperarm-a');
+    const tuaT = container.querySelector('#detail-table-upperarm-t');
+    const tuaO = container.querySelector('#detail-table-upperarm-overhead');
     if (tuaA) {
       const [valL, valR] = getValPair('a', 'upperarm_l', 'upperarm_r', ['t', 'overhead']);
       tuaA.innerHTML = renderCellPair('a', 'upperarm_l', 'upperarm_r', valL, valR);
@@ -1947,9 +2031,9 @@ export async function openProfileDetailsModal(profileId) {
       tuaO.innerHTML = renderCellPair('overhead', 'upperarm_l', 'upperarm_r', valL, valR);
     }
 
-    const tfaA = document.getElementById('detail-table-forearm-a');
-    const tfaT = document.getElementById('detail-table-forearm-t');
-    const tfaO = document.getElementById('detail-table-forearm-overhead');
+    const tfaA = container.querySelector('#detail-table-forearm-a');
+    const tfaT = container.querySelector('#detail-table-forearm-t');
+    const tfaO = container.querySelector('#detail-table-forearm-overhead');
     if (tfaA) {
       const [valL, valR] = getValPair('a', 'forearm_l', 'forearm_r', ['t', 'overhead']);
       tfaA.innerHTML = renderCellPair('a', 'forearm_l', 'forearm_r', valL, valR);
@@ -1963,14 +2047,14 @@ export async function openProfileDetailsModal(profileId) {
       tfaO.innerHTML = renderCellPair('overhead', 'forearm_l', 'forearm_r', valL, valR);
     }
 
-    const cHeight = document.getElementById('consolidated-val-height');
-    const cWingspan = document.getElementById('consolidated-val-wingspan');
-    const cReach = document.getElementById('consolidated-val-reach');
-    const cTorso = document.getElementById('consolidated-val-torso');
-    const cThigh = document.getElementById('consolidated-val-thigh');
-    const cShin = document.getElementById('consolidated-val-shin');
-    const cUpperarm = document.getElementById('consolidated-val-upperarm');
-    const cForearm = document.getElementById('consolidated-val-forearm');
+    const cHeight = container.querySelector('#consolidated-val-height');
+    const cWingspan = container.querySelector('#consolidated-val-wingspan');
+    const cReach = container.querySelector('#consolidated-val-reach');
+    const cTorso = container.querySelector('#consolidated-val-torso');
+    const cThigh = container.querySelector('#consolidated-val-thigh');
+    const cShin = container.querySelector('#consolidated-val-shin');
+    const cUpperarm = container.querySelector('#consolidated-val-upperarm');
+    const cForearm = container.querySelector('#consolidated-val-forearm');
 
     const compiled = compileImportedMetricsFromProfile(profile, activeSession.id) || {};
 
@@ -1983,14 +2067,24 @@ export async function openProfileDetailsModal(profileId) {
     if (cUpperarm) cUpperarm.innerHTML = formatPair(compiled.upperarm_l, compiled.upperarm_r);
     if (cForearm) cForearm.innerHTML = formatPair(compiled.forearm_l, compiled.forearm_r);
 
-    const editBtn = document.getElementById('btn-edit-baseline-metrics');
+    // Toggle the edit section blocks visibility depending on state.isEditingProfileMetrics
+    const posturalSection = container.querySelector('#profile-edit-section-postural');
+    if (posturalSection) {
+      posturalSection.style.display = state.isEditingProfileMetrics ? 'block' : 'none';
+    }
+    const mobilitySections = container.querySelectorAll('.profile-edit-section-mobility');
+    mobilitySections.forEach(sec => {
+      sec.style.display = state.isEditingProfileMetrics ? 'block' : 'none';
+    });
+
+    const editBtn = container.querySelector('#btn-edit-baseline-metrics');
     if (editBtn) {
       editBtn.classList.remove('btn-save-metrics', 'btn-edit-metrics');
       if (state.isEditingProfileMetrics) {
         editBtn.innerHTML = '💾 Save Metrics';
         editBtn.classList.add('btn-save-metrics');
         
-        let cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
+        let cancelBtn = container.querySelector('#btn-cancel-baseline-metrics');
         if (!cancelBtn) {
           cancelBtn = document.createElement('button');
           cancelBtn.id = 'btn-cancel-baseline-metrics';
@@ -2001,7 +2095,7 @@ export async function openProfileDetailsModal(profileId) {
         
         cancelBtn.onclick = () => {
           state.isEditingProfileMetrics = false;
-          openProfileDetailsModal(profileId);
+          updateProfileUI(profileId);
         };
         
         editBtn.onclick = async () => {
@@ -2113,6 +2207,23 @@ export async function openProfileDetailsModal(profileId) {
               }
               freshActiveSession.hipRotation[key] = val;
             });
+
+            if (!freshActiveSession.ankleDorsiPeaks) {
+              freshActiveSession.ankleDorsiPeaks = getDefaultAnkleDorsiPeaks();
+            }
+            const ankleRotationInputs = document.querySelectorAll('.profile-ankle-dorsi-edit-input');
+            ankleRotationInputs.forEach(input => {
+              const key = input.getAttribute('data-key');
+              const rawVal = input.value.trim();
+              let val = 0;
+              if (rawVal !== "") {
+                const parsed = parseFloat(rawVal);
+                if (!isNaN(parsed)) {
+                  val = parsed;
+                }
+              }
+              freshActiveSession.ankleDorsiPeaks[key] = val;
+            });
             
             freshProfileMigrated.metricsA = freshActiveSession.metricsA;
             freshProfileMigrated.metricsT = freshActiveSession.metricsT;
@@ -2121,6 +2232,7 @@ export async function openProfileDetailsModal(profileId) {
             freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
             freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
             freshProfileMigrated.hipRotation = freshActiveSession.hipRotation;
+            freshProfileMigrated.ankleDorsiPeaks = freshActiveSession.ankleDorsiPeaks;
             freshProfileMigrated.imageA = freshActiveSession.imageA;
             freshProfileMigrated.imageT = freshActiveSession.imageT;
             freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -2137,7 +2249,7 @@ export async function openProfileDetailsModal(profileId) {
             
             state.isEditingProfileMetrics = false;
             alert("Metrics updated successfully!");
-            openProfileDetailsModal(profileId);
+            updateProfileUI(profileId);
           } catch (err) {
             console.error("[SaveMetrics] Failed to save metrics:", err);
             alert("Failed to save metrics: " + err.message);
@@ -2147,21 +2259,21 @@ export async function openProfileDetailsModal(profileId) {
         editBtn.innerHTML = 'Edit Metrics';
         editBtn.classList.add('btn-edit-metrics');
         
-        const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
+        const cancelBtn = container.querySelector('#btn-cancel-baseline-metrics');
         if (cancelBtn) {
           cancelBtn.parentNode.removeChild(cancelBtn);
         }
         
         editBtn.onclick = () => {
           state.isEditingProfileMetrics = true;
-          openProfileDetailsModal(profileId);
+          updateProfileUI(profileId);
         };
       }
     }
 
-    const dsqKnee = document.getElementById('detail-squat-knee');
-    const dsqHip = document.getElementById('detail-squat-hip');
-    const dsqAnkle = document.getElementById('detail-squat-ankle');
+    const dsqKnee = container.querySelector('#detail-squat-knee');
+    const dsqHip = container.querySelector('#detail-squat-hip');
+    const dsqAnkle = container.querySelector('#detail-squat-ankle');
     
     const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
     if (sPeaks.maxKneeCaveL > 90.0) sPeaks.maxKneeCaveL = 0;
@@ -2171,8 +2283,8 @@ export async function openProfileDetailsModal(profileId) {
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
     if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
 
-    const dshExcursionL = document.getElementById('detail-shoulder-excursion-l');
-    const dshExcursionR = document.getElementById('detail-shoulder-excursion-r');
+    const dshExcursionL = container.querySelector('#detail-shoulder-excursion-l');
+    const dshExcursionR = container.querySelector('#detail-shoulder-excursion-r');
     const shPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
 
     if (dshExcursionL) {
@@ -2204,10 +2316,10 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const dshRotExtL = document.getElementById('detail-shoulder-rotation-external-l');
-    const dshRotIntL = document.getElementById('detail-shoulder-rotation-internal-l');
-    const dshRotExtR = document.getElementById('detail-shoulder-rotation-external-r');
-    const dshRotIntR = document.getElementById('detail-shoulder-rotation-internal-r');
+    const dshRotExtL = container.querySelector('#detail-shoulder-rotation-external-l');
+    const dshRotIntL = container.querySelector('#detail-shoulder-rotation-internal-l');
+    const dshRotExtR = container.querySelector('#detail-shoulder-rotation-external-r');
+    const dshRotIntR = container.querySelector('#detail-shoulder-rotation-internal-r');
     const shRot = getDefaultShoulderRotation(activeSession.shoulderRotation);
 
     if (dshRotExtL) {
@@ -2267,10 +2379,10 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const dhipRotExtL = document.getElementById('detail-hip-rotation-external-l');
-    const dhipRotIntL = document.getElementById('detail-hip-rotation-internal-l');
-    const dhipRotExtR = document.getElementById('detail-hip-rotation-external-r');
-    const dhipRotIntR = document.getElementById('detail-hip-rotation-internal-r');
+    const dhipRotExtL = container.querySelector('#detail-hip-rotation-external-l');
+    const dhipRotIntL = container.querySelector('#detail-hip-rotation-internal-l');
+    const dhipRotExtR = container.querySelector('#detail-hip-rotation-external-r');
+    const dhipRotIntR = container.querySelector('#detail-hip-rotation-internal-r');
     const hRot = getDefaultHipRotation(activeSession.hipRotation);
 
     if (dhipRotExtL) {
@@ -2330,9 +2442,36 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    await renderShoulderRotationGrading(activeSession);
+    const dankleShinL = container.querySelector('#detail-ankle-dorsi-shin-l');
+    const dankleShinR = container.querySelector('#detail-ankle-dorsi-shin-r');
+    const dankleDorsiL = container.querySelector('#detail-ankle-dorsi-l');
+    const dankleDorsiR = container.querySelector('#detail-ankle-dorsi-r');
+    const anklePeaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
 
-    const dsqDepth = document.getElementById('detail-squat-depth');
+    const renderAnkleEditField = (el, val, key) => {
+      if (!el) return;
+      if (!state.isEditingProfileMetrics) {
+        el.innerHTML = val ? `${val.toFixed(1)}°` : '0°';
+      } else {
+        el.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="90" class="profile-ankle-dorsi-edit-input profile-edit-input" 
+                   data-key="${key}" 
+                   value="${val ? val.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    };
+
+    renderAnkleEditField(dankleShinL, anklePeaks.shinAngleL, "shinAngleL");
+    renderAnkleEditField(dankleShinR, anklePeaks.shinAngleR, "shinAngleR");
+    renderAnkleEditField(dankleDorsiL, anklePeaks.ankleDorsiL, "ankleDorsiL");
+    renderAnkleEditField(dankleDorsiR, anklePeaks.ankleDorsiR, "ankleDorsiR");
+
+    await renderShoulderRotationGrading(activeSession, container);
+
+    const dsqDepth = container.querySelector('#detail-squat-depth');
     if (dsqDepth) {
       const maxKneeMob = Math.max(sPeaks.kneeL || 0, sPeaks.kneeR || 0);
       let depthStatus = "Standing Upright";
@@ -2353,7 +2492,7 @@ export async function openProfileDetailsModal(profileId) {
       dsqDepth.className = `squat-peak-detail-val ${statusClass}`;
     }
 
-    const detailSquatAsymmetrySummary = document.getElementById('detail-squat-asymmetry-summary');
+    const detailSquatAsymmetrySummary = container.querySelector('#detail-squat-asymmetry-summary');
     if (detailSquatAsymmetrySummary) {
       let imageHtml = "";
       let videoHtml = "";
@@ -2474,11 +2613,12 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const videosListEl = document.getElementById('profile-details-videos-list');
-    const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
+    const videosListEl = container.querySelector('#profile-details-videos-list');
+    const videoPlaceholder = container.querySelector('#profile-details-video-placeholder');
 
     if (mainVideoPlayer) {
       mainVideoPlayer.src = '';
+      mainVideoPlayer.style.display = 'none';
       mainVideoPlayer.classList.add('hidden');
       mainVideoPlayer.classList.remove('visible-block');
     }
@@ -2587,20 +2727,21 @@ export async function openProfileDetailsModal(profileId) {
               state.latestHandResults = null;
               state.lastModalInferenceSrc = null;
 
-              const canvas = document.getElementById('profile-details-video-canvas');
+              const canvas = container.querySelector('#profile-details-video-canvas');
               if (canvas) {
                 canvas.style.display = 'none';
                 const ctx = canvas.getContext('2d');
                 if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
               }
               mainVideoPlayer.src = videoUrl;
+              mainVideoPlayer.style.display = 'block';
               mainVideoPlayer.classList.add('visible-block');
               mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
                 videoPlaceholder.classList.add('hidden');
                 videoPlaceholder.classList.remove('visible-flex');
               }
-              const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+              const btnFullscreen = container.querySelector('#btn-profile-video-fullscreen');
               if (btnFullscreen) {
                 btnFullscreen.style.display = 'flex';
               }
@@ -2623,17 +2764,18 @@ export async function openProfileDetailsModal(profileId) {
             videoRow.classList.add('active-playlist-item');
             if (mainVideoPlayer) {
               mainVideoPlayer.src = videoUrl;
+              mainVideoPlayer.style.display = 'block';
               mainVideoPlayer.classList.add('visible-block');
               mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
                 videoPlaceholder.classList.add('hidden');
                 videoPlaceholder.classList.remove('visible-flex');
               }
-              const btnFullscreen = document.getElementById('btn-profile-video-fullscreen');
+              const btnFullscreen = container.querySelector('#btn-profile-video-fullscreen');
               if (btnFullscreen) {
                 btnFullscreen.style.display = 'flex';
               }
-              const canvas = document.getElementById('profile-details-video-canvas');
+              const canvas = container.querySelector('#profile-details-video-canvas');
               if (canvas) {
                 canvas.style.display = 'none';
                 const ctx = canvas.getContext('2d');
@@ -2680,7 +2822,7 @@ export async function openProfileDetailsModal(profileId) {
                   vToUpdate.name = trimmedName;
                   await snapshotStore.saveProfile(freshProfile);
                   state.allProfiles = await snapshotStore.getAllProfiles();
-                  openProfileDetailsModal(profileId);
+                  updateProfileUI(profileId);
                 }
               }
             } catch (err) {
@@ -2731,7 +2873,7 @@ export async function openProfileDetailsModal(profileId) {
                 if (state.activeProfileId === profileId) {
                   await loadProfileIntoState(profileId);
                 }
-                openProfileDetailsModal(profileId);
+                updateProfileUI(profileId);
               }
             } catch (err) {
               console.error("[VideoDelete] Failed to delete saved video:", err);
@@ -2743,7 +2885,7 @@ export async function openProfileDetailsModal(profileId) {
       }
     }
 
-    const profileDetailsModal = document.getElementById('profile-details-modal');
+    const profileDetailsModal = container.querySelector('#profile-details-modal');
     if (profileDetailsModal) {
       profileDetailsModal.classList.add('active');
       const firstTabBtn = document.querySelector('.athlete-tab-btn[data-tab="tab-anthropometrics"]');
@@ -2757,14 +2899,37 @@ export async function openProfileDetailsModal(profileId) {
   }
 }
 
-export async function renderShoulderRotationGrading(activeSession) {
-  const panel = document.getElementById('shoulder-rotation-grading-panel');
+
+export async function updateProfileUI(profileId, preserveTab = false) {
+  if (!profileId) return;
+  const modal = document.getElementById('profile-details-modal');
+  if (modal && modal.classList.contains('active')) {
+    await populateProfileDetails(profileId, modal, preserveTab);
+  }
+  const leftSidebar = document.getElementById('left-videos-sidebar');
+  if (leftSidebar && !leftSidebar.classList.contains('hidden')) {
+    await populateProfileDetails(profileId, leftSidebar, true);
+  }
+}
+
+export async function openProfileDetailsModal(profileId, preserveTab = false) {
+  if (!profileId) return;
+  const modal = document.getElementById('profile-details-modal');
+  if (modal) {
+    modal.classList.add('active');
+  }
+  await updateProfileUI(profileId, preserveTab);
+}
+
+export async function renderShoulderRotationGrading(activeSession, container = document) {
+  const panel = container.querySelector('#shoulder-rotation-grading-panel');
   if (!panel) return;
 
   const shRot = getDefaultShoulderRotation(activeSession.shoulderRotation);
   const shPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
   const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
   const hRot = getDefaultHipRotation(activeSession.hipRotation);
+  const ankleDorsiPeaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
   
   const thresholds = await getROMThresholds();
   
@@ -2808,6 +2973,11 @@ export async function renderShoulderRotationGrading(activeSession) {
   const hipIntGradeL = getGradeInfo(hRot.maxInternalRotationL, hipIntThresh);
   const hipExtGradeR = getGradeInfo(hRot.maxExternalRotationR, hipExtThresh);
   const hipIntGradeR = getGradeInfo(hRot.maxInternalRotationR, hipIntThresh);
+
+  // 5. Ankle Dorsiflexion Grades
+  const ankleDorsiThresh = thresholds["Ankle Dorsiflexion"] || { low: 30, high: 38 };
+  const ankleDorsiGradeL = getGradeInfo(ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL || 0, ankleDorsiThresh);
+  const ankleDorsiGradeR = getGradeInfo(ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR || 0, ankleDorsiThresh);
 
   panel.innerHTML = `
     <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; font-family: inherit;">
@@ -3060,6 +3230,55 @@ export async function renderShoulderRotationGrading(activeSession) {
         </div>
       </div>
 
+      <!-- CATEGORY 4: ANKLE DORSIFLEXION / TIBIAL INCLINATION -->
+      <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">
+        <div style="font-size: 0.8rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">
+          <span>Ankle Dorsiflexion (Tibial Inclination)</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <!-- Left Ankle Dorsiflexion -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #10b981; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(16,185,129,0.1); padding-bottom: 2px;">Left Side</div>
+            
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Peak Dorsiflexion:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${(ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL) ? `${(ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${ankleDorsiGradeL.bg}; border: 1px solid ${ankleDorsiGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${ankleDorsiGradeL.color};">${ankleDorsiGradeL.grade ? `Grade ${ankleDorsiGradeL.grade} (${ankleDorsiGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Ankle Dorsiflexion -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #10b981; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(16,185,129,0.1); padding-bottom: 2px;">Right Side</div>
+            
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Peak Dorsiflexion:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${(ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR) ? `${(ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${ankleDorsiGradeR.bg}; border: 1px solid ${ankleDorsiGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${ankleDorsiGradeR.color};">${ankleDorsiGradeR.grade ? `Grade ${ankleDorsiGradeR.grade} (${ankleDorsiGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Threshold Legend (Ankle Dorsiflexion) -->
+        <div style="margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 0.65rem; font-weight: bold; color: #aaa;">Ankle Dorsiflexion Cutoffs:</div>
+          <div style="font-size: 0.6rem; color: #888; display: flex; gap: 15px;">
+            <span>G1: &le; ${ankleDorsiThresh.low}°</span> <span>G2: ${ankleDorsiThresh.low + 1}-${ankleDorsiThresh.high}°</span> <span>G3: &gt; ${ankleDorsiThresh.high}°</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ADVICE / COACHING TAB HUB -->
       <div style="background: rgba(186, 12, 47, 0.02); border: 1px dashed rgba(186, 12, 47, 0.25); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
         <div style="font-size: 0.8rem; font-weight: bold; color: #BA0C2F; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
@@ -3241,6 +3460,22 @@ export async function renderShoulderRotationGrading(activeSession) {
             });
           }
 
+          if (Math.abs(shFlexL - shFlexR) > 10) {
+            adviceItems.push({
+              metric: "Shoulder Flexion Asymmetry",
+              sides: "Bilateral",
+              title: "Restricted Shoulder Flexion",
+              desc: `Imbalance in internal rotation between sides exceeds 10° (${Math.abs(shFlexL - shFlexR)}° difference).`,
+              bullets: [
+                "**Unilateral dumbbell flexion raises",
+                "**Single‑arm overhead holds**",
+                "**Thoracic extension over foam roller**",
+                "**Wall lateral stretch**",
+                "**thoracic foam roll**"
+              ]
+            });
+          }
+
           // ==========================================
           // 4. KNEE VALGUS (CAVE-IN) RULES
           // ==========================================
@@ -3281,6 +3516,65 @@ export async function renderShoulderRotationGrading(activeSession) {
                 "**Ankle Dorsiflexion Mobility**: Address restricted calf/soleus tissues and ankle joint capsule limitations using weight-bearing dorsiflexion stretches."
               ]
             });
+          }
+
+          // ==========================================
+          // 5. ANKLE DORSIFLEXION RULES
+          // ==========================================
+          const anklePeakL = ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL || 0;
+          const anklePeakR = ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR || 0;
+
+          // Rule 5.1: < 30° bilateral
+          if (anklePeakL > 0 && anklePeakR > 0 && anklePeakL < 30 && anklePeakR < 30) {
+            adviceItems.push({
+              metric: "Ankle DF < 30° Bilateral",
+              sides: "Bilateral",
+              title: "Severe Ankle Dorsiflexion Restriction",
+              desc: "Bilateral tibial inclination/ankle dorsiflexion is restricted below 30°.",
+              bullets: [
+                "**Banded talocrural joint mobilisation**",
+                "**eccentric calf loading (Alfredson protocol variant)**"
+              ]
+            });
+          } else {
+            // Rule 5.2: 30–38°
+            const hasRestrictedDF_L = anklePeakL > 0 && anklePeakL >= 30 && anklePeakL <= 38;
+            const hasRestrictedDF_R = anklePeakR > 0 && anklePeakR >= 30 && anklePeakR <= 38;
+            if (hasRestrictedDF_L || hasRestrictedDF_R) {
+              let sideLabel = "";
+              if (hasRestrictedDF_L && hasRestrictedDF_R) sideLabel = "Bilateral";
+              else if (hasRestrictedDF_L) sideLabel = "Left Side";
+              else sideLabel = "Right Side";
+
+              adviceItems.push({
+                metric: "Ankle DF 30–38°",
+                sides: sideLabel,
+                title: "Moderate Ankle Dorsiflexion Restriction",
+                desc: "Ankle mobility is functional but has room for optimal progression.",
+                bullets: [
+                  "**Weighted heel raise with full DF at top**",
+                  "**half-kneeling ankle mobility drill with band**"
+                ]
+              });
+            }
+          }
+
+          // Rule 5.3: Asymmetry > 5°
+          if (anklePeakL > 0 && anklePeakR > 0) {
+            const diff = Math.abs(anklePeakL - anklePeakR);
+            if (diff > 5) {
+              const restrictedSide = anklePeakL < anklePeakR ? "Left Side" : "Right Side";
+              adviceItems.push({
+                metric: `Ankle Asymmetry > 5° (Delta: ${diff.toFixed(1)}°)`,
+                sides: `${restrictedSide} Restricted`,
+                title: "Ankle Dorsiflexion Asymmetry",
+                desc: `Significant range of motion asymmetry detected between the left and right ankles (${diff.toFixed(1)}° difference).`,
+                bullets: [
+                  "**Unilateral calf stretch and banded mob** prioritised on restricted side",
+                  "**loaded single-leg calf raise**"
+                ]
+              });
+            }
           }
 
           if (adviceItems.length > 0) {

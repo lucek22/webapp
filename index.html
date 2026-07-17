@@ -1333,6 +1333,7 @@
           <button class="athlete-tab-btn active" data-tab="tab-anthropometrics">Anthropometrics</button>
           <button class="athlete-tab-btn" data-tab="tab-mobility">Mobility Assessments</button>
           <button class="athlete-tab-btn" data-tab="tab-compare">Compare</button>
+          <button class="athlete-tab-btn" data-tab="tab-compare-videos">Compare Videos</button>
         </div>
 
         <!-- TAB 1: Anthropometrics (Static Measurements) -->
@@ -1895,6 +1896,111 @@
                     <!-- Populated programmatically -->
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- TAB 4: Compare Videos Side-by-Side -->
+        <div id="tab-compare-videos" class="athlete-tab-pane hidden">
+          
+          <!-- Selection & Control Header Card -->
+          <div class="compare-panel-section" style="margin-bottom: 1.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+              
+              <!-- Video A Selection (Active Profile) -->
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 0.5px;">Video A (Current Athlete)</label>
+                <select id="compare-video-select-a" class="athlete-select" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.5rem; border-radius: 6px; outline: none; font-size: 0.85rem;">
+                  <option value="">Select Video A</option>
+                </select>
+              </div>
+
+              <!-- Video B Selection (Select Athlete first, then Video B) -->
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 0.5px;">Video B (Comparison Subject)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <select id="compare-video-athlete-b" class="athlete-select" style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.5rem; border-radius: 6px; outline: none; font-size: 0.85rem;">
+                    <option value="">Select Athlete B</option>
+                  </select>
+                  <select id="compare-video-select-b" class="athlete-select" style="flex: 1.2; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.5rem; border-radius: 6px; outline: none; font-size: 0.85rem;" disabled>
+                    <option value="">Select Video B</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Unified Sync Control Bar -->
+            <div id="compare-video-controls" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1.5px solid rgba(255,255,255,0.06); padding-top: 12px;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button id="btn-sync-play" class="btn bg-scarlet" style="padding: 0.4rem 1rem; font-size: 0.8rem; border-radius: 4px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  Sync Play
+                </button>
+                <button id="btn-sync-pause" class="btn" style="padding: 0.4rem 1rem; font-size: 0.8rem; border-radius: 4px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); font-weight: 600; color: #fff;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  Sync Pause
+                </button>
+                <button id="btn-sync-restart" class="btn" style="padding: 0.4rem 1rem; font-size: 0.8rem; border-radius: 4px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); font-weight: 600; color: #eee;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+                  Sync Restart
+                </button>
+              </div>
+
+              <!-- Slow Motion Selector -->
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #aaa; letter-spacing: 0.5px;">Playback Speed:</span>
+                <select id="compare-video-speed" class="athlete-select" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                  <option value="0.25">0.25x (Super Slow)</option>
+                  <option value="0.5">0.50x (Slow Mo)</option>
+                  <option value="1.0" selected>1.00x (Normal)</option>
+                  <option value="1.5">1.50x (Fast)</option>
+                  <option value="2.0">2.00x (Double)</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Video Viewports Grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            
+            <!-- Viewport A -->
+            <div class="compare-panel-section" style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; justify-content: center; min-height: 280px; position: relative; overflow: hidden;">
+              <!-- Empty state A -->
+              <div id="compare-video-empty-a" style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: #666; padding: 3rem;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #888;">Select Video A above</div>
+              </div>
+              <!-- Video Player Container A -->
+              <div id="compare-video-wrap-a" class="hidden" style="width: 100%; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #000;">
+                <video id="compare-video-player-a" style="width: 100%; display: block;" playsinline controls muted></video>
+                <div id="compare-video-badge-a" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.15);">Video A</div>
+              </div>
+              <!-- Video Metadata A -->
+              <div id="compare-video-meta-a" class="hidden" style="width: 100%; text-align: left; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+                <!-- Populated programmatically -->
+              </div>
+            </div>
+
+            <!-- Viewport B -->
+            <div class="compare-panel-section" style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; justify-content: center; min-height: 280px; position: relative; overflow: hidden;">
+              <!-- Empty state B -->
+              <div id="compare-video-empty-b" style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: #666; padding: 3rem;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #888;">Select Athlete B & Video B above</div>
+              </div>
+              <!-- Video Player Container B -->
+              <div id="compare-video-wrap-b" class="hidden" style="width: 100%; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #000;">
+                <video id="compare-video-player-b" style="width: 100%; display: block;" playsinline controls muted></video>
+                <div id="compare-video-badge-b" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.15);">Video B</div>
+              </div>
+              <!-- Video Metadata B -->
+              <div id="compare-video-meta-b" class="hidden" style="width: 100%; text-align: left; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+                <!-- Populated programmatically -->
               </div>
             </div>
 

@@ -3214,12 +3214,340 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       }
     }
 
+    // ==========================================
+    // Athlete Video Comparison Engine Logic
+    // ==========================================
+    const compareVideoSelectA = container.querySelector('#compare-video-select-a');
+    const compareVideoAthleteB = container.querySelector('#compare-video-athlete-b');
+    const compareVideoSelectB = container.querySelector('#compare-video-select-b');
+
+    if (compareVideoSelectA && compareVideoAthleteB && compareVideoSelectB) {
+      
+      // Helper function to extract and normalize all videos for an athlete profile
+      const getAllVideosForProfile = (prof) => {
+        const list = [];
+        const addedIds = new Set();
+
+        const addVid = (v, sessionName, typeName) => {
+          if (!v || !v.blob || addedIds.has(v.id)) return;
+          addedIds.add(v.id);
+          list.push({
+            id: v.id,
+            blob: v.blob,
+            name: v.name || `${typeName} (${sessionName})`,
+            timestamp: v.timestamp || Date.now(),
+            typeName: typeName,
+            sessionName: sessionName,
+            meta: v
+          });
+        };
+
+        // 1. Check all sessions
+        if (prof.sessions && Array.isArray(prof.sessions)) {
+          prof.sessions.forEach(s => {
+            const sName = s.name || "Unnamed Session";
+            addVid(s.videoSquatL, sName, "Squat Left");
+            addVid(s.videoSquatR, sName, "Squat Right");
+            addVid(s.videoSquatFrontal, sName, "Squat Frontal");
+            addVid(s.videoShoulderL, sName, "Shoulder Left");
+            addVid(s.videoShoulderR, sName, "Shoulder Right");
+            addVid(s.videoShoulderRotationL, sName, "Shoulder ER/IR Left");
+            addVid(s.videoShoulderRotationR, sName, "Shoulder ER/IR Right");
+            addVid(s.videoAnkleDorsiL, sName, "Ankle Dorsi Left");
+            addVid(s.videoAnkleDorsiR, sName, "Ankle Dorsi Right");
+          });
+        }
+
+        // 2. Check general archive videos
+        if (prof.videos && Array.isArray(prof.videos)) {
+          prof.videos.forEach(v => {
+            addVid(v, "Archive", v.mode || "General Archive");
+          });
+        }
+
+        // Sort by timestamp desc
+        list.sort((a, b) => b.timestamp - a.timestamp);
+        return list;
+      };
+
+      // Get list of profiles
+      let allProfiles = state.allProfiles || [];
+      if (allProfiles.length === 0) {
+        allProfiles = await snapshotStore.getAllProfiles();
+        state.allProfiles = allProfiles;
+      }
+
+      // Populate Athlete B selector
+      compareVideoAthleteB.innerHTML = '<option value="">Select Athlete B</option>';
+      allProfiles.forEach(p => {
+        if (p.id !== profileId) {
+          const option = document.createElement('option');
+          option.value = p.id;
+          option.textContent = p.name || `Profile #${p.id}`;
+          if (state.comparedVideoAthleteBId && p.id === state.comparedVideoAthleteBId) {
+            option.selected = true;
+          }
+          compareVideoAthleteB.appendChild(option);
+        }
+      });
+
+      // Track URL objects to revoke on selection change
+      let currentUrlA = null;
+      let currentUrlB = null;
+
+      const playerA = container.querySelector('#compare-video-player-a');
+      const playerB = container.querySelector('#compare-video-player-b');
+      const wrapA = container.querySelector('#compare-video-wrap-a');
+      const wrapB = container.querySelector('#compare-video-wrap-b');
+      const emptyA = container.querySelector('#compare-video-empty-a');
+      const emptyB = container.querySelector('#compare-video-empty-b');
+      const metaA = container.querySelector('#compare-video-meta-a');
+      const metaB = container.querySelector('#compare-video-meta-b');
+      const controlBar = container.querySelector('#compare-video-controls');
+
+      const updateControlsVisibility = () => {
+        if (controlBar) {
+          const sourceA = playerA && playerA.src;
+          const sourceB = playerB && playerB.src;
+          if (sourceA || sourceB) {
+            controlBar.classList.remove('hidden');
+          } else {
+            controlBar.classList.add('hidden');
+          }
+        }
+      };
+
+      // Populate list of videos for Athlete A (Current)
+      const listA = getAllVideosForProfile(profile);
+      compareVideoSelectA.innerHTML = '<option value="">Select Video A</option>';
+      listA.forEach((v, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${v.typeName} - ${v.sessionName} (${new Date(v.timestamp).toLocaleDateString()})`;
+        if (state.comparedVideoIndexA !== undefined && index === state.comparedVideoIndexA) {
+          option.selected = true;
+        }
+        compareVideoSelectA.appendChild(option);
+      });
+
+      const loadVideoA = (videoIndex) => {
+        if (currentUrlA) {
+          URL.revokeObjectURL(currentUrlA);
+          currentUrlA = null;
+        }
+
+        if (videoIndex === "" || isNaN(videoIndex)) {
+          if (playerA) playerA.src = '';
+          if (wrapA) wrapA.classList.add('hidden');
+          if (emptyA) emptyA.classList.remove('hidden');
+          if (metaA) metaA.classList.add('hidden');
+          state.comparedVideoIndexA = undefined;
+          updateControlsVisibility();
+          return;
+        }
+
+        const v = listA[videoIndex];
+        if (v && v.blob) {
+          currentUrlA = URL.createObjectURL(v.blob);
+          state.modalObjectUrls.push(currentUrlA);
+          
+          if (playerA) {
+            playerA.src = currentUrlA;
+            playerA.load();
+          }
+          if (wrapA) wrapA.classList.remove('hidden');
+          if (emptyA) emptyA.classList.add('hidden');
+          
+          if (metaA) {
+            metaA.classList.remove('hidden');
+            metaA.innerHTML = `
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: #aaa; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+                <div><strong>Category:</strong> ${v.typeName}</div>
+                <div><strong>Session:</strong> ${v.sessionName}</div>
+                <div><strong>Recorded:</strong> ${new Date(v.timestamp).toLocaleString()}</div>
+                <div><strong>Size:</strong> ${(v.blob.size / (1024 * 1024)).toFixed(1)} MB</div>
+              </div>
+            `;
+          }
+          state.comparedVideoIndexA = Number(videoIndex);
+        }
+        updateControlsVisibility();
+      };
+
+      compareVideoSelectA.onchange = (e) => {
+        loadVideoA(e.target.value);
+      };
+
+      // Populate list of videos for Athlete B
+      let listB = [];
+      const populateVideosB = async (athleteBId) => {
+        if (currentUrlB) {
+          URL.revokeObjectURL(currentUrlB);
+          currentUrlB = null;
+        }
+
+        if (!athleteBId) {
+          compareVideoSelectB.innerHTML = '<option value="">Select Video B</option>';
+          compareVideoSelectB.disabled = true;
+          if (playerB) playerB.src = '';
+          if (wrapB) wrapB.classList.add('hidden');
+          if (emptyB) emptyB.classList.remove('hidden');
+          if (metaB) metaB.classList.add('hidden');
+          state.comparedVideoAthleteBId = undefined;
+          state.comparedVideoIndexB = undefined;
+          updateControlsVisibility();
+          return;
+        }
+
+        try {
+          const otherProfile = await snapshotStore.getProfile(Number(athleteBId));
+          if (!otherProfile) return;
+
+          listB = getAllVideosForProfile(otherProfile);
+          compareVideoSelectB.innerHTML = '<option value="">Select Video B</option>';
+          
+          if (listB.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = "";
+            opt.textContent = "No videos recorded";
+            compareVideoSelectB.appendChild(opt);
+            compareVideoSelectB.disabled = true;
+          } else {
+            compareVideoSelectB.disabled = false;
+            listB.forEach((v, index) => {
+              const option = document.createElement('option');
+              option.value = index;
+              option.textContent = `${v.typeName} - ${v.sessionName} (${new Date(v.timestamp).toLocaleDateString()})`;
+              if (state.comparedVideoIndexB !== undefined && index === state.comparedVideoIndexB) {
+                option.selected = true;
+              }
+              compareVideoSelectB.appendChild(option);
+            });
+          }
+
+          state.comparedVideoAthleteBId = Number(athleteBId);
+
+          if (state.comparedVideoIndexB !== undefined && state.comparedVideoIndexB < listB.length) {
+            loadVideoB(state.comparedVideoIndexB);
+          } else {
+            loadVideoB("");
+          }
+
+        } catch (err) {
+          console.error("[ComparisonEngine] Error loading athlete B videos:", err);
+        }
+      };
+
+      const loadVideoB = (videoIndex) => {
+        if (currentUrlB) {
+          URL.revokeObjectURL(currentUrlB);
+          currentUrlB = null;
+        }
+
+        if (videoIndex === "" || isNaN(videoIndex)) {
+          if (playerB) playerB.src = '';
+          if (wrapB) wrapB.classList.add('hidden');
+          if (emptyB) emptyB.classList.remove('hidden');
+          if (metaB) metaB.classList.add('hidden');
+          state.comparedVideoIndexB = undefined;
+          updateControlsVisibility();
+          return;
+        }
+
+        const v = listB[videoIndex];
+        if (v && v.blob) {
+          currentUrlB = URL.createObjectURL(v.blob);
+          state.modalObjectUrls.push(currentUrlB);
+          
+          if (playerB) {
+            playerB.src = currentUrlB;
+            playerB.load();
+          }
+          if (wrapB) wrapB.classList.remove('hidden');
+          if (emptyB) emptyB.classList.add('hidden');
+          
+          if (metaB) {
+            metaB.classList.remove('hidden');
+            metaB.innerHTML = `
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; color: #aaa; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);">
+                <div><strong>Category:</strong> ${v.typeName}</div>
+                <div><strong>Session:</strong> ${v.sessionName}</div>
+                <div><strong>Recorded:</strong> ${new Date(v.timestamp).toLocaleString()}</div>
+                <div><strong>Size:</strong> ${(v.blob.size / (1024 * 1024)).toFixed(1)} MB</div>
+              </div>
+            `;
+          }
+          state.comparedVideoIndexB = Number(videoIndex);
+        }
+        updateControlsVisibility();
+      };
+
+      compareVideoAthleteB.onchange = (e) => {
+        state.comparedVideoIndexB = undefined;
+        populateVideosB(e.target.value);
+      };
+
+      compareVideoSelectB.onchange = (e) => {
+        loadVideoB(e.target.value);
+      };
+
+      // Wire Unified Sync controls
+      const playBtn = container.querySelector('#btn-sync-play');
+      const pauseBtn = container.querySelector('#btn-sync-pause');
+      const restartBtn = container.querySelector('#btn-sync-restart');
+      const speedSelect = container.querySelector('#compare-video-speed');
+
+      if (playBtn) {
+        playBtn.onclick = () => {
+          if (playerA && playerA.src) playerA.play();
+          if (playerB && playerB.src) playerB.play();
+        };
+      }
+
+      if (pauseBtn) {
+        pauseBtn.onclick = () => {
+          if (playerA) playerA.pause();
+          if (playerB) playerB.pause();
+        };
+      }
+
+      if (restartBtn) {
+        restartBtn.onclick = () => {
+          if (playerA) playerA.currentTime = 0;
+          if (playerB) playerB.currentTime = 0;
+        };
+      }
+
+      if (speedSelect) {
+        speedSelect.onchange = (e) => {
+          const speed = parseFloat(e.target.value) || 1.0;
+          if (playerA) playerA.playbackRate = speed;
+          if (playerB) playerB.playbackRate = speed;
+        };
+      }
+
+      // Initial Restore states
+      if (state.comparedVideoIndexA !== undefined && state.comparedVideoIndexA < listA.length) {
+        loadVideoA(state.comparedVideoIndexA);
+      } else {
+        loadVideoA("");
+      }
+
+      if (state.comparedVideoAthleteBId) {
+        populateVideosB(state.comparedVideoAthleteBId);
+      } else {
+        populateVideosB("");
+      }
+    }
+
     const profileDetailsModal = container.querySelector('#profile-details-modal');
     if (profileDetailsModal) {
       profileDetailsModal.classList.add('active');
-      const firstTabBtn = document.querySelector('.athlete-tab-btn[data-tab="tab-anthropometrics"]');
-      if (firstTabBtn) {
-        firstTabBtn.click();
+      if (!preserveTab) {
+        const firstTabBtn = document.querySelector('.athlete-tab-btn[data-tab="tab-anthropometrics"]');
+        if (firstTabBtn) {
+          firstTabBtn.click();
+        }
       }
     }
 

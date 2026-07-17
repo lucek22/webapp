@@ -43,7 +43,8 @@ import {
   autoSyncToActiveProfile,
   autoSyncToActiveProfileDebounced,
   drawModalVideoPoseOverlay,
-  registerProfileCallbacks
+  registerProfileCallbacks,
+  populateDropdown
 } from './profileManager.js';
 
 // Import specialized submodules
@@ -5446,7 +5447,8 @@ function initScarletRecorder() {
 registerProfileCallbacks({
   renderDashboard,
   updateDashboardOfflinePlaceholders,
-  setUnitSystem
+  setUnitSystem,
+  importPriorPortfolio
 });
 
 registerSquatCallbacks({

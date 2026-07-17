@@ -17,11 +17,13 @@ import { pose, calculatePoseMetrics } from './mediapipeLogic.js';
 let renderDashboardFn = null;
 let updateDashboardOfflinePlaceholdersFn = null;
 let setUnitSystemFn = null;
+let importPriorPortfolioFn = null;
 
 export function registerProfileCallbacks(config) {
   renderDashboardFn = config.renderDashboard;
   updateDashboardOfflinePlaceholdersFn = config.updateDashboardOfflinePlaceholders;
   setUnitSystemFn = config.setUnitSystem;
+  importPriorPortfolioFn = config.importPriorPortfolio;
 }
 
 // Drawing overlay helpers from canvasRenderer
@@ -44,6 +46,53 @@ export function getActiveProfileName(includeFallback = true) {
   return includeFallback ? "Guest Mode" : "";
 }
 
+export function populateDropdown(filteredProfiles) {
+  const profileSelect = document.getElementById('profile-select');
+  const calProfileSelect = document.getElementById('cal-profile-select');
+  if (!profileSelect) return;
+
+  const currentSelected = profileSelect.value;
+  profileSelect.innerHTML = '';
+  
+  if (calProfileSelect) {
+    calProfileSelect.innerHTML = '';
+  }
+  
+  filteredProfiles.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    profileSelect.appendChild(opt);
+
+    if (calProfileSelect) {
+      const calOpt = document.createElement('option');
+      calOpt.value = p.id;
+      calOpt.textContent = p.name;
+      calProfileSelect.appendChild(calOpt);
+    }
+  });
+
+  const createOpt = document.createElement('option');
+  createOpt.value = 'new';
+  createOpt.textContent = 'Select Existing Profile';
+  profileSelect.appendChild(createOpt);
+
+  const importOpt = document.createElement('option');
+  importOpt.value = 'import';
+  importOpt.textContent = 'Import Profile';
+  profileSelect.appendChild(importOpt);
+  
+  if (currentSelected && [...profileSelect.options].some(o => o.value === currentSelected)) {
+    profileSelect.value = currentSelected;
+  } else {
+    profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : 'new';
+  }
+
+  if (calProfileSelect) {
+    calProfileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
+  }
+}
+
 export async function initializeProfilesSelector() {
   const profileSelect = document.getElementById('profile-select');
   const calProfileSelect = document.getElementById('cal-profile-select');
@@ -53,6 +102,7 @@ export async function initializeProfilesSelector() {
   const btnDeleteProfile = document.getElementById('btn-delete-profile');
   const profileStatusBar = document.getElementById('profile-status-bar');
   const newProfileInputContainer = document.getElementById('new-profile-input-container');
+  const importProfileInputContainer = document.getElementById('import-profile-input-container');
 
   const profileActionRow = document.getElementById('profile-action-row');
   const btnViewProfileDetails = document.getElementById('btn-view-profile-details');
@@ -63,44 +113,6 @@ export async function initializeProfilesSelector() {
   const modalUnitCmBtn = document.getElementById('modal-unit-cm-btn');
 
   if (!profileSelect) return;
-
-  function populateDropdown(filteredProfiles) {
-    const currentSelected = profileSelect.value;
-    profileSelect.innerHTML = '';
-    
-    if (calProfileSelect) {
-      calProfileSelect.innerHTML = '';
-    }
-    
-    filteredProfiles.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name;
-      profileSelect.appendChild(opt);
-
-      if (calProfileSelect) {
-        const calOpt = document.createElement('option');
-        calOpt.value = p.id;
-        calOpt.textContent = p.name;
-        calProfileSelect.appendChild(calOpt);
-      }
-    });
-
-    const createOpt = document.createElement('option');
-    createOpt.value = 'new';
-    createOpt.textContent = 'Select Existing Profile';
-    profileSelect.appendChild(createOpt);
-    
-    if (currentSelected && [...profileSelect.options].some(o => o.value === currentSelected)) {
-      profileSelect.value = currentSelected;
-    } else {
-      profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : 'new';
-    }
-
-    if (calProfileSelect) {
-      calProfileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
-    }
-  }
 
   try {
     state.allProfiles = await snapshotStore.getAllProfiles();
@@ -118,12 +130,20 @@ export async function initializeProfilesSelector() {
         newProfileInputContainer.classList.add('hidden');
         newProfileInputContainer.classList.remove('visible-flex');
       }
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.add('hidden');
+        importProfileInputContainer.classList.remove('visible-flex');
+      }
       await loadProfileIntoState(state.activeProfileId);
     } else {
       if (profileActionRow) profileActionRow.classList.add('hidden');
       if (newProfileInputContainer) {
         newProfileInputContainer.classList.remove('hidden');
         newProfileInputContainer.classList.add('visible-flex');
+      }
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.add('hidden');
+        importProfileInputContainer.classList.remove('visible-flex');
       }
     }
   } catch (err) {
@@ -145,7 +165,36 @@ export async function initializeProfilesSelector() {
       if (calProfileSelect) calProfileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
       return;
     }
-    if (selectedVal === 'new') {
+    if (selectedVal === 'import') {
+      state.activeProfileId = null;
+      localStorage.removeItem('activeProfileId');
+      if (profileSelect) profileSelect.value = 'import';
+      if (calProfileSelect) calProfileSelect.value = '';
+
+      if (newProfileInputContainer) {
+        newProfileInputContainer.classList.add('hidden');
+        newProfileInputContainer.classList.remove('visible-flex');
+      }
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.remove('hidden');
+        importProfileInputContainer.classList.add('visible-flex');
+      }
+      if (profileStatusBar) profileStatusBar.classList.add('hidden');
+      if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
+      if (profileActionRow) profileActionRow.classList.add('hidden');
+
+      const sessionContainer = document.getElementById('profile-session-select-container');
+      if (sessionContainer) sessionContainer.classList.add('hidden');
+
+      // Reset left videos sidebar to guest card
+      const leftCard = document.getElementById('left-videos-active-card');
+      const guestCard = document.getElementById('left-videos-guest-card');
+      if (leftCard && guestCard) {
+        leftCard.classList.add('hidden');
+        guestCard.classList.remove('hidden');
+      }
+
+    } else if (selectedVal === 'new') {
       state.activeProfileId = null;
       localStorage.removeItem('activeProfileId');
       if (profileSelect) profileSelect.value = 'new';
@@ -154,6 +203,10 @@ export async function initializeProfilesSelector() {
       if (newProfileInputContainer) {
         newProfileInputContainer.classList.remove('hidden');
         newProfileInputContainer.classList.add('visible-flex');
+      }
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.add('hidden');
+        importProfileInputContainer.classList.remove('visible-flex');
       }
       if (profileStatusBar) profileStatusBar.classList.add('hidden');
       if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
@@ -194,6 +247,10 @@ export async function initializeProfilesSelector() {
         newProfileInputContainer.classList.add('hidden');
         newProfileInputContainer.classList.remove('visible-flex');
       }
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.add('hidden');
+        importProfileInputContainer.classList.remove('visible-flex');
+      }
       if (profileStatusBar) {
         const activeProfileName = document.getElementById('active-profile-name');
         if (activeProfileName) activeProfileName.textContent = 'Guest Mode';
@@ -211,6 +268,10 @@ export async function initializeProfilesSelector() {
       if (newProfileInputContainer) {
         newProfileInputContainer.classList.add('hidden');
         newProfileInputContainer.classList.remove('visible-flex');
+      }
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.add('hidden');
+        importProfileInputContainer.classList.remove('visible-flex');
       }
       await loadProfileIntoState(Number(selectedVal));
     }
@@ -413,6 +474,37 @@ export async function initializeProfilesSelector() {
       }
     }
   });
+
+  const btnImportProfileSubmit = document.getElementById('btn-import-profile-submit');
+  const profileImportJsonInput = document.getElementById('profile-import-json-input');
+
+  if (btnImportProfileSubmit && profileImportJsonInput) {
+    btnImportProfileSubmit.addEventListener('click', async () => {
+      const rawVal = profileImportJsonInput.value.trim();
+      if (!rawVal) {
+        alert("Please paste a player profile JSON in the text area.");
+        return;
+      }
+
+      try {
+        const data = JSON.parse(rawVal);
+        if (importPriorPortfolioFn) {
+          await importPriorPortfolioFn(data);
+          
+          // Clear inputs on success
+          profileImportJsonInput.value = "";
+          if (importProfileInputContainer) {
+            importProfileInputContainer.classList.add('hidden');
+            importProfileInputContainer.classList.remove('visible-flex');
+          }
+        } else {
+          alert("Import function is not registered yet. Please try again.");
+        }
+      } catch (e) {
+        alert(`Invalid JSON format: ${e.message}\nPlease make sure you are pasting a valid JSON object.`);
+      }
+    });
+  }
 
   const mainVideoPlayer = document.getElementById('profile-details-video-player');
   if (mainVideoPlayer) {
@@ -1438,6 +1530,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
         let hasPeaks = false;
         if (activeSession.squatPeaks) {
+          console.log('[DEBUG-SQUAT-L] squatPeaks:', JSON.stringify(activeSession.squatPeaks), 'kneeL:', activeSession.squatPeaks.kneeL, 'kneeLTime:', activeSession.squatPeaks.kneeLTime, 'hipL:', activeSession.squatPeaks.hipL, 'ankleL:', activeSession.squatPeaks.ankleL);
           if (p.key === 'squat-l') {
             hasPeaks = (activeSession.squatPeaks.kneeL > 0 || activeSession.squatPeaks.kneeLTime > 0 || activeSession.squatPeaks.hipL > 0 || activeSession.squatPeaks.ankleL > 0);
           } else if (p.key === 'squat-r') {

@@ -7,6 +7,7 @@ import { getDefaultSquatPeaks, calculateValgusFromJoints } from './squatControll
 import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI } from './shoulderController.js';
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
 import { getDefaultHipRotation } from './hipRotationController.js';
+import { getDefaultThoracicExtension } from './thoracicController.js';
 import { compileAndDownloadCombinedSession } from './reportCompiler.js';
 import { pose, calculatePoseMetrics } from './mediapipeLogic.js';
 
@@ -726,6 +727,7 @@ export function ensureProfileSessions(profile) {
       shoulderPeaks: getDefaultShoulderPeaks(profile.shoulderPeaks),
       shoulderRotation: getDefaultShoulderRotation(profile.shoulderRotation),
       hipRotation: getDefaultHipRotation(profile.hipRotation),
+      thoracicExtension: getDefaultThoracicExtension(profile.thoracicExtension),
       imageA: profile.imageA || null,
       imageT: profile.imageT || null,
       imageOverhead: profile.imageOverhead || null,
@@ -791,6 +793,7 @@ export async function loadProfileIntoState(profileId) {
     state.hipRotation = getDefaultHipRotation(activeSession.hipRotation);
     if (!state.ankleDorsi) state.ankleDorsi = {};
     state.ankleDorsi.peaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
+    state.thoracicExtension = getDefaultThoracicExtension(activeSession.thoracicExtension);
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
@@ -1037,6 +1040,10 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
       session.hipRotation = state.hipRotation ? JSON.parse(JSON.stringify(state.hipRotation)) : null;
     }
 
+    if (state.thoracicExtension !== undefined) {
+      session.thoracicExtension = state.thoracicExtension ? JSON.parse(JSON.stringify(state.thoracicExtension)) : null;
+    }
+
     if (state.videoHipRotationL !== undefined) session.videoHipRotationL = state.videoHipRotationL;
     if (state.videoHipRotationR !== undefined) session.videoHipRotationR = state.videoHipRotationR;
 
@@ -1050,6 +1057,7 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.shoulderPeaks = session.shoulderPeaks;
     profile.shoulderRotation = session.shoulderRotation;
     profile.hipRotation = session.hipRotation;
+    profile.thoracicExtension = session.thoracicExtension;
     profile.imageA = session.imageA;
     profile.imageT = session.imageT;
     profile.imageOverhead = session.imageOverhead;
@@ -1221,6 +1229,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           squatPeaks: getDefaultSquatPeaks(),
           shoulderPeaks: getDefaultShoulderPeaks(),
           shoulderRotation: getDefaultShoulderRotation(),
+          thoracicExtension: getDefaultThoracicExtension(),
           imageA: null,
           imageT: null,
           imageOverhead: null,
@@ -1251,6 +1260,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
         state.squatPeaks = getDefaultSquatPeaks();
         state.shoulderPeaks = getDefaultShoulderPeaks();
         state.shoulderRotation = getDefaultShoulderRotation();
+        state.thoracicExtension = getDefaultThoracicExtension();
         state.imageA = null;
         state.imageT = null;
         state.imageOverhead = null;
@@ -1408,7 +1418,8 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       { key: 'hip-rotation-l', metricsKey: 'hipRotation', imgKey: 'imageHipRotationL', title: 'Left Hip Rotation', color: '#10b981', isHipRotation: true },
       { key: 'hip-rotation-r', metricsKey: 'hipRotation', imgKey: 'imageHipRotationR', title: 'Right Hip Rotation', color: '#10b981', isHipRotation: true },
       { key: 'ankle-dorsi-l', metricsKey: 'ankleDorsiPeaks', imgKey: 'imageAnkleDorsi', title: 'Left Ankle Dorsiflexion', color: '#10b981', isAnkleDorsi: true },
-      { key: 'ankle-dorsi-r', metricsKey: 'ankleDorsiPeaks', imgKey: 'imageAnkleDorsi', title: 'Right Ankle Dorsiflexion', color: '#10b981', isAnkleDorsi: true }
+      { key: 'ankle-dorsi-r', metricsKey: 'ankleDorsiPeaks', imgKey: 'imageAnkleDorsi', title: 'Right Ankle Dorsiflexion', color: '#10b981', isAnkleDorsi: true },
+      { key: 'thoracic-extension', metricsKey: 'thoracicExtension', imgKey: 'imageThoracicExtension', title: 'Thoracic Extension', color: '#d4a017', isThoracicExtension: true }
     ];
 
     poses.forEach(p => {
@@ -2224,6 +2235,23 @@ export async function populateProfileDetails(profileId, container, preserveTab =
               }
               freshActiveSession.ankleDorsiPeaks[key] = val;
             });
+
+            if (!freshActiveSession.thoracicExtension) {
+              freshActiveSession.thoracicExtension = getDefaultThoracicExtension();
+            }
+            const thoracicInputs = document.querySelectorAll('.profile-thoracic-extension-edit-input');
+            thoracicInputs.forEach(input => {
+              const key = input.getAttribute('data-key');
+              const rawVal = input.value.trim();
+              let val = 0;
+              if (rawVal !== "") {
+                const parsed = parseFloat(rawVal);
+                if (!isNaN(parsed)) {
+                  val = parsed;
+                }
+              }
+              freshActiveSession.thoracicExtension[key] = val;
+            });
             
             freshProfileMigrated.metricsA = freshActiveSession.metricsA;
             freshProfileMigrated.metricsT = freshActiveSession.metricsT;
@@ -2233,6 +2261,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
             freshProfileMigrated.hipRotation = freshActiveSession.hipRotation;
             freshProfileMigrated.ankleDorsiPeaks = freshActiveSession.ankleDorsiPeaks;
+            freshProfileMigrated.thoracicExtension = freshActiveSession.thoracicExtension;
             freshProfileMigrated.imageA = freshActiveSession.imageA;
             freshProfileMigrated.imageT = freshActiveSession.imageT;
             freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -2468,6 +2497,23 @@ export async function populateProfileDetails(profileId, container, preserveTab =
     renderAnkleEditField(dankleShinR, anklePeaks.shinAngleR, "shinAngleR");
     renderAnkleEditField(dankleDorsiL, anklePeaks.ankleDorsiL, "ankleDorsiL");
     renderAnkleEditField(dankleDorsiR, anklePeaks.ankleDorsiR, "ankleDorsiR");
+
+    const dthoracicExtension = container.querySelector('#detail-thoracic-extension');
+    const thoracicExtension = getDefaultThoracicExtension(activeSession.thoracicExtension);
+    if (dthoracicExtension) {
+      if (!state.isEditingProfileMetrics) {
+        dthoracicExtension.innerHTML = thoracicExtension.peakAngle ? `${thoracicExtension.peakAngle.toFixed(1)}°` : '0°';
+      } else {
+        dthoracicExtension.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="180" class="profile-thoracic-extension-edit-input profile-edit-input" 
+                   data-key="peakAngle" 
+                   value="${thoracicExtension.peakAngle ? thoracicExtension.peakAngle.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    }
 
     await renderShoulderRotationGrading(activeSession, container);
 
@@ -2930,6 +2976,7 @@ export async function renderShoulderRotationGrading(activeSession, container = d
   const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
   const hRot = getDefaultHipRotation(activeSession.hipRotation);
   const ankleDorsiPeaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
+  const thoracicExtension = getDefaultThoracicExtension(activeSession.thoracicExtension);
   
   const thresholds = await getROMThresholds();
   
@@ -2939,6 +2986,8 @@ export async function renderShoulderRotationGrading(activeSession, container = d
   const kneeThresh = thresholds["Knee Flexion"] || { low: 80, high: 110 };
   const hipExtThresh = thresholds["Hip External Rotation"] || { low: 30, high: 45 };
   const hipIntThresh = thresholds["Hip Internal Rotation"] || { low: 30, high: 45 };
+  const ankleDorsiThresh = thresholds["Ankle Dorsiflexion"] || { low: 30, high: 38 };
+  const thoracicThresh = thresholds["Thoracic Extension"] || { low: 15, high: 25 };
 
   const getGradeInfo = (val, thresh) => {
     const absVal = Math.abs(val);
@@ -2975,9 +3024,11 @@ export async function renderShoulderRotationGrading(activeSession, container = d
   const hipIntGradeR = getGradeInfo(hRot.maxInternalRotationR, hipIntThresh);
 
   // 5. Ankle Dorsiflexion Grades
-  const ankleDorsiThresh = thresholds["Ankle Dorsiflexion"] || { low: 30, high: 38 };
   const ankleDorsiGradeL = getGradeInfo(ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL || 0, ankleDorsiThresh);
   const ankleDorsiGradeR = getGradeInfo(ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR || 0, ankleDorsiThresh);
+
+  // 6. Thoracic Extension Grade
+  const thoracicGrade = getGradeInfo(thoracicExtension.peakAngle, thoracicThresh);
 
   panel.innerHTML = `
     <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; font-family: inherit;">
@@ -3279,6 +3330,34 @@ export async function renderShoulderRotationGrading(activeSession, container = d
         </div>
       </div>
 
+      <!-- CATEGORY 5: THORACIC EXTENSION -->
+      <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">
+        <div style="font-size: 0.8rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">
+          <span>Thoracic Extension Mobility</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr; gap: 0.75rem;">
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+              <span style="font-size: 0.75rem; color: #ccc;">Peak Thoracic Extension:</span>
+              <span style="font-size: 0.8rem; font-weight: bold; color: #fff;">${thoracicExtension.peakAngle ? `${thoracicExtension.peakAngle.toFixed(1)}°` : '--'}</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${thoracicGrade.bg}; border: 1px solid ${thoracicGrade.border}; border-radius: 3px;">
+              <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+              <span style="font-size: 0.65rem; font-weight: bold; color: ${thoracicGrade.color};">${thoracicGrade.grade ? `Grade ${thoracicGrade.grade} (${thoracicGrade.label})` : 'Unrecorded'}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Threshold Legend (Thoracic Extension) -->
+        <div style="margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 0.65rem; font-weight: bold; color: #aaa;">Thoracic Extension Cutoffs:</div>
+          <div style="font-size: 0.6rem; color: #888; display: flex; gap: 15px;">
+            <span>G1: &le; ${thoracicThresh.low}°</span> <span>G2: ${thoracicThresh.low + 1}-${thoracicThresh.high}°</span> <span>G3: &gt; ${thoracicThresh.high}°</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ADVICE / COACHING TAB HUB -->
       <div style="background: rgba(186, 12, 47, 0.02); border: 1px dashed rgba(186, 12, 47, 0.25); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
         <div style="font-size: 0.8rem; font-weight: bold; color: #BA0C2F; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
@@ -3575,6 +3654,36 @@ export async function renderShoulderRotationGrading(activeSession, container = d
                 ]
               });
             }
+          }
+
+          // ==========================================
+          // 6. THORACIC EXTENSION RULES
+          // ==========================================
+          const thoracicPeak = thoracicExtension.peakAngle || 0;
+          
+          if (thoracicPeak > 0 && thoracicPeak < thoracicThresh.low) {
+            adviceItems.push({
+              metric: `Thoracic Ext < ${thoracicThresh.low}°`,
+              sides: "Spine",
+              title: "Restricted Thoracic Extension",
+              desc: `Your thoracic extension peak of ${thoracicPeak.toFixed(1)}° is below the functional threshold of ${thoracicThresh.low}°.`,
+              bullets: [
+                "**Thoracic foam rolling & extension**: Use a foam roller placed mid-back, supporting your head, and perform gentle extension over the roller.",
+                "**Bench thoracic extensions**: Kneel in front of a bench, place elbows on the bench holding a dowel, and let your head sink between your shoulders.",
+                "**Prone press-ups**: Lay on your stomach and perform gentle press-ups to actively extend your thoracic spine."
+              ]
+            });
+          } else if (thoracicPeak > 0 && thoracicPeak >= thoracicThresh.low && thoracicPeak <= thoracicThresh.high) {
+            adviceItems.push({
+              metric: `Thoracic Ext ${thoracicThresh.low}–${thoracicThresh.high}°`,
+              sides: "Spine",
+              title: "Functional Thoracic Extension",
+              desc: `Your thoracic extension peak of ${thoracicPeak.toFixed(1)}° is functional but has room for optimal athletic progression.`,
+              bullets: [
+                "**Quadruped rotation with extension**: Position yourself on all fours, place one hand behind your head, and rotate your elbow up towards the ceiling.",
+                "**Cat-cow stretches**: Perform slow cat-cow movements, focusing specifically on articulating your upper/mid-back."
+              ]
+            });
           }
 
           if (adviceItems.length > 0) {

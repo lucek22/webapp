@@ -528,7 +528,8 @@ export function getDefaultROMThresholds() {
     "Knee Flexion": { low: 80, high: 110 },
     "Hip External Rotation": { low: 30, high: 45 },
     "Hip Internal Rotation": { low: 30, high: 45 },
-    "Ankle Dorsiflexion": { low: 30, high: 38 }
+    "Ankle Dorsiflexion": { low: 30, high: 38 },
+    "Thoracic Extension": { low: 15, high: 25 }
   };
 }
 

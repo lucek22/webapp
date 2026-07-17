@@ -5,3 +5,4 @@ Knee Flexion 80 | 110
 Hip External Rotation 25 | 35
 Hip Internal Rotation 35 | 45
 Ankle Dorsiflexion 30 | 38
+Thoracic Extension 15 | 25

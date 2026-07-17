@@ -1374,6 +1374,7 @@ export function onPoseResults(results) {
           state.thoracicExtension.liveAngle = angle;
           if (angle > (state.thoracicExtension.peakAngle || 0)) {
             state.thoracicExtension.peakAngle = angle;
+            autoSyncToActiveProfileDebounced();
           }
           updateThoracicExtensionSidebarUI();
           setThoracicExtensionStatus('Active Tracking', 'text-emerald');

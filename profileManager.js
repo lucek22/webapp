@@ -2885,6 +2885,335 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       }
     }
 
+    // ==========================================
+    // Athlete Comparison Engine Logic
+    // ==========================================
+    const compareSelect = container.querySelector('#profile-compare-select');
+    if (compareSelect) {
+      compareSelect.innerHTML = '<option value="">Select Athlete to Compare</option>';
+      
+      let allProfiles = state.allProfiles || [];
+      if (allProfiles.length === 0) {
+        allProfiles = await snapshotStore.getAllProfiles();
+        state.allProfiles = allProfiles;
+      }
+      
+      allProfiles.forEach(p => {
+        if (p.id !== profileId) {
+          const option = document.createElement('option');
+          option.value = p.id;
+          option.textContent = p.name || `Profile #${p.id}`;
+          if (state.comparedProfileId && p.id === state.comparedProfileId) {
+            option.selected = true;
+          }
+          compareSelect.appendChild(option);
+        }
+      });
+
+      const placeholderCard = container.querySelector('#compare-placeholder-card');
+      const contentBlock = container.querySelector('#compare-content-block');
+
+      const renderComparison = async (otherProfileId) => {
+        if (!otherProfileId) {
+          if (placeholderCard) placeholderCard.classList.remove('hidden');
+          if (contentBlock) contentBlock.classList.add('hidden');
+          return;
+        }
+
+        try {
+          const otherProfile = await snapshotStore.getProfile(otherProfileId);
+          if (!otherProfile) {
+            if (placeholderCard) placeholderCard.classList.remove('hidden');
+            if (contentBlock) contentBlock.classList.add('hidden');
+            return;
+          }
+
+          const otherSession = otherProfile.sessions ? (otherProfile.sessions.find(s => String(s.id) === String(otherProfile.activeSessionId)) || otherProfile.sessions[otherProfile.sessions.length - 1]) : null;
+
+          if (placeholderCard) placeholderCard.classList.add('hidden');
+          if (contentBlock) contentBlock.classList.remove('hidden');
+
+          // Update header athlete names
+          const nameAEl = container.querySelector('#compare-metric-name-a');
+          const nameBEl = container.querySelector('#compare-metric-name-b');
+          const romNameAEl = container.querySelector('#compare-rom-name-a');
+          const romNameBEl = container.querySelector('#compare-rom-name-b');
+
+          const nameA = profile.name || "Subject A";
+          const nameB = otherProfile.name || "Subject B";
+
+          if (nameAEl) nameAEl.textContent = nameA;
+          if (nameBEl) nameBEl.textContent = nameB;
+          if (romNameAEl) romNameAEl.textContent = nameA;
+          if (romNameBEl) romNameBEl.textContent = nameB;
+
+          // Compile baselines
+          const compiledA = compileImportedMetricsFromProfile(profile, activeSession.id) || {};
+          const compiledB = compileImportedMetricsFromProfile(otherProfile, otherSession ? otherSession.id : null) || {};
+
+          // Baselines rows mapping: [Label, key, isPair]
+          const baselineRows = [
+            ["Stature Height", "skeletal_height", false],
+            ["Wingspan", "wingspan", false],
+            ["Overhead Reach (L/R)", ["fingerToToeL", "fingerToToeR"], true],
+            ["Torso Length (L/R)", ["torso_l", "torso_r"], true],
+            ["Thigh Length (L/R)", ["thigh_l", "thigh_r"], true],
+            ["Shank/Shin Length (L/R)", ["shin_l", "shin_r"], true],
+            ["Upper Arm (L/R)", ["upperarm_l", "upperarm_r"], true],
+            ["Forearm (L/R)", ["forearm_l", "forearm_r"], true]
+          ];
+
+          const baselinesTbody = container.querySelector('#compare-baselines-tbody');
+          if (baselinesTbody) {
+            baselinesTbody.innerHTML = '';
+            
+            baselineRows.forEach(([label, key, isPair]) => {
+              const tr = document.createElement('tr');
+              tr.className = 'compare-details-tr';
+
+              const tdLabel = document.createElement('td');
+              tdLabel.className = 'compare-details-td-label';
+              tdLabel.textContent = label;
+              tr.appendChild(tdLabel);
+
+              const tdValA = document.createElement('td');
+              tdValA.className = 'compare-details-td-val-a';
+              
+              const tdValB = document.createElement('td');
+              tdValB.className = 'compare-details-td-val-b';
+
+              const tdDelta = document.createElement('td');
+              tdDelta.className = 'compare-details-td-delta';
+
+              if (!isPair) {
+                const valA = compiledA[key] !== undefined ? compiledA[key] : null;
+                const valB = compiledB[key] !== undefined ? compiledB[key] : null;
+                
+                tdValA.textContent = valA !== null ? formatLength(valA) : '--';
+                tdValB.textContent = valB !== null ? formatLength(valB) : '--';
+                
+                // Diff calculation (valA - valB)
+                if (valA !== null && valB !== null) {
+                  const diff = valA - valB;
+                  if (Math.abs(diff) < 0.05) {
+                    tdDelta.innerHTML = '<span class="compare-delta-neutral">0.0</span>';
+                  } else {
+                    const dispDiff = state.useInches ? diff / 2.54 : diff;
+                    const suffix = state.useInches ? ' in' : ' cm';
+                    const sign = diff > 0 ? '+' : '';
+                    const cls = diff > 0 ? 'compare-delta-positive' : 'compare-delta-negative';
+                    tdDelta.innerHTML = `<span class="${cls}">${sign}${dispDiff.toFixed(1)}${suffix}</span>`;
+                  }
+                } else {
+                  tdDelta.innerHTML = '<span class="compare-delta-neutral">--</span>';
+                }
+              } else {
+                const [keyL, keyR] = key;
+                const valLA = compiledA[keyL] !== undefined ? compiledA[keyL] : null;
+                const valRA = compiledA[keyR] !== undefined ? compiledA[keyR] : null;
+                const valLB = compiledB[keyL] !== undefined ? compiledB[keyL] : null;
+                const valRB = compiledB[keyR] !== undefined ? compiledB[keyR] : null;
+
+                const hasLA = valLA !== null && valLA !== undefined;
+                const hasRA = valRA !== null && valRA !== undefined;
+                const hasLB = valLB !== null && valLB !== undefined;
+                const hasRB = valRB !== null && valRB !== undefined;
+
+                tdValA.innerHTML = `
+                  <div style="font-size: 0.8rem; display: flex; flex-direction: column; align-items: center;">
+                    <div>L: ${hasLA ? formatLength(valLA) : '--'}</div>
+                    <div>R: ${hasRA ? formatLength(valRA) : '--'}</div>
+                  </div>
+                `;
+
+                tdValB.innerHTML = `
+                  <div style="font-size: 0.8rem; display: flex; flex-direction: column; align-items: center;">
+                    <div>L: ${hasLB ? formatLength(valLB) : '--'}</div>
+                    <div>R: ${hasRB ? formatLength(valRB) : '--'}</div>
+                  </div>
+                `;
+
+                // Calculate Deltas for Left and Right
+                let deltaLStr = '--';
+                let deltaRStr = '--';
+                const suffix = state.useInches ? ' in' : ' cm';
+
+                if (hasLA && hasLB) {
+                  const diffL = valLA - valLB;
+                  if (Math.abs(diffL) < 0.05) {
+                    deltaLStr = '<span class="compare-delta-neutral">0.0</span>';
+                  } else {
+                    const dispL = state.useInches ? diffL / 2.54 : diffL;
+                    const signL = diffL > 0 ? '+' : '';
+                    const clsL = diffL > 0 ? 'compare-delta-positive' : 'compare-delta-negative';
+                    deltaLStr = `<span class="${clsL}">${signL}${dispL.toFixed(1)}${suffix}</span>`;
+                  }
+                }
+
+                if (hasRA && hasRB) {
+                  const diffR = valRA - valRB;
+                  if (Math.abs(diffR) < 0.05) {
+                    deltaRStr = '<span class="compare-delta-neutral">0.0</span>';
+                  } else {
+                    const dispR = state.useInches ? diffR / 2.54 : diffR;
+                    const signR = diffR > 0 ? '+' : '';
+                    const clsR = diffR > 0 ? 'compare-delta-positive' : 'compare-delta-negative';
+                    deltaRStr = `<span class="${clsR}">${signR}${dispR.toFixed(1)}${suffix}</span>`;
+                  }
+                }
+
+                tdDelta.innerHTML = `
+                  <div style="font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                    <div>L: ${deltaLStr}</div>
+                    <div>R: ${deltaRStr}</div>
+                  </div>
+                `;
+              }
+
+              tr.appendChild(tdValA);
+              tr.appendChild(tdValB);
+              tr.appendChild(tdDelta);
+              baselinesTbody.appendChild(tr);
+            });
+          }
+
+          // Compile ROM details
+          const shRotA = getDefaultShoulderRotation(activeSession.shoulderRotation);
+          const shPeaksA = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
+          const sPeaksA = getDefaultSquatPeaks(activeSession.squatPeaks);
+          const hRotA = getDefaultHipRotation(activeSession.hipRotation);
+          const ankleDorsiPeaksA = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
+
+          const otherActiveSession = otherSession || {};
+          const shRotB = getDefaultShoulderRotation(otherActiveSession.shoulderRotation);
+          const shPeaksB = getDefaultShoulderPeaks(otherActiveSession.shoulderPeaks);
+          const sPeaksB = getDefaultSquatPeaks(otherActiveSession.squatPeaks);
+          const hRotB = getDefaultHipRotation(otherActiveSession.hipRotation);
+          const ankleDorsiPeaksB = getDefaultAnkleDorsiPeaks(otherActiveSession.ankleDorsiPeaks);
+
+          // Category 4 ROM Peaks logic: L/R shin or ankle peak
+          const ankleLA = ankleDorsiPeaksA.ankleDorsiL || ankleDorsiPeaksA.shinAngleL || 0;
+          const ankleRA = ankleDorsiPeaksA.ankleDorsiR || ankleDorsiPeaksA.shinAngleR || 0;
+          const ankleLB = ankleDorsiPeaksB.ankleDorsiL || ankleDorsiPeaksB.shinAngleL || 0;
+          const ankleRB = ankleDorsiPeaksB.ankleDorsiR || ankleDorsiPeaksB.shinAngleR || 0;
+
+          // ROM rows definition: [Label, leftValA, rightValA, leftValB, rightValB]
+          const romRows = [
+            ["Shoulder Flexion", shPeaksA.excursionL, shPeaksA.excursionR, shPeaksB.excursionL, shPeaksB.excursionR],
+            ["Shoulder External Rotation", shRotA.maxExternalRotationL, shRotA.maxExternalRotationR, shRotB.maxExternalRotationL, shRotB.maxExternalRotationR],
+            ["Shoulder Internal Rotation", shRotA.maxInternalRotationL, shRotA.maxInternalRotationR, shRotB.maxInternalRotationL, shRotB.maxInternalRotationR],
+            ["Hip External Rotation", hRotA.maxExternalRotationL, hRotA.maxExternalRotationR, hRotB.maxExternalRotationL, hRotB.maxExternalRotationR],
+            ["Hip Internal Rotation", hRotA.maxInternalRotationL, hRotA.maxInternalRotationR, hRotB.maxInternalRotationL, hRotB.maxInternalRotationR],
+            ["Ankle Dorsiflexion", ankleLA, ankleRA, ankleLB, ankleRB],
+            ["Knee Flexion (OH Squat)", sPeaksA.kneeL, sPeaksA.kneeR, sPeaksB.kneeL, sPeaksB.kneeR]
+          ];
+
+          const romTbody = container.querySelector('#compare-rom-tbody');
+          if (romTbody) {
+            romTbody.innerHTML = '';
+
+            romRows.forEach(([label, lA, rA, lB, rB]) => {
+              const tr = document.createElement('tr');
+              tr.className = 'compare-details-tr';
+
+              const tdLabel = document.createElement('td');
+              tdLabel.className = 'compare-details-td-label';
+              tdLabel.textContent = label;
+              tr.appendChild(tdLabel);
+
+              const tdValA = document.createElement('td');
+              tdValA.className = 'compare-details-td-val-a';
+
+              const tdValB = document.createElement('td');
+              tdValB.className = 'compare-details-td-val-b';
+
+              const tdDelta = document.createElement('td');
+              tdDelta.className = 'compare-details-td-delta';
+
+              const hasLA = lA !== null && lA !== undefined && lA > 0;
+              const hasRA = rA !== null && rA !== undefined && rA > 0;
+              const hasLB = lB !== null && lB !== undefined && lB > 0;
+              const hasRB = rB !== null && rB !== undefined && rB > 0;
+
+              tdValA.innerHTML = `
+                <div style="font-size: 0.8rem; display: flex; flex-direction: column; align-items: center;">
+                  <div>L: ${hasLA ? Math.round(lA) + '°' : '--'}</div>
+                  <div>R: ${hasRA ? Math.round(rA) + '°' : '--'}</div>
+                </div>
+              `;
+
+              tdValB.innerHTML = `
+                <div style="font-size: 0.8rem; display: flex; flex-direction: column; align-items: center;">
+                  <div>L: ${hasLB ? Math.round(lB) + '°' : '--'}</div>
+                  <div>R: ${hasRB ? Math.round(rB) + '°' : '--'}</div>
+                </div>
+              `;
+
+              // Deltas
+              let deltaLStr = '--';
+              let deltaRStr = '--';
+
+              if (hasLA && hasLB) {
+                const diffL = Math.round(lA) - Math.round(lB);
+                if (diffL === 0) {
+                  deltaLStr = '<span class="compare-delta-neutral">0°</span>';
+                } else {
+                  const signL = diffL > 0 ? '+' : '';
+                  const clsL = diffL > 0 ? 'compare-delta-positive' : 'compare-delta-negative';
+                  deltaLStr = `<span class="${clsL}">${signL}${diffL}°</span>`;
+                }
+              }
+
+              if (hasRA && hasRB) {
+                const diffR = Math.round(rA) - Math.round(rB);
+                if (diffR === 0) {
+                  deltaRStr = '<span class="compare-delta-neutral">0°</span>';
+                } else {
+                  const signR = diffR > 0 ? '+' : '';
+                  const clsR = diffR > 0 ? 'compare-delta-positive' : 'compare-delta-negative';
+                  deltaRStr = `<span class="${clsR}">${signR}${diffR}°</span>`;
+                }
+              }
+
+              tdDelta.innerHTML = `
+                <div style="font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                  <div>L: ${deltaLStr}</div>
+                  <div>R: ${deltaRStr}</div>
+                </div>
+              `;
+
+              tr.appendChild(tdValA);
+              tr.appendChild(tdValB);
+              tr.appendChild(tdDelta);
+              romTbody.appendChild(tr);
+            });
+          }
+
+        } catch (err) {
+          console.error("[ComparisonEngine] Failed rendering comparisons:", err);
+        }
+      };
+
+      compareSelect.onchange = async (e) => {
+        const val = e.target.value;
+        if (!val) {
+          state.comparedProfileId = null;
+          await renderComparison(null);
+        } else {
+          const selectedId = Number(val);
+          state.comparedProfileId = selectedId;
+          await renderComparison(selectedId);
+        }
+      };
+
+      // Trigger initial comparison if state has an active compared profile
+      if (state.comparedProfileId && state.comparedProfileId !== profileId) {
+        renderComparison(state.comparedProfileId);
+      } else {
+        renderComparison(null);
+      }
+    }
+
     const profileDetailsModal = container.querySelector('#profile-details-modal');
     if (profileDetailsModal) {
       profileDetailsModal.classList.add('active');

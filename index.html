@@ -1332,6 +1332,7 @@
         <div class="athlete-tabs-nav" style="border-bottom: 1.5px solid rgba(255, 255, 255, 0.06); padding-bottom: 6px; margin-bottom: 0.25rem;">
           <button class="athlete-tab-btn active" data-tab="tab-anthropometrics">Anthropometrics</button>
           <button class="athlete-tab-btn" data-tab="tab-mobility">Mobility Assessments</button>
+          <button class="athlete-tab-btn" data-tab="tab-compare">Compare</button>
         </div>
 
         <!-- TAB 1: Anthropometrics (Static Measurements) -->
@@ -1812,6 +1813,93 @@
             </div>
 
           </div>
+        </div>
+
+        <!-- TAB 3: Compare (Side-by-Side Athlete Comparison) -->
+        <div id="tab-compare" class="athlete-tab-pane hidden">
+          
+          <!-- Selector Dropdown -->
+          <div class="compare-selector-card" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 1.25rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(186, 12, 47, 0.08); border: 1px solid rgba(186, 12, 47, 0.25); color: #BA0C2F; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              </div>
+              <div>
+                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Athlete Comparison Engine</h4>
+                <p style="margin: 0; font-size: 0.75rem; color: #888;">Select an athlete profile below to begin a side-by-side comparative analysis.</p>
+              </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 260px;">
+              <label for="profile-compare-select" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #aaa; letter-spacing: 0.5px;">Compare to:</label>
+              <select id="profile-compare-select" class="profile-detail-session-select" style="flex: 1; height: 34px; background: rgba(10,10,10,0.65); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; padding: 0 10px; font-weight: 600; outline: none; font-size: 0.85rem; transition: border-color 0.25s, box-shadow 0.25s;">
+                <option value="">Select Athlete to Compare</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Empty/Placeholder State -->
+          <div id="compare-placeholder-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 5rem 2rem; border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; background: rgba(255,255,255,0.01); backdrop-filter: blur(10px); text-align: center; transition: all 0.3s ease;">
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; color: #555; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">No Comparison Profile Loaded</h3>
+              <p style="margin: 0; font-size: 0.85rem; color: #666; max-width: 360px; line-height: 1.5; margin: 0 auto;">Choose another subject from the comparison dropdown list to inspect delta measurements, asymmetries, and side-by-side Range of Motion scores.</p>
+            </div>
+          </div>
+
+          <!-- Comparative Tables View -->
+          <div id="compare-content-block" class="hidden" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            
+            <!-- Baselines Comparison -->
+            <div class="compare-panel-section">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.85rem; font-size: 1.05rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <span style="display: inline-block; width: 4px; height: 14px; background: #BA0C2F; border-radius: 2px;"></span>
+                Consolidated Baselines Side-by-Side
+              </div>
+              <div class="compare-metrics-table-wrapper">
+                <table class="compare-details-table">
+                  <thead>
+                    <tr class="compare-header-row">
+                      <th style="text-align: left; width: 32%;">Consolidated Metric</th>
+                      <th id="compare-metric-name-a" style="text-align: center; color: #fff; width: 24%;">Athlete A</th>
+                      <th id="compare-metric-name-b" style="text-align: center; color: #BA0C2F; width: 24%;">Athlete B</th>
+                      <th style="text-align: center; width: 20%;">Asymmetry / Delta</th>
+                    </tr>
+                  </thead>
+                  <tbody id="compare-baselines-tbody" class="compare-details-tbody">
+                    <!-- Populated programmatically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Range of Motion Comparison -->
+            <div class="compare-panel-section">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.85rem; font-size: 1.05rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <span style="display: inline-block; width: 4px; height: 14px; background: #BA0C2F; border-radius: 2px;"></span>
+                Dynamic Range of Motion Comparative Performance
+              </div>
+              <div class="compare-metrics-table-wrapper">
+                <table class="compare-details-table">
+                  <thead>
+                    <tr class="compare-header-row">
+                      <th style="text-align: left; width: 32%;">Biomechanical ROM test</th>
+                      <th id="compare-rom-name-a" style="text-align: center; color: #fff; width: 24%;">Athlete A</th>
+                      <th id="compare-rom-name-b" style="text-align: center; color: #BA0C2F; width: 24%;">Athlete B</th>
+                      <th style="text-align: center; width: 20%;">Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody id="compare-rom-tbody" class="compare-details-tbody">
+                    <!-- Populated programmatically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
         </div>
 
 

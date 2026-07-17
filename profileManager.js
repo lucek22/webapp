@@ -1503,6 +1503,8 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           }
         }
         hasData = !!imgSrc || hasVideo || hasAnklePeaks;
+      } else if (p.isThoracicExtension) {
+        hasData = !!imgSrc || !!(activeSession.thoracicExtension && activeSession.thoracicExtension.peakAngle > 0);
       } else {
         hasData = !!imgSrc || !!activeSession[p.metricsKey];
       }
@@ -1760,6 +1762,11 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                     freshActiveSession.hipRotation.timeSeriesR = [];
                   }
                 }
+              } else if (p.isThoracicExtension) {
+                if (freshActiveSession.thoracicExtension) {
+                  freshActiveSession.thoracicExtension.peakAngle = 0;
+                  freshActiveSession.thoracicExtension.liveAngle = 0;
+                }
               } else {
                 freshActiveSession[p.metricsKey] = null;
               }
@@ -1771,6 +1778,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
               freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
               freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
               freshProfileMigrated.hipRotation = freshActiveSession.hipRotation;
+              freshProfileMigrated.thoracicExtension = freshActiveSession.thoracicExtension;
               freshProfileMigrated.imageA = freshActiveSession.imageA;
               freshProfileMigrated.imageT = freshActiveSession.imageT;
               freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;

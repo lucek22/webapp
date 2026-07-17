@@ -2,7 +2,7 @@
 // BUCKEYE PERSISTENT SUBJECT PROFILES MANAGER MODULE
 // =========================================================
 
-import { state, snapshotStore, formatLength, clearSmoothBuffer, getROMThresholds, getDefaultROMThresholds, calculateROMGrade } from './helpers.js';
+import { state, snapshotStore, formatLength, clearSmoothBuffer, getROMThresholds, getDefaultROMThresholds, calculateROMGrade, getDefaultAnkleDorsiPeaks } from './helpers.js';
 import { getDefaultSquatPeaks, calculateValgusFromJoints } from './squatController.js';
 import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI } from './shoulderController.js';
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
@@ -789,6 +789,8 @@ export async function loadProfileIntoState(profileId) {
     state.shoulderPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
     state.shoulderRotation = getDefaultShoulderRotation(activeSession.shoulderRotation);
     state.hipRotation = getDefaultHipRotation(activeSession.hipRotation);
+    if (!state.ankleDorsi) state.ankleDorsi = {};
+    state.ankleDorsi.peaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
     state.imageA = activeSession.imageA || null;
     state.imageT = activeSession.imageT || null;
     state.imageOverhead = activeSession.imageOverhead || null;
@@ -1404,7 +1406,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       { key: 'shoulder-rotation-l', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationL', title: 'Left Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true },
       { key: 'shoulder-rotation-r', metricsKey: 'shoulderRotation', imgKey: 'imageShoulderRotationR', title: 'Right Shoulder Rotation', color: '#00e5ff', isShoulderRotation: true },
       { key: 'hip-rotation-l', metricsKey: 'hipRotation', imgKey: 'imageHipRotationL', title: 'Left Hip Rotation', color: '#10b981', isHipRotation: true },
-      { key: 'hip-rotation-r', metricsKey: 'hipRotation', imgKey: 'imageHipRotationR', title: 'Right Hip Rotation', color: '#10b981', isHipRotation: true }
+      { key: 'hip-rotation-r', metricsKey: 'hipRotation', imgKey: 'imageHipRotationR', title: 'Right Hip Rotation', color: '#10b981', isHipRotation: true },
+      { key: 'ankle-dorsi-l', metricsKey: 'ankleDorsiPeaks', imgKey: 'imageAnkleDorsi', title: 'Left Ankle Dorsiflexion', color: '#10b981', isAnkleDorsi: true },
+      { key: 'ankle-dorsi-r', metricsKey: 'ankleDorsiPeaks', imgKey: 'imageAnkleDorsi', title: 'Right Ankle Dorsiflexion', color: '#10b981', isAnkleDorsi: true }
     ];
 
     poses.forEach(p => {
@@ -1474,6 +1478,20 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           }
         }
         hasData = !!imgSrc || hasVideo || hasHipRotationPeaks;
+      } else if (p.isAnkleDorsi) {
+        const videoKey = p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 'videoAnkleDorsiR';
+        const sVideo = activeSession[videoKey];
+        hasVideo = !!(sVideo && sVideo.blob);
+        
+        let hasAnklePeaks = false;
+        if (activeSession.ankleDorsiPeaks) {
+          if (p.key === 'ankle-dorsi-l') {
+            hasAnklePeaks = (activeSession.ankleDorsiPeaks.ankleDorsiL > 0 || activeSession.ankleDorsiPeaks.shinAngleL > 0);
+          } else {
+            hasAnklePeaks = (activeSession.ankleDorsiPeaks.ankleDorsiR > 0 || activeSession.ankleDorsiPeaks.shinAngleR > 0);
+          }
+        }
+        hasData = !!imgSrc || hasVideo || hasAnklePeaks;
       } else {
         hasData = !!imgSrc || !!activeSession[p.metricsKey];
       }
@@ -1487,13 +1505,15 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           containerEl.classList.remove('hidden');
           containerEl.innerHTML = '';
 
-          if ((p.isSquat || p.isShoulderRotation || p.isHipRotation) && hasVideo) {
+          if ((p.isSquat || p.isShoulderRotation || p.isHipRotation || p.isAnkleDorsi) && hasVideo) {
             const videoKey = p.key === 'squat-l' ? 'videoSquatL' : 
                              (p.key === 'squat-r' ? 'videoSquatR' : 
                              (p.key === 'squat-frontal' ? 'videoSquatFrontal' : 
                              (p.key === 'shoulder-rotation-l' ? 'videoShoulderRotationL' : 
                              (p.key === 'shoulder-rotation-r' ? 'videoShoulderRotationR' : 
-                             (p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 'videoHipRotationR')))));
+                             (p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 
+                             (p.key === 'hip-rotation-r' ? 'videoHipRotationR' : 
+                             (p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 'videoAnkleDorsiR')))))));
             const sVideo = activeSession[videoKey];
             const videoUrl = URL.createObjectURL(sVideo.blob);
             state.modalObjectUrls.push(videoUrl);
@@ -2187,6 +2207,23 @@ export async function populateProfileDetails(profileId, container, preserveTab =
               }
               freshActiveSession.hipRotation[key] = val;
             });
+
+            if (!freshActiveSession.ankleDorsiPeaks) {
+              freshActiveSession.ankleDorsiPeaks = getDefaultAnkleDorsiPeaks();
+            }
+            const ankleRotationInputs = document.querySelectorAll('.profile-ankle-dorsi-edit-input');
+            ankleRotationInputs.forEach(input => {
+              const key = input.getAttribute('data-key');
+              const rawVal = input.value.trim();
+              let val = 0;
+              if (rawVal !== "") {
+                const parsed = parseFloat(rawVal);
+                if (!isNaN(parsed)) {
+                  val = parsed;
+                }
+              }
+              freshActiveSession.ankleDorsiPeaks[key] = val;
+            });
             
             freshProfileMigrated.metricsA = freshActiveSession.metricsA;
             freshProfileMigrated.metricsT = freshActiveSession.metricsT;
@@ -2195,6 +2232,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             freshProfileMigrated.shoulderPeaks = freshActiveSession.shoulderPeaks;
             freshProfileMigrated.shoulderRotation = freshActiveSession.shoulderRotation;
             freshProfileMigrated.hipRotation = freshActiveSession.hipRotation;
+            freshProfileMigrated.ankleDorsiPeaks = freshActiveSession.ankleDorsiPeaks;
             freshProfileMigrated.imageA = freshActiveSession.imageA;
             freshProfileMigrated.imageT = freshActiveSession.imageT;
             freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
@@ -2403,6 +2441,33 @@ export async function populateProfileDetails(profileId, container, preserveTab =
         `;
       }
     }
+
+    const dankleShinL = container.querySelector('#detail-ankle-dorsi-shin-l');
+    const dankleShinR = container.querySelector('#detail-ankle-dorsi-shin-r');
+    const dankleDorsiL = container.querySelector('#detail-ankle-dorsi-l');
+    const dankleDorsiR = container.querySelector('#detail-ankle-dorsi-r');
+    const anklePeaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
+
+    const renderAnkleEditField = (el, val, key) => {
+      if (!el) return;
+      if (!state.isEditingProfileMetrics) {
+        el.innerHTML = val ? `${val.toFixed(1)}°` : '0°';
+      } else {
+        el.innerHTML = `
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+            <input type="number" step="0.1" min="0" max="90" class="profile-ankle-dorsi-edit-input profile-edit-input" 
+                   data-key="${key}" 
+                   value="${val ? val.toFixed(1) : 0}" style="width: 60px; padding: 2px 4px; font-size: 0.8rem; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.15); color: #fff; text-align: center; border-radius: 4px;">
+            <span style="font-size: 11px;">°</span>
+          </div>
+        `;
+      }
+    };
+
+    renderAnkleEditField(dankleShinL, anklePeaks.shinAngleL, "shinAngleL");
+    renderAnkleEditField(dankleShinR, anklePeaks.shinAngleR, "shinAngleR");
+    renderAnkleEditField(dankleDorsiL, anklePeaks.ankleDorsiL, "ankleDorsiL");
+    renderAnkleEditField(dankleDorsiR, anklePeaks.ankleDorsiR, "ankleDorsiR");
 
     await renderShoulderRotationGrading(activeSession, container);
 
@@ -2864,6 +2929,7 @@ export async function renderShoulderRotationGrading(activeSession, container = d
   const shPeaks = getDefaultShoulderPeaks(activeSession.shoulderPeaks);
   const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
   const hRot = getDefaultHipRotation(activeSession.hipRotation);
+  const ankleDorsiPeaks = getDefaultAnkleDorsiPeaks(activeSession.ankleDorsiPeaks);
   
   const thresholds = await getROMThresholds();
   
@@ -2907,6 +2973,11 @@ export async function renderShoulderRotationGrading(activeSession, container = d
   const hipIntGradeL = getGradeInfo(hRot.maxInternalRotationL, hipIntThresh);
   const hipExtGradeR = getGradeInfo(hRot.maxExternalRotationR, hipExtThresh);
   const hipIntGradeR = getGradeInfo(hRot.maxInternalRotationR, hipIntThresh);
+
+  // 5. Ankle Dorsiflexion Grades
+  const ankleDorsiThresh = thresholds["Ankle Dorsiflexion"] || { low: 30, high: 38 };
+  const ankleDorsiGradeL = getGradeInfo(ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL || 0, ankleDorsiThresh);
+  const ankleDorsiGradeR = getGradeInfo(ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR || 0, ankleDorsiThresh);
 
   panel.innerHTML = `
     <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; font-family: inherit;">
@@ -3159,6 +3230,55 @@ export async function renderShoulderRotationGrading(activeSession, container = d
         </div>
       </div>
 
+      <!-- CATEGORY 4: ANKLE DORSIFLEXION / TIBIAL INCLINATION -->
+      <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">
+        <div style="font-size: 0.8rem; font-weight: bold; color: var(--color-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,160,23,0.15); padding-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">
+          <span>Ankle Dorsiflexion (Tibial Inclination)</span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <!-- Left Ankle Dorsiflexion -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #10b981; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(16,185,129,0.1); padding-bottom: 2px;">Left Side</div>
+            
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Peak Dorsiflexion:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${(ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL) ? `${(ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${ankleDorsiGradeL.bg}; border: 1px solid ${ankleDorsiGradeL.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${ankleDorsiGradeL.color};">${ankleDorsiGradeL.grade ? `Grade ${ankleDorsiGradeL.grade} (${ankleDorsiGradeL.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Ankle Dorsiflexion -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 6px; padding: 0.5rem;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: #10b981; margin-bottom: 0.4rem; text-align: center; border-bottom: 1px solid rgba(16,185,129,0.1); padding-bottom: 2px;">Right Side</div>
+            
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-size: 0.7rem; color: #ccc;">Peak Dorsiflexion:</span>
+                <span style="font-size: 0.75rem; font-weight: bold; color: #fff;">${(ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR) ? `${(ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR).toFixed(1)}°` : '--'}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; background: ${ankleDorsiGradeR.bg}; border: 1px solid ${ankleDorsiGradeR.border}; border-radius: 3px;">
+                <span style="font-size: 0.6rem; color: #999;">Grade:</span>
+                <span style="font-size: 0.65rem; font-weight: bold; color: ${ankleDorsiGradeR.color};">${ankleDorsiGradeR.grade ? `Grade ${ankleDorsiGradeR.grade} (${ankleDorsiGradeR.label})` : 'Unrecorded'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Threshold Legend (Ankle Dorsiflexion) -->
+        <div style="margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 0.65rem; font-weight: bold; color: #aaa;">Ankle Dorsiflexion Cutoffs:</div>
+          <div style="font-size: 0.6rem; color: #888; display: flex; gap: 15px;">
+            <span>G1: &le; ${ankleDorsiThresh.low}°</span> <span>G2: ${ankleDorsiThresh.low + 1}-${ankleDorsiThresh.high}°</span> <span>G3: &gt; ${ankleDorsiThresh.high}°</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ADVICE / COACHING TAB HUB -->
       <div style="background: rgba(186, 12, 47, 0.02); border: 1px dashed rgba(186, 12, 47, 0.25); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
         <div style="font-size: 0.8rem; font-weight: bold; color: #BA0C2F; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
@@ -3396,6 +3516,65 @@ export async function renderShoulderRotationGrading(activeSession, container = d
                 "**Ankle Dorsiflexion Mobility**: Address restricted calf/soleus tissues and ankle joint capsule limitations using weight-bearing dorsiflexion stretches."
               ]
             });
+          }
+
+          // ==========================================
+          // 5. ANKLE DORSIFLEXION RULES
+          // ==========================================
+          const anklePeakL = ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL || 0;
+          const anklePeakR = ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR || 0;
+
+          // Rule 5.1: < 30° bilateral
+          if (anklePeakL > 0 && anklePeakR > 0 && anklePeakL < 30 && anklePeakR < 30) {
+            adviceItems.push({
+              metric: "Ankle DF < 30° Bilateral",
+              sides: "Bilateral",
+              title: "Severe Ankle Dorsiflexion Restriction",
+              desc: "Bilateral tibial inclination/ankle dorsiflexion is restricted below 30°.",
+              bullets: [
+                "**Banded talocrural joint mobilisation**",
+                "**eccentric calf loading (Alfredson protocol variant)**"
+              ]
+            });
+          } else {
+            // Rule 5.2: 30–38°
+            const hasRestrictedDF_L = anklePeakL > 0 && anklePeakL >= 30 && anklePeakL <= 38;
+            const hasRestrictedDF_R = anklePeakR > 0 && anklePeakR >= 30 && anklePeakR <= 38;
+            if (hasRestrictedDF_L || hasRestrictedDF_R) {
+              let sideLabel = "";
+              if (hasRestrictedDF_L && hasRestrictedDF_R) sideLabel = "Bilateral";
+              else if (hasRestrictedDF_L) sideLabel = "Left Side";
+              else sideLabel = "Right Side";
+
+              adviceItems.push({
+                metric: "Ankle DF 30–38°",
+                sides: sideLabel,
+                title: "Moderate Ankle Dorsiflexion Restriction",
+                desc: "Ankle mobility is functional but has room for optimal progression.",
+                bullets: [
+                  "**Weighted heel raise with full DF at top**",
+                  "**half-kneeling ankle mobility drill with band**"
+                ]
+              });
+            }
+          }
+
+          // Rule 5.3: Asymmetry > 5°
+          if (anklePeakL > 0 && anklePeakR > 0) {
+            const diff = Math.abs(anklePeakL - anklePeakR);
+            if (diff > 5) {
+              const restrictedSide = anklePeakL < anklePeakR ? "Left Side" : "Right Side";
+              adviceItems.push({
+                metric: `Ankle Asymmetry > 5° (Delta: ${diff.toFixed(1)}°)`,
+                sides: `${restrictedSide} Restricted`,
+                title: "Ankle Dorsiflexion Asymmetry",
+                desc: `Significant range of motion asymmetry detected between the left and right ankles (${diff.toFixed(1)}° difference).`,
+                bullets: [
+                  "**Unilateral calf stretch and banded mob** prioritised on restricted side",
+                  "**loaded single-leg calf raise**"
+                ]
+              });
+            }
           }
 
           if (adviceItems.length > 0) {

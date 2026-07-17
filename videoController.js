@@ -287,6 +287,9 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
       } else if (state.currentMode === 'hip_rotation') {
         const side = state.hipRotationTestingSide || 'left';
         labelPrefix = side === 'left' ? "Left Hip Rotation" : "Right Hip Rotation";
+      } else if (state.currentMode === 'ankledorsi') {
+        const side = state.ankleDorsiTestingSide || (state.ankleDorsi && state.ankleDorsi.testingSide) || 'left';
+        labelPrefix = side === 'left' ? "Left Tibial Inclination" : "Right Tibial Inclination";
       }
 
       const videoEntry = {
@@ -320,6 +323,14 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
           if (state.squatPeaks !== undefined) {
             activeSession.squatPeaks = state.squatPeaks ? JSON.parse(JSON.stringify(state.squatPeaks)) : null;
             profileMigrated.squatPeaks = activeSession.squatPeaks;
+          }
+          if (state.ankleDorsi && state.ankleDorsi.peaks !== undefined) {
+            activeSession.ankleDorsiPeaks = state.ankleDorsi.peaks ? JSON.parse(JSON.stringify(state.ankleDorsi.peaks)) : null;
+            profileMigrated.ankleDorsiPeaks = activeSession.ankleDorsiPeaks;
+          }
+          if (state.imageAnkleDorsi !== undefined) {
+            activeSession.imageAnkleDorsi = state.imageAnkleDorsi;
+            profileMigrated.imageAnkleDorsi = state.imageAnkleDorsi;
           }
           if (state.shoulderPeaks !== undefined) {
             activeSession.shoulderPeaks = state.shoulderPeaks ? JSON.parse(JSON.stringify(state.shoulderPeaks)) : null;
@@ -407,6 +418,15 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
             } else {
               activeSession.videoHipRotationR = videoEntry;
               state.videoHipRotationR = videoEntry;
+            }
+          } else if (state.currentMode === 'ankledorsi') {
+            const side = state.ankleDorsiTestingSide || (state.ankleDorsi && state.ankleDorsi.testingSide) || 'left';
+            if (side === 'left') {
+              activeSession.videoAnkleDorsiL = videoEntry;
+              state.videoAnkleDorsiL = videoEntry;
+            } else {
+              activeSession.videoAnkleDorsiR = videoEntry;
+              state.videoAnkleDorsiR = videoEntry;
             }
           }
         }

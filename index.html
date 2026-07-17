@@ -1668,6 +1668,40 @@
                   <img id="detail-preview-img-hip-rotation-r" src="" alt="Right Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
                 </div>
               </div>
+
+              <!-- Left Ankle Dorsiflexion -->
+              <div class="pose-status-card" id="detail-card-ankle-dorsi-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Ankle Dorsiflexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-ankle-dorsi-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-ankle-dorsi-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-ankle-dorsi-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-ankle-dorsi-l" src="" alt="Left Ankle Dorsiflexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Ankle Dorsiflexion -->
+              <div class="pose-status-card" id="detail-card-ankle-dorsi-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Ankle Dorsiflexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-ankle-dorsi-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-ankle-dorsi-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-ankle-dorsi-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-ankle-dorsi-r" src="" alt="Right Ankle Dorsiflexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
             </div>
 
             <!-- Right Side: Peak Mobility Metrics & ROM Dashboard -->
@@ -1747,6 +1781,28 @@
                   <div class="squat-peak-detail-box">
                     <span class="squat-peak-detail-lbl">Right Max External</span>
                     <span class="squat-peak-detail-val" id="detail-hip-rotation-external-r">0°</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Ankle Dorsiflexion (Tibial Inclination) Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Tibial Inclination</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-shin-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Tibial Inclination</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-shin-r">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Peak Dorsiflexion</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Peak Dorsiflexion</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-r">0°</span>
                   </div>
                 </div>
               </div>

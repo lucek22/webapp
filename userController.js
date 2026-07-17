@@ -5175,6 +5175,10 @@ function setExerciseMode(mode) {
 
 // Bind dropdown selection change event
 if (selectTestMode) {
+  // Always reset select value and active mode to posture (Anthropometric Scan) on page load
+  selectTestMode.value = 'posture';
+  setExerciseMode('posture');
+
   selectTestMode.addEventListener('change', (e) => {
     setExerciseMode(e.target.value);
   });

@@ -4584,7 +4584,6 @@ export async function importPriorPortfolio(report) {
   if (state.dbInitialized) {
     try {
       const newId = await snapshotStore.saveProfile(newProfile);
-      state.activeProfileId = newId;
       state.allProfiles = await snapshotStore.getAllProfiles();
       
       // Sync dropdown select elements
@@ -4598,13 +4597,7 @@ export async function importPriorPortfolio(report) {
         calProfileSelect.value = String(newId);
       }
       
-      // Update status bar
-      const activeProfileName = document.getElementById('active-profile-name');
-      if (activeProfileName) activeProfileName.textContent = nameVal;
-      const profileStatusBar = document.getElementById('profile-status-bar');
-      if (profileStatusBar) profileStatusBar.classList.remove('hidden');
-      const btnDeleteProfile = document.getElementById('btn-delete-profile');
-      if (btnDeleteProfile) btnDeleteProfile.classList.remove('hidden');
+      await loadProfileIntoState(newId);
       
       console.log(`[importPriorPortfolio] Created and saved new imported profile: ${nameVal} (ID: ${newId})`);
     } catch (err) {

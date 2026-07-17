@@ -103,6 +103,13 @@ export async function initializeProfilesSelector() {
 
   try {
     state.allProfiles = await snapshotStore.getAllProfiles();
+    
+    // Restore active profile from localStorage if present and valid
+    const savedProfileId = localStorage.getItem('activeProfileId');
+    if (savedProfileId && state.allProfiles.some(p => String(p.id) === String(savedProfileId))) {
+      state.activeProfileId = Number(savedProfileId);
+    }
+    
     populateDropdown(state.allProfiles);
     if (state.activeProfileId) {
       if (profileActionRow) profileActionRow.classList.remove('hidden');
@@ -110,6 +117,7 @@ export async function initializeProfilesSelector() {
         newProfileInputContainer.classList.add('hidden');
         newProfileInputContainer.classList.remove('visible-flex');
       }
+      await loadProfileIntoState(state.activeProfileId);
     } else {
       if (profileActionRow) profileActionRow.classList.add('hidden');
       if (newProfileInputContainer) {
@@ -137,6 +145,8 @@ export async function initializeProfilesSelector() {
       return;
     }
     if (selectedVal === 'new') {
+      state.activeProfileId = null;
+      localStorage.removeItem('activeProfileId');
       if (profileSelect) profileSelect.value = 'new';
       if (calProfileSelect) calProfileSelect.value = '';
       
@@ -151,9 +161,9 @@ export async function initializeProfilesSelector() {
       const sessionContainer = document.getElementById('profile-session-select-container');
       if (sessionContainer) sessionContainer.classList.add('hidden');
 
-      // Reset left sidebar to guest card
-      const leftCard = document.getElementById('left-profile-active-card');
-      const guestCard = document.getElementById('left-profile-guest-card');
+      // Reset left videos sidebar to guest card
+      const leftCard = document.getElementById('left-videos-active-card');
+      const guestCard = document.getElementById('left-videos-guest-card');
       if (leftCard && guestCard) {
         leftCard.classList.add('hidden');
         guestCard.classList.remove('hidden');
@@ -165,6 +175,7 @@ export async function initializeProfilesSelector() {
 
       // Cleanly reset Guest state caches
       state.activeProfileId = null;
+      localStorage.removeItem('activeProfileId');
       state.metricsA = null;
       state.metricsT = null;
       state.metricsOverhead = null;
@@ -290,6 +301,7 @@ export async function initializeProfilesSelector() {
       try {
         await snapshotStore.deleteProfile(state.activeProfileId);
         state.activeProfileId = null;
+        localStorage.removeItem('activeProfileId');
         state.metricsA = null;
         state.metricsT = null;
         state.metricsOverhead = null;
@@ -373,6 +385,32 @@ export async function initializeProfilesSelector() {
         targetPane.classList.remove('hidden');
       }
     });
+  });
+
+  // Global Shortcut for CTRL + E / CMD + E to toggle Profile Edit Mode
+  document.addEventListener('keydown', (e) => {
+    // Check if Ctrl (or Cmd on Mac) and E are pressed
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+
+      if (!state.activeProfileId) {
+        alert("Please select or create an athlete profile first to use this shortcut.");
+        return;
+      }
+
+      const modal = document.getElementById('profile-details-modal');
+      const isModalOpen = modal && modal.classList.contains('active');
+
+      if (!isModalOpen) {
+        // If modal is closed, open it and instantly enter Edit Mode
+        state.isEditingProfileMetrics = true;
+        openProfileDetailsModal(state.activeProfileId);
+      } else {
+        // If modal is already open, toggle Edit Mode
+        state.isEditingProfileMetrics = !state.isEditingProfileMetrics;
+        updateProfileUI(state.activeProfileId);
+      }
+    }
   });
 
   const mainVideoPlayer = document.getElementById('profile-details-video-player');
@@ -732,6 +770,7 @@ export async function loadProfileIntoState(profileId) {
     }
 
     state.activeProfileId = profile.id;
+    localStorage.setItem('activeProfileId', String(profile.id));
     state.videos = profile.videos || [];
     
     let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
@@ -913,13 +952,13 @@ export async function loadProfileIntoState(profileId) {
     }
 
     // Show active left card and hide guest placeholder card
-    const leftCard = document.getElementById('left-profile-active-card');
-    const guestCard = document.getElementById('left-profile-guest-card');
+    const leftCard = document.getElementById('left-videos-active-card');
+    const guestCard = document.getElementById('left-videos-guest-card');
     if (leftCard && guestCard) {
       leftCard.classList.remove('hidden');
       guestCard.classList.add('hidden');
     }
-    const leftSidebar = document.getElementById('left-profile-sidebar');
+    const leftSidebar = document.getElementById('left-videos-sidebar');
     if (leftSidebar) {
       await populateProfileDetails(profileId, leftSidebar, true);
     }
@@ -2008,6 +2047,16 @@ export async function populateProfileDetails(profileId, container, preserveTab =
     if (cUpperarm) cUpperarm.innerHTML = formatPair(compiled.upperarm_l, compiled.upperarm_r);
     if (cForearm) cForearm.innerHTML = formatPair(compiled.forearm_l, compiled.forearm_r);
 
+    // Toggle the edit section blocks visibility depending on state.isEditingProfileMetrics
+    const posturalSection = container.querySelector('#profile-edit-section-postural');
+    if (posturalSection) {
+      posturalSection.style.display = state.isEditingProfileMetrics ? 'block' : 'none';
+    }
+    const mobilitySections = container.querySelectorAll('.profile-edit-section-mobility');
+    mobilitySections.forEach(sec => {
+      sec.style.display = state.isEditingProfileMetrics ? 'block' : 'none';
+    });
+
     const editBtn = container.querySelector('#btn-edit-baseline-metrics');
     if (editBtn) {
       editBtn.classList.remove('btn-save-metrics', 'btn-edit-metrics');
@@ -2504,6 +2553,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
     if (mainVideoPlayer) {
       mainVideoPlayer.src = '';
+      mainVideoPlayer.style.display = 'none';
       mainVideoPlayer.classList.add('hidden');
       mainVideoPlayer.classList.remove('visible-block');
     }
@@ -2619,6 +2669,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                 if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
               }
               mainVideoPlayer.src = videoUrl;
+              mainVideoPlayer.style.display = 'block';
               mainVideoPlayer.classList.add('visible-block');
               mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
@@ -2648,6 +2699,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             videoRow.classList.add('active-playlist-item');
             if (mainVideoPlayer) {
               mainVideoPlayer.src = videoUrl;
+              mainVideoPlayer.style.display = 'block';
               mainVideoPlayer.classList.add('visible-block');
               mainVideoPlayer.classList.remove('hidden');
               if (videoPlaceholder) {
@@ -2789,7 +2841,7 @@ export async function updateProfileUI(profileId, preserveTab = false) {
   if (modal && modal.classList.contains('active')) {
     await populateProfileDetails(profileId, modal, preserveTab);
   }
-  const leftSidebar = document.getElementById('left-profile-sidebar');
+  const leftSidebar = document.getElementById('left-videos-sidebar');
   if (leftSidebar && !leftSidebar.classList.contains('hidden')) {
     await populateProfileDetails(profileId, leftSidebar, true);
   }
@@ -3284,6 +3336,22 @@ export async function renderShoulderRotationGrading(activeSession, container = d
                 "**wall slide with thoracic extension**",
                 "**wall slide with thoracic extension**",
                 "**thoracic foam roll + arm reach overhead**"
+              ]
+            });
+          }
+
+          if (Math.abs(shFlexL - shFlexR) > 10) {
+            adviceItems.push({
+              metric: "Shoulder Flexion Asymmetry",
+              sides: "Bilateral",
+              title: "Restricted Shoulder Flexion",
+              desc: `Imbalance in internal rotation between sides exceeds 10° (${Math.abs(shFlexL - shFlexR)}° difference).`,
+              bullets: [
+                "**Unilateral dumbbell flexion raises",
+                "**Single‑arm overhead holds**",
+                "**Thoracic extension over foam roller**",
+                "**Wall lateral stretch**",
+                "**thoracic foam roll**"
               ]
             });
           }

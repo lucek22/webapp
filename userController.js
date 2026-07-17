@@ -80,6 +80,15 @@ import {
 } from './hipRotationController.js';
 
 import {
+  setupThoracicExtensionListeners,
+  updateThoracicExtensionSidebarUI,
+  resetThoracicExtensionUI,
+  calculateThoracicExtensionAngle,
+  getDefaultThoracicExtension,
+  setThoracicExtensionStatus
+} from './thoracicController.js';
+
+import {
   setupSquatListeners,
   resetSquatPeaks,
   calculateValgusFromJoints,
@@ -1358,6 +1367,39 @@ export function onPoseResults(results) {
             shoulderRotationStatusVal.textContent = 'Offline';
             shoulderRotationStatusVal.className = 'text-slate';
           }
+        }
+      } else if (state.currentMode === 'thoracic_extension') {
+        const angle = calculateThoracicExtensionAngle(results.poseLandmarks);
+        if (angle !== null) {
+          state.thoracicExtension.liveAngle = angle;
+          if (angle > (state.thoracicExtension.peakAngle || 0)) {
+            state.thoracicExtension.peakAngle = angle;
+          }
+          updateThoracicExtensionSidebarUI();
+          setThoracicExtensionStatus('Active Tracking', 'text-emerald');
+
+          canvasCtx.save();
+          canvasCtx.strokeStyle = '#f59e0b';
+          canvasCtx.lineWidth = 3;
+          canvasCtx.setLineDash([6, 6]);
+          canvasCtx.beginPath();
+          const shoulderMid = results.poseLandmarks[11] && results.poseLandmarks[12] ? {
+            x: (getCanvasX(results.poseLandmarks[11].x) + getCanvasX(results.poseLandmarks[12].x)) / 2,
+            y: ((results.poseLandmarks[11].y + results.poseLandmarks[12].y) / 2) * (state.canvasHeight || 480)
+          } : null;
+          const hipMid = results.poseLandmarks[23] && results.poseLandmarks[24] ? {
+            x: (getCanvasX(results.poseLandmarks[23].x) + getCanvasX(results.poseLandmarks[24].x)) / 2,
+            y: ((results.poseLandmarks[23].y + results.poseLandmarks[24].y) / 2) * (state.canvasHeight || 480)
+          } : null;
+          if (shoulderMid && hipMid) {
+            canvasCtx.moveTo(shoulderMid.x, shoulderMid.y);
+            canvasCtx.lineTo(hipMid.x, hipMid.y);
+            canvasCtx.stroke();
+          }
+          canvasCtx.restore();
+          drawAngleBadge(canvasCtx, { x: shoulderMid?.x || 0, y: shoulderMid?.y || 0 }, Math.round(angle), '#f59e0b');
+        } else {
+          setThoracicExtensionStatus('Offline');
         }
       } else if (state.currentMode === 'hip_rotation') {
         const side = state.hipRotationTestingSide || 'left';
@@ -5045,7 +5087,7 @@ export function updateDashboardOfflinePlaceholders() {
 // BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
 function setExerciseMode(mode) {
   if (!mode) return;
-  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : (mode === 'hip-rotation' ? 'hip_rotation' : (mode === 'ankle-dorsi' ? 'ankledorsi' : mode))));
+  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : (mode === 'hip-rotation' ? 'hip_rotation' : (mode === 'ankle-dorsi' ? 'ankledorsi' : mode === 'thoracic-extension' ? 'thoracic_extension' : mode))));
 
   if (selectTestMode) {
     // Normalise key names to match dropdown option values
@@ -5053,6 +5095,7 @@ function setExerciseMode(mode) {
     if (mode === 'shoulder_flexion') optValue = 'shoulder';
     if (mode === 'shoulder_rotation') optValue = 'shoulder-rotation';
     if (mode === 'hip_rotation') optValue = 'hip-rotation';
+    if (mode === 'thoracic_extension') optValue = 'thoracic-extension';
     if (mode === 'ankledorsi' || mode === 'ankle-dorsi') optValue = 'ankle-dorsi';
     selectTestMode.value = optValue;
   }
@@ -5063,6 +5106,8 @@ function setExerciseMode(mode) {
   if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
   if (shoulderRotationSidebarContent) shoulderRotationSidebarContent.classList.add('hidden');
   if (hipRotationSidebarContent) hipRotationSidebarContent.classList.add('hidden');
+  const thoracicSidebarContent = document.getElementById('thoracic-sidebar-content');
+  if (thoracicSidebarContent) thoracicSidebarContent.classList.add('hidden');
   if (ankledorsiSidebarContent) ankledorsiSidebarContent.classList.add('hidden');
 
   // Show and sync active sidebar
@@ -5105,6 +5150,14 @@ function setExerciseMode(mode) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateShoulderRotationSidebarUI();
+    }
+  } else if (state.currentMode === 'thoracic_extension') {
+    if (thoracicSidebarContent) thoracicSidebarContent.classList.remove('hidden');
+    updateThoracicExtensionSidebarUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateThoracicExtensionSidebarUI();
     }
   } else if (state.currentMode === 'hip_rotation') {
     if (hipRotationSidebarContent) hipRotationSidebarContent.classList.remove('hidden');
@@ -5417,6 +5470,7 @@ registerHipRotationCallbacks({
 setupShoulderListeners(onPoseResults, updateDashboardOfflinePlaceholders);
 setupShoulderRotationListeners(onPoseResults);
 setupHipRotationListeners(onPoseResults);
+setupThoracicExtensionListeners(onPoseResults);
 setupSquatListeners(onPoseResults, updateDashboardOfflinePlaceholders);
 setupAnkleDorsiEvents(onPoseResults);
 setupVideoControls(pose, hands, onPoseResults, drawHandMesh);
@@ -5430,6 +5484,7 @@ setTimeout(() => {
   updateShoulderRotationSidebarUI();
   updateHipRotationSideUI();
   updateHipRotationSidebarUI();
+  updateThoracicExtensionSidebarUI();
   updateDorsiLiveUI();
 }, 200);
 

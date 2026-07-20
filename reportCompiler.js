@@ -6,7 +6,6 @@ import {
   snapshotStore,
   getDomMeasurementCm
 } from './helpers.js';
-import { autoSyncToActiveProfile } from './userController.js';
 
 /**
  * Sanitizes a filename to ensure safe downloading on various OS systems.
@@ -82,7 +81,7 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
   // 2. Save Current Frozen Snapshot & Biometric Metrics directly to Active Player Profile
   const btnSaveGallery = document.getElementById('btn-save-gallery');
   if (btnSaveGallery) {
-    btnSaveGallery.addEventListener('click', () => {
+    btnSaveGallery.addEventListener('click', async () => {
       if (!state.isSnapshotFrozen || !state.frozenMetrics) return;
 
       if (!state.activeProfileId) {
@@ -130,6 +129,7 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
         }
       }
 
+      const { autoSyncToActiveProfile } = await import('./profileManager.js');
       if (state.currentMode === 'squat') {
         autoSyncToActiveProfile(true);
       } else {
@@ -279,6 +279,16 @@ export function compileAndDownloadCombinedSession() {
       peakAnkleDorsiflexionL: state.squatPeaks.ankleL || 0,
       peakAnkleDorsiflexionR: state.squatPeaks.ankleR || 0
     },
+    tibialInclinationROM: {
+      peakTibialInclinationL: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.shinAngleL || 0 : 0,
+      peakTibialInclinationR: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.shinAngleR || 0 : 0,
+      peakAnkleDorsiflexionL: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.ankleDorsiL || 0 : 0,
+      peakAnkleDorsiflexionR: (state.ankleDorsi && state.ankleDorsi.peaks) ? state.ankleDorsi.peaks.ankleDorsiR || 0 : 0
+    },
+    shoulderFlexionMobility: {
+      peakFlexionL: state.shoulderPeaks?.excursionL || 0,
+      peakFlexionR: state.shoulderPeaks?.excursionR || 0
+    },
     anglesA: state.metricsA,
     anglesT: state.metricsT,
     anglesOverhead: state.metricsOverhead
@@ -303,4 +313,415 @@ export function compileAndDownloadCombinedSession() {
   URL.revokeObjectURL(url);
   
   console.log(`[AutoCapture] Downloaded consolidated report: ${filename}`);
+}
+
+/**
+ * Packages the selected profile, its complete session metadata, and all associated 
+ * PNG snapshots and binary video recording Blobs into a single download .ZIP file.
+ * @param {number|string} profileId 
+ */
+export async function exportProfileBundle(profileId) {
+  if (!window.JSZip) {
+    alert("The JSZip library is still loading. Please check your network connection and try again.");
+    return;
+  }
+
+  const profile = await snapshotStore.getProfile(Number(profileId));
+  if (!profile) {
+    alert("Selected profile was not found in the local database.");
+    return;
+  }
+
+  // Visual feedback: Show exporting state
+  const btnExport = document.getElementById('btn-profile-export-bundle');
+  const originalText = btnExport ? btnExport.innerHTML : '';
+  if (btnExport) {
+    btnExport.innerHTML = `
+      <svg class="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      Generating Bundle ZIP...
+    `;
+    btnExport.disabled = true;
+  }
+
+  try {
+    const zip = new window.JSZip();
+    const snapshotsFolder = zip.folder("snapshots");
+    const videosFolder = zip.folder("videos");
+
+    // Deep clone the profile object so we can modify properties for the JSON metadata file safely
+    const metadata = JSON.parse(JSON.stringify(profile));
+
+    const imageKeys = [
+      'imageA', 'imageT', 'imageOverhead', 'imageSquatL', 'imageSquatR', 'imageSquatFrontal',
+      'imageShoulderLStart', 'imageShoulderLEnd', 'imageShoulderRStart', 'imageShoulderREnd',
+      'imageShoulderRotationL', 'imageShoulderRotationR', 'imageHipRotationL', 'imageHipRotationR',
+      'imageAnkleDorsiL', 'imageAnkleDorsiR', 'imageThoracicExtension'
+    ];
+
+    const videoKeys = [
+      'videoSquatL', 'videoSquatR', 'videoSquatFrontal',
+      'videoShoulderL', 'videoShoulderR',
+      'videoShoulderRotationL', 'videoShoulderRotationR',
+      'videoHipRotationL', 'videoHipRotationR',
+      'videoAnkleDorsiL', 'videoAnkleDorsiR',
+      'videoThoracicExtension'
+    ];
+
+    // Helper to package snapshots and videos in a session or top-level profile
+    async function packageEntityAssets(entity, entityPrefix) {
+      // Process Images (Base64 data URLs)
+      for (const imgKey of imageKeys) {
+        const dataUrl = entity[imgKey];
+        if (dataUrl && typeof dataUrl === 'string' && dataUrl.startsWith('data:image')) {
+          const parts = dataUrl.split(',');
+          if (parts.length === 2) {
+            const base64Data = parts[1];
+            const fileExt = dataUrl.includes('image/jpeg') ? 'jpg' : 'png';
+            const filename = `${entityPrefix}${imgKey}.${fileExt}`;
+            
+            // Add image file to ZIP
+            snapshotsFolder.file(filename, base64Data, { base64: true });
+            
+            // Replace the full base64 in the metadata JSON with a local reference path
+            entity[imgKey] = `snapshots/${filename}`;
+          }
+        }
+      }
+    }
+
+    // Process top-level profile assets (for backwards-compatibility)
+    await packageEntityAssets(metadata, 'profile_');
+
+    // Process top-level videos (backwards-compatibility fallback)
+    for (const vidKey of videoKeys) {
+      const originalVid = profile[vidKey];
+      const isBlobLike = originalVid && originalVid.blob && typeof originalVid.blob.slice === 'function' && typeof originalVid.blob.size === 'number';
+      if (isBlobLike) {
+        const fileExt = originalVid.fileExt || 'webm';
+        const filename = `profile_${vidKey}.${fileExt}`;
+        
+        videosFolder.file(filename, originalVid.blob);
+        
+        metadata[vidKey] = {
+          id: originalVid.id,
+          name: originalVid.name,
+          duration: originalVid.duration,
+          timestamp: originalVid.timestamp,
+          fileExt: fileExt,
+          filePath: `videos/${filename}`
+        };
+      }
+    }
+
+    // Process all sessions and their assets
+    if (profile.sessions && Array.isArray(profile.sessions)) {
+      for (let sIdx = 0; sIdx < profile.sessions.length; sIdx++) {
+        const originalSession = profile.sessions[sIdx];
+        const metaSession = metadata.sessions[sIdx];
+        const sessionPrefix = `session_${sIdx + 1}_`;
+
+        await packageEntityAssets(metaSession, sessionPrefix);
+
+        // Process session videos
+        for (const vidKey of videoKeys) {
+          const originalVid = originalSession[vidKey];
+          const isBlobLike = originalVid && originalVid.blob && typeof originalVid.blob.slice === 'function' && typeof originalVid.blob.size === 'number';
+          if (isBlobLike) {
+            const fileExt = originalVid.fileExt || 'webm';
+            const filename = `${sessionPrefix}${vidKey}.${fileExt}`;
+            
+            // Add video to ZIP folder
+            videosFolder.file(filename, originalVid.blob);
+            
+            // Rewrite session video reference in metadata
+            metaSession[vidKey] = {
+              id: originalVid.id,
+              name: originalVid.name,
+              duration: originalVid.duration,
+              timestamp: originalVid.timestamp,
+              fileExt: fileExt,
+              filePath: `videos/${filename}`
+            };
+          }
+        }
+      }
+    }
+
+    // Process playlist custom videos (profile.videos)
+    if (profile.videos && Array.isArray(profile.videos)) {
+      for (let vIdx = 0; vIdx < profile.videos.length; vIdx++) {
+        const originalVid = profile.videos[vIdx];
+        const metaVid = metadata.videos[vIdx];
+        if (originalVid && originalVid.blob && metaVid) {
+          const isBlobLike = originalVid.blob && typeof originalVid.blob.slice === 'function' && typeof originalVid.blob.size === 'number';
+          if (isBlobLike) {
+            const fileExt = originalVid.fileExt || 'webm';
+            const filename = `playlist_video_${originalVid.id || vIdx}.${fileExt}`;
+            
+            videosFolder.file(filename, originalVid.blob);
+            
+            // Clear empty blob object placeholder and store filePath
+            delete metaVid.blob;
+            metaVid.filePath = `videos/${filename}`;
+          }
+        }
+      }
+    }
+
+    // Write metadata JSON to zip root
+    zip.file("profile_metadata.json", JSON.stringify(metadata, null, 2));
+
+    // Generate ZIP blob and download
+    const cleanSubjectName = sanitizeFilename(profile.name) || "subject";
+    const zipFilename = `scarlet_profile_${cleanSubjectName}_${Date.now()}.zip`;
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const zipUrl = URL.createObjectURL(zipBlob);
+
+    const downloadLink = document.createElement('a');
+    downloadLink.href = zipUrl;
+    downloadLink.download = zipFilename;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    
+    setTimeout(() => {
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(zipUrl);
+    }, 150);
+
+    console.log(`[ZIP-Export] Successfully compiled and downloaded profile bundle: ${zipFilename}`);
+
+  } catch (err) {
+    console.error("[ZIP-Export] Error while exporting profile bundle ZIP:", err);
+    alert("Failed to export athlete profile bundle. Error: " + err.message);
+  } finally {
+    if (btnExport) {
+      btnExport.innerHTML = originalText;
+      btnExport.disabled = false;
+    }
+  }
+}
+
+/**
+ * Parses an uploaded .ZIP profile bundle, decodes local snapshots and binary videos,
+ * restores them into the standard profile data structures, and saves to IndexedDB.
+ * @param {File} file - The uploaded .zip File object
+ */
+export async function importProfileBundle(file) {
+  if (!window.JSZip) {
+    alert("The JSZip library is still loading. Please check your network connection and try again.");
+    return;
+  }
+
+  const btnImport = document.getElementById('btn-import-profile-bundle-submit');
+  const originalText = btnImport ? btnImport.innerHTML : '';
+  if (btnImport) {
+    btnImport.innerHTML = `
+      <svg class="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      Processing Bundle...
+    `;
+    btnImport.disabled = true;
+  }
+
+  try {
+    const zip = await window.JSZip.loadAsync(file);
+    const metaFile = zip.file("profile_metadata.json");
+    if (!metaFile) {
+      throw new Error("Invalid bundle: Could not find profile_metadata.json inside the ZIP.");
+    }
+
+    const metaText = await metaFile.async("string");
+    const importedProfile = JSON.parse(metaText);
+
+    // Make sure we have a valid profiles list to check duplicate names
+    const existingProfiles = await snapshotStore.getAllProfiles();
+    
+    let originalName = importedProfile.name || "Imported Athlete";
+    let uniqueName = originalName;
+    let suffixCounter = 1;
+    while (existingProfiles && existingProfiles.some(p => p.name.toLowerCase() === uniqueName.toLowerCase())) {
+      uniqueName = `${originalName} (${suffixCounter++})`;
+    }
+    importedProfile.name = uniqueName;
+
+    // Helper to reconstruct assets from local files
+    async function reconstructEntityAssets(entity) {
+      const imageKeys = [
+        'imageA', 'imageT', 'imageOverhead', 'imageSquatL', 'imageSquatR', 'imageSquatFrontal',
+        'imageShoulderLStart', 'imageShoulderLEnd', 'imageShoulderRStart', 'imageShoulderREnd',
+        'imageShoulderRotationL', 'imageShoulderRotationR', 'imageHipRotationL', 'imageHipRotationR',
+        'imageAnkleDorsiL', 'imageAnkleDorsiR', 'imageThoracicExtension'
+      ];
+
+      for (const imgKey of imageKeys) {
+        const refPath = entity[imgKey];
+        if (refPath && typeof refPath === 'string' && refPath.startsWith('snapshots/')) {
+          const zipImgFile = zip.file(refPath);
+          if (zipImgFile) {
+            const base64Content = await zipImgFile.async("base64");
+            const fileExt = refPath.endsWith('.jpg') || refPath.endsWith('.jpeg') ? 'jpeg' : 'png';
+            entity[imgKey] = `data:image/${fileExt};base64,${base64Content}`;
+          } else {
+            console.warn(`[ZIP-Import] Snapshot file not found in archive: ${refPath}`);
+            entity[imgKey] = null;
+          }
+        }
+      }
+    }
+
+    // 1. Reconstruct top-level images
+    await reconstructEntityAssets(importedProfile);
+
+    const videoKeys = [
+      'videoSquatL', 'videoSquatR', 'videoSquatFrontal',
+      'videoShoulderL', 'videoShoulderR',
+      'videoShoulderRotationL', 'videoShoulderRotationR',
+      'videoHipRotationL', 'videoHipRotationR',
+      'videoAnkleDorsiL', 'videoAnkleDorsiR',
+      'videoThoracicExtension'
+    ];
+
+    // Initialize the playlist videos array so all imported videos can be collected here
+    importedProfile.videos = importedProfile.videos || [];
+
+    // 2. Reconstruct top-level videos (backwards-compatibility)
+    for (const vidKey of videoKeys) {
+      const vidRef = importedProfile[vidKey];
+      if (vidRef && vidRef.filePath && typeof vidRef.filePath === 'string') {
+        const zipVidFile = zip.file(vidRef.filePath);
+        if (zipVidFile) {
+          const rawBlob = await zipVidFile.async("blob");
+          const mimeType = (vidRef.fileExt && vidRef.fileExt.toLowerCase() === 'mp4') ? 'video/mp4' : 'video/webm';
+          const videoBlob = rawBlob.slice(0, rawBlob.size, mimeType);
+          const reconstructedVideo = {
+            id: vidRef.id || (Date.now() + Math.floor(Math.random() * 1000000)),
+            name: vidRef.name || "Imported Video",
+            duration: vidRef.duration || 0,
+            timestamp: vidRef.timestamp || Date.now(),
+            fileExt: vidRef.fileExt || 'webm',
+            blob: videoBlob
+          };
+          importedProfile[vidKey] = reconstructedVideo;
+
+          // Register or replace in the profile-wide playlist archive to overwrite stale metadata empty-blob placeholders
+          const existingIdx = importedProfile.videos.findIndex(v => v.id === reconstructedVideo.id);
+          if (existingIdx !== -1) {
+            importedProfile.videos[existingIdx] = reconstructedVideo;
+          } else {
+            importedProfile.videos.push(reconstructedVideo);
+          }
+        } else {
+          console.warn(`[ZIP-Import] Video file not found in archive: ${vidRef.filePath}`);
+          importedProfile[vidKey] = null;
+        }
+      }
+    }
+
+    // 3. Reconstruct session assets
+    if (importedProfile.sessions && Array.isArray(importedProfile.sessions)) {
+      for (const session of importedProfile.sessions) {
+        await reconstructEntityAssets(session);
+
+        // Reconstruct session videos
+        for (const vidKey of videoKeys) {
+          const vidRef = session[vidKey];
+          if (vidRef && vidRef.filePath && typeof vidRef.filePath === 'string') {
+            const zipVidFile = zip.file(vidRef.filePath);
+            if (zipVidFile) {
+              const rawBlob = await zipVidFile.async("blob");
+              const mimeType = (vidRef.fileExt && vidRef.fileExt.toLowerCase() === 'mp4') ? 'video/mp4' : 'video/webm';
+              const videoBlob = rawBlob.slice(0, rawBlob.size, mimeType);
+              const reconstructedVideo = {
+                id: vidRef.id || (Date.now() + Math.floor(Math.random() * 1000000)),
+                name: vidRef.name || "Imported Video",
+                duration: vidRef.duration || 0,
+                timestamp: vidRef.timestamp || Date.now(),
+                fileExt: vidRef.fileExt || 'webm',
+                blob: videoBlob
+              };
+              session[vidKey] = reconstructedVideo;
+
+              // Register or replace in the profile-wide playlist archive to overwrite stale metadata empty-blob placeholders
+              const existingIdx = importedProfile.videos.findIndex(v => v.id === reconstructedVideo.id);
+              if (existingIdx !== -1) {
+                importedProfile.videos[existingIdx] = reconstructedVideo;
+              } else {
+                importedProfile.videos.push(reconstructedVideo);
+              }
+            } else {
+              console.warn(`[ZIP-Import] Session video file not found in archive: ${vidRef.filePath}`);
+              session[vidKey] = null;
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Reconstruct playlist custom videos (importedProfile.videos)
+    if (importedProfile.videos && Array.isArray(importedProfile.videos)) {
+      for (let vIdx = 0; vIdx < importedProfile.videos.length; vIdx++) {
+        const vidRef = importedProfile.videos[vIdx];
+        const isRealBlob = vidRef && vidRef.blob && typeof vidRef.blob.slice === 'function' && typeof vidRef.blob.size === 'number';
+        if (isRealBlob) {
+          // Already reconstructed and populated via top-level or session step
+          continue;
+        }
+        if (vidRef && vidRef.filePath && typeof vidRef.filePath === 'string') {
+          const zipVidFile = zip.file(vidRef.filePath);
+          if (zipVidFile) {
+            const rawBlob = await zipVidFile.async("blob");
+            const mimeType = (vidRef.fileExt && vidRef.fileExt.toLowerCase() === 'mp4') ? 'video/mp4' : 'video/webm';
+            const videoBlob = rawBlob.slice(0, rawBlob.size, mimeType);
+            importedProfile.videos[vIdx] = {
+              id: vidRef.id || (Date.now() + Math.floor(Math.random() * 1000000)),
+              name: vidRef.name || "Imported Playlist Video",
+              duration: vidRef.duration || 0,
+              timestamp: vidRef.timestamp || Date.now(),
+              fileExt: vidRef.fileExt || 'webm',
+              blob: videoBlob
+            };
+          } else {
+            console.warn(`[ZIP-Import] Playlist video file not found in archive: ${vidRef.filePath}`);
+            importedProfile.videos[vIdx] = null;
+          }
+        } else {
+          importedProfile.videos[vIdx] = null;
+        }
+      }
+      // Filter out any null entries
+      importedProfile.videos = importedProfile.videos.filter(v => v !== null);
+    }
+
+    // Delete existing id field so IndexedDB generates a new auto-incremented primary key
+    delete importedProfile.id;
+
+    // Save imported profile to database
+    const newProfileId = await snapshotStore.saveProfile(importedProfile);
+    state.allProfiles = await snapshotStore.getAllProfiles();
+
+    // Trigger update of selector/UI
+    const profileSelect = document.getElementById('profile-select');
+    if (profileSelect) {
+      // Refresh dropdown list
+      const { populateDropdown } = await import('./profileManager.js');
+      populateDropdown(state.allProfiles);
+      profileSelect.value = String(newProfileId);
+      profileSelect.dispatchEvent(new Event('change'));
+    }
+
+    alert(`Successfully imported athlete bundle for: "${importedProfile.name}"!`);
+    
+    // Clear input
+    const fileInput = document.getElementById('profile-bundle-file-input');
+    if (fileInput) fileInput.value = '';
+
+  } catch (err) {
+    console.error("[ZIP-Import] Error while importing profile bundle ZIP:", err);
+    alert("Failed to import athlete profile bundle. Error: " + err.message);
+  } finally {
+    if (btnImport) {
+      btnImport.innerHTML = originalText;
+      btnImport.disabled = false;
+    }
+  }
 }

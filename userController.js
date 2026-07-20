@@ -21,6 +21,151 @@ import {
 
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
 import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
+import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt, updateDorsiLiveUI, registerAnkleDorsiCallbacks } from './ankleDorsi.js';
+
+import {
+  drawJoint,
+  drawBone,
+  drawSkeletalFramework,
+  drawFullSkeletalMesh,
+  drawAngleBadge,
+  drawValgusBadge,
+  drawVarusBadge,
+  drawHandMesh,
+  drawRoundedRect
+} from './canvasRenderer.js';
+
+import {
+  initializeProfilesSelector,
+  getActiveProfileName,
+  loadProfileIntoState,
+  openProfileDetailsModal,
+  closeProfileDetailsModal,
+  autoSyncToActiveProfile,
+  autoSyncToActiveProfileDebounced,
+  drawModalVideoPoseOverlay,
+  registerProfileCallbacks,
+  populateDropdown
+} from './profileManager.js';
+
+// Import specialized submodules
+import {
+  setupShoulderListeners,
+  resetShoulderPeaksUI,
+  getShoulderWristAngle,
+  updateShoulderSideUI,
+  updateShoulderSidebarUI,
+  getDefaultShoulderPeaks,
+  processShoulderFlexionFromPreprocessedFrames
+} from './shoulderController.js';
+
+import {
+  setupShoulderRotationListeners,
+  updateShoulderRotationSideUI,
+  updateShoulderRotationSidebarUI,
+  getDefaultShoulderRotation,
+  processShoulderRotationFromPreprocessedFrames,
+  resetShoulderRotationPeaksUI,
+  ShoulderRotationMeasurer,
+  registerShoulderRotationCallbacks
+} from './shoulderRotationController.js';
+
+import {
+  setupHipRotationListeners,
+  updateHipRotationSideUI,
+  updateHipRotationSidebarUI,
+  getDefaultHipRotation,
+  processHipRotationFromPreprocessedFrames,
+  resetHipRotationPeaksUI,
+  HipRotationMeasurer,
+  registerHipRotationCallbacks
+} from './hipRotationController.js';
+
+import {
+  setupThoracicExtensionListeners,
+  updateThoracicExtensionSidebarUI,
+  resetThoracicExtensionUI,
+  calculateThoracicExtensionAngle,
+  getDefaultThoracicExtension,
+  setThoracicExtensionStatus,
+  registerThoracicCallbacks
+} from './thoracicController.js';
+
+import {
+  setupSquatListeners,
+  resetSquatPeaks,
+  calculateValgusFromJoints,
+  calculateVarusFromJoints,
+  getDefaultSquatPeaks,
+  scanVideoForSquatPeaks,
+  updateSquatDashboardOffline,
+  updateSquatDashboardUI,
+  updateSquatSideUI,
+  registerSquatCallbacks
+} from './squatController.js';
+
+import {
+  setupVideoControls,
+  toggleVideoRecording,
+  hideAnalysisProgressOverlay,
+  hideExportProgressOverlay,
+  saveImportedVideoToProfile,
+  saveVideoToActiveProfile,
+  showAnalysisProgressOverlay,
+  showExportProgressOverlay,
+  startVideoRecording,
+  stopVideoRecording
+} from './videoController.js';
+
+// Re-export public APIs from specialized modules for backward compatibility
+export {
+  initializeProfilesSelector,
+  getActiveProfileName,
+  loadProfileIntoState,
+  openProfileDetailsModal,
+  closeProfileDetailsModal,
+  autoSyncToActiveProfile,
+  autoSyncToActiveProfileDebounced,
+  drawModalVideoPoseOverlay
+};
+
+export {
+  drawJoint,
+  drawBone,
+  drawSkeletalFramework,
+  drawFullSkeletalMesh,
+  drawAngleBadge,
+  drawValgusBadge,
+  drawVarusBadge,
+  drawHandMesh,
+  drawRoundedRect
+};
+
+export {
+  resetShoulderPeaksUI,
+  getShoulderWristAngle,
+  updateShoulderSideUI,
+  updateShoulderSidebarUI,
+  getDefaultShoulderPeaks,
+  processShoulderFlexionFromPreprocessedFrames,
+  resetSquatPeaks,
+  calculateValgusFromJoints,
+  calculateVarusFromJoints,
+  getDefaultSquatPeaks,
+  scanVideoForSquatPeaks,
+  updateSquatDashboardOffline,
+  updateSquatDashboardUI,
+  updateSquatSideUI,
+  toggleVideoRecording,
+  hideAnalysisProgressOverlay,
+  hideExportProgressOverlay,
+  saveImportedVideoToProfile,
+  saveVideoToActiveProfile,
+  showAnalysisProgressOverlay,
+  showExportProgressOverlay,
+  startVideoRecording,
+  stopVideoRecording
+};
 
 export const videoElement = document.getElementById('webcam');
 export const canvasElement = document.getElementById('overlay');
@@ -43,6 +188,12 @@ const videoSeekbar = document.getElementById('video-seekbar');
 const videoTimeDisplay = document.getElementById('video-time-display');
 const videoSpeedBtn = document.getElementById('video-speed-btn');
 
+// Profile DOMS for switching between modes
+
+const profileSearchBar = document.getElementById('profile-search-wrapper');
+const profileDropdown = document.getElementById('profile-controls-row');
+const newProfileContainter = document.getElementById('new-profile-input-container');
+
 
 // Helper canvas for caching frozen frames
 export const frozenFrameCanvas = document.createElement('canvas');
@@ -57,6 +208,10 @@ const landmarkDirectory = document.getElementById('landmark-directory');
 
 canvasElement.width = 640;
 canvasElement.height = 480;
+
+state.activeModalVideoProcessing = false;
+state.isModalVideoInferenceLoopRunning = false;
+
 
 // Initialize Landmark Directory (33 Pose Landmarks + 10 Hand Fingertips) on load
 if (landmarkDirectory) {
@@ -163,11 +318,12 @@ const hipAngleRDisp = document.getElementById('angle-hip-r');
 const elbowAngleLDisp = document.getElementById('angle-elbow-l');
 const elbowAngleRDisp = document.getElementById('angle-elbow-r');
 
-// UI Overhead Squat Elements
-const btnModePosture = document.getElementById('btn-mode-posture');
-const btnModeSquat = document.getElementById('btn-mode-squat');
+// UI Exercise Mode Dropdown
+const selectTestMode = document.getElementById('select-test-mode');
 const postureSidebarContent = document.getElementById('posture-sidebar-content');
 const squatSidebarContent = document.getElementById('squat-sidebar-content');
+const shoulderSidebarContent = document.getElementById('shoulder-sidebar-content');
+const ankledorsiSidebarContent = document.getElementById('ankledorsi-sidebar-content');
 
 const squatPeakKneeL = document.getElementById('squat-peak-knee-l');
 const squatLiveKneeL = document.getElementById('squat-live-knee-l');
@@ -188,15 +344,68 @@ const squatStatusVal = document.getElementById('squat-status-val');
 
 const btnSquatSideLeft = document.getElementById('btn-squat-side-left');
 const btnSquatSideRight = document.getElementById('btn-squat-side-right');
+const btnSquatSideFrontal = document.getElementById('btn-squat-side-frontal');
+
+// UI Shoulder Flexion Elements
+const shoulderPeakExcursionL = document.getElementById('shoulder-peak-excursion-l');
+const shoulderLiveAngleL = document.getElementById('shoulder-live-angle-l');
+const shoulderPeakExcursionR = document.getElementById('shoulder-peak-excursion-r');
+const shoulderLiveAngleR = document.getElementById('shoulder-live-angle-r');
+
+const shoulderStartAngleL = document.getElementById('shoulder-start-angle-l');
+const shoulderStartAngleR = document.getElementById('shoulder-start-angle-r');
+const shoulderEndAngleL = document.getElementById('shoulder-end-angle-l');
+const shoulderEndAngleR = document.getElementById('shoulder-end-angle-r');
+
+const shoulderStatusVal = document.getElementById('shoulder-status-val');
+
+const btnShoulderSideLeft = document.getElementById('btn-shoulder-side-left');
+const btnShoulderSideRight = document.getElementById('btn-shoulder-side-right');
+
+// UI Shoulder Rotation Elements
+const shoulderRotationSidebarContent = document.getElementById('shoulder-rotation-sidebar-content');
+
+const shoulderRotationPeakExternalL = document.getElementById('shoulder-rotation-peak-external-l');
+const shoulderRotationLiveAngleL = document.getElementById('shoulder-rotation-live-angle-l');
+const shoulderRotationPeakExternalR = document.getElementById('shoulder-rotation-peak-external-r');
+const shoulderRotationLiveAngleR = document.getElementById('shoulder-rotation-live-angle-r');
+
+const shoulderRotationPeakInternalL = document.getElementById('shoulder-rotation-peak-internal-l');
+const shoulderRotationPeakInternalR = document.getElementById('shoulder-rotation-peak-internal-r');
+
+const shoulderRotationStatusVal = document.getElementById('shoulder-rotation-status-val');
+
+const btnShoulderRotationSideLeft = document.getElementById('btn-shoulder-rotation-side-left');
+const btnShoulderRotationSideRight = document.getElementById('btn-shoulder-rotation-side-right');
+const btnSaveShoulderRotationPeaks = document.getElementById('btn-save-shoulder-rotation-peaks');
+
+// UI Hip Rotation Elements
+const hipRotationSidebarContent = document.getElementById('hip-rotation-sidebar-content');
+
+const hipRotationPeakExternalL = document.getElementById('hip-rotation-peak-external-l');
+const hipRotationLiveAngleL = document.getElementById('hip-rotation-live-angle-l');
+const hipRotationPeakExternalR = document.getElementById('hip-rotation-peak-external-r');
+const hipRotationLiveAngleR = document.getElementById('hip-rotation-live-angle-r');
+
+const hipRotationPeakInternalL = document.getElementById('hip-rotation-peak-internal-l');
+const hipRotationPeakInternalR = document.getElementById('hip-rotation-peak-internal-r');
+
+const hipRotationStatusVal = document.getElementById('hip-rotation-status-val');
+
+const btnHipRotationSideLeft = document.getElementById('btn-hip-rotation-side-left');
+const btnHipRotationSideRight = document.getElementById('btn-hip-rotation-side-right');
+const btnSaveHipRotationPeaks = document.getElementById('btn-save-hip-rotation-peaks');
 
 
 // UI Calibration Toggles & Panels
 const tabHeightBtn = document.getElementById('tab-height-btn');
 const tabPortfolioBtn = document.getElementById('tab-portfolio-btn');
+const tabImportBtn = document.getElementById('tab-import-btn');
 
 const panelCard = document.getElementById('panel-card');
 const panelHeight = document.getElementById('panel-height');
 const panelPortfolio = document.getElementById('panel-portfolio');
+const panelImport = document.getElementById('panel-import');
 
 const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
 const btnApplyScale = document.getElementById('btn-apply-scale');
@@ -229,202 +438,9 @@ const ANGLE_METRICS = [
   { element: elbowAngleRDisp, key: 'elbowAngleR' }
 ];
 
-// ==========================================
-// CANVAS DRAWING COMPONENT UTILITIES
-// ==========================================
-
-function drawJoint(point, color) {
-  canvasCtx.beginPath();
-  canvasCtx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
-  canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
-  canvasCtx.fill();
-  canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
-  canvasCtx.lineWidth = 2.0;
-  canvasCtx.stroke();
-}
-
-function drawBone(p1, p2, color) {
-  canvasCtx.beginPath();
-  canvasCtx.moveTo(p1.x, p1.y);
-  canvasCtx.lineTo(p2.x, p2.y);
-  canvasCtx.strokeStyle = color;
-  canvasCtx.lineWidth = 3.5;
-  canvasCtx.stroke();
-}
-
-function drawSkeletalFramework(joints) {
-  if (!joints) return;
-  const {
-    shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
-    shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
-    head_top
-  } = joints;
-
-  // 1. Draw Bones
-  drawBone(shoulder_l, shoulder_r, '#FFFFFF'); 
-  drawBone(hip_l, hip_r, '#FFFFFF'); 
-  drawBone(shoulder_l, hip_l, '#FFFFFF'); 
-  drawBone(shoulder_r, hip_r, '#FFFFFF'); 
-
-  // Left Arm & Leg
-  drawBone(shoulder_l, elbow_l, '#FFFFFF'); 
-  drawBone(elbow_l, wrist_l, '#FFFFFF'); 
-  drawBone(hip_l, knee_l, '#FFFFFF'); 
-  drawBone(knee_l, ankle_l, '#FFFFFF'); 
-  drawBone(ankle_l, heel_l, '#FFFFFF'); 
-  drawBone(heel_l, toe_l, '#FFFFFF'); 
-
-  // Right Arm & Leg
-  drawBone(shoulder_r, elbow_r, '#FFFFFF'); 
-  drawBone(elbow_r, wrist_r, '#FFFFFF'); 
-  drawBone(hip_r, knee_r, '#FFFFFF'); 
-  drawBone(knee_r, ankle_r, '#FFFFFF'); 
-  drawBone(ankle_r, heel_r, '#FFFFFF'); 
-  drawBone(heel_r, toe_r, '#FFFFFF'); 
-
-  // 2. Draw Joints (Always renders as vibrant glowing white with a dark border)
-  drawJoint(shoulder_l);
-  drawJoint(shoulder_r);
-  drawJoint(elbow_l);
-  drawJoint(elbow_r);
-  drawJoint(wrist_l);
-  drawJoint(wrist_r);
-  drawJoint(hip_l);
-  drawJoint(hip_r);
-  drawJoint(knee_l);
-  drawJoint(knee_r);
-  drawJoint(ankle_l);
-  drawJoint(ankle_r);
-  drawJoint(toe_l);
-  drawJoint(toe_r);
-  
-  if (head_top) {
-    drawJoint(head_top);
-  }
-}
-
-export function drawFullSkeletalMesh(landmarks) {
-  if (!landmarks || landmarks.length < 33) return;
-
-  // 1. Draw thin, semi-transparent skeletal mesh connections
-  canvasCtx.beginPath();
-  POSE_CONNECTIONS.forEach(([i, j]) => {
-    const p1 = landmarks[i];
-    const p2 = landmarks[j];
-    if (p1 && p2) {
-      canvasCtx.moveTo(p1.x, p1.y);
-      canvasCtx.lineTo(p2.x, p2.y);
-    }
-  });
-  canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.45)'; // Sleek translucent indigo vector line
-  canvasCtx.lineWidth = 1.5;
-  canvasCtx.stroke();
-
-  // 2. Draw all 33 pose landmark nodes in vibrant white with high-contrast outlines
-  landmarks.forEach((p, idx) => {
-    if (!p) return;
-
-    // Render glowing nodes
-    canvasCtx.beginPath();
-    canvasCtx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
-    canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
-    canvasCtx.fill();
-    canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
-    canvasCtx.lineWidth = 1.5;
-    canvasCtx.stroke();
-  });
-}
-
-export function drawHandMesh(multiHandLandmarks, multiHandedness) {
-  if (!multiHandLandmarks) return;
-
-  multiHandLandmarks.forEach((landmarks, handIdx) => {
-    const handedness = multiHandedness ? multiHandedness[handIdx] : null;
-    const isLeft = handedness ? handedness.label === 'Left' : true;
-    const sidePrefix = isLeft ? 'L' : 'R';
-
-    const height = state.canvasHeight || 480;
-    const pts = landmarks.map(lm => ({ x: getCanvasX(lm.x), y: lm.y * height }));
-
-    canvasCtx.beginPath();
-    canvasCtx.moveTo(pts[0].x, pts[0].y);
-    canvasCtx.lineTo(pts[1].x, pts[1].y);
-    canvasCtx.lineTo(pts[5].x, pts[5].y);
-    canvasCtx.lineTo(pts[9].x, pts[9].y);
-    canvasCtx.lineTo(pts[13].x, pts[13].y);
-    canvasCtx.lineTo(pts[17].x, pts[17].y);
-    canvasCtx.closePath();
-    canvasCtx.strokeStyle = 'rgba(99, 102, 241, 0.45)';
-    canvasCtx.lineWidth = 1.5;
-    canvasCtx.stroke();
-    canvasCtx.fillStyle = 'rgba(99, 102, 241, 0.05)';
-    canvasCtx.fill();
-
-    const drawFingerBones = (indices, color) => {
-      canvasCtx.beginPath();
-      canvasCtx.moveTo(pts[indices[0]].x, pts[indices[0]].y);
-      for (let i = 1; i < indices.length; i++) {
-        canvasCtx.lineTo(pts[indices[i]].x, pts[indices[i]].y);
-      }
-      canvasCtx.strokeStyle = color + '80';
-      canvasCtx.lineWidth = 2.0;
-      canvasCtx.stroke();
-    };
-
-    drawFingerBones([1, 2, 3, 4], FINGER_COLORS.thumb);
-    drawFingerBones([5, 6, 7, 8], FINGER_COLORS.index);
-    drawFingerBones([9, 10, 11, 12], FINGER_COLORS.middle);
-    drawFingerBones([13, 14, 15, 16], FINGER_COLORS.ring);
-    drawFingerBones([17, 18, 19, 20], FINGER_COLORS.pinky);
-
-    pts.forEach((pt, idx) => {
-      if ([4, 8, 12, 16, 20].includes(idx)) return;
-      if (idx === 0) {
-        canvasCtx.beginPath();
-        canvasCtx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
-        canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
-        canvasCtx.fill();
-        canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
-        canvasCtx.lineWidth = 1.5;
-        canvasCtx.stroke();
-        return;
-      }
-
-      canvasCtx.beginPath();
-      canvasCtx.arc(pt.x, pt.y, 2.5, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
-      canvasCtx.fill();
-      canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
-      canvasCtx.lineWidth = 1.0;
-      canvasCtx.stroke();
-    });
-
-    const tips = [
-      { idx: 4, color: FINGER_COLORS.thumb, label: sidePrefix + ' Thumb' },
-      { idx: 8, color: FINGER_COLORS.index, label: sidePrefix + ' Index' },
-      { idx: 12, color: FINGER_COLORS.middle, label: sidePrefix + ' Middle' },
-      { idx: 16, color: FINGER_COLORS.ring, label: sidePrefix + ' Ring' },
-      { idx: 20, color: FINGER_COLORS.pinky, label: sidePrefix + ' Pinky' }
-    ];
-
-    tips.forEach(tip => {
-      const pt = pts[tip.idx];
-      
-      canvasCtx.beginPath();
-      canvasCtx.arc(pt.x, pt.y, 7, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.25)'; // Subtle glowing white outer halo
-      canvasCtx.fill();
-
-      canvasCtx.beginPath();
-      canvasCtx.arc(pt.x, pt.y, 3.5, 0, 2 * Math.PI);
-      canvasCtx.fillStyle = '#ffffff'; // Vibrant glowing white
-      canvasCtx.fill();
-      canvasCtx.strokeStyle = '#0f172a'; // High contrast dark slate outline
-      canvasCtx.lineWidth = 1.5;
-      canvasCtx.stroke();
-    });
-  });
-}
+// =====================================================================
+// CANVAS DRAWING COMPONENT UTILITIES (NOW IN canvasRenderer.js)
+// =====================================================================
 
 function drawRulerGraphics(ruler_x, head_top, ground_y, live_height, live_feet_inches_str, heel_l, heel_r) {
   // Draw bottom of the feet ground contact point
@@ -480,12 +496,12 @@ function drawLiveStatsCard(ctx, calculated) {
   if (!calculated || !calculated.liveMetrics) return;
   const liveMetrics = calculated.liveMetrics;
 
-  const scale = canvasElement.width / 640;
+  const scale = ctx.canvas.width / 640;
   
   // Card dimensions
   const cardW = 190 * scale;
   const cardH = 168 * scale;
-  const cardX = canvasElement.width - cardW - 20 * scale;
+  const cardX = ctx.canvas.width - cardW - 20 * scale;
   const cardY = 20 * scale;
 
   ctx.save();
@@ -508,8 +524,7 @@ function drawLiveStatsCard(ctx, calculated) {
   ctx.shadowBlur = 0;
   
   // Title / Subject Name
-  const subjectInput = document.getElementById('subject-name-input');
-  const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+  const subjectName = getActiveProfileName(false) || "Subject";
   
   let displayName = subjectName.toUpperCase();
   if (displayName.length > 15) {
@@ -548,9 +563,9 @@ function drawLiveStatsCard(ctx, calculated) {
   const rowSpacing = 14 * scale;
   
   const joints = [
-    { label: "Knee L / R", val: `${Math.round(calculated.kneeAngleL)}° / ${Math.round(calculated.kneeAngleR)}°` },
-    { label: "Hip L / R", val: `${Math.round(calculated.hipAngleL)}° / ${Math.round(calculated.hipAngleR)}°` },
-    { label: "Elbow L / R", val: `${Math.round(calculated.elbowAngleL)}° / ${Math.round(calculated.elbowAngleR)}°` }
+    { label: "Knee L / R", val: `${Math.round(calculated.kneeAngleL || 0)}° / ${Math.round(calculated.kneeAngleR || 0)}°` },
+    { label: "Hip L / R", val: `${Math.round(calculated.hipAngleL || 0)}° / ${Math.round(calculated.hipAngleR || 0)}°` },
+    { label: "Elbow L / R", val: `${Math.round(calculated.elbowAngleL || 0)}° / ${Math.round(calculated.elbowAngleR || 0)}°` }
   ];
   
   joints.forEach(j => {
@@ -702,7 +717,86 @@ export function onPoseResults(results) {
   try {
     let calculated = null;
     state.latestPoseResults = results;
+
+    // Run core metrics calculation during frame-by-frame preprocessing (and other phases) to ensure peaks are fully analyzed
+    if (results && results.poseLandmarks) {
+      calculated = calculatePoseMetrics(results);
+      if (calculated) {
+        if (state.currentMode === 'ankledorsi') {
+          processAnkleDorsi(calculated);
+        } else {
+          const kneeAngleL = calculated.kneeAngleL;
+        const kneeAngleR = calculated.kneeAngleR;
+        const hipAngleL = calculated.hipAngleL;
+        const hipAngleR = calculated.hipAngleR;
+        const ankleAngleL = calculated.ankleAngleL;
+        const ankleAngleR = calculated.ankleAngleR;
+
+        const kneeMobL = 180 - (kneeAngleL || 180);
+        const kneeMobR = 180 - (kneeAngleR || 180);
+        const hipMobL = 180 - (hipAngleL || 180);
+        const hipMobR = 180 - (hipAngleR || 180);
+        const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
+        const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
+
+        state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
+
+        if (state.squatTestingSide === 'left') {
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        } else if (state.squatTestingSide === 'right') {
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        } else if (state.squatTestingSide === 'frontal') {
+          if (state.allowFrontalUpdateL) {
+            state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+            state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+            state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          }
+          if (state.allowFrontalUpdateR) {
+            state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+            state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+            state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          }
+          
+          // Cache jointsOverhead directly from analyzed static frame results
+          state.jointsOverhead = JSON.parse(JSON.stringify(calculated));
+        }
+
+        // Track frontal Knee Valgus/Cave-In & Varus peaks during active squat movement (knee flexion >= 30 degrees)
+        if (state.squatTestingSide === 'frontal') {
+          const valgus = calculateValgusFromJoints(calculated);
+          const varus = calculateVarusFromJoints(calculated);
+          if (kneeMobL >= 30 || kneeMobR >= 30) {
+            if (kneeMobL >= 30) {
+              state.squatPeaks.maxKneeCaveL = Math.max(state.squatPeaks.maxKneeCaveL || 0, valgus.pctL);
+              state.squatPeaks.maxKneeBowL = Math.max(state.squatPeaks.maxKneeBowL || 0, varus.pctL);
+            }
+            if (kneeMobR >= 30) {
+              state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, valgus.pctR);
+              state.squatPeaks.maxKneeBowR = Math.max(state.squatPeaks.maxKneeBowR || 0, varus.pctR);
+            }
+          }
+        }
+        }
+      }
+    }
+
+    // Early return during preprocessing to prevent drawing on the dashboard canvas
+    if (state.isExportingFrameByFrame) {
+      return;
+    }
+
+    // Routing intercept: if we are processing a video inside the details modal, route to drawModalVideoPoseOverlay
+    if (state.activeModalVideoProcessing) {
+      drawModalVideoPoseOverlay(results);
+      return;
+    }
+
     canvasCtx.save();
+
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
   // Draw background video/webcam frame if YOLO background masking is NOT active
@@ -735,7 +829,10 @@ export function onPoseResults(results) {
       drawJoint(head_top, '#FFFFFF');
 
       // Position ruler
-      const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+      const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+        .filter(p => p !== null && p !== undefined && p.x !== undefined)
+        .map(p => p.x);
+      if (body_xs.length === 0) body_xs.push(320);
       const min_x = Math.min(...body_xs);
       const max_x = Math.max(...body_xs);
       const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
@@ -770,14 +867,31 @@ export function onPoseResults(results) {
         state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
         state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
         state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-      } else {
+      } else if (state.squatTestingSide === 'right') {
         state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
         state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
         state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      } else if (state.squatTestingSide === 'frontal') {
+        if (state.allowFrontalUpdateL) {
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        }
+        if (state.allowFrontalUpdateR) {
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        }
+        
+        // Cache jointsOverhead directly from analyzed static frame results
+        state.jointsOverhead = JSON.parse(JSON.stringify(calculated));
+        if (!isVideo) {
+          state.imageSquatFrontal = state.uploadedMediaUrl || (results && results.image && results.image.src) || state.imageSquatFrontal;
+        }
       }
 
       if (state.currentMode === 'squat') {
-        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR);
+        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated);
       }
     }
 
@@ -860,10 +974,10 @@ export function onPoseResults(results) {
     // Reset status elements (only when not in playout recording to preserve "Recording playout is active..." status)
     if (!state.isRecordingPlayLoop) {
       if (state.autoActive) {
-        statusElement.textContent = "🔍 Waiting for subject to enter and align in view...";
+        statusElement.textContent = "Waiting for subject to enter and align in view...";
         state.holdTimerMs = 0; // Reset sequence hold timer
       } else {
-        statusElement.textContent = "🔍 Scanning for a person... Align yourself in view of the camera.";
+        statusElement.textContent = "Scanning for a person... Align yourself in view of the camera.";
       }
     }
 
@@ -907,7 +1021,7 @@ export function onPoseResults(results) {
       canvasCtx.font = 'bold 11px sans-serif';
       canvasCtx.textAlign = 'center';
       canvasCtx.textBaseline = 'middle';
-      canvasCtx.fillText("⚠️  SUBJECT NOT DETECTED IN FRAME", canvasElement.width / 2, bannerY + bannerH / 2);
+      canvasCtx.fillText("  SUBJECT NOT DETECTED IN FRAME", canvasElement.width / 2, bannerY + bannerH / 2);
       canvasCtx.restore();
     }
 
@@ -916,12 +1030,14 @@ export function onPoseResults(results) {
   }
 
   if (typeof calculatePoseMetrics === 'function') {
-    calculated = calculatePoseMetrics(results);
+    if (!calculated) {
+      calculated = calculatePoseMetrics(results);
+    }
 
     if (calculated) {
+      state.lastCalculatedResults = calculated;
       if (isStaticImage) {
         state.lastProcessedScaleFactor = state.pixelsPerCm;
-        state.lastCalculatedResults = calculated;
       }
 
       const {
@@ -986,6 +1102,54 @@ export function onPoseResults(results) {
       // Draw skeletal bones and joint points
       drawSkeletalFramework(calculated);
 
+      // --- NEW: DIGITAL FLOATING BADGES & VALGUS ALERTS ---
+      if (state.currentMode === 'ankledorsi') {
+        const side = state.ankleDorsi.activeSide;
+        const activeAnkle = side === 'left' ? ankle_l : ankle_r;
+        const activeKnee = side === 'left' ? knee_l : knee_r;
+        
+        // Draw Tibial Inclination angle badge at the midpoint of the shin
+        if (activeAnkle && activeKnee && state.ankleDorsi.isRecording) {
+          const shinMidpoint = {
+            x: (activeAnkle.x + activeKnee.x) / 2,
+            y: (activeAnkle.y + activeKnee.y) / 2
+          };
+          const liveShinTilt = (side === 'left') ? calculateShinTilt(ankle_l, knee_l) : calculateShinTilt(ankle_r, knee_r);
+          drawAngleBadge(canvasCtx, shinMidpoint, liveShinTilt, '#06b6d4'); // Cyan for Tibial Inclination
+        }
+      } else if (state.currentMode === 'squat') {
+        drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
+        drawAngleBadge(canvasCtx, hip_l, hipAngleL, '#d4a017');
+        drawAngleBadge(canvasCtx, ankle_l, ankleAngleL, '#06b6d4');
+
+        drawAngleBadge(canvasCtx, knee_r, kneeAngleR, '#10b981');
+        drawAngleBadge(canvasCtx, hip_r, hipAngleR, '#d4a017');
+        drawAngleBadge(canvasCtx, ankle_r, ankleAngleR, '#06b6d4');
+
+        // Frontal Knee Valgus & Varus Badges
+        const valgus = calculateValgusFromJoints(calculated);
+        const varus = calculateVarusFromJoints(calculated);
+        const kneeMobL = 180 - (kneeAngleL || 180);
+        const kneeMobR = 180 - (kneeAngleR || 180);
+        if (kneeMobL >= 15) {
+          if (valgus.pctL > 4.0) {
+            drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
+          } else if (varus.pctL > 4.0) {
+            drawVarusBadge(canvasCtx, knee_l, varus.pctL);
+          }
+        }
+        if (kneeMobR >= 15) {
+          if (valgus.pctR > 4.0) {
+            drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+          } else if (varus.pctR > 4.0) {
+            drawVarusBadge(canvasCtx, knee_r, varus.pctR);
+          }
+        }
+      }
+
+      // Draw live stats HUD card unconditionally of calibration
+      drawLiveStatsCard(canvasCtx, calculated);
+
       // Update real-time measurements display
       kneeAngleLDisp.textContent = `${kneeAngleL}°`;
       kneeAngleRDisp.textContent = `${kneeAngleR}°`;
@@ -1002,20 +1166,408 @@ export function onPoseResults(results) {
       const ankleMobL = Math.max(0, 115 - (ankleAngleL || 115));
       const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
 
-      // Always update peaks state when a valid frame is processed
-      if (state.squatTestingSide === 'left') {
-        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-      } else {
-        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+      // Always update peaks state when a valid frame is processed in squat mode
+      const isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+      const shouldUpdatePeaks = !isWebcamLive || !!state.isRecordingAssessment || !!state.isExportingFrameByFrame;
+
+      if (state.currentMode === 'squat' && shouldUpdatePeaks) {
+        if (state.squatTestingSide === 'left') {
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        } else if (state.squatTestingSide === 'right') {
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        } else if (state.squatTestingSide === 'frontal') {
+          if (state.allowFrontalUpdateL) {
+            state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
+            state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
+            state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          }
+          if (state.allowFrontalUpdateR) {
+            state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
+            state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
+            state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          }
+        }
       }
 
       // If in squat mode, update the Overhead Squat dashboard UI
       if (state.currentMode === 'squat') {
-        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR);
+        updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR, calculated);
+      } else if (state.currentMode === 'ankledorsi') {
+        processAnkleDorsi(calculated);
+      } else if (state.currentMode === 'shoulder_flexion') {
+        const side = state.shoulderTestingSide || 'left';
+        const angleInfo = getShoulderWristAngle(results.poseLandmarks, side);
+        if (angleInfo) {
+          state.lastCalculatedShoulderAngle = angleInfo.angleDeg;
+          if (side === 'left') {
+            if (shoulderLiveAngleL) shoulderLiveAngleL.textContent = `${Math.round(angleInfo.angleDeg)}°`;
+            if (shoulderLiveAngleR) shoulderLiveAngleR.textContent = '--';
+          } else {
+            if (shoulderLiveAngleR) shoulderLiveAngleR.textContent = `${Math.round(angleInfo.angleDeg)}°`;
+            if (shoulderLiveAngleL) shoulderLiveAngleL.textContent = '--';
+          }
+
+          if (shoulderStatusVal) {
+            shoulderStatusVal.textContent = 'Active Tracking';
+            shoulderStatusVal.className = 'text-emerald';
+          }
+
+          // 1. Draw vertical reference line straight down from the shoulder
+          canvasCtx.save();
+          canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          canvasCtx.setLineDash([5, 5]);
+          canvasCtx.lineWidth = 1.5;
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
+          canvasCtx.lineTo(angleInfo.shoulder.x, angleInfo.shoulder.y + 120); // vertical down
+          canvasCtx.stroke();
+          canvasCtx.restore();
+
+          // 2. Draw angle arc at the shoulder
+          const r = 40;
+          canvasCtx.save();
+          canvasCtx.strokeStyle = '#BA0C2F'; // Scarlet red
+          canvasCtx.lineWidth = 2.5;
+          canvasCtx.beginPath();
+          const armAngleRad = Math.atan2(angleInfo.wrist.y - angleInfo.shoulder.y, angleInfo.wrist.x - angleInfo.shoulder.x);
+          // straight down in canvas coordinates is Math.PI / 2
+          canvasCtx.arc(angleInfo.shoulder.x, angleInfo.shoulder.y, r, Math.PI / 2, armAngleRad, armAngleRad < Math.PI / 2);
+          canvasCtx.stroke();
+          canvasCtx.restore();
+
+          // 3. Draw a premium crimson glowing line for the active arm (shoulder to wrist)
+          canvasCtx.save();
+          canvasCtx.strokeStyle = '#BA0C2F';
+          canvasCtx.lineWidth = 4;
+          canvasCtx.shadowColor = '#BA0C2F';
+          canvasCtx.shadowBlur = 10;
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(angleInfo.shoulder.x, angleInfo.shoulder.y);
+          canvasCtx.lineTo(angleInfo.wrist.x, angleInfo.wrist.y);
+          canvasCtx.stroke();
+          canvasCtx.restore();
+
+          // 4. Draw floating angle badge near the wrist
+          drawAngleBadge(canvasCtx, angleInfo.wrist, Math.round(angleInfo.angleDeg), '#BA0C2F');
+
+          // Real-time Peak and Snapshot Tracking for Live Camera Stream has been transitioned to manual Capture Flexion Snapshot button-click
+          updateShoulderSidebarUI();
+        } else {
+          if (shoulderStatusVal) {
+            shoulderStatusVal.textContent = 'Offline';
+            shoulderStatusVal.className = 'text-slate';
+          }
+        }
+      } else if (state.currentMode === 'shoulder_rotation') {
+        const side = state.shoulderRotationTestingSide || 'left';
+        
+        // Ensure live measurer is initialized
+        if (!state.liveShoulderRotationMeasurer) {
+          state.liveShoulderRotationMeasurer = new ShoulderRotationMeasurer();
+        }
+        
+        // Get current video playhead or index-based timestamp
+        const videoElement = document.getElementById('uploaded-video');
+        const ts = (videoElement && !videoElement.paused) ? videoElement.currentTime : (Date.now() / 1000);
+        
+        const isRecording = !!state.isShoulderRotationRecording;
+        const angle = state.liveShoulderRotationMeasurer.processFrame(results.poseLandmarks, side, ts, isRecording);
+        
+        if (angle !== null) {
+          if (side === 'left') {
+            if (shoulderRotationLiveAngleL) shoulderRotationLiveAngleL.textContent = `${Math.round(angle)}°`;
+            if (shoulderRotationLiveAngleR) shoulderRotationLiveAngleR.textContent = '--°';
+          } else {
+            if (shoulderRotationLiveAngleR) shoulderRotationLiveAngleR.textContent = `${Math.round(angle)}°`;
+            if (shoulderRotationLiveAngleL) shoulderRotationLiveAngleL.textContent = '--°';
+          }
+
+          if (shoulderRotationStatusVal) {
+            if (isRecording) {
+              shoulderRotationStatusVal.textContent = 'Recording Peak Angles...';
+              shoulderRotationStatusVal.className = 'text-amber';
+            } else {
+              shoulderRotationStatusVal.textContent = 'Active Tracking (Ready)';
+              shoulderRotationStatusVal.className = 'text-emerald';
+            }
+          }
+
+          const shoulderIdx = side === 'left' ? 11 : 12;
+          const elbowIdx = side === 'left' ? 13 : 14;
+          const wristIdx = side === 'left' ? 15 : 16;
+          
+          const rawShoulder = results.poseLandmarks[shoulderIdx];
+          const rawElbow = results.poseLandmarks[elbowIdx];
+          const rawWrist = results.poseLandmarks[wristIdx];
+          
+          if (rawShoulder && rawElbow && rawWrist) {
+            const height = state.canvasHeight || 480;
+            const shoulder = { x: getCanvasX(rawShoulder.x), y: rawShoulder.y * height };
+            const elbow = { x: getCanvasX(rawElbow.x), y: rawElbow.y * height };
+            const wrist = { x: getCanvasX(rawWrist.x), y: rawWrist.y * height };
+
+            // 1. Draw horizontal reference line (0° forearm position) starting from the elbow
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            canvasCtx.setLineDash([5, 5]);
+            canvasCtx.lineWidth = 1.5;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(elbow.x, elbow.y);
+            const sign = state.liveShoulderRotationMeasurer.facingDirection === 'right' ? 1 : -1;
+            const forearmLen = Math.sqrt((wrist.x - elbow.x) ** 2 + (wrist.y - elbow.y) ** 2) || 80;
+            canvasCtx.lineTo(elbow.x + sign * forearmLen, elbow.y); // Horizontal baseline
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 2. Draw angle arc at the elbow
+            const r = Math.min(30, forearmLen / 2);
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#00e5ff'; // Glowing cyan
+            canvasCtx.lineWidth = 2.5;
+            canvasCtx.beginPath();
+            const forearmAngleRad = Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x);
+            const baselineAngleRad = Math.atan2(0, sign);
+            canvasCtx.arc(elbow.x, elbow.y, r, baselineAngleRad, forearmAngleRad, forearmAngleRad < baselineAngleRad);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 3. Draw premium glowing line for the forearm (elbow to wrist)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#00e5ff';
+            canvasCtx.lineWidth = 4;
+            canvasCtx.shadowColor = '#00e5ff';
+            canvasCtx.shadowBlur = 10;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(elbow.x, elbow.y);
+            canvasCtx.lineTo(wrist.x, wrist.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 4. Draw vertical upper arm line (shoulder to elbow)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
+            canvasCtx.lineWidth = 3;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(shoulder.x, shoulder.y);
+            canvasCtx.lineTo(elbow.x, elbow.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 5. Draw floating angle badge near the wrist
+            drawAngleBadge(canvasCtx, wrist, Math.round(angle), '#00e5ff');
+          }
+
+          if (isRecording) {
+            const res = state.liveShoulderRotationMeasurer.getResults();
+            if (!state.shoulderRotation) {
+              state.shoulderRotation = getDefaultShoulderRotation();
+            }
+            if (side === 'left') {
+              state.shoulderRotation.maxExternalRotationL = res.maxExternalRotation;
+              state.shoulderRotation.maxInternalRotationL = res.maxInternalRotation;
+              state.shoulderRotation.timeSeriesL = res.timeSeries;
+            } else {
+              state.shoulderRotation.maxExternalRotationR = res.maxExternalRotation;
+              state.shoulderRotation.maxInternalRotationR = res.maxInternalRotation;
+              state.shoulderRotation.timeSeriesR = res.timeSeries;
+            }
+
+            updateShoulderRotationSidebarUI();
+          }
+        } else {
+          if (shoulderRotationStatusVal) {
+            shoulderRotationStatusVal.textContent = 'Offline';
+            shoulderRotationStatusVal.className = 'text-slate';
+          }
+        }
+      } else if (state.currentMode === 'thoracic_extension') {
+        if (!state.thoracicExtension) {
+          state.thoracicExtension = getDefaultThoracicExtension();
+        }
+
+        const isRec = !!state.thoracicExtension.isRecording;
+
+        if (isRec) {
+          const angle = calculateThoracicExtensionAngle(results.poseLandmarks);
+          if (angle !== null) {
+            state.thoracicExtension.liveAngle = angle;
+            
+            if (angle > (state.thoracicExtension.peakAngle || 0)) {
+              state.thoracicExtension.peakAngle = angle;
+              autoSyncToActiveProfileDebounced();
+            }
+            
+            updateThoracicExtensionSidebarUI();
+            setThoracicExtensionStatus('Recording Peak Angles...', 'text-amber');
+
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#f59e0b';
+            canvasCtx.lineWidth = 3;
+            canvasCtx.setLineDash([6, 6]);
+            canvasCtx.beginPath();
+            const shoulderMid = results.poseLandmarks[11] && results.poseLandmarks[12] ? {
+              x: (getCanvasX(results.poseLandmarks[11].x) + getCanvasX(results.poseLandmarks[12].x)) / 2,
+              y: ((results.poseLandmarks[11].y + results.poseLandmarks[12].y) / 2) * (state.canvasHeight || 480)
+            } : null;
+            const hipMid = results.poseLandmarks[23] && results.poseLandmarks[24] ? {
+              x: (getCanvasX(results.poseLandmarks[23].x) + getCanvasX(results.poseLandmarks[24].x)) / 2,
+              y: ((results.poseLandmarks[23].y + results.poseLandmarks[24].y) / 2) * (state.canvasHeight || 480)
+            } : null;
+            if (shoulderMid && hipMid) {
+              canvasCtx.moveTo(shoulderMid.x, shoulderMid.y);
+              canvasCtx.lineTo(hipMid.x, hipMid.y);
+              canvasCtx.stroke();
+            }
+            canvasCtx.restore();
+            drawAngleBadge(canvasCtx, { x: shoulderMid?.x || 0, y: shoulderMid?.y || 0 }, Math.round(angle), '#f59e0b');
+          } else {
+            setThoracicExtensionStatus('Offline');
+          }
+        } else {
+          // NOT RECORDING - do not measure or draw thoracic extension lines/badges on canvas
+          state.thoracicExtension.liveAngle = 0;
+          updateThoracicExtensionSidebarUI();
+          if (results.poseLandmarks) {
+            setThoracicExtensionStatus('Ready to Record', 'text-emerald');
+          } else {
+            setThoracicExtensionStatus('Awaiting Subject', 'text-slate');
+          }
+        }
+      } else if (state.currentMode === 'hip_rotation') {
+        const side = state.hipRotationTestingSide || 'left';
+        
+        // Ensure live measurer is initialized
+        if (!state.liveHipRotationMeasurer) {
+          state.liveHipRotationMeasurer = new HipRotationMeasurer();
+        }
+        
+        // Get current video playhead or index-based timestamp
+        const videoElement = document.getElementById('uploaded-video');
+        const ts = (videoElement && !videoElement.paused) ? videoElement.currentTime : (Date.now() / 1000);
+        
+        const isRecording = !!state.isHipRotationRecording;
+        const angle = state.liveHipRotationMeasurer.processFrame(results.poseLandmarks, side, ts, isRecording);
+        
+        if (angle !== null) {
+          if (side === 'left') {
+            if (hipRotationLiveAngleL) hipRotationLiveAngleL.textContent = `${Math.round(angle)}°`;
+            if (hipRotationLiveAngleR) hipRotationLiveAngleR.textContent = '--°';
+          } else {
+            if (hipRotationLiveAngleR) hipRotationLiveAngleR.textContent = `${Math.round(angle)}°`;
+            if (hipRotationLiveAngleL) hipRotationLiveAngleL.textContent = '--°';
+          }
+
+          if (hipRotationStatusVal) {
+            if (isRecording) {
+              hipRotationStatusVal.textContent = 'Recording Peak Angles...';
+              hipRotationStatusVal.className = 'text-amber';
+            } else {
+              hipRotationStatusVal.textContent = 'Active Tracking (Ready)';
+              hipRotationStatusVal.className = 'text-emerald';
+            }
+          }
+
+          // Draw rich visual overlays for Hip Rotation
+          const hipIdx = side === 'left' ? 23 : 24;
+          const kneeIdx = side === 'left' ? 25 : 26;
+          const ankleIdx = side === 'left' ? 27 : 28;
+          
+          const rawHip = results.poseLandmarks[hipIdx];
+          const rawKnee = results.poseLandmarks[kneeIdx];
+          const rawAnkle = results.poseLandmarks[ankleIdx];
+          
+          if (rawHip && rawKnee && rawAnkle) {
+            const height = state.canvasHeight || 480;
+            const hipLoc = { x: getCanvasX(rawHip.x), y: rawHip.y * height };
+            const kneeLoc = { x: getCanvasX(rawKnee.x), y: rawKnee.y * height };
+            const ankleLoc = { x: getCanvasX(rawAnkle.x), y: rawAnkle.y * height };
+
+            // 1. Draw vertical reference line (0° tibia position) starting from the knee
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            canvasCtx.setLineDash([5, 5]);
+            canvasCtx.lineWidth = 1.5;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(kneeLoc.x, kneeLoc.y);
+            const tibiaLen = Math.sqrt((ankleLoc.x - kneeLoc.x) ** 2 + (ankleLoc.y - kneeLoc.y) ** 2) || 80;
+            canvasCtx.lineTo(kneeLoc.x, kneeLoc.y + tibiaLen); // Vertically straight down
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 2. Draw angle arc at the knee
+            const r = Math.min(30, tibiaLen / 2);
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#10b981'; // Glowing emerald for Hip Rotation
+            canvasCtx.lineWidth = 2.5;
+            canvasCtx.beginPath();
+            const tibiaAngleRad = Math.atan2(ankleLoc.y - kneeLoc.y, ankleLoc.x - kneeLoc.x);
+            const baselineAngleRad = Math.PI / 2; // Straight down (y positive is down)
+            canvasCtx.arc(kneeLoc.x, kneeLoc.y, r, baselineAngleRad, tibiaAngleRad, tibiaAngleRad < baselineAngleRad);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 3. Draw premium glowing line for the tibia (knee to ankle)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#10b981';
+            canvasCtx.lineWidth = 4;
+            canvasCtx.shadowColor = '#10b981';
+            canvasCtx.shadowBlur = 10;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(kneeLoc.x, kneeLoc.y);
+            canvasCtx.lineTo(ankleLoc.x, ankleLoc.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 4. Draw upper leg femur line (hip to knee)
+            canvasCtx.save();
+            canvasCtx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+            canvasCtx.lineWidth = 3;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(hipLoc.x, hipLoc.y);
+            canvasCtx.lineTo(kneeLoc.x, kneeLoc.y);
+            canvasCtx.stroke();
+            canvasCtx.restore();
+
+            // 5. Draw floating angle badge near the ankle
+            drawAngleBadge(canvasCtx, ankleLoc, Math.round(angle), '#10b981');
+          } else {
+            // Fallback: draw standard skeleton mesh
+            if (results.poseLandmarks) {
+              drawFullSkeletalMesh(canvasCtx, results.poseLandmarks);
+            }
+          }
+
+          if (isRecording) {
+            const res = state.liveHipRotationMeasurer.getResults();
+            if (!state.hipRotation) {
+              state.hipRotation = getDefaultHipRotation();
+            }
+            if (side === 'left') {
+              state.hipRotation.maxExternalRotationL = res.maxExternalRotation;
+              state.hipRotation.maxInternalRotationL = res.maxInternalRotation;
+              state.hipRotation.maxExternalRotationTimeL = res.maxExternalRotationTime;
+              state.hipRotation.maxInternalRotationTimeL = res.maxInternalRotationTime;
+              state.hipRotation.timeSeriesL = res.timeSeries;
+            } else {
+              state.hipRotation.maxExternalRotationR = res.maxExternalRotation;
+              state.hipRotation.maxInternalRotationR = res.maxInternalRotation;
+              state.hipRotation.maxExternalRotationTimeR = res.maxExternalRotationTime;
+              state.hipRotation.maxInternalRotationTimeR = res.maxInternalRotationTime;
+              state.hipRotation.timeSeriesR = res.timeSeries;
+            }
+
+            updateHipRotationSidebarUI();
+          }
+        } else {
+          if (hipRotationStatusVal) {
+            hipRotationStatusVal.textContent = 'Offline';
+            hipRotationStatusVal.className = 'text-slate';
+          }
+        }
       }
 
       // Draw real-time biometrics to dashboard and ruler if calibrated
@@ -1023,7 +1575,10 @@ export function onPoseResults(results) {
         renderDashboard(liveMetrics);
 
         // Position ruler on whichever side has more margin
-        const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+        const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+          .filter(p => p !== null && p !== undefined && p.x !== undefined)
+          .map(p => p.x);
+        if (body_xs.length === 0) body_xs.push(320);
         const min_x = Math.min(...body_xs);
         const max_x = Math.max(...body_xs);
         const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
@@ -1045,9 +1600,6 @@ export function onPoseResults(results) {
         if (liveMetrics.pose && !isVideo) {
           drawPoseBadge(liveMetrics.pose);
         }
-
-        // Draw live stats HUD overlay on top-right of canvas
-        drawLiveStatsCard(canvasCtx, calculated);
 
         // Active Sequential Pose hold tracking
         if (state.autoActive && state.lockoutTimerMs === 0) {
@@ -1181,12 +1733,12 @@ export function onPoseResults(results) {
           }, liveMetrics, results);
         }
 
-        statusElement.textContent = `✅ Calibrated Tracking active. Real-time biometrics rendering.`;
+        statusElement.textContent = `Calibrated Tracking active. Real-time biometrics rendering.`;
       } else {
-        statusElement.textContent = "⚠️ Scale not calibrated yet. Lock your 200mm marker calibration first.";
+        statusElement.textContent = " Scale not calibrated yet. Lock your 200mm marker calibration first.";
       }
     } else {
-      statusElement.textContent = "🔍 Scanning for a person... Align your printed marker first.";
+      statusElement.textContent = "Scanning for a person... Align your printed marker first.";
     }
   }
 
@@ -1291,7 +1843,7 @@ function captureSnapshot(joints, metrics, results) {
   captureBtn.classList.remove('btn-capture');
   captureBtn.classList.add('btn-capture-reset');
   
-  statusElement.textContent = "📸 SNAPSHOT CAPTURED! Biomechanical statistics frozen on screen.";
+  statusElement.textContent = "SNAPSHOT CAPTURED! Biomechanical statistics frozen on screen.";
   
   // Set default label in input
   const nameInput = document.getElementById('snapshot-name-input');
@@ -1299,9 +1851,8 @@ function captureSnapshot(joints, metrics, results) {
     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     const dateStr = new Date().toLocaleDateString('en-US', options);
     
-    // Retrieve active subject name if typed
-    const subjectInput = document.getElementById('subject-name-input');
-    const subjectName = subjectInput ? subjectInput.value.trim() : '';
+    // Retrieve active subject name from profile or input fallback
+    const subjectName = getActiveProfileName(false);
     
     const poseName = (metrics && metrics.pose) ? metrics.pose : "Posture Scan";
     
@@ -1379,7 +1930,7 @@ export function drawLockoutTransitionOverlay() {
     nextPose = "Generating consolidated report...";
   }
   
-  canvasCtx.fillText(`✅ ${currentCap} CAPTURED!`, canvasElement.width / 2, panelY + 18);
+  canvasCtx.fillText(`${currentCap} CAPTURED!`, canvasElement.width / 2, panelY + 18);
   
   canvasCtx.fillStyle = '#e2e8f0';
   canvasCtx.font = '500 12px sans-serif';
@@ -1424,6 +1975,106 @@ export function drawLockoutTransitionOverlay() {
   }
 
   canvasCtx.restore();
+}
+
+export function saveCombinedSessionSnapshot() {
+  const subjectName = getActiveProfileName(false);
+  const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  const dateStr = new Date().toLocaleDateString('en-US', options);
+  
+  let label = "";
+  if (subjectName) {
+    label = `${subjectName} - Combined Report - ${dateStr}`;
+  } else {
+    label = `Combined Report - ${dateStr}`;
+  }
+
+  // Retrieve active DOM pinch/span measurements in raw cm values
+  const pinch_l_cm = getDomMeasurementCm('val-pinch-l');
+  const pinch_r_cm = getDomMeasurementCm('val-pinch-r');
+  const span_l_cm = getDomMeasurementCm('val-span-l');
+  const span_r_cm = getDomMeasurementCm('val-span-r');
+
+  const mA = state.metricsA || {};
+  const mT = state.metricsT || {};
+  const mO = state.metricsOverhead || {};
+
+  const consolidatedMetrics = {
+    pose: "Combined",
+    isCombinedSession: true,
+    skeletal_height: mA.skeletal_height,
+    wingspan: mT.wingspan,
+    fingerToToeL: mO.fingerToToeL,
+    fingerToToeR: mO.fingerToToeR,
+    hipW: mA.hipW,
+    
+    // Segment lengths from optimal pose (A-Pose)
+    thigh_l: mA.thigh_l,
+    thigh_r: mA.thigh_r,
+    shin_l: mA.shin_l,
+    shin_r: mA.shin_r,
+    foot_l: mA.foot_l,
+    foot_r: mA.foot_r,
+    torso_l: mA.torso_l,
+    torso_r: mA.torso_r,
+    upperarm_l: mA.upperarm_l,
+    upperarm_r: mA.upperarm_r,
+    forearm_l: mA.forearm_l,
+    forearm_r: mA.forearm_r,
+
+    // Store joint angles for switcher display in modal
+    anglesA: {
+      kneeAngleL: mA.kneeAngleL,
+      kneeAngleR: mA.kneeAngleR,
+      hipAngleL: mA.hipAngleL,
+      hipAngleR: mA.hipAngleR,
+      elbowAngleL: mA.elbowAngleL,
+      elbowAngleR: mA.elbowAngleR
+    },
+    anglesT: {
+      kneeAngleL: mT.kneeAngleL,
+      kneeAngleR: mT.kneeAngleR,
+      hipAngleL: mT.hipAngleL,
+      hipAngleR: mT.hipAngleR,
+      elbowAngleL: mT.elbowAngleL,
+      elbowAngleR: mT.elbowAngleR
+    },
+    anglesOverhead: {
+      kneeAngleL: mO.kneeAngleL,
+      kneeAngleR: mO.kneeAngleR,
+      hipAngleL: mO.hipAngleL,
+      hipAngleR: mO.hipAngleR,
+      elbowAngleL: mO.elbowAngleL,
+      elbowAngleR: mO.elbowAngleR
+    },
+
+    pinch_l_cm,
+    pinch_r_cm,
+    span_l_cm,
+    span_r_cm
+  };
+
+  const snapshotRecord = {
+    name: label,
+    timestamp: Date.now(),
+    isCombinedSession: true,
+    imageA: state.imageA,
+    imageT: state.imageT,
+    imageOverhead: state.imageOverhead,
+    image: state.imageA, // Fallback/Thumbnail image is the A-pose image
+    metrics: consolidatedMetrics
+  };
+
+  if (state.dbInitialized) {
+    snapshotStore.save(snapshotRecord)
+      .then(() => {
+        console.log(`[AutoCapture] Saved combined "${label}" session snapshot to IndexedDB gallery.`);
+        renderGallery();
+      })
+      .catch(err => {
+        console.error("[AutoCapture] Failed to save combined snapshot to IndexedDB:", err);
+      });
+  }
 }
 
 function drawFrozenSnapshot() {
@@ -1487,7 +2138,7 @@ function drawFrozenSnapshot() {
   canvasCtx.font = 'bold 12px sans-serif';
   canvasCtx.textAlign = 'center';
   canvasCtx.textBaseline = 'middle';
-  canvasCtx.fillText('📸 SNAPSHOT FROZEN', 0, 0);
+  canvasCtx.fillText('SNAPSHOT FROZEN', 0, 0);
   canvasCtx.restore();
 
   // 4. Draw camera flash if still active
@@ -1510,11 +2161,8 @@ export function startUiRenderLoop() {
     if (state.activeStream && !videoElement.paused && !videoElement.ended) {
       shouldRender = true;
     } else if (state.isUploadedMedia) {
-      if (state.uploadedMediaType === 'video' && !uploadedVideo.paused && !uploadedVideo.ended) {
-        shouldRender = true;
-      } else if (state.uploadedMediaType === 'image') {
-        shouldRender = true;
-      }
+      // Keep tick active for uploaded media (video/image) to cleanly manage canvas clears on pause
+      shouldRender = true;
     }
 
     if (shouldRender) {
@@ -1544,6 +2192,11 @@ export function startUiRenderLoop() {
             state.latestHandResults = closestFrame.handResults;
             onPoseResults(mockedResults);
           }
+
+          // Update playout progress bar live!
+          const duration = uploadedVideo.duration || 1;
+          const playoutPercent = Math.min(100, (curTime / duration) * 100);
+          showExportProgressOverlay(playoutPercent, 2);
         } catch (err) {
           console.error("Error in playout render tick:", err);
           try {
@@ -1555,13 +2208,18 @@ export function startUiRenderLoop() {
             console.error("Playout tick fallback drawing failed:", e);
           }
         }
+      } else if (state.isUploadedMedia && state.uploadedMediaType === 'video') {
+        // Standard playback of imported/uploaded video: completely clean, no overlays
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.restore();
       } else {
-        if (state.latestPoseResults) {
+        if (state.latestPoseResults && !state.activeModalVideoProcessing) {
           // If YOLO mode is active, we let the async callback handle drawing to avoid WebGL recycled resource flashing
           if (!state.yoloModeActive) {
             onPoseResults(state.latestPoseResults);
           }
-        } else {
+        } else if (!state.latestPoseResults) {
           // If no results yet, clear canvas, draw background, and draw manual calibration box if active
           canvasCtx.save();
           canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -1584,7 +2242,7 @@ export function startUiRenderLoop() {
           canvasCtx.restore();
         }
         
-        if (state.latestHandResults && drawHandMesh) {
+        if (state.latestHandResults && drawHandMesh && !state.activeModalVideoProcessing) {
           drawHandMesh(state.latestHandResults.multiHandLandmarks, state.latestHandResults.multiHandedness);
         }
       }
@@ -1651,6 +2309,45 @@ export function resetAndResume() {
   }
 }
 
+export function stopActiveROMRecordings() {
+  // Safe safeguard: stop any active video recording
+  if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+    try { state.mediaRecorder.stop(); } catch(e){}
+    state.isRecording = false;
+  }
+
+  if (state.thoracicExtension) {
+    state.thoracicExtension.isRecording = false;
+    const btnSaveThoracic = document.getElementById('btn-save-thoracic-results');
+    if (btnSaveThoracic) {
+      btnSaveThoracic.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+        Capture Thoracic Snapshot
+      `;
+      btnSaveThoracic.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      btnSaveThoracic.style.borderColor = '';
+      btnSaveThoracic.classList.remove('recording-pulse');
+    }
+    setThoracicExtensionStatus('Ready to Record', 'text-emerald');
+    updateThoracicExtensionSidebarUI();
+  }
+
+  if (state.ankleDorsi) {
+    state.ankleDorsi.isRecording = false;
+    const btnSaveDorsi = document.getElementById('btn-save-dorsi-results');
+    if (btnSaveDorsi) {
+      btnSaveDorsi.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+        Capture Dorsi Snapshot
+      `;
+      btnSaveDorsi.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      btnSaveDorsi.style.borderColor = '';
+      btnSaveDorsi.classList.remove('recording-pulse');
+    }
+    updateDorsiLiveUI();
+  }
+}
+
 // ==========================================
 // CAMERA STREAM MANAGEMENT
 // ==========================================
@@ -1677,10 +2374,7 @@ export async function startCamera(preferredDeviceId = null) {
   }
 
   // Safe safeguard: stop any active recording on session switch
-  if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
-    try { state.mediaRecorder.stop(); } catch(e){}
-    state.isRecording = false;
-  }
+  stopActiveROMRecordings();
 
   if (uploadedVideo) {
     uploadedVideo.classList.add('hidden');
@@ -1820,14 +2514,26 @@ export async function startCamera(preferredDeviceId = null) {
       state.calBoxX = w / 2;
       state.calBoxY = h / 2;
       
+      // Clear scale metrics cache on camera feed dimensions update
+      state.lastProcessedScaleFactor = null;
+      state.lastCalculatedResults = null;
+      
       const viewport = document.querySelector('.viewport');
       if (viewport) {
         viewport.style.aspectRatio = `${w} / ${h}`;
       }
       
+      console.log(`[CameraFeed] Stream metadata loaded. Coordinates calibrated to ${w}x${h}`);
+      
       videoElement.play();
       statusElement.textContent = "Camera active. Syncing with computer vision models...";
     };
+
+    videoElement.srcObject = state.activeStream;
+    // Mirror the view only for front/user camera
+    videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
+
+    let consecutiveErrors = 0;
 
     // Throttled concurrent model inference loop (runs in background)
     async function cameraInferenceLoop() {
@@ -1839,12 +2545,65 @@ export async function startCamera(preferredDeviceId = null) {
 
       const startTime = Date.now();
       try {
-          // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
+        // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
+        if (!state.activeModalVideoProcessing) {
           await pose.send({ image: videoElement });
           await hands.send({ image: videoElement });
+          consecutiveErrors = 0;
         }
+      }
       catch (err) {
         console.error("Camera inference loop error:", err);
+        consecutiveErrors++;
+
+        if (consecutiveErrors >= 5) {
+          console.error("Critical: Multiple consecutive camera inference failures detected. Stopping loop to prevent system freeze.");
+          state.isCameraInferenceLoopRunning = false;
+          
+          // Stop camera track to release hardware lock
+          try {
+            if (state.activeStream) {
+              state.activeStream.getTracks().forEach(track => track.stop());
+              state.activeStream = null;
+            }
+          } catch (e) {
+            console.warn("Could not release active camera stream:", e);
+          }
+          
+          if (startButton) {
+            startButton.classList.remove('hidden');
+          }
+          
+          const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+          let extraTip = "";
+          if (isFirefox) {
+            extraTip = `<br><br><strong style="color: #f59e0b;">Firefox Specific Tip:</strong> Firefox sometimes restricts WebGL context creation due to driver blacklists or performance settings. You can force-enable it by navigating to <code>about:config</code> in a new tab, searching for <code>webgl.force-enabled</code>, and setting it to <code>true</code>.`;
+          }
+          
+          if (statusElement) {
+            statusElement.innerHTML = `
+              <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); padding: 1.25rem; border-radius: 12px; margin-top: 1rem; text-align: left; color: #fecaca; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+                <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #f87171; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                  <svg width="22" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #ef4444;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  Tracking Initialization Failed (WebGL Error)
+                </h4>
+                <p style="margin-bottom: 0.85rem; font-size: 0.92rem; color: #fca5a5;">
+                  Our real-time biometric analysis engine requires browser-level WebGL graphics acceleration. Your browser or GPU driver currently has hardware acceleration disabled or context creation refused.
+                </p>
+                <div style="font-size: 0.88rem; background: rgba(0,0,0,0.3); padding: 0.85rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                  <strong>How to fix this in under a minute:</strong>
+                  <ol style="margin: 0.5rem 0 0 1.25rem; padding: 0; display: flex; flex-direction: column; gap: 4px;">
+                    <li>Open your browser settings (e.g., in Chrome: <code>Settings &gt; System</code>; in Firefox: <code>Settings &gt; General &gt; Performance</code>).</li>
+                    <li>Toggle <strong>"Use graphics/hardware acceleration when available"</strong> to ON.</li>
+                    <li>Relaunch your browser and reload this page to activate high-precision tracking.</li>
+                  </ol>
+                  ${extraTip}
+                </div>
+              </div>
+            `;
+          }
+          return;
+        }
       }
 
       const elapsed = Date.now() - startTime;
@@ -1856,7 +2615,13 @@ export async function startCamera(preferredDeviceId = null) {
     videoElement.onplay = () => {
       if (state.currentMode === 'squat') {
         const side = state.squatTestingSide || 'left';
-        statusElement.textContent = `Active squat tracking. Position subject profile view for the ${side.toUpperCase()} side.`;
+        if (side === 'frontal') {
+          statusElement.textContent = `Active squat tracking. Position subject facing front for the FRONTAL view.`;
+        } else {
+          statusElement.textContent = `Active squat tracking. Position subject profile view for the ${side.toUpperCase()} side.`;
+        }
+      } else {
+        statusElement.textContent = "Active tracking. Present your printed ArUco marker to calibrate scale!";
       }
       startUiRenderLoop();
       cameraInferenceLoop();
@@ -1866,11 +2631,11 @@ export async function startCamera(preferredDeviceId = null) {
     console.error("Camera access failed:", err);
     startButton.classList.remove('hidden');
     if (err.name === 'NotAllowedError') {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
     } else if (err.name === 'NotReadableError') {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
+      statusElement.innerHTML = `<span class="text-red font-bold">Camera in use by another app!</span><br>Another app (Zoom, Teams, FaceTime, or a terminal script) is currently locking your camera. Please close it and try again.`;
     } else {
-      statusElement.innerHTML = `<span class="text-red font-bold">❌ Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
+      statusElement.innerHTML = `<span class="text-red font-bold">Error: ${err.message}</span><br>Please make sure you are loading this page via 'http://localhost:8000' and not 'file://' (which blocks camera access).`;
     }
   }
 }
@@ -1881,10 +2646,303 @@ startButton.addEventListener('click', startCamera);
 // UPLOADED MEDIA INTEGRATION
 // ==========================================
 
+export function showImportDestinationModal(file) {
+  return new Promise((resolve) => {
+    // 1. Create overlay backdrop
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(10, 10, 15, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      font-family: 'Inter', sans-serif;
+    `;
+
+    // Calculate file size in MB
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+
+    // 2. Create modal card container
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: rgba(20, 20, 30, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      width: 500px;
+      max-width: 90%;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      transform: scale(0.92);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      color: #fff;
+    `;
+
+    // 3. Create content
+    card.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; text-align: center;">
+        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #818cf8, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Import Video Recording</h2>
+        <p style="font-size: 13px; color: #9ca3af; margin: 0; word-break: break-all;">${file.name} (${fileSizeMB} MB)</p>
+      </div>
+      
+      <p style="font-size: 14px; font-weight: 600; color: #e5e7eb; margin: 0 0 14px 0;">Select destination for this recording:</p>
+      
+      <div id="import-options-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
+        <!-- Option 1: Saved Video Recordings Playlist -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="playlist" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Saved Video Recordings Playlist</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Adds video to subject's saved playlist without updating active test slots.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Option 2: Overhead Squat Parent -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="squat-parent" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;"> Overhead Squat Video</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Analyze knee mobility, depth peaks, and frontal valgus/varus alignment.</div>
+            </div>
+          </div>
+          <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select perspective option:</div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="squat-sub" value="squat-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Sagittal Squat
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="squat-sub" value="squat-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Sagittal Squat
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="squat-sub" value="squat-frontal" style="width: 14px; height: 14px; accent-color: #818cf8;"> Frontal Squat (Knee Valgus)
+            </label>
+          </div>
+        </div>
+
+        <!-- Option 3: Shoulder Flexion Parent -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="shoulder-parent" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Shoulder Flexion Video</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Compute shoulder flexion range of motion and extension angles.</div>
+            </div>
+          </div>
+          <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-sub" value="shoulder-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Flexion
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-sub" value="shoulder-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Flexion
+            </label>
+          </div>
+        </div>
+
+        <!-- Option 4: Shoulder Rotation Parent -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="shoulder-rotation-parent" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Shoulder Rotation Video</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Compute shoulder internal and external rotation angles (sagittal view).</div>
+            </div>
+          </div>
+          <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
+            <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Rotation
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Rotation
+            </label>
+          </div>
+        </div>
+
+        <!-- Option 5: Analyze Video (No save) -->
+        <div class="import-opt-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="import-opt-card" data-value="analyze-only" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease;">
+            <div class="import-radio" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s ease;">
+              <div class="import-radio-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #fff; display: none;"></div>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #f3f4f6;">Analyze Video (Don't Save)</div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 1px;">Loads transiently on the viewport for temporary analysis without database commit.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+        <button id="import-btn-cancel" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); color: #9ca3af; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">Cancel</button>
+        <button id="import-btn-confirm" disabled style="background: rgba(255, 255, 255, 0.03); border: none; color: rgba(255, 255, 255, 0.35); padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: not-allowed; transition: all 0.2s ease;">Confirm Import</button>
+      </div>
+    `;
+
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+
+    // Fade in
+    setTimeout(() => {
+      backdrop.style.opacity = '1';
+      card.style.transform = 'scale(1)';
+    }, 10);
+
+    let selectedValue = null;
+    const optionCards = card.querySelectorAll('.import-opt-card');
+    const confirmBtn = card.querySelector('#import-btn-confirm');
+    const cancelBtn = card.querySelector('#import-btn-cancel');
+
+    // Add interactivity to option cards
+    optionCards.forEach((optCard) => {
+      // Hover effects
+      optCard.addEventListener('mouseenter', () => {
+        if (selectedValue !== optCard.dataset.value) {
+          optCard.style.background = 'rgba(255, 255, 255, 0.06)';
+          optCard.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+        }
+      });
+      optCard.addEventListener('mouseleave', () => {
+        if (selectedValue !== optCard.dataset.value) {
+          optCard.style.background = 'rgba(255, 255, 255, 0.02)';
+          optCard.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+        }
+      });
+
+      // Click handler
+      optCard.addEventListener('click', () => {
+        selectedValue = optCard.dataset.value;
+
+        // Hide all sub panels
+        const subPanels = card.querySelectorAll('.import-sub-options-panel');
+        subPanels.forEach(p => {
+          p.style.display = 'none';
+        });
+
+        // Show sub panel if applicable
+        const subPanel = optCard.parentElement.querySelector('.import-sub-options-panel');
+        if (subPanel) {
+          subPanel.style.display = 'flex';
+        }
+
+        // Update all options' styling
+        optionCards.forEach((otherCard) => {
+          const radio = otherCard.querySelector('.import-radio');
+          const dot = otherCard.querySelector('.import-radio-dot');
+          if (otherCard.dataset.value === selectedValue) {
+            otherCard.style.background = 'rgba(129, 140, 248, 0.12)';
+            otherCard.style.borderColor = '#818cf8';
+            otherCard.style.boxShadow = '0 0 12px rgba(129, 140, 248, 0.2)';
+            radio.style.borderColor = '#818cf8';
+            radio.style.background = '#818cf8';
+            dot.style.display = 'block';
+          } else {
+            otherCard.style.background = 'rgba(255, 255, 255, 0.02)';
+            otherCard.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+            otherCard.style.boxShadow = 'none';
+            radio.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+            radio.style.background = 'transparent';
+            dot.style.display = 'none';
+          }
+        });
+
+        // Enable confirm button
+        confirmBtn.removeAttribute('disabled');
+        confirmBtn.style.background = 'linear-gradient(135deg, #818cf8, #ec4899)';
+        confirmBtn.style.color = '#fff';
+        confirmBtn.style.cursor = 'pointer';
+        confirmBtn.style.boxShadow = '0 4px 12px rgba(129, 140, 248, 0.25)';
+      });
+    });
+
+    // Close function
+    function closeWithResult(result) {
+      backdrop.style.opacity = '0';
+      card.style.transform = 'scale(0.92)';
+      setTimeout(() => {
+        backdrop.remove();
+        resolve(result);
+      }, 300);
+    }
+
+    confirmBtn.addEventListener('click', () => {
+      if (selectedValue) {
+        let finalValue = selectedValue;
+        if (selectedValue === 'squat-parent') {
+          const checkedRadio = card.querySelector('input[name="squat-sub"]:checked');
+          finalValue = checkedRadio ? checkedRadio.value : 'squat-l';
+        } else if (selectedValue === 'shoulder-parent') {
+          const checkedRadio = card.querySelector('input[name="shoulder-sub"]:checked');
+          finalValue = checkedRadio ? checkedRadio.value : 'shoulder-l';
+        } else if (selectedValue === 'shoulder-rotation-parent') {
+          const checkedRadio = card.querySelector('input[name="shoulder-rotation-sub"]:checked');
+          finalValue = checkedRadio ? checkedRadio.value : 'shoulder-rotation-l';
+        }
+        closeWithResult(finalValue);
+      }
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      closeWithResult(null);
+    });
+
+    // Close on backdrop click (cancel)
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) {
+        closeWithResult(null);
+      }
+    });
+  });
+}
+
+
+
+
+
 export async function handleUploadedFile(file) {
+  if (state.isExportingFrameByFrame || state.isRecordingPlayLoop) {
+    alert("An export is currently in progress. Please wait until the export completes before uploading new files.");
+    return;
+  }
   if (!file) return;
 
   const isVideo = file.type.startsWith('video/');
+  
+  if (isVideo) {
+    if (!state.activeProfileId) {
+      alert("Please select or create a player profile in the dashboard first to import video recordings!");
+      return;
+    }
+
+    const selectedTarget = await showImportDestinationModal(file);
+    if (!selectedTarget) {
+      console.log("[VideoImport] User cancelled video import.");
+      return;
+    }
+
+    // Store target temporarily
+    state.pendingImportTarget = selectedTarget;
+  }
+
   state.isUploadedMedia = true;
   state.uploadedMediaType = isVideo ? 'video' : 'image';
   state.latestPoseResults = null;
@@ -1908,11 +2966,9 @@ export async function handleUploadedFile(file) {
   const exportCombinedBtn = document.getElementById('btn-export-combined');
   if (exportCombinedBtn) {
     if (isVideo) {
-      exportCombinedBtn.classList.add('hidden');
-      exportCombinedBtn.classList.remove('visible-block');
+      exportCombinedBtn.style.display = 'none';
     } else {
-      exportCombinedBtn.classList.remove('hidden');
-      exportCombinedBtn.classList.add('visible-block');
+      exportCombinedBtn.style.display = 'block';
     }
   }
 
@@ -1969,14 +3025,8 @@ export async function handleUploadedFile(file) {
       uploadedImage.src = "";
     }
     if (uploadedVideo) {
-      uploadedVideo.src = objectURL;
-      uploadedVideo.classList.remove('hidden');
-      uploadedVideo.classList.add('video-visible');
-      uploadedVideo.muted = true;
-      uploadedVideo.loop = true;
-      
-      uploadedVideo.onloadedmetadata = () => {
-        uploadedVideo.play();
+      // Attach event listeners BEFORE setting the source to prevent race-conditions with cached/local media loading!
+      uploadedVideo.onloadedmetadata = async () => {
         state.canvasWidth = uploadedVideo.videoWidth || 640;
         state.canvasHeight = uploadedVideo.videoHeight || 480;
         canvasElement.width = state.canvasWidth;
@@ -1996,7 +3046,108 @@ export async function handleUploadedFile(file) {
         state.calBoxX = state.canvasWidth / 2;
         state.calBoxY = state.canvasHeight / 2;
 
-        statusElement.textContent = "Uploaded video active. Syncing with computer vision models...";
+        const importTarget = state.pendingImportTarget;
+        if (importTarget && importTarget !== 'analyze-only') {
+          // Clear it immediately to prevent duplicate runs
+          state.pendingImportTarget = null;
+
+          statusElement.textContent = "Preparing imported video for high-fidelity export and peak analysis...";
+          
+          // Ensure state.squatPeaks is initialized
+          state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
+
+          // Configure state based on target to guide the pre-processing engine and layout templates
+          if (importTarget === 'squat-l' || importTarget === 'squat-r' || importTarget === 'squat-frontal') {
+            state.currentMode = 'squat';
+            if (importTarget === 'squat-l') {
+              state.squatTestingSide = 'left';
+              state.allowFrontalUpdateL = false;
+              state.allowFrontalUpdateR = false;
+              state.squatPeaks.kneeL = 0;
+              state.squatPeaks.hipL = 0;
+              state.squatPeaks.ankleL = 0;
+              state.imageSquatL = null; // Clear pre-existing static overlay
+            } else if (importTarget === 'squat-r') {
+              state.squatTestingSide = 'right';
+              state.allowFrontalUpdateL = false;
+              state.allowFrontalUpdateR = false;
+              state.squatPeaks.kneeR = 0;
+              state.squatPeaks.hipR = 0;
+              state.squatPeaks.ankleR = 0;
+              state.imageSquatR = null; // Clear pre-existing static overlay
+            } else if (importTarget === 'squat-frontal') {
+              state.squatTestingSide = 'frontal';
+              // Allow updating left/right peak metrics during a frontal squat if they are currently 0 (missing)
+              state.allowFrontalUpdateL = (!state.squatPeaks || state.squatPeaks.kneeL === 0 && state.squatPeaks.hipL === 0 && state.squatPeaks.ankleL === 0);
+              state.allowFrontalUpdateR = (!state.squatPeaks || state.squatPeaks.kneeR === 0 && state.squatPeaks.hipR === 0 && state.squatPeaks.ankleR === 0);
+              state.squatPeaks.maxKneeCaveL = 0;
+              state.squatPeaks.maxKneeCaveR = 0;
+              state.squatPeaks.valgusFirstTimestamp = null;
+              state.squatPeaks.valgusPeakTimestamp = null;
+              state.squatPeaks.valgusPeakScore = 0;
+              state.imageSquatFrontal = null; // Clear pre-existing static overlay
+            }
+
+            // Sync the active mode and side selectors in the UI
+            setExerciseMode('squat');
+          } else if (importTarget === 'shoulder-l' || importTarget === 'shoulder-r') {
+            state.currentMode = 'shoulder_flexion';
+            state.shoulderPeaks = getDefaultShoulderPeaks(state.shoulderPeaks);
+            if (importTarget === 'shoulder-l') {
+              state.shoulderTestingSide = 'left';
+              state.shoulderPeaks.excursionL = 0;
+              state.shoulderPeaks.startAngleL = null;
+              state.shoulderPeaks.endAngleL = null;
+              state.shoulderPeaks.jointsLStart = null;
+              state.shoulderPeaks.jointsLEnd = null;
+              state.imageShoulderLStart = null;
+              state.imageShoulderLEnd = null;
+            } else if (importTarget === 'shoulder-r') {
+              state.shoulderTestingSide = 'right';
+              state.shoulderPeaks.excursionR = 0;
+              state.shoulderPeaks.startAngleR = null;
+              state.shoulderPeaks.endAngleR = null;
+              state.shoulderPeaks.jointsRStart = null;
+              state.shoulderPeaks.jointsREnd = null;
+              state.imageShoulderRStart = null;
+              state.imageShoulderREnd = null;
+            }
+
+            // Sync the active mode and side selectors in the UI
+            setExerciseMode('shoulder');
+          } else if (importTarget === 'shoulder-rotation-l' || importTarget === 'shoulder-rotation-r') {
+            state.currentMode = 'shoulder_rotation';
+            state.shoulderRotation = getDefaultShoulderRotation(state.shoulderRotation);
+            if (importTarget === 'shoulder-rotation-l') {
+              state.shoulderRotationTestingSide = 'left';
+              state.shoulderRotation.maxExternalRotationL = 0;
+              state.shoulderRotation.maxInternalRotationL = 0;
+              state.shoulderRotation.timeSeriesL = [];
+              state.imageShoulderRotationL = null;
+            } else if (importTarget === 'shoulder-rotation-r') {
+              state.shoulderRotationTestingSide = 'right';
+              state.shoulderRotation.maxExternalRotationR = 0;
+              state.shoulderRotation.maxInternalRotationR = 0;
+              state.shoulderRotation.timeSeriesR = [];
+              state.imageShoulderRotationR = null;
+            }
+
+            // Sync the active mode and side selectors in the UI
+            setExerciseMode('shoulder-rotation');
+          } else if (importTarget === 'playlist') {
+            setExerciseMode('posture');
+          }
+
+          // Trigger high-fidelity pre-processing + automatic playout export!
+          setTimeout(() => {
+            runVideoFramePreprocessing();
+          }, 300);
+        } else {
+          // Normal transient run or cancel, just play
+          state.pendingImportTarget = null;
+          uploadedVideo.play();
+          statusElement.textContent = "Uploaded video active. Syncing with computer vision models...";
+        }
       };
 
       uploadedVideo.onplay = () => {
@@ -2007,19 +3158,29 @@ export async function handleUploadedFile(file) {
         console.log(`[ExportDebug] uploadedVideo.onended fired. isRecording: ${state.isRecording}, isRecordingPlayLoop: ${state.isRecordingPlayLoop}, currentTime: ${uploadedVideo.currentTime}, duration: ${uploadedVideo.duration}`);
         if (state.isRecording) {
           if (state.isRecordingPlayLoop) {
-            statusElement.textContent = `⏱️ Video ended at ${uploadedVideo.currentTime.toFixed(1)}s. Finishing export...`;
+            statusElement.textContent = ` Video ended at ${uploadedVideo.currentTime.toFixed(1)}s. Finishing export...`;
             setTimeout(() => {
               stopVideoRecording();
             }, 100);
           } else {
             // Wait 2.5 seconds to let the MediaPipe processing pipeline catch up and drain fully to prevent end truncation
-            statusElement.textContent = "⏱️ Finalizing export, compiling remaining frames... please wait.";
+            statusElement.textContent = " Finalizing export, compiling remaining frames... please wait.";
             setTimeout(() => {
               stopVideoRecording();
             }, 2500);
           }
         }
       };
+
+      uploadedVideo.src = objectURL;
+      uploadedVideo.onerror = (e) => {
+        console.error("[VideoImport] Video element encountered error loading source:", e);
+      };
+      uploadedVideo.load(); // Explicitly trigger HTML5 source reload!
+      uploadedVideo.classList.remove('hidden');
+      uploadedVideo.classList.add('video-visible');
+      uploadedVideo.muted = true;
+      uploadedVideo.loop = true;
     }
   } else {
     // Image
@@ -2033,10 +3194,6 @@ export async function handleUploadedFile(file) {
       uploadedVideo.src = "";
     }
     if (uploadedImage) {
-      uploadedImage.src = objectURL;
-      uploadedImage.classList.remove('hidden');
-      uploadedImage.classList.add('video-visible');
-      
       uploadedImage.onload = async () => {
         const maxLiveDim = 1280;
         let w = uploadedImage.naturalWidth || 640;
@@ -2085,13 +3242,19 @@ export async function handleUploadedFile(file) {
 
         startUploadedMediaLoop();
       };
+
+      uploadedImage.src = objectURL;
+      uploadedImage.classList.remove('hidden');
+      uploadedImage.classList.add('video-visible');
     }
   }
 }
 
 export function startUploadedMediaLoop() {
+  let consecutiveErrors = 0;
+
   async function videoInferenceLoop() {
-    if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended || state.isRecordingPlayLoop || state.isExportingFrameByFrame) {
+    if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended || state.isRecordingPlayLoop || state.isExportingFrameByFrame || state.activeModalVideoProcessing) {
       state.isVideoInferenceLoopRunning = false;
       return;
     }
@@ -2100,13 +3263,27 @@ export function startUploadedMediaLoop() {
     const startTime = Date.now();
     try {
       if (!state.isSnapshotFrozen) {
-
         // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
         await pose.send({ image: uploadedVideo });
         await hands.send({ image: uploadedVideo });
+        consecutiveErrors = 0;
       }
     } catch (err) {
       console.error("Uploaded video processing error:", err);
+      consecutiveErrors++;
+
+      if (consecutiveErrors >= 5) {
+        console.error("Critical: Multiple consecutive failures in uploaded video processing. Pausing video.");
+        state.isVideoInferenceLoopRunning = false;
+        try {
+          uploadedVideo.pause();
+        } catch (e) {}
+
+        if (statusElement) {
+          statusElement.innerHTML = `<span class="text-red font-bold">Inference Engine Error!</span> WebGL context lost or driver crash. Please enable hardware acceleration in browser settings and reload.`;
+        }
+        return;
+      }
     }
 
     const elapsed = Date.now() - startTime;
@@ -2117,9 +3294,9 @@ export function startUploadedMediaLoop() {
   // Always kick off UI redraw loop
   startUiRenderLoop();
 
-  // If it's a video, also kick off the background inference loop
+  // If it's a video, also kick off the background inference loop (disabled to prevent redundant real-time overlays)
   if (state.uploadedMediaType === 'video') {
-    videoInferenceLoop();
+    state.isVideoInferenceLoopRunning = false;
   }
 }
 
@@ -2236,7 +3413,7 @@ function openSnapshotModal(id) {
         if (modalImg) modalImg.src = snapshot.image;
 
         if (m) {
-          const peaks = m.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
+          const peaks = getDefaultSquatPeaks(m.squatPeaks);
           setModalMetric('modal-squat-peak-knee-l', `${Math.round(peaks.kneeL)}°`);
           setModalMetric('modal-squat-peak-knee-r', `${Math.round(peaks.kneeR)}°`);
           setModalMetric('modal-squat-peak-hip-l', `${Math.round(peaks.hipL)}°`);
@@ -2524,7 +3701,7 @@ function deleteSnapshotHandler(id) {
   snapshotStore.delete(id)
     .then(() => {
       renderGallery();
-      statusElement.textContent = "🗑️ Snapshot deleted successfully.";
+      statusElement.textContent = " Snapshot deleted successfully.";
     })
     .catch(err => {
       console.error("Failed to delete snapshot:", err);
@@ -2536,38 +3713,44 @@ function deleteSnapshotHandler(id) {
 // ==========================================
 
 // Calibration box size slider listeners
-slider.addEventListener('input', (e) => {
-  state.calBoxSize = parseInt(e.target.value);
-  sliderValDisplay.textContent = `${state.calBoxSize} px`;
-  if (state.calLocked) {
-    state.calLocked = false;
-    state.scaleFactor3D = null; // Reset 3D scale so that it re-estimates based on new card scale!
+if (slider) {
+  slider.addEventListener('input', (e) => {
+    state.calBoxSize = parseInt(e.target.value);
+    if (sliderValDisplay) sliderValDisplay.textContent = `${state.calBoxSize} px`;
+    if (state.calLocked) {
+      state.calLocked = false;
+      state.scaleFactor3D = null; // Reset 3D scale so that it re-estimates based on new card scale!
+      clearSmoothBuffer('height_scale_calibration');
+      clearSmoothBuffer('body_height_skeletal');
+      clearSmoothBuffer('body_height_live');
+      
+      if (lockCalButton) {
+        lockCalButton.textContent = "Lock 20cm Calibration";
+        lockCalButton.classList.add('cal-btn-unlocked');
+        lockCalButton.classList.remove('cal-btn-locked');
+      }
+    }
+  });
+}
+
+if (lockCalButton) {
+  lockCalButton.addEventListener('click', () => {
+    state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
+    state.calLocked = true;
+    state.scaleFactor3D = null; // Force recalibration of 3D scale factor using new pixelsPerCm
     clearSmoothBuffer('height_scale_calibration');
     clearSmoothBuffer('body_height_skeletal');
     clearSmoothBuffer('body_height_live');
     
-    lockCalButton.textContent = "Lock 20cm Calibration";
-    lockCalButton.classList.add('cal-btn-unlocked');
-    lockCalButton.classList.remove('cal-btn-locked');
-  }
-});
-
-lockCalButton.addEventListener('click', () => {
-  state.pixelsPerCm = state.calBoxSize / MARKER_PHYSICAL_SIZE_CM;
-  state.calLocked = true;
-  state.scaleFactor3D = null; // Force recalibration of 3D scale factor using new pixelsPerCm
-  clearSmoothBuffer('height_scale_calibration');
-  clearSmoothBuffer('body_height_skeletal');
-  clearSmoothBuffer('body_height_live');
-  
-  lockCalButton.textContent = "✅ Scale Locked!";
-  lockCalButton.classList.add('cal-btn-locked');
-  lockCalButton.classList.remove('cal-btn-unlocked');
-  statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
-  if (state.activeProfileId) {
-    autoSyncToActiveProfile();
-  }
-});
+    lockCalButton.textContent = "Scale Locked!";
+    lockCalButton.classList.add('cal-btn-locked');
+    lockCalButton.classList.remove('cal-btn-unlocked');
+    if (statusElement) statusElement.textContent = `Scale calibrated: ${state.pixelsPerCm.toFixed(2)} px/cm.`;
+    if (state.activeProfileId) {
+      autoSyncToActiveProfile();
+    }
+  });
+}
 
 // Preset Position buttons
 const posLeftBtn = document.getElementById('pos-left-btn');
@@ -2576,34 +3759,42 @@ const posRightBtn = document.getElementById('pos-right-btn');
 
 function updatePosBtnStyles(activeBtn) {
   [posLeftBtn, posCenterBtn, posRightBtn].forEach(btn => {
-    btn.classList.toggle('btn-tab-active', btn === activeBtn);
-    btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+    if (btn) {
+      btn.classList.toggle('btn-tab-active', btn === activeBtn);
+      btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
+    }
   });
 }
 
-posLeftBtn.addEventListener('click', () => {
-  const w = state.canvasWidth || 640;
-  const h = state.canvasHeight || 480;
-  state.calBoxX = w * 0.15;
-  state.calBoxY = h / 2;
-  updatePosBtnStyles(posLeftBtn);
-});
+if (posLeftBtn) {
+  posLeftBtn.addEventListener('click', () => {
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    state.calBoxX = w * 0.15;
+    state.calBoxY = h / 2;
+    updatePosBtnStyles(posLeftBtn);
+  });
+}
 
-posCenterBtn.addEventListener('click', () => {
-  const w = state.canvasWidth || 640;
-  const h = state.canvasHeight || 480;
-  state.calBoxX = w / 2;
-  state.calBoxY = h / 2;
-  updatePosBtnStyles(posCenterBtn);
-});
+if (posCenterBtn) {
+  posCenterBtn.addEventListener('click', () => {
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    state.calBoxX = w / 2;
+    state.calBoxY = h / 2;
+    updatePosBtnStyles(posCenterBtn);
+  });
+}
 
-posRightBtn.addEventListener('click', () => {
-  const w = state.canvasWidth || 640;
-  const h = state.canvasHeight || 480;
-  state.calBoxX = w * 0.85;
-  state.calBoxY = h / 2;
-  updatePosBtnStyles(posRightBtn);
-});
+if (posRightBtn) {
+  posRightBtn.addEventListener('click', () => {
+    const w = state.canvasWidth || 640;
+    const h = state.canvasHeight || 480;
+    state.calBoxX = w * 0.85;
+    state.calBoxY = h / 2;
+    updatePosBtnStyles(posRightBtn);
+  });
+}
 
 // Mouse/Touch Drag and Drop positioning logic for the calibration guide box
 let isDragging = false;
@@ -2739,50 +3930,81 @@ function updateSidebarPlaceholders() {
 setTimeout(updateSidebarPlaceholders, 100);
 
 // Multi-unit system controls (Inches/Cm togglers)
+export function setUnitSystem(useInches) {
+  state.useInches = useInches;
+
+  // 1. Sync class list on main togglers
+  const unitInchBtn = document.getElementById('unit-inch-btn');
+  const unitCmBtn = document.getElementById('unit-cm-btn');
+  if (unitInchBtn && unitCmBtn) {
+    if (useInches) {
+      unitInchBtn.classList.add('active');
+      unitCmBtn.classList.remove('active');
+    } else {
+      unitInchBtn.classList.remove('active');
+      unitCmBtn.classList.add('active');
+    }
+  }
+
+  // 2. Sync class list on modal togglers
+  const modalUnitInchBtn = document.getElementById('modal-unit-inch-btn');
+  const modalUnitCmBtn = document.getElementById('modal-unit-cm-btn');
+  if (modalUnitInchBtn && modalUnitCmBtn) {
+    if (useInches) {
+      modalUnitInchBtn.classList.add('active');
+      modalUnitCmBtn.classList.remove('active');
+    } else {
+      modalUnitInchBtn.classList.remove('active');
+      modalUnitCmBtn.classList.add('active');
+    }
+  }
+
+  // 3. Update related input displays & validations
+  updateHeightInputUnit();
+  updateStateInputHeight();
+  updateSidebarPlaceholders();
+
+  // 4. Update live dashboard if frozen or live placeholders
+  if (state.isSnapshotFrozen && state.frozenMetrics) {
+    renderDashboard(state.frozenMetrics);
+  } else {
+    updateDashboardOfflinePlaceholders();
+  }
+
+  // 5. Update gallery if initialized
+  if (state.dbInitialized) {
+    renderGallery();
+  }
+
+  // 6. Update open snapshot modal
+  const modal = document.getElementById('snapshot-modal');
+  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
+    openSnapshotModal(state.activeModalSnapshotId);
+  }
+
+  // 7. Update profile details modal if active
+  const profileDetailsModal = document.getElementById('profile-details-modal');
+  if (profileDetailsModal && profileDetailsModal.classList.contains('active')) {
+    if (state.activeProfileId) {
+      openProfileDetailsModal(state.activeProfileId, true);
+    }
+  }
+}
+
 const unitInchBtn = document.getElementById('unit-inch-btn');
 const unitCmBtn = document.getElementById('unit-cm-btn');
 
-unitInchBtn.addEventListener('click', () => {
-  state.useInches = true;
-  unitInchBtn.classList.add('active');
-  unitCmBtn.classList.remove('active');
-  updateHeightInputUnit();
-  updateStateInputHeight();
-  updateSidebarPlaceholders();
-  if (state.isSnapshotFrozen && state.frozenMetrics) {
-    renderDashboard(state.frozenMetrics);
-  } else {
-    updateDashboardOfflinePlaceholders();
-  }
-  if (state.dbInitialized) {
-    renderGallery();
-  }
-  const modal = document.getElementById('snapshot-modal');
-  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
-    openSnapshotModal(state.activeModalSnapshotId);
-  }
-});
+if (unitInchBtn) {
+  unitInchBtn.addEventListener('click', () => {
+    setUnitSystem(true);
+  });
+}
 
-unitCmBtn.addEventListener('click', () => {
-  state.useInches = false;
-  unitCmBtn.classList.add('active');
-  unitInchBtn.classList.remove('active');
-  updateHeightInputUnit();
-  updateStateInputHeight();
-  updateSidebarPlaceholders();
-  if (state.isSnapshotFrozen && state.frozenMetrics) {
-    renderDashboard(state.frozenMetrics);
-  } else {
-    updateDashboardOfflinePlaceholders();
-  }
-  if (state.dbInitialized) {
-    renderGallery();
-  }
-  const modal = document.getElementById('snapshot-modal');
-  if (modal && !modal.classList.contains('hidden') && state.activeModalSnapshotId) {
-    openSnapshotModal(state.activeModalSnapshotId);
-  }
-});
+if (unitCmBtn) {
+  unitCmBtn.addEventListener('click', () => {
+    setUnitSystem(false);
+  });
+}
 
 // Switch calibration tabs
 function switchCalibrationTab(method, activeBtn, activePanel) {
@@ -2796,14 +4018,14 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
   clearSmoothBuffer('body_height_skeletal');
   clearSmoothBuffer('body_height_live');
   
-  [tabHeightBtn, tabPortfolioBtn].forEach(btn => {
+  [tabHeightBtn, tabPortfolioBtn, tabImportBtn].forEach(btn => {
     if (btn) {
       btn.classList.toggle('btn-tab-active', btn === activeBtn);
       btn.classList.toggle('btn-tab-inactive', btn !== activeBtn);
     }
   });
 
-  [panelHeight, panelPortfolio].forEach(panel => {
+  [panelHeight, panelPortfolio, panelImport].forEach(panel => {
     if (panel) {
       if (panel === activePanel) {
         panel.classList.remove('hidden');
@@ -2815,26 +4037,35 @@ function switchCalibrationTab(method, activeBtn, activePanel) {
     }
   });
 
-  // Set calibration state based on chosen method
   if (method === 'height') {
     state.pixelsPerCm = null; // Calculated dynamically in frame loop
     state.calLocked = true;   // Automatically consider locked/calibrated
-  }  else {
+  } else {
     state.pixelsPerCm = null;
     state.calLocked = false;
   }
 }
 
-tabHeightBtn.addEventListener('click', () => {
-  switchCalibrationTab('height', tabHeightBtn, panelHeight);
-});
-
+if (tabHeightBtn) {
+  tabHeightBtn.addEventListener('click', () => {
+    switchCalibrationTab('height', tabHeightBtn, panelHeight);
+  });
+}
 
 if (tabPortfolioBtn) {
   tabPortfolioBtn.addEventListener('click', () => {
     switchCalibrationTab('portfolio', tabPortfolioBtn, panelPortfolio);
   });
 }
+
+if (tabImportBtn) {
+  tabImportBtn.addEventListener('click', () => {
+    switchCalibrationTab('import', tabImportBtn, panelImport);
+  });
+}
+
+// Set initial tab state on load
+switchCalibrationTab('height', tabHeightBtn || null, panelHeight);
 
 // Premeasured scale factor pasting event listener
 if (btnApplyScale && inputPremeasuredScale) {
@@ -2850,7 +4081,7 @@ if (btnApplyScale && inputPremeasuredScale) {
 
     // Visual feedback glow
     btnApplyScale.classList.add('btn-success-glow');
-    btnApplyScale.textContent = "Scale Applied! ✅";
+    btnApplyScale.textContent = "Scale Applied! ";
     
     setTimeout(() => {
       btnApplyScale.classList.remove('btn-success-glow');
@@ -2865,7 +4096,7 @@ if (btnApplyScale && inputPremeasuredScale) {
 
 // Prior portfolio JSON session importer event listeners
 if (btnImportPortfolio && textareaPortfolioJson) {
-  btnImportPortfolio.addEventListener('click', () => {
+  btnImportPortfolio.addEventListener('click', async () => {
     const rawVal = textareaPortfolioJson.value.trim();
     if (!rawVal) {
       alert("Please paste a session JSON report in the text area.");
@@ -2874,7 +4105,7 @@ if (btnImportPortfolio && textareaPortfolioJson) {
 
     try {
       const data = JSON.parse(rawVal);
-      importPriorPortfolio(data);
+      await importPriorPortfolio(data);
     } catch (e) {
       alert(`Invalid JSON format: ${e.message}\nPlease make sure you are pasting a valid JSON object.`);
     }
@@ -2935,6 +4166,7 @@ export function exportCombinedAssessmentCard() {
   const jointRadius = Math.max(4.0, 5.0 * scale);
 
   const drawOffscreenJoint = (pt, color) => {
+    if (!pt || pt.x === undefined || pt.y === undefined) return;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, jointRadius, 0, 2 * Math.PI);
     ctx.fillStyle = color;
@@ -2945,6 +4177,7 @@ export function exportCombinedAssessmentCard() {
   };
 
   const drawOffscreenBone = (p1, p2, color) => {
+    if (!p1 || p1.x === undefined || p1.y === undefined || !p2 || p2.x === undefined || p2.y === undefined) return;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
@@ -3007,7 +4240,10 @@ export function exportCombinedAssessmentCard() {
 
   // Draw ruler
   if (state.pixelsPerCm && liveMetrics) {
-    const body_xs = [shoulder_l.x, shoulder_r.x, hip_l.x, hip_r.x, knee_l.x, knee_r.x, ankle_l.x, ankle_r.x];
+    const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
+      .filter(p => p !== null && p !== undefined && p.x !== undefined)
+      .map(p => p.x);
+    if (body_xs.length === 0) body_xs.push(width / 2);
     const min_x = Math.min(...body_xs);
     const max_x = Math.max(...body_xs);
     const ruler_margin = 40 * scale;
@@ -3087,8 +4323,7 @@ export function exportCombinedAssessmentCard() {
   ctx.lineTo(card_x + card_w - 15 * scale, card_y + 38 * scale);
   ctx.stroke();
 
-  const subjectInput = document.getElementById('subject-name-input');
-  const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
+  const subjectName = getActiveProfileName(false) || "Subject";
   ctx.fillStyle = '#ffffff';
   ctx.font = `bold ${Math.max(10, Math.round(11 * scale))}px sans-serif`;
   ctx.textAlign = 'left';
@@ -3177,231 +4412,11 @@ export function exportCombinedAssessmentCard() {
   link.click();
 }
 
-export function startVideoRecording() {
-  if (state.isRecording) return;
 
-  state.recordedChunks = [];
-  const fps = 30;
-  // Capture canvas stream
-  let stream;
-  try {
-    stream = canvasElement.captureStream(fps);
-  } catch (err) {
-    console.error("Canvas captureStream failed:", err);
-    alert("Could not start canvas recording. Your browser may not support canvas.captureStream().");
-    return;
-  }
 
-  // Determine the best supported mimeType (prioritizing stable WebM VP8 to prevent Windows VP9 hardware-acceleration crashes on Canvas recordings)
-  let mimeType = '';
-  const types = [
-    'video/webm;codecs=vp8',
-    'video/webm',
-    'video/webm;codecs=vp9',
-    'video/mp4;codecs=h264'
-  ];
-  for (const t of types) {
-    if (MediaRecorder.isTypeSupported(t)) {
-      mimeType = t;
-      break;
-    }
-  }
 
-  const options = mimeType ? { 
-    mimeType: mimeType,
-    videoBitsPerSecond: 2500000 // 2.5 Mbps target for stable, high-quality encoding without overwhelming the CPU/GPU
-  } : {};
-  
-  try {
-    state.mediaRecorder = new MediaRecorder(stream, options);
-  } catch (err) {
-    console.error("MediaRecorder initialization failed:", err);
-    alert("Could not initialize MediaRecorder. Please check browser compatibility.");
-    return;
-  }
 
-  // Handle encoding errors gracefully
-  state.mediaRecorder.onerror = (event) => {
-    console.error("[ExportDebug] MediaRecorder error:", event.error);
-    statusElement.textContent = `⚠️ Recording encoder error: ${event.error.name} - ${event.error.message}`;
-  };
 
-  state.mediaRecorder.ondataavailable = (event) => {
-    if (event.data && event.data.size > 0) {
-      state.recordedChunks.push(event.data);
-    }
-  };
-
-  state.mediaRecorder.onstop = () => {
-    console.log(`[ExportDebug] MediaRecorder stopped. Chunks collected: ${state.recordedChunks.length}`);
-    if (state.recordedChunks.length === 0) {
-      console.warn("No recorded chunks gathered!");
-      statusElement.textContent = "❌ Export failed: No video data captured.";
-      return;
-    }
-
-    const duration = Date.now() - (state.recordingStartTime || Date.now());
-    const rawBlob = new Blob(state.recordedChunks, {
-      type: mimeType || 'video/webm'
-    });
-
-    console.log(`[ExportDebug] Compiled raw blob size: ${(rawBlob.size / 1024 / 1024).toFixed(2)} MB, calculated duration: ${duration}ms`);
-
-    const ext = (mimeType && mimeType.includes('mp4')) ? 'mp4' : 'webm';
-
-    if (ext === 'webm' && typeof ysFixWebmDuration === 'function') {
-      console.log(`[ExportDebug] Applying WebM duration fix...`);
-      ysFixWebmDuration(rawBlob, duration, { logger: false })
-        .then((fixedBlob) => {
-          console.log(`[ExportDebug] WebM duration fix succeeded. Fixed blob size: ${(fixedBlob.size / 1024 / 1024).toFixed(2)} MB`);
-          triggerDownload(fixedBlob, ext, duration);
-        })
-        .catch((err) => {
-          console.error("[ExportDebug] Failed to fix WebM duration, exporting raw stream:", err);
-          triggerDownload(rawBlob, ext, duration);
-        });
-    } else {
-      triggerDownload(rawBlob, ext, duration);
-    }
-
-    function triggerDownload(blobToDownload, fileExt, finalDuration) {
-      const url = URL.createObjectURL(blobToDownload);
-      const a = document.createElement('a');
-      a.classList.add('hidden');
-      a.href = url;
-      const subjectInput = document.getElementById('subject-name-input');
-      const subjectName = (subjectInput && subjectInput.value.trim()) || "Subject";
-      const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-      
-      if (state.currentMode === 'squat') {
-        const side = state.squatTestingSide || 'left';
-        a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_overhead_squat.${fileExt}`;
-      } else {
-        a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${fileExt}`;
-      }
-      
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-
-      state.isRecording = false;
-      updateRecordButtonUI();
-      
-      const sizeMb = (blobToDownload.size / (1024 * 1024)).toFixed(2);
-      const durationSec = (finalDuration / 1000).toFixed(1);
-      const successMsg = `✅ Video exported successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB, Format: ${fileExt.toUpperCase()}]`;
-      console.log(`[ExportDebug] Download triggered. ${successMsg}`);
-      statusElement.textContent = successMsg;
-
-      // Save video to active profile if one is selected
-      if (state.activeProfileId) {
-        saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration);
-      }
-    }
-  };
-
-  state.isRecording = true;
-  state.recordingStartTime = Date.now();
-  state.mediaRecorder.start(); // Start recording without timeslices to avoid index corruption
-  updateRecordButtonUI();
-  statusElement.textContent = "🔴 Video recording in progress... Click the red button to stop and save.";
-}
-
-export function stopVideoRecording() {
-  console.log(`[ExportDebug] stopVideoRecording() triggered. isRecording: ${state.isRecording}, isRecordingPlayLoop: ${state.isRecordingPlayLoop}`);
-  if (!state.isRecording || !state.mediaRecorder || state.mediaRecorder.state === 'inactive') {
-    console.warn(`[ExportDebug] stopVideoRecording called but not actively recording.`);
-    return;
-  }
-  
-  try {
-    state.mediaRecorder.stop();
-    console.log(`[ExportDebug] mediaRecorder.stop() called successfully.`);
-  } catch (err) {
-    console.error("[ExportDebug] Failed to call mediaRecorder.stop():", err);
-  }
-
-  // Reset high-fidelity video export flags
-  state.isRecordingPlayLoop = false;
-  state.isExportingFrameByFrame = false;
-  state.exportFramesData = [];
-
-  // Restore original video looping and playback speed after export completes
-  if (state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo) {
-    if (state.wasLooping !== undefined) {
-      uploadedVideo.loop = state.wasLooping;
-    }
-    if (state.wasPlaybackRate !== undefined) {
-      uploadedVideo.playbackRate = state.wasPlaybackRate;
-    }
-  }
-}
-
-export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration) {
-  try {
-    const profile = await snapshotStore.getProfile(state.activeProfileId);
-    if (profile) {
-      profile.videos = profile.videos || [];
-      
-      const labelPrefix = state.currentMode === 'squat' 
-        ? (state.squatTestingSide === 'left' ? "Left Overhead Squat" : "Right Overhead Squat") 
-        : "Video Capture";
-        
-      const videoEntry = {
-        id: Date.now(),
-        name: `${labelPrefix} (${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })})`,
-        blob: blobToDownload,
-        timestamp: Date.now(),
-        duration: finalDuration,
-        fileExt: fileExt
-      };
-      profile.videos.push(videoEntry);
-      await snapshotStore.saveProfile(profile);
-      
-      // Update local cache
-      state.allProfiles = await snapshotStore.getAllProfiles();
-      
-      console.log(`[VideoSave] Successfully saved video to profile: ${profile.name}`);
-      statusElement.textContent = `🎥 Video saved directly to "${profile.name}"'s portfolio and downloaded locally!`;
-    }
-  } catch (err) {
-    console.error("[VideoSave] Failed to save video to active profile:", err);
-  }
-}
-
-export function toggleVideoRecording() {
-  if (state.isExportingFrameByFrame) {
-    // Cancel frame pre-processing
-    state.isExportingFrameByFrame = false;
-    hideExportProgressOverlay();
-    statusElement.textContent = "❌ Export pre-processing cancelled.";
-    // Restore original video playback settings
-    if (state.isUploadedMedia && state.uploadedMediaType === 'video' && uploadedVideo) {
-      if (state.wasLooping !== undefined) uploadedVideo.loop = state.wasLooping;
-      if (state.wasPlaybackRate !== undefined) uploadedVideo.playbackRate = state.wasPlaybackRate;
-    }
-    updateRecordButtonUI();
-    return;
-  }
-
-  if (state.isRecording) {
-    stopVideoRecording();
-  } else {
-    if (state.isUploadedMedia && state.uploadedMediaType === 'video') {
-      const uploadedVideo = document.getElementById('uploaded-video');
-      if (uploadedVideo) {
-        runVideoFramePreprocessing();
-      } else {
-        startVideoRecording();
-      }
-    } else {
-      startVideoRecording();
-    }
-  }
-}
 
 export function updateRecordButtonUI() {
   if (!btnExportVideo) return;
@@ -3446,17 +4461,21 @@ export function updateRecordButtonUI() {
 
 export async function runVideoFramePreprocessing() {
   if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || !uploadedVideo) {
-    statusElement.textContent = "❌ No active uploaded video found for high-fidelity export.";
+    statusElement.textContent = "No active uploaded video found for high-fidelity export.";
     return;
   }
 
   // Prevent double triggers
   if (state.isExportingFrameByFrame || state.isRecordingPlayLoop) return;
 
-  statusElement.textContent = "⚙️ Initiating High-Fidelity Pre-processing...";
+  statusElement.textContent = " Initiating High-Fidelity Pre-processing...";
   state.isExportingFrameByFrame = true;
   state.exportFramesData = [];
   updateRecordButtonUI();
+
+  if (videoControlsBar) {
+    videoControlsBar.classList.add('hidden');
+  }
 
   // Temporarily pause standard looping and background inference
   uploadedVideo.pause();
@@ -3470,7 +4489,7 @@ export async function runVideoFramePreprocessing() {
 
   const duration = uploadedVideo.duration;
   if (!duration || isNaN(duration)) {
-    statusElement.textContent = "❌ Failed to retrieve video duration. Cannot pre-process.";
+    statusElement.textContent = "Failed to retrieve video duration. Cannot pre-process.";
     state.isExportingFrameByFrame = false;
     updateRecordButtonUI();
     return;
@@ -3490,7 +4509,7 @@ export async function runVideoFramePreprocessing() {
         if (!resolved) {
           resolved = true;
           uploadedVideo.removeEventListener('seeked', onSeeked);
-          resolve();
+          setTimeout(resolve, 25);
         }
       }
       uploadedVideo.addEventListener('seeked', onSeeked);
@@ -3507,6 +4526,7 @@ export async function runVideoFramePreprocessing() {
     });
   }
 
+  let consecutiveErrors = 0;
   try {
     while (currentTime <= duration && state.isExportingFrameByFrame) {
       // 1. Seek video to currentTime
@@ -3520,8 +4540,13 @@ export async function runVideoFramePreprocessing() {
       try {
         await pose.send({ image: uploadedVideo });
         await hands.send({ image: uploadedVideo });
+        consecutiveErrors = 0;
       } catch (err) {
         console.warn(`MediaPipe processing error at t=${currentTime.toFixed(3)}s:`, err);
+        consecutiveErrors++;
+        if (consecutiveErrors >= 5) {
+          throw new Error("Biomechanical tracking failed consecutively. This is typically due to a WebGL context crash or lack of hardware acceleration in your browser.");
+        }
       }
 
       // 4. Cache landmarks & results
@@ -3542,7 +4567,7 @@ export async function runVideoFramePreprocessing() {
       // 5. Update glassmorphic progress HUD
       const progressPercent = Math.min(100, (currentTime / duration) * 100);
       showExportProgressOverlay(progressPercent);
-      statusElement.textContent = `⚙️ Analyzing biomechanical movements... ${progressPercent.toFixed(0)}%`;
+      statusElement.textContent = ` Analyzing biomechanical movements... ${progressPercent.toFixed(0)}%`;
 
       // 6. Step forward
       currentTime += dt;
@@ -3550,21 +4575,47 @@ export async function runVideoFramePreprocessing() {
 
     // Pre-processing complete!
     if (state.isExportingFrameByFrame) {
-      hideExportProgressOverlay();
-      statusElement.textContent = "✅ Pre-processing complete. Initializing zero-lag playout record...";
+      statusElement.textContent = "Pre-processing complete. Initializing zero-lag playout record...";
       state.isExportingFrameByFrame = false;
       updateRecordButtonUI();
+
+      if (state.currentMode === 'shoulder_flexion') {
+        try {
+          await processShoulderFlexionFromPreprocessedFrames();
+        } catch (err) {
+          console.error("[ShoulderProcessing] Error processing preprocessed frames:", err);
+        }
+      }
+
+      if (state.currentMode === 'shoulder_rotation') {
+        try {
+          await processShoulderRotationFromPreprocessedFrames();
+        } catch (err) {
+          console.error("[ShoulderRotationProcessing] Error processing preprocessed frames:", err);
+        }
+      }
+
+      if (state.currentMode === 'hip_rotation') {
+        try {
+          await processHipRotationFromPreprocessedFrames();
+        } catch (err) {
+          console.error("[HipRotationProcessing] Error processing preprocessed frames:", err);
+        }
+      }
 
       // Start the Playout phase!
       await startRealTimePlaybackExport();
     }
   } catch (err) {
     console.error("High-Fidelity Pre-processing failed:", err);
-    statusElement.textContent = "❌ High-Fidelity Pre-processing failed. Reverting to manual recording.";
+    statusElement.textContent = "High-Fidelity Pre-processing failed. Reverting to manual recording.";
     hideExportProgressOverlay();
     state.isExportingFrameByFrame = false;
     state.exportFramesData = [];
     updateRecordButtonUI();
+    if (videoControlsBar) {
+      videoControlsBar.classList.remove('hidden');
+    }
     
     // Fallback: start standard recording
     startVideoRecording();
@@ -3577,7 +4628,7 @@ export async function startRealTimePlaybackExport() {
   // Set the playout recording flag early to ensure any seeked event triggered by resetting the currentTime is ignored by the manual single-frame inference listener
   state.isRecordingPlayLoop = true;
 
-  statusElement.textContent = "🔴 Starting recording playout at 1.0x speed...";
+  statusElement.textContent = "Starting recording playout at 1.0x speed...";
   
   // Set video to beginning and wait for seeked to complete
   await new Promise((resolve) => {
@@ -3603,59 +4654,18 @@ export async function startRealTimePlaybackExport() {
   
   // Start canvas recording
   startVideoRecording();
+  showExportProgressOverlay(0, 2);
   
   // Play the video at standard 1.0x speed
   uploadedVideo.play();
   
-  statusElement.textContent = "🔴 Recording playout is active. Analyzing from cached timeline... please do not close this tab.";
+  statusElement.textContent = "Recording playout is active. Analyzing from cached timeline... please do not close this tab.";
   updateRecordButtonUI();
 }
 
-export function showExportProgressOverlay(percent) {
-  const viewport = document.querySelector('.viewport');
-  if (!viewport) return;
 
-  let overlay = document.getElementById('export-progress-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'export-progress-overlay';
-    overlay.className = 'export-progress-overlay';
-    overlay.innerHTML = `
-      <div class="export-progress-card">
-        <div class="export-progress-spinner">
-          <svg class="spinner-svg" viewBox="0 0 50 50">
-            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
-          </svg>
-        </div>
-        <div class="export-progress-title">Analyzing Athletic Motion</div>
-        <div class="export-progress-subtitle">Phase 1 of 2: High-Fidelity Pre-processing</div>
-        <div class="export-progress-bar-container">
-          <div class="export-progress-bar-fill" id="export-progress-fill" style="width: 0%;"></div>
-        </div>
-        <div class="export-progress-text" id="export-progress-text">0% Completed</div>
-        <div class="export-progress-warning">
-          Biomechanical calculation is active. Once finished, Phase 2 will start recording
-        </div>
-      </div>
-    `;
-    viewport.appendChild(overlay);
-  }
 
-  // Update percentages
-  const fill = document.getElementById('export-progress-fill');
-  const text = document.getElementById('export-progress-text');
-  if (fill) fill.style.width = `${percent}%`;
-  if (text) text.textContent = `${Math.round(percent)}% Completed`;
-}
-
-export function hideExportProgressOverlay() {
-  const overlay = document.getElementById('export-progress-overlay');
-  if (overlay && overlay.parentNode) {
-    overlay.parentNode.removeChild(overlay);
-  }
-}
-
-export function importPriorPortfolio(report) {
+export async function importPriorPortfolio(report) {
   if (!report) return;
 
   // Try to extract active calculated metrics from the current cached results,
@@ -3733,32 +4743,57 @@ export function importPriorPortfolio(report) {
   state.lastProcessedScaleFactor = null;
   state.lastCalculatedResults = null;
 
-  // 1. Restore Subject Name & Automatically map to/load matching Profile
+  // 1. Create a brand new player profile based on the imported subject name
+  let nameVal = report.subjectName || "Imported Subject";
+  let baseName = nameVal;
+  let counter = 1;
+  while (state.allProfiles.some(p => p.name.toLowerCase() === nameVal.toLowerCase())) {
+    nameVal = `${baseName} (Imported ${counter})`;
+    counter++;
+  }
+
+  const newProfile = {
+    name: nameVal,
+    timestamp: Date.now(),
+    metricsA: null,
+    metricsT: null,
+    metricsOverhead: null,
+    squatPeaks: getDefaultSquatPeaks(),
+    imageA: null,
+    imageT: null,
+    imageOverhead: null,
+    pixelsPerCm: report.pixelsPerCm || null
+  };
+
   const subjectInput = document.getElementById('subject-name-input');
-  if (report.subjectName) {
-    if (subjectInput) subjectInput.value = report.subjectName;
-    
-    // Find matching profile by name (case-insensitive)
-    const matchingProfile = state.allProfiles.find(p => p.name.toLowerCase() === report.subjectName.toLowerCase());
-    if (matchingProfile) {
-      state.activeProfileId = matchingProfile.id;
-      // Sync dropdown select element
+  if (subjectInput) {
+    subjectInput.value = nameVal;
+  }
+
+  if (state.dbInitialized) {
+    try {
+      const newId = await snapshotStore.saveProfile(newProfile);
+      state.allProfiles = await snapshotStore.getAllProfiles();
+      
+      // Sync dropdown select elements
       const profileSelect = document.getElementById('profile-select');
       if (profileSelect) {
-        profileSelect.value = String(matchingProfile.id);
+        populateDropdown(state.allProfiles);
+        profileSelect.value = String(newId);
+      }
+      const calProfileSelect = document.getElementById('cal-profile-select');
+      if (calProfileSelect) {
+        calProfileSelect.value = String(newId);
       }
       
-      // Update status bar
-      const activeProfileName = document.getElementById('active-profile-name');
-      if (activeProfileName) activeProfileName.textContent = matchingProfile.name;
-      const profileStatusBar = document.getElementById('profile-status-bar');
-      if (profileStatusBar) profileStatusBar.classList.remove('hidden');
-      const btnDeleteProfile = document.getElementById('btn-delete-profile');
-      if (btnDeleteProfile) btnDeleteProfile.classList.remove('hidden');
+      await loadProfileIntoState(newId);
       
-      console.log(`[importPriorPortfolio] Found and automatically matched active profile: ${matchingProfile.name}`);
+      console.log(`[importPriorPortfolio] Created and saved new imported profile: ${nameVal} (ID: ${newId})`);
+    } catch (err) {
+      console.error("[importPriorPortfolio] Failed to save newly created profile:", err);
     }
   }
+
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
     subjectPanel.classList.remove('hidden');
@@ -3901,6 +4936,16 @@ export function importPriorPortfolio(report) {
   // Save to persistent state for live/image tracking overrides
   state.importedPortfolioMetrics = importedMetrics;
 
+  const squatMobility = report.overheadSquatMobility || {};
+  state.squatPeaks = {
+    kneeL: squatMobility.peakKneeFlexionL || 0,
+    kneeR: squatMobility.peakKneeFlexionR || 0,
+    hipL: squatMobility.peakHipFlexionL || 0,
+    hipR: squatMobility.peakHipFlexionR || 0,
+    ankleL: squatMobility.peakAnkleDorsiflexionL || 0,
+    ankleR: squatMobility.peakAnkleDorsiflexionR || 0
+  };
+
   // Re-render dashboard metrics instantly!
   renderDashboard(importedMetrics);
 
@@ -3970,13 +5015,13 @@ export function importPriorPortfolio(report) {
 
   // If a profile is active, sync the imported metrics to the database
   if (state.activeProfileId) {
-    autoSyncToActiveProfile();
+    await autoSyncToActiveProfile();
   }
 
   // High-end feedback animation on Import button
   if (btnImportPortfolio) {
     btnImportPortfolio.classList.add('btn-success-glow');
-    btnImportPortfolio.textContent = "Session Imported Successfully! ✅";
+    btnImportPortfolio.textContent = "Session Imported Successfully! ";
     setTimeout(() => {
       btnImportPortfolio.classList.remove('btn-success-glow');
       btnImportPortfolio.textContent = "Import Prior Portfolio";
@@ -3990,11 +5035,19 @@ function updateStateInputHeight() {
   const inputElem = document.getElementById('input-user-height');
   if (!inputElem) return;
   const inputVal = parseFloat(inputElem.value);
-  if (!isNaN(inputVal)) {
-    if (state.useInches) {
-      state.inputHeightCm = inputVal * 2.54;
-    } else {
-      state.inputHeightCm = inputVal;
+  if (!isNaN(inputVal) && inputVal > 0) {
+    const heightCm = state.useInches ? inputVal * 2.54 : inputVal;
+    state.inputHeightCm = heightCm;
+
+    // Persist updated height if a profile is loaded
+    if (state.activeProfileId && state.allProfiles && snapshotStore) {
+      const profile = state.allProfiles.find(p => p.id === state.activeProfileId);
+      if (profile && profile.heightCm !== heightCm) {
+        profile.heightCm = heightCm;
+        snapshotStore.saveProfile(profile).catch(err => {
+          console.error("Failed to save updated profile height:", err);
+        });
+      }
     }
   }
 }
@@ -4101,7 +5154,7 @@ if (autoSequenceBtn) {
     autoSequenceBtn.textContent = "Cancel Auto Sequence";
     autoSequenceBtn.classList.add('active-cancel');
 
-    statusElement.textContent = "🚀 Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
+    statusElement.textContent = "Hands-Free Auto Capture started! Please stand in A-Pose (arms resting relaxed at sides).";
   });
 }
 
@@ -4124,142 +5177,15 @@ if (modalOverlay) {
 // OFFLINE DASHBOARD PLACEHOLDERS
 // ==========================================
 
-export function updateSquatDashboardOffline() {
-  if (squatLiveKneeL) squatLiveKneeL.textContent = '--°';
-  if (squatLiveKneeR) squatLiveKneeR.textContent = '--°';
-  if (squatLiveHipL) squatLiveHipL.textContent = '--°';
-  if (squatLiveHipR) squatLiveHipR.textContent = '--°';
-  if (squatLiveAnkleL) squatLiveAnkleL.textContent = '--°';
-  if (squatLiveAnkleR) squatLiveAnkleR.textContent = '--°';
 
-  if (squatStatusVal) {
-    squatStatusVal.textContent = 'Awaiting Subject';
-    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-red', 'text-emerald');
-    squatStatusVal.classList.add('text-slate');
-  }
-}
 
-export function updateSquatSideUI() {
-  const side = state.squatTestingSide || 'left';
-  
-  if (btnSquatSideLeft && btnSquatSideRight) {
-    if (side === 'left') {
-      btnSquatSideLeft.classList.add('active-left');
-      btnSquatSideRight.classList.remove('active-right');
-    } else {
-      btnSquatSideRight.classList.add('active-right');
-      btnSquatSideLeft.classList.remove('active-left');
-    }
-  }
 
-  const angleBoxes = document.querySelectorAll('#squat-sidebar-content .angle-box');
-  angleBoxes.forEach(box => {
-    if (side === 'left') {
-      if (box.classList.contains('left-border')) {
-        box.classList.add('active-left');
-        box.classList.remove('inactive-side');
-      } else if (box.classList.contains('right-border')) {
-        box.classList.add('inactive-side');
-        box.classList.remove('active-right');
-      }
-    } else {
-      if (box.classList.contains('right-border')) {
-        box.classList.add('active-right');
-        box.classList.remove('inactive-side');
-      } else if (box.classList.contains('left-border')) {
-        box.classList.add('inactive-side');
-        box.classList.remove('active-left');
-      }
-    }
-  });
-}
 
-export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ankleMobL, ankleMobR) {
-  // Update live monitors
-  if (squatLiveKneeL) squatLiveKneeL.textContent = `${kneeMobL}°`;
-  if (squatLiveKneeR) squatLiveKneeR.textContent = `${kneeMobR}°`;
-  if (squatLiveHipL) squatLiveHipL.textContent = `${hipMobL}°`;
-  if (squatLiveHipR) squatLiveHipR.textContent = `${hipMobR}°`;
-  if (squatLiveAnkleL) squatLiveAnkleL.textContent = `${ankleMobL}°`;
-  if (squatLiveAnkleR) squatLiveAnkleR.textContent = `${ankleMobR}°`;
 
-  const prevPeaks = JSON.stringify(state.squatPeaks);
 
-  // Compare and update peak recorded values in state based on selected testing side
-  if (state.squatTestingSide === 'left') {
-    state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-    state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-    state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
-  } else {
-    state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-    state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-    state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
-  }
 
-  if (state.activeProfileId && JSON.stringify(state.squatPeaks) !== prevPeaks) {
-    autoSyncToActiveProfileDebounced();
-  }
 
-  // Update peak elements in DOM
-  if (squatPeakKneeL) squatPeakKneeL.textContent = `${state.squatPeaks.kneeL}°`;
-  if (squatPeakKneeR) squatPeakKneeR.textContent = `${state.squatPeaks.kneeR}°`;
-  if (squatPeakHipL) squatPeakHipL.textContent = `${state.squatPeaks.hipL}°`;
-  if (squatPeakHipR) squatPeakHipR.textContent = `${state.squatPeaks.hipR}°`;
-  if (squatPeakAnkleL) squatPeakAnkleL.textContent = `${state.squatPeaks.ankleL}°`;
-  if (squatPeakAnkleR) squatPeakAnkleR.textContent = `${state.squatPeaks.ankleR}°`;
 
-  // Determine active movement-depth categorization based on the deepest tracked knee
-  const maxKneeMob = Math.max(kneeMobL, kneeMobR);
-  let depthStatus = "Standing Upright";
-  let statusClass = "text-slate";
-
-  if (maxKneeMob >= 110) {
-    depthStatus = "Deep Squat";
-    statusClass = "text-emerald";
-  } else if (maxKneeMob >= 75) {
-    depthStatus = "Parallel Squat";
-    statusClass = "text-red";
-  } else if (maxKneeMob >= 30) {
-    depthStatus = "Partial Squat";
-    statusClass = "text-amber";
-  } else {
-    depthStatus = "Standing Upright";
-    statusClass = "text-slate";
-  }
-
-  if (squatStatusVal) {
-    squatStatusVal.textContent = depthStatus;
-    squatStatusVal.classList.remove('text-slate', 'text-amber', 'text-red', 'text-emerald');
-    squatStatusVal.classList.add(statusClass);
-  }
-}
-
-export function resetSquatPeaks() {
-  state.squatPeaks = {
-    kneeL: 0,
-    kneeR: 0,
-    hipL: 0,
-    hipR: 0,
-    ankleL: 0,
-    ankleR: 0
-  };
-
-  if (state.activeProfileId) {
-    autoSyncToActiveProfile(true);
-  }
-
-  if (squatPeakKneeL) squatPeakKneeL.textContent = '0°';
-  if (squatPeakKneeR) squatPeakKneeR.textContent = '0°';
-  if (squatPeakHipL) squatPeakHipL.textContent = '0°';
-  if (squatPeakHipR) squatPeakHipR.textContent = '0°';
-  if (squatPeakAnkleL) squatPeakAnkleL.textContent = '0°';
-  if (squatPeakAnkleR) squatPeakAnkleR.textContent = '0°';
-
-  // Recalculate and redraw current frame if pose results are active
-  if (state.latestPoseResults) {
-    onPoseResults(state.latestPoseResults);
-  }
-}
 
 export function updateDashboardOfflinePlaceholders() {
   if (state.isSnapshotFrozen && state.frozenMetrics) {
@@ -4305,1847 +5231,111 @@ export function updateDashboardOfflinePlaceholders() {
   });
 }
 
-// BIND OVERHEAD SQUAT INTERFACE LISTENERS
-if (btnModePosture) {
-  btnModePosture.addEventListener('click', () => {
-    state.currentMode = 'posture';
-    btnModePosture.classList.add('active');
-    if (btnModeSquat) btnModeSquat.classList.remove('active');
-    
+// BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
+function setExerciseMode(mode) {
+  if (!mode) return;
+  stopActiveROMRecordings();
+  state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : (mode === 'hip-rotation' ? 'hip_rotation' : (mode === 'ankle-dorsi' ? 'ankledorsi' : mode === 'thoracic-extension' ? 'thoracic_extension' : mode))));
+
+  if (selectTestMode) {
+    // Normalise key names to match dropdown option values
+    let optValue = mode;
+    if (mode === 'shoulder_flexion') optValue = 'shoulder';
+    if (mode === 'shoulder_rotation') optValue = 'shoulder-rotation';
+    if (mode === 'hip_rotation') optValue = 'hip-rotation';
+    if (mode === 'thoracic_extension') optValue = 'thoracic-extension';
+    if (mode === 'ankledorsi' || mode === 'ankle-dorsi') optValue = 'ankle-dorsi';
+    selectTestMode.value = optValue;
+  }
+
+  // Hide all sidebar sections first
+  if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
+  if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
+  if (shoulderSidebarContent) shoulderSidebarContent.classList.add('hidden');
+  if (shoulderRotationSidebarContent) shoulderRotationSidebarContent.classList.add('hidden');
+  if (hipRotationSidebarContent) hipRotationSidebarContent.classList.add('hidden');
+  const thoracicSidebarContent = document.getElementById('thoracic-sidebar-content');
+  if (thoracicSidebarContent) thoracicSidebarContent.classList.add('hidden');
+  if (ankledorsiSidebarContent) ankledorsiSidebarContent.classList.add('hidden');
+
+  // Show and sync active sidebar
+  if (state.currentMode === 'posture') {
     if (postureSidebarContent) postureSidebarContent.classList.remove('hidden');
-    if (squatSidebarContent) squatSidebarContent.classList.add('hidden');
-    
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateDashboardOfflinePlaceholders();
     }
-  });
-}
-
-if (btnModeSquat) {
-  btnModeSquat.addEventListener('click', () => {
-    state.currentMode = 'squat';
-    btnModeSquat.classList.add('active');
-    if (btnModePosture) btnModePosture.classList.remove('active');
-    
+  } else if (state.currentMode === 'squat') {
     if (squatSidebarContent) squatSidebarContent.classList.remove('hidden');
-    if (postureSidebarContent) postureSidebarContent.classList.add('hidden');
-    
-    updateSquatSideUI(); // Ensure side selector states are active on sidebar open
-
+    updateSquatSideUI();
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
     } else {
       updateSquatDashboardOffline();
     }
-  });
-}
-
-// Wire up Testing Side selector buttons
-if (btnSquatSideLeft) {
-  btnSquatSideLeft.addEventListener('click', () => {
-    state.squatTestingSide = 'left';
-    updateSquatSideUI();
+  } else if (state.currentMode === 'ankledorsi') {
+    if (ankledorsiSidebarContent) ankledorsiSidebarContent.classList.remove('hidden');
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
+    } else {
+      updateDorsiLiveUI();
     }
-  });
-}
-if (btnSquatSideRight) {
-  btnSquatSideRight.addEventListener('click', () => {
-    state.squatTestingSide = 'right';
-    updateSquatSideUI();
+  } else if (state.currentMode === 'shoulder_flexion') {
+    if (shoulderSidebarContent) shoulderSidebarContent.classList.remove('hidden');
+    updateShoulderSideUI();
+    updateShoulderSidebarUI();
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
-    }
-  });
-}
-
-// Initial UI sync for squat side selector (runs immediately upon controller load)
-setTimeout(() => {
-  updateSquatSideUI();
-}, 200);
-
-const btnResetPeaks = document.getElementById('btn-reset-peaks');
-if (btnResetPeaks) {
-  btnResetPeaks.addEventListener('click', resetSquatPeaks);
-}
-
-const btnSaveSquatPeaks = document.getElementById('btn-save-squat-peaks');
-if (btnSaveSquatPeaks) {
-  btnSaveSquatPeaks.addEventListener('click', async () => {
-    // 1. Validation check for non-zero squat peaks
-    const peaks = state.squatPeaks;
-    if (!peaks || (peaks.kneeL === 0 && peaks.kneeR === 0 && peaks.hipL === 0 && peaks.hipR === 0 && peaks.ankleL === 0 && peaks.ankleR === 0)) {
-      alert("No peak mobility metrics recorded yet. Please perform an overhead squat test first!");
-      return;
-    }
-
-    // 2. Identify active subject or Guest Mode
-    let activeProfileName = "Guest";
-    if (state.activeProfileId) {
-      try {
-        const profile = await snapshotStore.getProfile(state.activeProfileId);
-        if (profile) {
-          activeProfileName = profile.name;
-        }
-      } catch (err) {
-        console.error("Error fetching active profile for peak saving:", err);
-      }
-    }
-
-    const label = state.activeProfileId ? `${activeProfileName} - Mobility Peaks` : "Guest - Mobility Peaks";
-
-    // 3. Construct persistent database snapshotRecord for IndexedDB gallery registration
-    const snapshotRecord = {
-      name: label,
-      timestamp: Date.now(),
-      image: canvasElement.toDataURL('image/png'),
-      metrics: {
-        isSquatMobility: true,
-        squatPeaks: JSON.parse(JSON.stringify(state.squatPeaks))
-      }
-    };
-
-    try {
-      // 4. If we have an active profile, sync these peaks directly to their portfolio record (skipping general gallery)
-      if (state.activeProfileId) {
-        const capturedImg = canvasElement.toDataURL('image/png');
-        if (state.squatTestingSide === 'left') {
-          state.imageSquatL = capturedImg;
-        } else {
-          state.imageSquatR = capturedImg;
-        }
-        await autoSyncToActiveProfile(true);
-        
-        if (statusElement) {
-          statusElement.textContent = `💾 Peak mobility metrics for "${label}" successfully saved to portfolio!`;
-        }
-      } else {
-        alert("You are currently in Guest Mode. To save these peak mobility scores to a player portfolio, please select or create a profile first, then click Save Peaks to Portfolio again.");
-      }
-    } catch (err) {
-      console.error("Failed to save squat peak snapshot to IndexedDB:", err);
-      alert("Could not save squat peaks snapshot. See developer console for errors.");
-    }
-  });
-}
-
-// Initial placeholder update
-setTimeout(() => {
-  updateDashboardOfflinePlaceholders();
-}, 200);
-
-// ==========================================================================
-// CUSTOM INTERACTIVE VIDEO CONTROLLER LOGIC (BUCKEYES GLASSMORPHIC THEME)
-// ==========================================================================
-
-const PLAY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
-const PAUSE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-
-state.isUserDraggingSeekbar = false;
-let isSeekingInferenceRunning = false;
-let pendingInferenceRequest = false;
-
-// Format seconds into MM:SS
-function formatTime(seconds) {
-  if (isNaN(seconds) || seconds === Infinity) return "00:00";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-// Update playbar position and clock timer text
-function updateVideoControlsUI() {
-  if (!uploadedVideo || !videoSeekbar || !videoTimeDisplay) return;
-  const current = uploadedVideo.currentTime;
-  const duration = uploadedVideo.duration || 0;
-  
-  if (!state.isUserDraggingSeekbar) {
-    if (duration > 0) {
-      videoSeekbar.value = (current / duration) * 100;
     } else {
-      videoSeekbar.value = 0;
+      updateShoulderSidebarUI();
     }
-  }
-  
-  videoTimeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
-}
-
-// Throttled frame-by-frame inference for manual seeking & video scrubbing on pause
-async function renderSingleVideoFrame() {
-  if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || !uploadedVideo) return;
-  
-  if (isSeekingInferenceRunning) {
-    pendingInferenceRequest = true;
-    return;
-  }
-  
-  isSeekingInferenceRunning = true;
-  pendingInferenceRequest = false;
-  
-  try {
-    // Run computer-vision models sequentially to avoid Emscripten memory allocation collisions
-    await pose.send({ image: uploadedVideo });
-    await hands.send({ image: uploadedVideo });
-    
-    // Refresh canvas overlays & telemetry tables instantly
+  } else if (state.currentMode === 'shoulder_rotation') {
+    if (shoulderRotationSidebarContent) shoulderRotationSidebarContent.classList.remove('hidden');
+    updateShoulderRotationSideUI();
+    updateShoulderRotationSidebarUI();
     if (state.latestPoseResults) {
       onPoseResults(state.latestPoseResults);
-    }
-    if (state.latestHandResults && drawHandMesh) {
-      drawHandMesh(state.latestHandResults.multiHandLandmarks, state.latestHandResults.multiHandedness);
-    }
-  } catch (err) {
-    console.error("[RealtimeSeek] Stopped CV Frame Render Error:", err);
-  } finally {
-    isSeekingInferenceRunning = false;
-    // If another seek happened while we were computing, run inference for the newest frame now
-    if (pendingInferenceRequest) {
-      renderSingleVideoFrame();
-    }
-  }
-}
-
-// Set up video controls event bindings
-if (uploadedVideo) {
-  // Sync button icons on play/pause events
-  uploadedVideo.addEventListener('play', () => {
-    if (videoPlayPauseBtn) videoPlayPauseBtn.innerHTML = PAUSE_SVG;
-  });
-
-  uploadedVideo.addEventListener('pause', () => {
-    if (videoPlayPauseBtn) videoPlayPauseBtn.innerHTML = PLAY_SVG;
-  });
-
-  // Track progress updates
-  uploadedVideo.addEventListener('timeupdate', () => {
-    updateVideoControlsUI();
-  });
-
-  uploadedVideo.addEventListener('durationchange', () => {
-    updateVideoControlsUI();
-  });
-
-  // Real-time CV update when seeked on pause
-  uploadedVideo.addEventListener('seeked', () => {
-    // Prevent triggering single-frame inference during frame-by-frame preprocessing or active recording playout to avoid concurrent WASM model collisions
-    if (uploadedVideo.paused && !state.isExportingFrameByFrame && !state.isRecordingPlayLoop && !state.isRecording) {
-      renderSingleVideoFrame();
-    }
-  });
-}
-
-// Play/Pause button click handler
-if (videoPlayPauseBtn) {
-  videoPlayPauseBtn.addEventListener('click', () => {
-    if (!uploadedVideo) return;
-    if (uploadedVideo.paused) {
-      uploadedVideo.play().catch(err => console.error(err));
     } else {
-      uploadedVideo.pause();
+      updateShoulderRotationSidebarUI();
     }
+  } else if (state.currentMode === 'thoracic_extension') {
+    if (thoracicSidebarContent) thoracicSidebarContent.classList.remove('hidden');
+    updateThoracicExtensionSidebarUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateThoracicExtensionSidebarUI();
+    }
+  } else if (state.currentMode === 'hip_rotation') {
+    if (hipRotationSidebarContent) hipRotationSidebarContent.classList.remove('hidden');
+    updateHipRotationSideUI();
+    updateHipRotationSidebarUI();
+    if (state.latestPoseResults) {
+      onPoseResults(state.latestPoseResults);
+    } else {
+      updateHipRotationSidebarUI();
+    }
+  }
+}
+
+// Bind dropdown selection change event
+if (selectTestMode) {
+  // Always reset select value and active mode to posture (Anthropometric Scan) on page load
+  selectTestMode.value = 'posture';
+  setExerciseMode('posture');
+
+  selectTestMode.addEventListener('change', (e) => {
+    setExerciseMode(e.target.value);
   });
 }
 
-// Seekbar drag seeking event handlers
-if (videoSeekbar) {
-  videoSeekbar.addEventListener('input', (e) => {
-    if (!uploadedVideo) return;
-    state.isUserDraggingSeekbar = true;
-    
-    const pct = parseFloat(e.target.value) / 100;
-    const duration = uploadedVideo.duration || 0;
-    uploadedVideo.currentTime = pct * duration;
-    
-    if (videoTimeDisplay) {
-      videoTimeDisplay.textContent = `${formatTime(uploadedVideo.currentTime)} / ${formatTime(duration)}`;
-    }
-  });
-
-  videoSeekbar.addEventListener('change', () => {
-    state.isUserDraggingSeekbar = false;
-  });
-}
-
-// Playback speed cycle selector button
-const SPEED_STEPS = [0.5, 1.0, 1.5, 2.0];
-if (videoSpeedBtn) {
-  videoSpeedBtn.addEventListener('click', () => {
-    if (!uploadedVideo) return;
-    const currentRate = uploadedVideo.playbackRate;
-    
-    // Cycle to next speed step in array
-    let nextIdx = 0;
-    for (let i = 0; i < SPEED_STEPS.length; i++) {
-      if (Math.abs(currentRate - SPEED_STEPS[i]) < 0.1) {
-        nextIdx = (i + 1) % SPEED_STEPS.length;
-        break;
-      }
-    }
-    
-    const nextRate = SPEED_STEPS[nextIdx];
-    uploadedVideo.playbackRate = nextRate;
-    videoSpeedBtn.textContent = `${nextRate.toFixed(1)}x`;
-  });
-}
-
-// ==========================================
-// BUCKEYE PERSISTENT SUBJECT PROFILES CONTROLLER
-// ==========================================
-
-export function getActiveProfileName(includeFallback = true) {
-  if (state.activeProfileId && state.allProfiles) {
-    const activeProfile = state.allProfiles.find(p => p.id === state.activeProfileId);
-    if (activeProfile) {
-      return activeProfile.name;
-    }
-  }
-  const subjectInput = document.getElementById('subject-name-input');
-  if (subjectInput && subjectInput.value.trim()) {
-    return subjectInput.value.trim();
-  }
-  return includeFallback ? "Guest Mode" : "";
-}
-
-export async function initializeProfilesSelector() {
-  const profileSelect = document.getElementById('profile-select');
-  const calProfileSelect = document.getElementById('cal-profile-select');
-  const profileSearchInput = document.getElementById('profile-search-input');
-  const btnSaveProfile = document.getElementById('btn-save-profile');
-  const subjectNameInput = document.getElementById('subject-name-input');
-  const btnDeleteProfile = document.getElementById('btn-delete-profile');
-  const profileStatusBar = document.getElementById('profile-status-bar');
-  const newProfileInputContainer = document.getElementById('new-profile-input-container');
-
-  const profileActionRow = document.getElementById('profile-action-row');
-  const btnViewProfileDetails = document.getElementById('btn-view-profile-details');
-  const profileDetailsModal = document.getElementById('profile-details-modal');
-  const btnCloseProfileDetails = document.getElementById('btn-close-profile-details');
-  const btnCloseProfileDetailsFooter = document.getElementById('btn-close-profile-details-footer');
-  const btnProfileExportJson = document.getElementById('btn-profile-export-json');
-
-  if (!profileSelect) return;
-
-  function populateDropdown(filteredProfiles) {
-    const currentSelected = profileSelect.value;
-    profileSelect.innerHTML = '';
-    
-    const guestOpt = document.createElement('option');
-    guestOpt.value = '';
-    guestOpt.textContent = '-- Guest Session (Unsaved) --';
-    profileSelect.appendChild(guestOpt);
-
-    if (calProfileSelect) {
-      calProfileSelect.innerHTML = '';
-      const calGuestOpt = document.createElement('option');
-      calGuestOpt.value = '';
-      calGuestOpt.textContent = '-- Guest Session (Unsaved) --';
-      calProfileSelect.appendChild(calGuestOpt);
-    }
-    
-    filteredProfiles.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name;
-      profileSelect.appendChild(opt);
-
-      if (calProfileSelect) {
-        const calOpt = document.createElement('option');
-        calOpt.value = p.id;
-        calOpt.textContent = p.name;
-        calProfileSelect.appendChild(calOpt);
-      }
-    });
-    
-    const createOpt = document.createElement('option');
-    createOpt.value = 'new';
-    createOpt.textContent = '+ Create New Profile...';
-    profileSelect.appendChild(createOpt);
-
-    if (currentSelected && [...profileSelect.options].some(o => o.value === currentSelected)) {
-      profileSelect.value = currentSelected;
-    } else {
-      profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
-    }
-
-    if (calProfileSelect) {
-      calProfileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
-    }
-  }
-
-  try {
-    state.allProfiles = await snapshotStore.getAllProfiles();
-    populateDropdown(state.allProfiles);
-    if (state.activeProfileId) {
-      if (profileActionRow) profileActionRow.classList.remove('hidden');
-    } else {
-      if (profileActionRow) profileActionRow.classList.add('hidden');
-    }
-  } catch (err) {
-    console.error("[initializeProfilesSelector] Failed to load initial profiles:", err);
-  }
-
-  if (profileSearchInput) {
-    profileSearchInput.addEventListener('input', () => {
-      const searchVal = profileSearchInput.value.toLowerCase().trim();
-      const filtered = state.allProfiles.filter(p => p.name.toLowerCase().includes(searchVal));
-      populateDropdown(filtered);
-    });
-  }
-
-  const handleProfileChange = async (selectedVal) => {
-    if (selectedVal === 'new') {
-      if (profileSelect) profileSelect.value = 'new';
-      if (calProfileSelect) calProfileSelect.value = '';
-      if (newProfileInputContainer) {
-        newProfileInputContainer.classList.remove('hidden');
-        newProfileInputContainer.classList.add('visible-flex');
-      }
-      if (profileStatusBar) profileStatusBar.classList.add('hidden');
-      if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
-      if (profileActionRow) profileActionRow.classList.add('hidden');
-      
-      const sessionContainer = document.getElementById('profile-session-select-container');
-      if (sessionContainer) sessionContainer.classList.add('hidden');
-    } else if (selectedVal === '') {
-      if (profileSelect) profileSelect.value = '';
-      if (calProfileSelect) calProfileSelect.value = '';
-
-      // Cleanly reset Guest state caches
-      state.activeProfileId = null;
-      state.metricsA = null;
-      state.metricsT = null;
-      state.metricsOverhead = null;
-      state.imageA = null;
-      state.imageT = null;
-      state.imageOverhead = null;
-      state.importedPortfolioMetrics = null;
-      state.pixelsPerCm = null;
-      state.calLocked = false;
-      state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
-
-      updateDashboardOfflinePlaceholders();
-
-      if (newProfileInputContainer) {
-        newProfileInputContainer.classList.add('hidden');
-        newProfileInputContainer.classList.remove('visible-flex');
-      }
-      if (profileStatusBar) {
-        const activeProfileName = document.getElementById('active-profile-name');
-        if (activeProfileName) activeProfileName.textContent = 'Guest Mode';
-        profileStatusBar.classList.add('hidden');
-      }
-      if (btnDeleteProfile) btnDeleteProfile.classList.add('hidden');
-      if (profileActionRow) profileActionRow.classList.add('hidden');
-      
-      const sessionContainer = document.getElementById('profile-session-select-container');
-      if (sessionContainer) sessionContainer.classList.add('hidden');
-    } else {
-      if (profileSelect) profileSelect.value = selectedVal;
-      if (calProfileSelect) calProfileSelect.value = selectedVal;
-
-      if (newProfileInputContainer) {
-        newProfileInputContainer.classList.add('hidden');
-        newProfileInputContainer.classList.remove('visible-flex');
-      }
-      await loadProfileIntoState(Number(selectedVal));
-    }
-  };
-
-  profileSelect.addEventListener('change', () => handleProfileChange(profileSelect.value));
-  if (calProfileSelect) {
-    calProfileSelect.addEventListener('change', () => handleProfileChange(calProfileSelect.value));
-  }
-
-  if (btnSaveProfile) {
-    btnSaveProfile.addEventListener('click', async () => {
-      if (!subjectNameInput) return;
-      const nameVal = subjectNameInput.value.trim();
-      if (!nameVal) {
-        alert("Please enter a subject name to create a profile.");
-        return;
-      }
-
-      const isDuplicate = state.allProfiles.some(p => p.name.toLowerCase() === nameVal.toLowerCase());
-      if (isDuplicate) {
-        alert(`A profile named "${nameVal}" already exists. Please choose a different name.`);
-        return;
-      }
-
-      const newProfile = {
-        name: nameVal,
-        timestamp: Date.now(),
-        metricsA: null,
-        metricsT: null,
-        metricsOverhead: null,
-        squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
-        imageA: null,
-        imageT: null,
-        imageOverhead: null,
-        pixelsPerCm: null
-      };
-
-      try {
-        const newId = await snapshotStore.saveProfile(newProfile);
-        state.activeProfileId = newId;
-        state.allProfiles = await snapshotStore.getAllProfiles();
-        
-        if (profileSearchInput) profileSearchInput.value = '';
-        
-        populateDropdown(state.allProfiles);
-        profileSelect.value = String(newId);
-        if (calProfileSelect) calProfileSelect.value = String(newId);
-        
-        if (newProfileInputContainer) {
-          newProfileInputContainer.classList.add('hidden');
-          newProfileInputContainer.classList.remove('visible-flex');
-        }
-        subjectNameInput.value = '';
-
-        await loadProfileIntoState(newId);
-        statusElement.textContent = `✅ Profile "${nameVal}" created successfully!`;
-      } catch (err) {
-        console.error("[initializeProfilesSelector] Failed to save new profile:", err);
-        alert("Failed to save profile to database.");
-      }
-    });
-  }
-
-  if (btnDeleteProfile) {
-    btnDeleteProfile.addEventListener('click', async () => {
-      if (!state.activeProfileId) return;
-      
-      const activeProfile = state.allProfiles.find(p => p.id === state.activeProfileId);
-      const nameToDelete = activeProfile ? activeProfile.name : "this profile";
-      
-      if (!confirm(`⚠️ WARNING: Are you sure you want to permanently delete the profile "${nameToDelete}" and all of its compiled metrics?\n\nThis action cannot be undone.`)) {
-        return;
-      }
-
-      try {
-        await snapshotStore.deleteProfile(state.activeProfileId);
-        state.activeProfileId = null;
-        state.metricsA = null;
-        state.metricsT = null;
-        state.metricsOverhead = null;
-        state.imageA = null;
-        state.imageT = null;
-        state.imageOverhead = null;
-        state.importedPortfolioMetrics = null;
-        state.pixelsPerCm = null;
-        state.calLocked = false;
-        state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
-        
-        state.allProfiles = await snapshotStore.getAllProfiles();
-        
-        if (profileSearchInput) profileSearchInput.value = '';
-        populateDropdown(state.allProfiles);
-        profileSelect.value = '';
-        if (calProfileSelect) calProfileSelect.value = '';
-        
-        updateDashboardOfflinePlaceholders();
-
-        if (profileStatusBar) {
-          const activeProfileName = document.getElementById('active-profile-name');
-          if (activeProfileName) activeProfileName.textContent = 'Guest Mode';
-          profileStatusBar.classList.add('hidden');
-        }
-        btnDeleteProfile.classList.add('hidden');
-        if (profileActionRow) profileActionRow.classList.add('hidden');
-        
-
-        statusElement.textContent = `🗑️ Profile deleted successfully. Switched back to Guest Mode.`;
-      } catch (err) {
-        console.error("[initializeProfilesSelector] Failed to delete profile:", err);
-        alert("Failed to delete profile from database.");
-      }
-    });
-  }
-
-  if (btnViewProfileDetails) {
-    btnViewProfileDetails.addEventListener('click', () => {
-      if (state.activeProfileId) {
-        openProfileDetailsModal(state.activeProfileId);
-      } else {
-        alert("Please select or create a profile to view details.");
-      }
-    });
-  }
-
-  if (btnCloseProfileDetails) {
-    btnCloseProfileDetails.addEventListener('click', closeProfileDetailsModal);
-  }
-
-  if (btnCloseProfileDetailsFooter) {
-    btnCloseProfileDetailsFooter.addEventListener('click', closeProfileDetailsModal);
-  }
-
-  if (btnProfileExportJson) {
-    btnProfileExportJson.addEventListener('click', () => {
-      compileAndDownloadCombinedSession();
-    });
-  }
-
-  // 12. Initialize Image Lightbox Modal for expanding preview pictures
-  const lightboxModal = document.getElementById('image-lightbox-modal');
-  const btnCloseLightbox = document.getElementById('btn-close-lightbox');
-  const lightboxImg = document.getElementById('lightbox-img');
-  const lightboxTitle = document.getElementById('lightbox-title');
-
-  if (lightboxModal && btnCloseLightbox && lightboxImg) {
-    const closeLightbox = () => {
-      lightboxModal.classList.remove('active');
-    };
-
-    btnCloseLightbox.addEventListener('click', closeLightbox);
-    
-    // Close lightbox on clicking backdrop
-    lightboxModal.addEventListener('click', (e) => {
-      if (e.target === lightboxModal) {
-        closeLightbox();
-      }
-    });
-
-    const setupPreviewClick = (containerId, imgId, titleText) => {
-      const container = document.getElementById(containerId);
-      const img = document.getElementById(imgId);
-      if (container && img) {
-        container.addEventListener('click', () => {
-          if (img.src && !container.classList.contains('hidden')) {
-            lightboxImg.src = img.src;
-            if (lightboxTitle) {
-              lightboxTitle.textContent = titleText;
-            }
-            lightboxModal.classList.add('active');
-          }
-        });
-      }
-    };
-
-    setupPreviewClick('detail-preview-container-a', 'detail-preview-img-a', 'A-Pose (Stature)');
-    setupPreviewClick('detail-preview-container-t', 'detail-preview-img-t', 'T-Pose (Wingspan)');
-    setupPreviewClick('detail-preview-container-overhead', 'detail-preview-img-overhead', 'Overhead (Reach)');
-    setupPreviewClick('detail-preview-container-squat-l', 'detail-preview-img-squat-l', 'Left Overhead Squat');
-    setupPreviewClick('detail-preview-container-squat-r', 'detail-preview-img-squat-r', 'Right Overhead Squat');
-  }
-}
-
-export function compileImportedMetricsFromProfile(profile, sessionId = null) {
-  if (!profile) return null;
-
-  // Determine the source metrics block (either specific session, active session, or profile top-level fallback)
-  let sourceObj = profile;
-  if (profile.sessions && Array.isArray(profile.sessions) && profile.sessions.length > 0) {
-    const targetId = sessionId || state.activeSessionId || profile.activeSessionId;
-    const session = profile.sessions.find(s => String(s.id) === String(targetId)) || profile.sessions[0];
-    if (session) {
-      sourceObj = session;
-    }
-  }
-
-  const compiled = {};
-  let hasAny = false;
-
-  const standardSegments = [
-    'skeletal_height', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r',
-    'foot_l', 'foot_r', 'torso_l', 'torso_r', 'upperarm_l', 'upperarm_r',
-    'forearm_l', 'forearm_r'
-  ];
-
-  // 1. Height and standard segments: prioritize A-pose (stature scan), fallback to T, then Overhead
-  const standardSources = [sourceObj.metricsA, sourceObj.metricsT, sourceObj.metricsOverhead];
-  for (const key of standardSegments) {
-    let foundValue = null;
-    for (const src of standardSources) {
-      if (src && src[key] !== null && src[key] !== undefined) {
-        foundValue = src[key];
-        break;
-      }
-    }
-    if (foundValue !== null) {
-      compiled[key] = foundValue;
-      hasAny = true;
-    }
-  }
-
-  // 2. Wingspan: prioritize T-pose (wingspan scan), fallback to A, then Overhead
-  const wingspanSources = [sourceObj.metricsT, sourceObj.metricsA, sourceObj.metricsOverhead];
-  let foundWingspan = null;
-  for (const src of wingspanSources) {
-    if (src && src.wingspan !== null && src.wingspan !== undefined) {
-      foundWingspan = src.wingspan;
-      break;
-    }
-  }
-  if (foundWingspan !== null) {
-    compiled.wingspan = foundWingspan;
-    hasAny = true;
-  }
-
-  // 3. Overhead reach (finger to toe): prioritize Overhead pose (reach scan), fallback to A, then T
-  const reachSources = [sourceObj.metricsOverhead, sourceObj.metricsA, sourceObj.metricsT];
-  for (const key of ['fingerToToeL', 'fingerToToeR']) {
-    let foundValue = null;
-    for (const src of reachSources) {
-      if (src && src[key] !== null && src[key] !== undefined) {
-        foundValue = src[key];
-        break;
-      }
-    }
-    if (foundValue !== null) {
-      compiled[key] = foundValue;
-      hasAny = true;
-    }
-  }
-
-  return hasAny ? compiled : null;
-}
-
-export function ensureProfileSessions(profile) {
-  if (!profile) return profile;
-  if (!profile.sessions || !Array.isArray(profile.sessions) || profile.sessions.length === 0) {
-    const baselineSession = {
-      id: "baseline_" + Date.now(),
-      name: "Baseline Session",
-      timestamp: profile.timestamp || Date.now(),
-      pixelsPerCm: profile.pixelsPerCm || null,
-      metricsA: profile.metricsA || null,
-      metricsT: profile.metricsT || null,
-      metricsOverhead: profile.metricsOverhead || null,
-      squatPeaks: profile.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
-      imageA: profile.imageA || null,
-      imageT: profile.imageT || null,
-      imageOverhead: profile.imageOverhead || null,
-      imageSquatL: profile.imageSquatL || null,
-      imageSquatR: profile.imageSquatR || null
-    };
-    profile.sessions = [baselineSession];
-    profile.activeSessionId = baselineSession.id;
-  }
-  if (!profile.activeSessionId) {
-    profile.activeSessionId = profile.sessions[profile.sessions.length - 1].id;
-  }
-  return profile;
-}
-
-export async function loadProfileIntoState(profileId) {
-  try {
-    let profile = await snapshotStore.getProfile(profileId);
-    if (!profile) return;
-
-    const hadSessions = !!profile.sessions && Array.isArray(profile.sessions) && profile.sessions.length > 0;
-    profile = ensureProfileSessions(profile);
-    if (!hadSessions) {
-      await snapshotStore.saveProfile(profile);
-    }
-
-    state.activeProfileId = profile.id;
-    
-    // Find active session
-    let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
-    if (!activeSession) {
-      activeSession = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
-    }
-    if (!activeSession) {
-      activeSession = profile.sessions[profile.sessions.length - 1];
-    }
-    
-    state.activeSessionId = activeSession.id;
-    state.metricsA = activeSession.metricsA || null;
-    state.metricsT = activeSession.metricsT || null;
-    state.metricsOverhead = activeSession.metricsOverhead || null;
-    state.squatPeaks = activeSession.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
-    state.imageA = activeSession.imageA || null;
-    state.imageT = activeSession.imageT || null;
-    state.imageOverhead = activeSession.imageOverhead || null;
-    state.imageSquatL = activeSession.imageSquatL || null;
-    state.imageSquatR = activeSession.imageSquatR || null;
-    
-    state.importedPortfolioMetrics = compileImportedMetricsFromProfile(profile, activeSession.id);
-
-    const activeHeightCm = state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height;
-    if (activeHeightCm) {
-      const inputUserHeight = document.getElementById('input-user-height');
-      if (inputUserHeight) {
-        if (state.useInches) {
-          inputUserHeight.value = (activeHeightCm / 2.54).toFixed(1);
-        } else {
-          inputUserHeight.value = activeHeightCm.toFixed(1);
-        }
-      }
-    }
-    
-    const sessionPixelsPerCm = activeSession.pixelsPerCm || profile.pixelsPerCm;
-    if (sessionPixelsPerCm) {
-      state.pixelsPerCm = sessionPixelsPerCm;
-      state.calLocked = true;
-
-      const inputPremeasuredScale = document.getElementById('input-premeasured-scale');
-      if (inputPremeasuredScale) {
-        inputPremeasuredScale.value = state.pixelsPerCm.toFixed(2);
-      }
-    } else {
-      state.pixelsPerCm = null;
-      state.calLocked = false;
-    }
-
-    const displayMetrics = state.metricsA || state.metricsT || state.metricsOverhead;
-    if (displayMetrics) {
-      renderDashboard(displayMetrics);
-    } else {
-      updateDashboardOfflinePlaceholders();
-    }
-
-    if (squatPeakKneeL) squatPeakKneeL.textContent = `${state.squatPeaks.kneeL || 0}°`;
-    if (squatPeakKneeR) squatPeakKneeR.textContent = `${state.squatPeaks.kneeR || 0}°`;
-    if (squatPeakHipL) squatPeakHipL.textContent = `${state.squatPeaks.hipL || 0}°`;
-    if (squatPeakHipR) squatPeakHipR.textContent = `${state.squatPeaks.hipR || 0}°`;
-    if (squatPeakAnkleL) squatPeakAnkleL.textContent = `${state.squatPeaks.ankleL || 0}°`;
-    if (squatPeakAnkleR) squatPeakAnkleR.textContent = `${state.squatPeaks.ankleR || 0}°`;
-
-    const activeProfileName = document.getElementById('active-profile-name');
-    if (activeProfileName) {
-      activeProfileName.textContent = profile.name;
-    }
-    const profileStatusBar = document.getElementById('profile-status-bar');
-    if (profileStatusBar) {
-      profileStatusBar.classList.remove('hidden');
-    }
-    const btnDeleteProfile = document.getElementById('btn-delete-profile');
-    if (btnDeleteProfile) {
-      btnDeleteProfile.classList.remove('hidden');
-    }
-    const profileActionRow = document.getElementById('profile-action-row');
-    if (profileActionRow) {
-      profileActionRow.classList.remove('hidden');
-    }
-    const profileSelect = document.getElementById('profile-select');
-    const calProfileSelect = document.getElementById('cal-profile-select');
-    if (profileSelect) profileSelect.value = String(profileId);
-    if (calProfileSelect) calProfileSelect.value = String(profileId);
-
-    // Sidebar Session Selector Initialization & Synchronization
-    const sessionContainer = document.getElementById('profile-session-select-container');
-    const sessionSelect = document.getElementById('profile-session-select');
-    if (sessionContainer && sessionSelect) {
-      sessionContainer.classList.remove('hidden');
-      sessionSelect.innerHTML = '';
-      
-      profile.sessions.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = s.name || `Session (${new Date(s.timestamp).toLocaleDateString()})`;
-        if (String(s.id) === String(state.activeSessionId)) {
-          opt.selected = true;
-        }
-        sessionSelect.appendChild(opt);
-      });
-      
-      const newOpt = document.createElement('option');
-      newOpt.value = 'new_session';
-      newOpt.textContent = '➕ Create New Session...';
-      sessionSelect.appendChild(newOpt);
-      
-      sessionSelect.value = state.activeSessionId;
-
-      sessionSelect.onchange = async (e) => {
-        const val = e.target.value;
-        if (val === 'new_session') {
-          const newSessionName = prompt("Enter a name for the new session (e.g., 'Set 2 - Post-practice'):");
-          if (newSessionName !== null) {
-            const nameToUse = newSessionName.trim() || `Session ${profile.sessions.length + 1}`;
-            const newSession = {
-              id: "session_" + Date.now(),
-              name: nameToUse,
-              timestamp: Date.now(),
-              metricsA: null,
-              metricsT: null,
-              metricsOverhead: null,
-              squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
-              imageA: null,
-              imageT: null,
-              imageOverhead: null,
-              imageSquatL: null,
-              imageSquatR: null,
-              pixelsPerCm: null
-            };
-            profile.sessions.push(newSession);
-            profile.activeSessionId = newSession.id;
-            state.activeSessionId = newSession.id;
-            await snapshotStore.saveProfile(profile);
-            await loadProfileIntoState(profile.id);
-          } else {
-            sessionSelect.value = state.activeSessionId;
-          }
-        } else {
-          state.activeSessionId = val;
-          profile.activeSessionId = val;
-          await snapshotStore.saveProfile(profile);
-          await loadProfileIntoState(profile.id);
-        }
-      };
-    }
-
-  } catch (err) {
-    console.error("[loadProfile] Error loading profile into state:", err);
-  }
-}
-
-export async function autoSyncToActiveProfile(onlySquat = false) {
-  if (!state.activeProfileId || !state.dbInitialized) return;
-  try {
-    let profile = await snapshotStore.getProfile(state.activeProfileId);
-    if (!profile) return;
-    
-    // Ensure session properties are initialized
-    profile = ensureProfileSessions(profile);
-    
-    // Find active session block
-    let session = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
-    if (!session) {
-      session = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
-    }
-    if (!session) {
-      session = profile.sessions[profile.sessions.length - 1];
-    }
-    
-    // Sync current dashboard state into the active session with non-null guards to prevent accidental deletion
-    session.timestamp = Date.now();
-    if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) session.pixelsPerCm = state.pixelsPerCm;
-    
-    if (!onlySquat) {
-      if (state.metricsA !== null && state.metricsA !== undefined) session.metricsA = state.metricsA;
-      if (state.metricsT !== null && state.metricsT !== undefined) session.metricsT = state.metricsT;
-      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) session.metricsOverhead = state.metricsOverhead;
-      if (state.imageA !== null && state.imageA !== undefined) session.imageA = state.imageA;
-      if (state.imageT !== null && state.imageT !== undefined) session.imageT = state.imageT;
-      if (state.imageOverhead !== null && state.imageOverhead !== undefined) session.imageOverhead = state.imageOverhead;
-    }
-    
-    if (state.imageSquatL !== null && state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;
-    if (state.imageSquatR !== null && state.imageSquatR !== undefined) session.imageSquatR = state.imageSquatR;
-    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
-      session.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
-    }
-    
-    // Keep profile-level active session and timestamp synced
-    profile.timestamp = Date.now();
-    profile.activeSessionId = session.id;
-    
-    // Keep legacy flat fields updated on the main profile for redundant backup
-    if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) profile.pixelsPerCm = state.pixelsPerCm;
-    
-    if (!onlySquat) {
-      if (state.metricsA !== null && state.metricsA !== undefined) profile.metricsA = state.metricsA;
-      if (state.metricsT !== null && state.metricsT !== undefined) profile.metricsT = state.metricsT;
-      if (state.metricsOverhead !== null && state.metricsOverhead !== undefined) profile.metricsOverhead = state.metricsOverhead;
-      if (state.imageA !== null && state.imageA !== undefined) profile.imageA = state.imageA;
-      if (state.imageT !== null && state.imageT !== undefined) profile.imageT = state.imageT;
-      if (state.imageOverhead !== null && state.imageOverhead !== undefined) profile.imageOverhead = state.imageOverhead;
-    }
-    
-    if (state.imageSquatL !== null && state.imageSquatL !== undefined) profile.imageSquatL = state.imageSquatL;
-    if (state.imageSquatR !== null && state.imageSquatR !== undefined) profile.imageSquatR = state.imageSquatR;
-    if (state.squatPeaks !== null && state.squatPeaks !== undefined) {
-      profile.squatPeaks = JSON.parse(JSON.stringify(state.squatPeaks));
-    }
-    
-    await snapshotStore.saveProfile(profile);
-    console.log(`[autoSync] Synced active profile: ${profile.name}, session: ${session.name}`);
-    
-    state.allProfiles = await snapshotStore.getAllProfiles();
-  } catch (err) {
-    console.error("[autoSync] Error syncing to active profile:", err);
-  }
-}
-
-let syncTimeout = null;
-export function autoSyncToActiveProfileDebounced() {
-  if (!state.activeProfileId || !state.dbInitialized) return;
-  if (syncTimeout) {
-    clearTimeout(syncTimeout);
-  }
-  syncTimeout = setTimeout(() => {
-    autoSyncToActiveProfile(true);
-  }, 1500);
-}
-
-export async function openProfileDetailsModal(profileId) {
-  if (!profileId) return;
-  try {
-    let profile = await snapshotStore.getProfile(profileId);
-    if (!profile) return;
-
-    // 1. Silent schema upgrade
-    const originalSessionCount = profile.sessions ? profile.sessions.length : 0;
-    profile = ensureProfileSessions(profile);
-    if (originalSessionCount === 0) {
-      await snapshotStore.saveProfile(profile);
-    }
-
-    // Determine the active session
-    let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
-    if (!activeSession) {
-      activeSession = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
-    }
-    if (!activeSession) {
-      activeSession = profile.sessions[profile.sessions.length - 1];
-    }
-    state.activeSessionId = activeSession.id;
-
-    // 2. Render Session selector dropdown
-    const sessionSelect = document.getElementById('profile-detail-session-select');
-    if (sessionSelect) {
-      sessionSelect.innerHTML = '';
-      profile.sessions.forEach(sess => {
-        const option = document.createElement('option');
-        option.value = sess.id;
-        option.textContent = sess.name || `Session (${new Date(sess.timestamp).toLocaleDateString()})`;
-        if (String(sess.id) === String(activeSession.id)) {
-          option.selected = true;
-        }
-        sessionSelect.appendChild(option);
-      });
-
-      // Handle session dropdown selection changes
-      sessionSelect.onchange = async (e) => {
-        const selectedSessId = e.target.value;
-        state.activeSessionId = selectedSessId;
-        profile.activeSessionId = selectedSessId;
-        await snapshotStore.saveProfile(profile);
-        
-        // Synchronize active session onto live dashboard
-        await loadProfileIntoState(profileId);
-        
-        // Refresh detail views
-        openProfileDetailsModal(profileId);
-      };
-    }
-
-    // 3. Handle "+ New Session" button clicks
-    const btnNewSession = document.getElementById('btn-profile-new-session');
-    if (btnNewSession) {
-      btnNewSession.onclick = async () => {
-        const sessionName = prompt("Enter a name for the new session (e.g., 'Set 2 - Post-practice'):");
-        if (sessionName === null) return; // evaluator cancelled
-        const trimmedName = sessionName.trim() || `Session ${profile.sessions.length + 1}`;
-
-        const newSession = {
-          id: "session_" + Date.now(),
-          name: trimmedName,
-          timestamp: Date.now(),
-          pixelsPerCm: profile.pixelsPerCm || null, // carry over scale so we don't force re-calibration
-          metricsA: null,
-          metricsT: null,
-          metricsOverhead: null,
-          squatPeaks: { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 },
-          imageA: null,
-          imageT: null,
-          imageOverhead: null,
-          imageSquatL: null,
-          imageSquatR: null
-        };
-
-        profile.sessions.push(newSession);
-        profile.activeSessionId = newSession.id;
-        state.activeSessionId = newSession.id;
-
-        // Reset live dashboard metrics
-        state.metricsA = null;
-        state.metricsT = null;
-        state.metricsOverhead = null;
-        state.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
-        state.imageA = null;
-        state.imageT = null;
-        state.imageOverhead = null;
-        state.imageSquatL = null;
-        state.imageSquatR = null;
-
-        await snapshotStore.saveProfile(profile);
-        await loadProfileIntoState(profileId);
-
-        alert(`New session "${trimmedName}" started! Dashboard metrics are reset for fresh video captures.`);
-        openProfileDetailsModal(profileId);
-      };
-    }
-
-    // 3.5 Handle "Rename Session" button clicks
-    const btnRenameSession = document.getElementById('btn-profile-rename-session');
-    if (btnRenameSession) {
-      btnRenameSession.onclick = async () => {
-        const currentSessionName = activeSession.name || `Session (${new Date(activeSession.timestamp).toLocaleDateString()})`;
-        const newName = prompt("Enter new name for this session:", currentSessionName);
-        if (newName === null) return; // cancelled
-        const trimmedName = newName.trim();
-        if (!trimmedName) {
-          alert("Session name cannot be empty.");
-          return;
-        }
-
-        try {
-          const freshProfile = await snapshotStore.getProfile(profileId);
-          if (freshProfile) {
-            const freshProfileMigrated = ensureProfileSessions(freshProfile);
-            const freshActiveSession = freshProfileMigrated.sessions.find(s => String(s.id) === String(activeSession.id));
-            if (freshActiveSession) {
-              freshActiveSession.name = trimmedName;
-              await snapshotStore.saveProfile(freshProfileMigrated);
-              
-              // Refresh state list of profiles
-              state.allProfiles = await snapshotStore.getAllProfiles();
-              if (state.activeProfileId === profileId) {
-                // If it is the current active profile, sync state
-                await loadProfileIntoState(profileId);
-              }
-              
-              alert(`Session renamed to "${trimmedName}" successfully!`);
-              openProfileDetailsModal(profileId);
-            }
-          }
-        } catch (err) {
-          console.error("[SessionRename] Failed to rename session:", err);
-          alert("Failed to rename session: " + err.message);
-        }
-      };
-    }
-
-    // 4. Text elements & Profile Renaming
-    const detailName = document.getElementById('profile-detail-name');
-    const detailScale = document.getElementById('profile-detail-scale');
-    const detailLastSession = document.getElementById('profile-detail-last-session');
-    
-    if (detailName) {
-      detailName.innerHTML = `
-        ${profile.name || "Anonymous Subject"} 
-        <button class="btn btn-rename-profile" title="Rename Profile">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"></path>
-            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-          </svg>
-        </button>
-      `;
-      
-      const renameProfileBtn = detailName.querySelector('.btn-rename-profile');
-      if (renameProfileBtn) {
-        renameProfileBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const currentName = profile.name || "Anonymous Subject";
-          const newName = prompt("Enter new profile name:", currentName);
-          if (newName === null) return;
-          const trimmedName = newName.trim();
-          if (!trimmedName) {
-            alert("Profile name cannot be empty.");
-            return;
-          }
-          if (trimmedName.toLowerCase() !== currentName.toLowerCase()) {
-            const isDuplicate = state.allProfiles.some(p => p.name.toLowerCase() === trimmedName.toLowerCase());
-            if (isDuplicate) {
-              alert(`A profile named "${trimmedName}" already exists. Please choose a different name.`);
-              return;
-            }
-          }
-          try {
-            const freshProfile = await snapshotStore.getProfile(profileId);
-            if (freshProfile) {
-              freshProfile.name = trimmedName;
-              await snapshotStore.saveProfile(freshProfile);
-              state.allProfiles = await snapshotStore.getAllProfiles();
-              
-              // Sync select dropdown selectors
-              const profileSelect = document.getElementById('profile-select');
-              const calProfileSelect = document.getElementById('cal-profile-select');
-              if (profileSelect) {
-                const opt = [...profileSelect.options].find(o => Number(o.value) === profileId);
-                if (opt) opt.textContent = trimmedName;
-              }
-              if (calProfileSelect) {
-                const opt = [...calProfileSelect.options].find(o => Number(o.value) === profileId);
-                if (opt) opt.textContent = trimmedName;
-              }
-              
-              // Update bottom status bar name
-              if (state.activeProfileId === profileId) {
-                const activeProfileName = document.getElementById('active-profile-name');
-                if (activeProfileName) activeProfileName.textContent = trimmedName;
-              }
-              
-              openProfileDetailsModal(profileId);
-            }
-          } catch (err) {
-            console.error("[ProfileRename] Failed to rename profile:", err);
-          }
-        });
-      }
-    }
-
-    const sessionPixelsPerCm = activeSession.pixelsPerCm || profile.pixelsPerCm;
-    if (detailScale) {
-      detailScale.textContent = sessionPixelsPerCm 
-        ? `Calibration: ${sessionPixelsPerCm.toFixed(2)} px/cm` 
-        : "Calibration: Uncalibrated";
-    }
-    if (detailLastSession) {
-      const ts = activeSession.timestamp || profile.timestamp;
-      if (ts) {
-        const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-        detailLastSession.textContent = `Session Date: ${new Date(ts).toLocaleDateString(undefined, options)}`;
-      } else {
-        detailLastSession.textContent = "Session Date: --";
-      }
-    }
-
-    // 5. Pose status cards (now 5 items)
-    const poses = [
-      { key: 'a', metricsKey: 'metricsA', imgKey: 'imageA', title: 'A-Pose (Stature)', color: 'var(--color-scarlet)' },
-      { key: 't', metricsKey: 'metricsT', imgKey: 'imageT', title: 'T-Pose (Wingspan)', color: 'var(--color-cyan)' },
-      { key: 'overhead', metricsKey: 'metricsOverhead', imgKey: 'imageOverhead', title: 'Overhead (Reach)', color: '#d4a017' },
-      { key: 'squat-l', metricsKey: 'squatPeaks', imgKey: 'imageSquatL', title: 'Left Overhead Squat', color: '#9333ea', isSquat: true, squatSide: 'kneeL' },
-      { key: 'squat-r', metricsKey: 'squatPeaks', imgKey: 'imageSquatR', title: 'Right Overhead Squat', color: '#a855f7', isSquat: true, squatSide: 'kneeR' }
-    ];
-
-    poses.forEach(p => {
-      const statusEl = document.getElementById(`detail-status-${p.key}`);
-      const imgEl = document.getElementById(`detail-preview-img-${p.key}`);
-      const containerEl = document.getElementById(`detail-preview-container-${p.key}`);
-      
-      let hasData = false;
-      let imgSrc = null;
-      
-      if (p.isSquat) {
-        const peakVal = activeSession.squatPeaks ? activeSession.squatPeaks[p.squatSide] : 0;
-        imgSrc = activeSession[p.imgKey];
-        hasData = (peakVal > 0) || !!imgSrc;
-      } else {
-        hasData = !!activeSession[p.metricsKey];
-        imgSrc = activeSession[p.imgKey];
-      }
-
-      if (hasData) {
-        if (statusEl) {
-          statusEl.textContent = "✅ Complete";
-          statusEl.className = 'text-emerald';
-        }
-        if (imgSrc) {
-          if (imgEl) imgEl.src = imgSrc;
-          if (containerEl) containerEl.classList.remove('hidden');
-        } else {
-          if (containerEl) containerEl.classList.add('hidden');
-        }
-      } else {
-        if (statusEl) {
-          statusEl.textContent = "❌ Missing";
-          statusEl.className = 'text-red';
-        }
-        if (containerEl) containerEl.classList.add('hidden');
-        if (imgEl) imgEl.src = "";
-      }
-    });
-
-    // 6. Helper functions for table cells (all binding to activeSession metrics)
-    const mA = activeSession.metricsA || {};
-    const mT = activeSession.metricsT || {};
-    const mO = activeSession.metricsOverhead || {};
-
-    const getVal = (poseKey, metricKey, fallbackSources) => {
-      let rawVal = null;
-      if (poseKey === 'a') rawVal = mA[metricKey];
-      else if (poseKey === 't') rawVal = mT[metricKey];
-      else if (poseKey === 'overhead') rawVal = mO[metricKey];
-
-      if (rawVal !== null && rawVal !== undefined) return rawVal;
-
-      if (fallbackSources) {
-        for (const srcKey of fallbackSources) {
-          const src = srcKey === 'a' ? mA : (srcKey === 't' ? mT : mO);
-          if (src && src[metricKey] !== null && src[metricKey] !== undefined) {
-            return src[metricKey];
-          }
-        }
-      }
-      return null;
-    };
-
-    const getValPair = (poseKey, leftKey, rightKey, fallbackSources) => {
-      let rawL = null, rawR = null;
-      if (poseKey === 'a') {
-        rawL = mA[leftKey];
-        rawR = mA[rightKey];
-      } else if (poseKey === 't') {
-        rawL = mT[leftKey];
-        rawR = mT[rightKey];
-      } else if (poseKey === 'overhead') {
-        rawL = mO[leftKey];
-        rawR = mO[rightKey];
-      }
-
-      let finalL = (rawL !== null && rawL !== undefined) ? rawL : null;
-      let finalR = (rawR !== null && rawR !== undefined) ? rawR : null;
-
-      if (finalL === null && fallbackSources) {
-        for (const srcKey of fallbackSources) {
-          const src = srcKey === 'a' ? mA : (srcKey === 't' ? mT : mO);
-          if (src && src[leftKey] !== null && src[leftKey] !== undefined) {
-            finalL = src[leftKey];
-            break;
-          }
-        }
-      }
-      if (finalR === null && fallbackSources) {
-        for (const srcKey of fallbackSources) {
-          const src = srcKey === 'a' ? mA : (srcKey === 't' ? mT : mO);
-          if (src && src[rightKey] !== null && src[rightKey] !== undefined) {
-            finalR = src[rightKey];
-            break;
-          }
-        }
-      }
-      return [finalL, finalR];
-    };
-
-    const formatPair = (left, right) => {
-      if ((left === null || left === undefined) && (right === null || right === undefined)) return '--';
-      return `L: ${formatLength(left)} / R: ${formatLength(right)}`;
-    };
-
-    const formatSingle = (val) => {
-      if (val === null || val === undefined) return '--';
-      return formatLength(val);
-    };
-
-    const renderCellSingle = (poseKey, metricKey, val) => {
-      if (!state.isEditingProfileMetrics) {
-        return formatSingle(val);
-      }
-      let displayVal = "";
-      if (val !== null && val !== undefined && !isNaN(val)) {
-        displayVal = state.useInches ? (val / 2.54).toFixed(1) : val.toFixed(1);
-      }
-      const suffix = state.useInches ? "in" : "cm";
-      return `
-        <div class="profile-cell-flex">
-          <input type="number" step="0.1" min="0" class="profile-edit-input single" 
-                 data-pose="${poseKey}" data-key="${metricKey}" 
-                 value="${displayVal}" placeholder="--">
-          <span class="profile-unit-suffix">${suffix}</span>
-        </div>
-      `;
-    };
-
-    const renderCellPair = (poseKey, leftMetricKey, rightMetricKey, leftVal, rightVal) => {
-      if (!state.isEditingProfileMetrics) {
-        return formatPair(leftVal, rightVal);
-      }
-      let displayLeft = "";
-      if (leftVal !== null && leftVal !== undefined && !isNaN(leftVal)) {
-        displayLeft = state.useInches ? (leftVal / 2.54).toFixed(1) : leftVal.toFixed(1);
-      }
-      let displayRight = "";
-      if (rightVal !== null && rightVal !== undefined && !isNaN(rightVal)) {
-        displayRight = state.useInches ? (rightVal / 2.54).toFixed(1) : rightVal.toFixed(1);
-      }
-      const suffix = state.useInches ? "in" : "cm";
-      return `
-        <div class="profile-cell-flex-col">
-          <div class="profile-cell-flex">
-            <span class="profile-side-label">L:</span>
-            <input type="number" step="0.1" min="0" class="profile-edit-input pair" 
-                   data-pose="${poseKey}" data-key="${leftMetricKey}" 
-                   value="${displayLeft}" placeholder="--">
-            <span class="profile-unit-suffix">${suffix}</span>
-          </div>
-          <div class="profile-cell-flex">
-            <span class="profile-side-label">R:</span>
-            <input type="number" step="0.1" min="0" class="profile-edit-input pair" 
-                   data-pose="${poseKey}" data-key="${rightMetricKey}" 
-                   value="${displayRight}" placeholder="--">
-            <span class="profile-unit-suffix">${suffix}</span>
-          </div>
-        </div>
-      `;
-    };
-
-    const renderSquatPeakEdit = (jointKey, valL, valR) => {
-      if (!state.isEditingProfileMetrics) {
-        return `${valL || 0}° / ${valR || 0}°`;
-      }
-      return `
-        <div class="profile-cell-flex-center">
-          <span class="profile-squat-label">L:</span>
-          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input profile-edit-input squat" 
-                 data-joint="${jointKey}" data-side="L" 
-                 value="${valL || 0}">
-          <span class="profile-deg-suffix">°</span>
-          <span class="profile-squat-label right">R:</span>
-          <input type="number" step="1" min="0" max="180" class="profile-squat-edit-input profile-edit-input squat" 
-                 data-joint="${jointKey}" data-side="R" 
-                 value="${valR || 0}">
-          <span class="profile-deg-suffix">°</span>
-        </div>
-      `;
-    };
-
-    // Stature Height row (Reverted: show on all columns with fallbacks)
-    const thA = document.getElementById('detail-table-height-a');
-    const thT = document.getElementById('detail-table-height-t');
-    const thO = document.getElementById('detail-table-height-overhead');
-    if (thA) thA.innerHTML = renderCellSingle('a', 'skeletal_height', getVal('a', 'skeletal_height', ['t', 'overhead']));
-    if (thT) thT.innerHTML = renderCellSingle('t', 'skeletal_height', getVal('t', 'skeletal_height', ['a', 'overhead']));
-    if (thO) thO.innerHTML = renderCellSingle('overhead', 'skeletal_height', getVal('overhead', 'skeletal_height', ['a', 't']));
-
-    // Wingspan / Reach row (Reverted: show on all columns with fallbacks)
-    const twA = document.getElementById('detail-table-wingspan-a');
-    const twT = document.getElementById('detail-table-wingspan-t');
-    const twO = document.getElementById('detail-table-wingspan-overhead');
-    if (twA) twA.innerHTML = renderCellSingle('a', 'wingspan', getVal('a', 'wingspan', ['t', 'overhead']));
-    if (twT) twT.innerHTML = renderCellSingle('t', 'wingspan', getVal('t', 'wingspan', ['a', 'overhead']));
-    if (twO) {
-      const [reachL, reachR] = getValPair('overhead', 'fingerToToeL', 'fingerToToeR', ['a', 't']);
-      twO.innerHTML = renderCellPair('overhead', 'fingerToToeL', 'fingerToToeR', reachL, reachR);
-    }
-
-    // Torso Length row
-    const ttA = document.getElementById('detail-table-torso-a');
-    const ttT = document.getElementById('detail-table-torso-t');
-    const ttO = document.getElementById('detail-table-torso-overhead');
-    if (ttA) {
-      const [valL, valR] = getValPair('a', 'torso_l', 'torso_r', ['t', 'overhead']);
-      ttA.innerHTML = renderCellPair('a', 'torso_l', 'torso_r', valL, valR);
-    }
-    if (ttT) {
-      const [valL, valR] = getValPair('t', 'torso_l', 'torso_r', ['a', 'overhead']);
-      ttT.innerHTML = renderCellPair('t', 'torso_l', 'torso_r', valL, valR);
-    }
-    if (ttO) {
-      const [valL, valR] = getValPair('overhead', 'torso_l', 'torso_r', ['a', 't']);
-      ttO.innerHTML = renderCellPair('overhead', 'torso_l', 'torso_r', valL, valR);
-    }
-
-    // Thigh Length row
-    const tthA = document.getElementById('detail-table-thigh-a');
-    const tthT = document.getElementById('detail-table-thigh-t');
-    const tthO = document.getElementById('detail-table-thigh-overhead');
-    if (tthA) {
-      const [valL, valR] = getValPair('a', 'thigh_l', 'thigh_r', ['t', 'overhead']);
-      tthA.innerHTML = renderCellPair('a', 'thigh_l', 'thigh_r', valL, valR);
-    }
-    if (tthT) {
-      const [valL, valR] = getValPair('t', 'thigh_l', 'thigh_r', ['a', 'overhead']);
-      tthT.innerHTML = renderCellPair('t', 'thigh_l', 'thigh_r', valL, valR);
-    }
-    if (tthO) {
-      const [valL, valR] = getValPair('overhead', 'thigh_l', 'thigh_r', ['a', 't']);
-      tthO.innerHTML = renderCellPair('overhead', 'thigh_l', 'thigh_r', valL, valR);
-    }
-
-    // Shank Length (shin) row
-    const tsA = document.getElementById('detail-table-shin-a');
-    const tsT = document.getElementById('detail-table-shin-t');
-    const tsO = document.getElementById('detail-table-shin-overhead');
-    if (tsA) {
-      const [valL, valR] = getValPair('a', 'shin_l', 'shin_r', ['t', 'overhead']);
-      tsA.innerHTML = renderCellPair('a', 'shin_l', 'shin_r', valL, valR);
-    }
-    if (tsT) {
-      const [valL, valR] = getValPair('t', 'shin_l', 'shin_r', ['a', 'overhead']);
-      tsT.innerHTML = renderCellPair('t', 'shin_l', 'shin_r', valL, valR);
-    }
-    if (tsO) {
-      const [valL, valR] = getValPair('overhead', 'shin_l', 'shin_r', ['a', 't']);
-      tsO.innerHTML = renderCellPair('overhead', 'shin_l', 'shin_r', valL, valR);
-    }
-
-    // Upper Arm row
-    const tuaA = document.getElementById('detail-table-upperarm-a');
-    const tuaT = document.getElementById('detail-table-upperarm-t');
-    const tuaO = document.getElementById('detail-table-upperarm-overhead');
-    if (tuaA) {
-      const [valL, valR] = getValPair('a', 'upperarm_l', 'upperarm_r', ['t', 'overhead']);
-      tuaA.innerHTML = renderCellPair('a', 'upperarm_l', 'upperarm_r', valL, valR);
-    }
-    if (tuaT) {
-      const [valL, valR] = getValPair('t', 'upperarm_l', 'upperarm_r', ['a', 'overhead']);
-      tuaT.innerHTML = renderCellPair('t', 'upperarm_l', 'upperarm_r', valL, valR);
-    }
-    if (tuaO) {
-      const [valL, valR] = getValPair('overhead', 'upperarm_l', 'upperarm_r', ['a', 't']);
-      tuaO.innerHTML = renderCellPair('overhead', 'upperarm_l', 'upperarm_r', valL, valR);
-    }
-
-    // Forearm row
-    const tfaA = document.getElementById('detail-table-forearm-a');
-    const tfaT = document.getElementById('detail-table-forearm-t');
-    const tfaO = document.getElementById('detail-table-forearm-overhead');
-    if (tfaA) {
-      const [valL, valR] = getValPair('a', 'forearm_l', 'forearm_r', ['t', 'overhead']);
-      tfaA.innerHTML = renderCellPair('a', 'forearm_l', 'forearm_r', valL, valR);
-    }
-    if (tfaT) {
-      const [valL, valR] = getValPair('t', 'forearm_l', 'forearm_r', ['a', 'overhead']);
-      tfaT.innerHTML = renderCellPair('t', 'forearm_l', 'forearm_r', valL, valR);
-    }
-    if (tfaO) {
-      const [valL, valR] = getValPair('overhead', 'forearm_l', 'forearm_r', ['a', 't']);
-      tfaO.innerHTML = renderCellPair('overhead', 'forearm_l', 'forearm_r', valL, valR);
-    }
-
-    // 7. Populate Consolidated Final Baselines Table (passing active session id)
-    const cHeight = document.getElementById('consolidated-val-height');
-    const cWingspan = document.getElementById('consolidated-val-wingspan');
-    const cReach = document.getElementById('consolidated-val-reach');
-    const cTorso = document.getElementById('consolidated-val-torso');
-    const cThigh = document.getElementById('consolidated-val-thigh');
-    const cShin = document.getElementById('consolidated-val-shin');
-    const cUpperarm = document.getElementById('consolidated-val-upperarm');
-    const cForearm = document.getElementById('consolidated-val-forearm');
-
-    const compiled = compileImportedMetricsFromProfile(profile, activeSession.id) || {};
-
-    if (cHeight) cHeight.innerHTML = formatSingle(compiled.skeletal_height);
-    if (cWingspan) cWingspan.innerHTML = formatSingle(compiled.wingspan);
-    if (cReach) cReach.innerHTML = formatPair(compiled.fingerToToeL, compiled.fingerToToeR);
-    if (cTorso) cTorso.innerHTML = formatPair(compiled.torso_l, compiled.torso_r);
-    if (cThigh) cThigh.innerHTML = formatPair(compiled.thigh_l, compiled.thigh_r);
-    if (cShin) cShin.innerHTML = formatPair(compiled.shin_l, compiled.shin_r);
-    if (cUpperarm) cUpperarm.innerHTML = formatPair(compiled.upperarm_l, compiled.upperarm_r);
-    if (cForearm) cForearm.innerHTML = formatPair(compiled.forearm_l, compiled.forearm_r);
-
-    // 8. Wire up metrics editing button event handlers (activeSession-scoped)
-    const editBtn = document.getElementById('btn-edit-baseline-metrics');
-    if (editBtn) {
-      editBtn.classList.remove('btn-save-metrics', 'btn-edit-metrics');
-      if (state.isEditingProfileMetrics) {
-        editBtn.innerHTML = '💾 Save Metrics';
-        editBtn.classList.add('btn-save-metrics');
-        
-        let cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
-        if (!cancelBtn) {
-          cancelBtn = document.createElement('button');
-          cancelBtn.id = 'btn-cancel-baseline-metrics';
-          cancelBtn.className = 'btn btn-cancel-metrics';
-          cancelBtn.innerHTML = '❌ Cancel';
-          editBtn.parentNode.appendChild(cancelBtn);
-        }
-        
-        cancelBtn.onclick = () => {
-          state.isEditingProfileMetrics = false;
-          openProfileDetailsModal(profileId);
-        };
-        
-        editBtn.onclick = async () => {
-          try {
-            const freshProfile = await snapshotStore.getProfile(profileId);
-            if (!freshProfile) return;
-            
-            const freshProfileMigrated = ensureProfileSessions(freshProfile);
-            const freshActiveSession = freshProfileMigrated.sessions.find(s => String(s.id) === String(activeSession.id)) || freshProfileMigrated.sessions[0];
-            
-            if (!freshActiveSession.metricsA) freshActiveSession.metricsA = {};
-            if (!freshActiveSession.metricsT) freshActiveSession.metricsT = {};
-            if (!freshActiveSession.metricsOverhead) freshActiveSession.metricsOverhead = {};
-            
-            const inputs = document.querySelectorAll('.profile-edit-input');
-            inputs.forEach(input => {
-              const pose = input.getAttribute('data-pose');
-              const key = input.getAttribute('data-key');
-              const rawVal = input.value.trim();
-              
-              let targetMetrics;
-              if (pose === 'a') targetMetrics = freshActiveSession.metricsA;
-              else if (pose === 't') targetMetrics = freshActiveSession.metricsT;
-              else if (pose === 'overhead') targetMetrics = freshActiveSession.metricsOverhead;
-              
-              if (targetMetrics) {
-                if (rawVal === "") {
-                  targetMetrics[key] = null;
-                } else {
-                  const parsed = parseFloat(rawVal);
-                  if (!isNaN(parsed)) {
-                    const cmVal = state.useInches ? parsed * 2.54 : parsed;
-                    targetMetrics[key] = cmVal;
-                  }
-                }
-              }
-            });
-
-            // Save squat peaks mobility records in session
-            if (!freshActiveSession.squatPeaks) {
-              freshActiveSession.squatPeaks = { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
-            }
-            const squatInputs = document.querySelectorAll('.profile-squat-edit-input');
-            squatInputs.forEach(input => {
-              const joint = input.getAttribute('data-joint');
-              const side = input.getAttribute('data-side');
-              const rawVal = input.value.trim();
-              let val = 0;
-              if (rawVal !== "") {
-                const parsed = parseInt(rawVal, 10);
-                if (!isNaN(parsed)) {
-                  val = parsed;
-                }
-              }
-              const key = joint + side; // e.g. kneeL, kneeR, hipL, hipR, ankleL, ankleR
-              freshActiveSession.squatPeaks[key] = val;
-            });
-            
-            // Mirror back to legacy fields for redundancy
-            freshProfileMigrated.metricsA = freshActiveSession.metricsA;
-            freshProfileMigrated.metricsT = freshActiveSession.metricsT;
-            freshProfileMigrated.metricsOverhead = freshActiveSession.metricsOverhead;
-            freshProfileMigrated.squatPeaks = freshActiveSession.squatPeaks;
-            freshProfileMigrated.imageA = freshActiveSession.imageA;
-            freshProfileMigrated.imageT = freshActiveSession.imageT;
-            freshProfileMigrated.imageOverhead = freshActiveSession.imageOverhead;
-            freshProfileMigrated.imageSquatL = freshActiveSession.imageSquatL;
-            freshProfileMigrated.imageSquatR = freshActiveSession.imageSquatR;
-
-            await snapshotStore.saveProfile(freshProfileMigrated);
-            state.allProfiles = await snapshotStore.getAllProfiles();
-            if (state.activeProfileId === profileId) {
-              await loadProfileIntoState(profileId);
-            }
-            
-            state.isEditingProfileMetrics = false;
-            alert("Metrics updated successfully!");
-            openProfileDetailsModal(profileId);
-          } catch (err) {
-            console.error("[SaveMetrics] Failed to save metrics:", err);
-            alert("Failed to save metrics: " + err.message);
-          }
-        };
-      } else {
-        editBtn.innerHTML = '✏️ Edit Metrics';
-        editBtn.classList.add('btn-edit-metrics');
-        
-        const cancelBtn = document.getElementById('btn-cancel-baseline-metrics');
-        if (cancelBtn) {
-          cancelBtn.parentNode.removeChild(cancelBtn);
-        }
-        
-        editBtn.onclick = () => {
-          state.isEditingProfileMetrics = true;
-          openProfileDetailsModal(profileId);
-        };
-      }
-    }
-
-    // 9. Squat Peak mobility (with edit inputs support)
-    const dsqKnee = document.getElementById('detail-squat-knee');
-    const dsqHip = document.getElementById('detail-squat-hip');
-    const dsqAnkle = document.getElementById('detail-squat-ankle');
-    
-    const sPeaks = activeSession.squatPeaks || { kneeL: 0, kneeR: 0, hipL: 0, hipR: 0, ankleL: 0, ankleR: 0 };
-    if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
-    if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
-    if (dsqAnkle) dsqAnkle.innerHTML = renderSquatPeakEdit('ankle', sPeaks.ankleL, sPeaks.ankleR);
-
-    // 10. Populate Saved Videos & Interactive Playlist Manager
-    if (state.modalObjectUrls) {
-      state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
-    }
-    state.modalObjectUrls = [];
-
-    const videosListEl = document.getElementById('profile-details-videos-list');
-    const mainVideoPlayer = document.getElementById('profile-details-video-player');
-    const videoPlaceholder = document.getElementById('profile-details-video-placeholder');
-
-    if (mainVideoPlayer) {
-      mainVideoPlayer.src = '';
-      mainVideoPlayer.classList.add('hidden');
-      mainVideoPlayer.classList.remove('visible-block');
-    }
-    if (videoPlaceholder) {
-      videoPlaceholder.classList.add('visible-flex');
-      videoPlaceholder.classList.remove('hidden');
-      videoPlaceholder.innerHTML = `
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="playlist-placeholder-icon"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-        <span>Select a recording from the playlist below to play</span>
-      `;
-    }
-
-    if (videosListEl) {
-      videosListEl.innerHTML = '';
-      
-      const savedVideos = profile.videos || [];
-      if (savedVideos.length === 0) {
-        if (videoPlaceholder) {
-          videoPlaceholder.innerHTML = `
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="playlist-placeholder-icon-empty"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-            <span class="playlist-empty-text">No video recordings saved for this profile yet.</span>
-          `;
-        }
-        videosListEl.innerHTML = `
-          <div class="playlist-empty-placeholder">
-            🎥 Playlist Empty
-          </div>
-        `;
-      } else {
-        savedVideos.forEach((video, idx) => {
-          const videoRow = document.createElement('div');
-          videoRow.className = 'profile-video-row-item';
-          
-          const videoUrl = URL.createObjectURL(video.blob);
-          state.modalObjectUrls.push(videoUrl);
-          
-          const dateStr = video.timestamp ? new Date(video.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unknown Date';
-          const sizeMb = (video.blob.size / (1024 * 1024)).toFixed(1);
-          const durationStr = video.duration ? `${(video.duration / 1000).toFixed(1)}s` : '--';
-          
-          videoRow.innerHTML = `
-            <div class="playlist-video-info-container">
-              <div class="playlist-play-icon">
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              </div>
-              <div class="playlist-video-details">
-                <div class="playlist-video-title-row">
-                  <span class="playlist-video-name">${video.name || 'Video Capture'}</span>
-                  <button class="btn btn-rename-video" title="Rename Video">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                  </button>
-                </div>
-                <span class="playlist-video-meta">${dateStr} &bull; ${sizeMb} MB &bull; ${durationStr}</span>
-              </div>
-            </div>
-            <div class="playlist-row-actions">
-              <button class="btn btn-dl-video">DL</button>
-              <button class="btn btn-del-video">DEL</button>
-            </div>
-          `;
-
-          // Play selection trigger
-          const selectVideo = () => {
-            const allItems = videosListEl.querySelectorAll('.profile-video-row-item');
-            allItems.forEach(item => item.classList.remove('active-playlist-item'));
-
-            videoRow.classList.add('active-playlist-item');
-
-            if (mainVideoPlayer) {
-              mainVideoPlayer.src = videoUrl;
-              mainVideoPlayer.classList.add('visible-block');
-              mainVideoPlayer.classList.remove('hidden');
-              if (videoPlaceholder) {
-                videoPlaceholder.classList.add('hidden');
-                videoPlaceholder.classList.remove('visible-flex');
-              }
-              mainVideoPlayer.play().catch(e => console.log("[VideoPlay] Autoplay blocked:", e));
-            }
-          };
-
-          videoRow.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-rename-video') || e.target.closest('.btn-dl-video') || e.target.closest('.btn-del-video')) {
-              return;
-            }
-            selectVideo();
-          });
-
-          // Auto pre-select the first video on open
-          if (idx === 0) {
-            videoRow.classList.add('active-playlist-item');
-            if (mainVideoPlayer) {
-              mainVideoPlayer.src = videoUrl;
-              mainVideoPlayer.classList.add('visible-block');
-              mainVideoPlayer.classList.remove('hidden');
-              if (videoPlaceholder) {
-                videoPlaceholder.classList.add('hidden');
-                videoPlaceholder.classList.remove('visible-flex');
-              }
-            }
-          }
-
-          // Rename action
-          const renameBtn = videoRow.querySelector('.btn-rename-video');
-          renameBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const currentName = video.name || 'Video Capture';
-            const newName = prompt("Enter a new name for this video:", currentName);
-            if (newName === null) return;
-            const trimmedName = newName.trim();
-            if (!trimmedName) {
-              alert("Video name cannot be empty.");
-              return;
-            }
-            try {
-              const freshProfile = await snapshotStore.getProfile(profileId);
-              if (freshProfile && freshProfile.videos) {
-                const vToUpdate = freshProfile.videos.find(v => v.id === video.id);
-                if (vToUpdate) {
-                  vToUpdate.name = trimmedName;
-                  await snapshotStore.saveProfile(freshProfile);
-                  state.allProfiles = await snapshotStore.getAllProfiles();
-                  openProfileDetailsModal(profileId);
-                }
-              }
-            } catch (err) {
-              console.error("[VideoRename] Failed to rename saved video:", err);
-            }
-          });
-
-          // Download action
-          const dlBtn = videoRow.querySelector('.btn-dl-video');
-          dlBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const a = document.createElement('a');
-            a.classList.add('hidden');
-            a.href = videoUrl;
-            const fileExt = video.fileExt || 'webm';
-            const cleanSubjectName = profile.name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-            a.download = `scarlet_biomechanics_${cleanSubjectName}_saved_recording_${video.id}.${fileExt}`;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-              document.body.removeChild(a);
-            }, 100);
-          });
-
-          // Delete action
-          const delBtn = videoRow.querySelector('.btn-del-video');
-          delBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            if (!confirm("Are you sure you want to permanently delete this saved video from the profile?")) {
-              return;
-            }
-            try {
-              const freshProfile = await snapshotStore.getProfile(profileId);
-              if (freshProfile && freshProfile.videos) {
-                freshProfile.videos = freshProfile.videos.filter(v => v.id !== video.id);
-                await snapshotStore.saveProfile(freshProfile);
-                state.allProfiles = await snapshotStore.getAllProfiles();
-                openProfileDetailsModal(profileId);
-              }
-            } catch (err) {
-              console.error("[VideoDelete] Failed to delete saved video:", err);
-            }
-          });
-
-          videosListEl.appendChild(videoRow);
-        });
-      }
-    }
-
-    // 11. Open the modal
-    const profileDetailsModal = document.getElementById('profile-details-modal');
-    if (profileDetailsModal) {
-      profileDetailsModal.classList.add('active');
-    }
-
-  } catch (err) {
-    console.error("[openProfileDetailsModal] Error showing profile details modal:", err);
-  }
-}
-
-export function closeProfileDetailsModal() {
-  const profileDetailsModal = document.getElementById('profile-details-modal');
-  if (profileDetailsModal) {
-    profileDetailsModal.classList.remove('active');
-  }
-  if (state.modalObjectUrls) {
-    state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
-    state.modalObjectUrls = [];
-  }
-  state.isEditingProfileMetrics = false;
-}
-
+// =====================================================================
+// SUB-CONTROLLER BUTTONS AND EVENT LISTENERS (NOW MODULARIZED)
+// =====================================================================
+// =====================================================================
+// PROFILE MANAGEMENT AND DETAILS MODAL LOGIC (NOW IN profileManager.js)
+// =====================================================================
 // =====================================================================
 // SCARLET VIDEO RECORDING COMPONENT (HIGH-DEFINITION SIDE-BY-SIDE GRID)
 // Placed at the bottom to prevent interfering with biomechanical loops
@@ -6336,7 +5526,11 @@ function initScarletRecorder() {
     // Draw joints split horizontally across columns to maximize viewport layout bounds
     drawDualColumnRow("Left Knee:", getEl(kneeAngleLDisp), "Right Knee:", getEl(kneeAngleRDisp), 205);
     drawDualColumnRow("Left Hip:", getEl(hipAngleLDisp), "Right Hip:", getEl(hipAngleRDisp), 261);
-    drawDualColumnRow("Left Elbow:", getEl(elbowAngleLDisp), "Right Elbow:", getEl(elbowAngleRDisp), 317);
+    if (state.currentMode === 'shoulder_flexion') {
+      drawDualColumnRow("Left Shoulder:", getEl(shoulderLiveAngleL), "Right Shoulder:", getEl(shoulderLiveAngleR), 317);
+    } else {
+      drawDualColumnRow("Left Elbow:", getEl(elbowAngleLDisp), "Right Elbow:", getEl(elbowAngleRDisp), 317);
+    }
 
     // Loop frame renders smoothly
     scarletAnimationId = requestAnimationFrame(renderRecordingFrame);
@@ -6383,7 +5577,7 @@ function initScarletRecorder() {
 
       scarletMediaRecorder.start(100);
       
-      recordBtn.textContent = '🛑 Stop Recording Video';
+      recordBtn.textContent = 'Stop Recording Video';
       recordBtn.style.backgroundColor = '#BA0C2F'; 
       
     } else {
@@ -6396,5 +5590,65 @@ function initScarletRecorder() {
     }
   });
 }
+
+// =====================================================================
+// INITIALIZE MODULAR SUB-CONTROLLER LISTENERS
+// =====================================================================
+registerProfileCallbacks({
+  renderDashboard,
+  updateDashboardOfflinePlaceholders,
+  setUnitSystem,
+  importPriorPortfolio
+});
+
+registerSquatCallbacks({
+  startVideoRecording,
+  stopVideoRecording,
+  showAnalysisProgressOverlay,
+  hideAnalysisProgressOverlay,
+  updateRecordButtonUI,
+  getPoseModel: () => pose
+});
+
+registerShoulderRotationCallbacks({
+  startVideoRecording,
+  stopVideoRecording
+});
+
+registerHipRotationCallbacks({
+  startVideoRecording,
+  stopVideoRecording
+});
+
+registerAnkleDorsiCallbacks({
+  startVideoRecording,
+  stopVideoRecording
+});
+
+registerThoracicCallbacks({
+  startVideoRecording,
+  stopVideoRecording
+});
+
+setupShoulderListeners(onPoseResults, updateDashboardOfflinePlaceholders);
+setupShoulderRotationListeners(onPoseResults);
+setupHipRotationListeners(onPoseResults);
+setupThoracicExtensionListeners(onPoseResults);
+setupSquatListeners(onPoseResults, updateDashboardOfflinePlaceholders);
+setupAnkleDorsiEvents(onPoseResults);
+setupVideoControls(pose, hands, onPoseResults, drawHandMesh);
+
+// Initial UI sync for side selectors
+setTimeout(() => {
+  updateSquatSideUI();
+  updateShoulderSideUI();
+  updateShoulderSidebarUI();
+  updateShoulderRotationSideUI();
+  updateShoulderRotationSidebarUI();
+  updateHipRotationSideUI();
+  updateHipRotationSidebarUI();
+  updateThoracicExtensionSidebarUI();
+  updateDorsiLiveUI();
+}, 200);
 
 window.addEventListener('load', initScarletRecorder);

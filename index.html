@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
   
+  <!-- JSZip CDN for profile zip bundling -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
 
 
   <link rel="stylesheet" href="styles.css">
@@ -17,7 +19,47 @@
 <body>
 
   <div class="app-grid">
-    
+
+    <!-- Left Column: Saved Video Recordings Sidebar -->
+    <div class="gallery-section" id="left-videos-sidebar">
+      
+      <!-- Guest Placeholder: displayed when in Guest Mode (default) -->
+      <div class="guest-placeholder-card" id="left-videos-guest-card" style="padding: 2.5rem 1.5rem; text-align: center; border: 1px dashed rgba(255,255,255,0.12); border-radius: 12px; background: rgba(30, 30, 30, 0.45); backdrop-filter: blur(10px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; width: 100%; box-sizing: border-box;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(186, 12, 47, 0.08); display: flex; align-items: center; justify-content: center; color: #BA0C2F; border: 1px solid rgba(186, 12, 47, 0.2); box-shadow: 0 4px 12px rgba(186, 12, 47, 0.15);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+        </div>
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">No Profile Loaded</h3>
+        <p style="margin: 0; font-size: 0.85rem; color: #888; line-height: 1.45; text-align: center; max-width: 280px;">Select an existing athlete profile or create a new one to access and play back their recorded trials.</p>
+      </div>
+
+      <!-- Active Recordings Panel (hidden by default) -->
+      <div id="left-videos-active-card" class="hidden" style="width: 100%;">
+        <div class="sidebar-videos-container" style="background: rgba(22, 22, 22, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(15px); border-radius: 12px; padding: 1.25rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35); box-sizing: border-box; width: 100%;">
+          <div class="details-section-title" style="margin-top: 0; font-size: 1.1rem; font-weight: 700; margin-bottom: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.06); padding-bottom: 8px;">Saved Recordings Archive</div>
+          
+          <!-- Central Video Player Display Area (Fixed 16:9 aspect ratio) -->
+          <div id="profile-details-video-player-container" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center;">
+            <video id="profile-details-video-player" controls controlsList="nofullscreen" style="width: 100%; height: 100%; object-fit: contain; display: none;"></video>
+            <canvas id="profile-details-video-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; z-index: 2; display: none;"></canvas>
+            <button id="btn-profile-video-fullscreen" style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; width: 32px; height: 32px; border-radius: 6px; display: none; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s ease;" title="Expand Fullscreen">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+              </svg>
+            </button>
+            <div id="profile-details-video-placeholder" style="color: #888; font-size: 0.85rem; text-align: center; padding: 1rem; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+              <span>Select a recording from the playlist below to play</span>
+            </div>
+          </div>
+
+          <!-- Playlist Scroll Container -->
+          <div id="profile-details-videos-list" class="profile-details-videos-list" style="max-height: calc(100vh - 19.5rem); overflow-y: auto; margin-top: 0.85rem; display: flex; flex-direction: column; gap: 0.5rem;">
+            <!-- Playlist items populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Left Column: Video and Calibration Controls -->
     <div class="container">
       
@@ -28,67 +70,113 @@
         <div class="brand-title">SCARLET Biomechanics</div>
         <div class="brand-subtitle">BUCKEYE PERFORMANCE PLATFORM</div>
       </div>
-      <div class="subtitle">Complete biomechanical movement segment analysis & joint angle tracking.</div>
-      
-      <!-- Main Mode Switcher Tabs -->
-      <div class="main-mode-tabs">
-        <button id="btn-mode-posture" class="main-mode-btn active">Posture & Stature Scan</button>
-        <button id="btn-mode-squat" class="main-mode-btn">Overhead Squat Analyzer</button>
-      </div>
 
       <!-- Calibration Panel -->
       <div class="calibration-panel">
         <div class="calibration-row calibration-row-compact">
-          <span class="calibration-method-title"><strong>Choose Calibration Method:</strong></span>
-        </div>
-        
-        <!-- Tab buttons -->
-        <div class="calibration-tabs">
-          <button id="tab-height-btn" class="btn btn-tab-active">Input Height</button>
-          <button id="tab-portfolio-btn" class="btn btn-tab-inactive">Select Player Profile</button>
+          <span class="calibration-method-title"><strong></strong></span>
         </div>
 
-        <!-- Panel 2: Card Calibration (Manual) -->
-        <div id="panel-card" class="cal-panel hidden">
-          <div class="calibration-row cal-instruction">Hold a 200mm card inside the alignment box below.</div>
-          <div class="calibration-row cal-row-center">
-            <span class="cal-label">Move Box:</span>
-            <button id="pos-left-btn" class="btn btn-tab-inactive">Left</button>
-            <button id="pos-center-btn" class="btn btn-tab-active">Center</button>
-            <button id="pos-right-btn" class="btn btn-tab-inactive">Right</button>
+              <!-- Active Subject / Profile Panel -->
+      <div id="subject-profile-panel">
+        <div class="profile-header">
+          <label for="profile-select" class="subject-name-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Subject Profile
+          </label>
+          <button id="btn-delete-profile" class="profile-delete-btn hidden" title="Delete Active Profile">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 3px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            Delete Profile
+          </button>
+        </div>
+        
+        <div class="profile-search-wrapper">
+          <input type="text" id="profile-search-input" class="profile-search-input" placeholder="Search profiles...">
+        </div>
+
+        <div id="profile-select-container" class="profile-controls-row">
+          <select id="profile-select" class="profile-dropdown">
+            <option value="new" selected>Select Existing Profile</option>
+            <option value="import">Import Profile Bundle (.ZIP)</option>
+          </select>
+        </div>
+
+        <div id="new-profile-input-container" class="profile-controls-row visible-flex" style="flex-direction: column; gap: 0.5rem; align-items: stretch; width: 100%;">
+          <input type="text" id="subject-name-input" placeholder="Enter New Subject Name" style="width: 100%;">
+          <div class="profile-height-input-subcontainer" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0 2px;">
+            <label for="input-user-height" style="font-size: 0.8rem; opacity: 0.95; margin-bottom: 0;">Your Height (inches):</label>
+            <input type="number" id="input-user-height" value="68.9" step="0.01">
           </div>
-          <div class="calibration-row">
-            <label for="box-slider">Box Width:</label>
-            <input type="range" id="box-slider" class="slider" min="50" max="400" value="150">
-            <span id="slider-val">150 px</span>
-          </div>
-          <div class="calibration-row">
-            <button id="lock-cal-btn" class="btn success">Lock 20cm Calibration</button>
+          <button id="btn-save-profile" class="btn success compact-btn" style="width: 100%;">Create</button>
+        </div>
+
+        <div id="import-profile-input-container" class="profile-controls-row hidden" style="flex-direction: column; gap: 0.5rem; align-items: stretch; width: 100%;">
+          <div style="font-size: 0.75rem; opacity: 0.8; margin-bottom: 2px; text-align: left; width: 100%;">Upload a profile .zip bundle:</div>
+          <input type="file" id="profile-bundle-file-input" accept=".zip" style="width: 100%; font-size: 0.8rem; padding: 6px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;">
+          <button id="btn-import-profile-bundle-submit" class="btn success compact-btn" style="width: 100%;">Import .ZIP Bundle</button>
+        </div>
+        
+        <!-- Active Session Selector (placed under profile select name, above active profile status bar) -->
+        <div id="profile-session-select-container" class="profile-controls-row hidden" style="margin-top: 0.35rem;">
+          <select id="profile-session-select" class="profile-dropdown" style="border-color: rgba(186, 12, 47, 0.4); box-shadow: 0 0 6px rgba(186, 12, 47, 0.15);">
+            <!-- Options dynamically populated: e.g. "Baseline Session", "+ Create New Session..." -->
+          </select>
+        </div>
+        
+        <div id="profile-status-bar" class="profile-status-bar hidden">
+          <span class="status-indicator"></span> Active Profile: <strong id="active-profile-name" class="text-gold">Guest Mode</strong>
+        </div>
+        
+        <div id="profile-action-row" class="profile-action-row hidden" style="margin-top: 0.25rem;">
+          <button id="btn-view-profile-details" class="btn btn-view-profile-details" style="width: 100%; font-size: 0.75rem; padding: 0.4rem;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 2px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            View Profile Details
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Mode Dropdown Menu -->
+      <div class="main-mode-dropdown-container" style="margin-bottom: 1.25rem; width: 100%;">
+        <label for="select-test-mode" style="display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a7b1b7; margin-bottom: 6px;">Select Exercise Testing Mode:</label>
+        <div style="position: relative; display: flex; width: 100%;">
+          <select id="select-test-mode" autocomplete="off" style="width: 100%; height: 44px; background: var(--color-dark-gray); border: 2px solid rgba(255, 255, 255, 0.08); border-radius: 10px; color: #f3f4f6; padding: 0 16px; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; transition: all 0.2s ease;">
+            <option value="posture" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Anthropometric Scan</option>
+            <option value="squat" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Overhead Squat</option>
+            <option value="shoulder" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Shoulder Flexion</option>
+            <option value="shoulder-rotation" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Shoulder Rotation</option>
+            <option value="hip-rotation" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Hip Rotation</option>
+            <option value="thoracic-extension">Thoracic Extension</option>
+            <option value="ankle-dorsi" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Ankle Dorsiflection</option>
+          </select>
+          <div style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #a7b1b7; display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </div>
         </div>
+      </div>
+
 
         <!-- Panel 3: Height Calibration -->
         <div id="panel-height" class="cal-panel">
           <div class="calibration-row cal-status-success">
-            <span id="height-status-text">⚡ Auto-Calibrating Scale...</span>
+            <span id="height-status-text"></span>
           </div>
           <div class="calibration-row cal-status-info">
-            Enter your height. The scale calibrates automatically in real-time as you stand in view of the camera.
-          </div>
-          <div class="calibration-row cal-row-center">
-            <label for="input-user-height">Your Height (inches):</label>
-            <input type="number" id="input-user-height" value="68.9" step="0.01">
+            The scale calibrates automatically in real-time as you stand in view of the camera based on your profile's height.
           </div>
         </div>
 
         <!-- Panel 4: Select Player Profile -->
         <div id="panel-portfolio" class="cal-panel hidden">
-          <div class="calibration-row cal-instruction" style="margin-bottom: 0.5rem;">Select an existing player profile to apply its saved scale factor and posture baseline.</div>
+          <div class="calibration-row cal-instruction" style="margin-bottom: 0.5rem;">Select an existing athlete profile from the dropdown below to apply its saved scale factor and posture baseline.</div>
+        </div>
+
+        <!-- Panel 5: Import Player Profile -->
+        <div id="panel-import" class="cal-panel hidden">
+          <div class="calibration-row cal-instruction" style="margin-bottom: 0.5rem;">Paste a previously exported player profile JSON to import its saved scale factor and posture baseline.</div>
           <div class="calibration-row" style="flex-direction: column; align-items: stretch; width: 100%;">
-            <label for="cal-profile-select" style="margin-bottom: 0.25rem;">Active Player Profile:</label>
-            <select id="cal-profile-select" class="profile-dropdown" style="width: 100%;">
-              <option value="">-- Guest Session (Unsaved) --</option>
-            </select>
+            <label for="textarea-portfolio-json" style="margin-bottom: 0.25rem;">Pasted Player Profile JSON:</label>
+            <textarea id="textarea-portfolio-json" placeholder="Paste player profile JSON here..." style="width: 100%; height: 100px; background: rgba(15, 23, 42, 0.6); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 0.5rem; font-family: monospace; font-size: 0.75rem; resize: vertical; margin-bottom: 0.5rem; outline: none;"></textarea>
+            <button id="btn-import-portfolio" class="btn success" style="width: 100%; margin-top: 0.25rem;">Import Player Profile</button>
           </div>
         </div>
       </div>
@@ -130,68 +218,12 @@
         Upload Image / Video File
       </button>
       <input type="file" id="media-upload-input" accept="image/*,video/*" class="hidden" style="display: none;">
-      <button id="yolo-toggle-btn" class="btn">Enable YOLO Background Isolation</button>
-      
-      <!-- Active Subject / Profile Panel -->
-      <div id="subject-profile-panel">
-        <div class="profile-header">
-          <label for="profile-select" class="subject-name-label">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            Subject Profile
-          </label>
-          <button id="btn-delete-profile" class="profile-delete-btn hidden" title="Delete Active Profile">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 3px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            Delete Profile
-          </button>
-        </div>
-        
-        <div class="profile-search-wrapper">
-          <input type="text" id="profile-search-input" class="profile-search-input" placeholder="🔍 Search profiles...">
-        </div>
-
-        <div class="profile-controls-row">
-          <select id="profile-select" class="profile-dropdown">
-            <option value="">-- Guest Session (Unsaved) --</option>
-            <option value="new">+ Create New Profile...</option>
-          </select>
-        </div>
-
-        <div id="new-profile-input-container" class="profile-controls-row hidden">
-          <input type="text" id="subject-name-input" placeholder="Enter New Subject Name">
-          <button id="btn-save-profile" class="btn success compact-btn">Create</button>
-        </div>
-        
-        <!-- Active Session Selector (placed under profile select name, above active profile status bar) -->
-        <div id="profile-session-select-container" class="profile-controls-row hidden" style="margin-top: 0.35rem;">
-          <select id="profile-session-select" class="profile-dropdown" style="border-color: rgba(186, 12, 47, 0.4); box-shadow: 0 0 6px rgba(186, 12, 47, 0.15);">
-            <!-- Options dynamically populated: e.g. "Baseline Session", "+ Create New Session..." -->
-          </select>
-        </div>
-        
-        <div id="profile-status-bar" class="profile-status-bar hidden">
-          <span class="status-indicator"></span> Active Profile: <strong id="active-profile-name" class="text-gold">Guest Mode</strong>
-        </div>
-        
-        <div id="profile-action-row" class="profile-action-row hidden" style="margin-top: 0.25rem;">
-          <button id="btn-view-profile-details" class="btn btn-view-profile-details" style="width: 100%; font-size: 0.75rem; padding: 0.4rem;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 2px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            View Profile Details
-          </button>
-        </div>
-      </div>
+      <button id="yolo-toggle-btn" class="btn">Enable Background Isolation</button>
 
       <div class="capture-buttons-row">
         <button id="capture-btn" class="btn btn-capture hidden">Start 5s Capture Snapshot</button>
         <button id="auto-sequence-btn" class="btn hidden">Hands-Free Auto Capture</button>
       </div>
-
-      <button id="btn-export-video" class="btn hidden" style="background: linear-gradient(135deg, #ec4899, #818cf8); border: 1px solid rgba(236, 72, 153, 0.4); box-shadow: 0 0 10px rgba(236, 72, 153, 0.3); margin-top: 0.5rem; width: 100%;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;">
-          <circle cx="12" cy="12" r="10"></circle>
-          <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
-        </svg>
-        Record & Export Video
-      </button>
       
       <!-- Snapshot Saving Controls (shown when snapshot is frozen) -->
       <div id="save-controls-panel" class="save-panel hidden">
@@ -229,7 +261,7 @@
       
       <div id="posture-sidebar-content">
         <!-- Full-Body Stature -->
-        <div class="panel-section panel-section-stature">
+        <div class="panel-section panel-section-stature collapsible active-expanded">
           <div class="section-title stature-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             Full-Body Stature
@@ -252,7 +284,7 @@
         </div>
 
         <!-- Real-time Joint Angles -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
         <div class="section-title">Joint Angles (Flexion)</div>
         <div class="angle-header-row angle-header-row-spaced">
           <span class="side-header-left">Left Side</span>
@@ -289,7 +321,7 @@
         </div>
 
         <!-- Lower Body Segments -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">Lower Body Segments</div>
           <div class="angle-header-row">
             <span class="text-left-color">Left</span>
@@ -321,7 +353,7 @@
         </div>
 
         <!-- Upper Body Segments -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">Upper Body Segments</div>
           <div class="metrics-list">
             <div class="metric-row">
@@ -349,7 +381,7 @@
         </div>
 
         <!-- Body Widths -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">Full Body Widths</div>
           <div class="metrics-list">
             <div class="metric-row">
@@ -367,7 +399,7 @@
         </div>
 
         <!-- Hand Metrics -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
             Hand Metrics
@@ -395,7 +427,7 @@
         </div>
 
         <!-- Pose Landmarks Overlay Section -->
-        <div class="panel-section panel-section-landmarks">
+        <div class="panel-section panel-section-landmarks collapsible">
           <div class="section-title landmarks-title">
             <span class="metric-lbl-flex">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
@@ -421,10 +453,10 @@
       <div id="squat-sidebar-content" class="hidden">
         
         <!-- Overhead Squat Performance Overview Card -->
-        <div class="panel-section squat-performance-section">
+        <div class="panel-section squat-performance-section collapsible">
           <div class="section-title squat-perf-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-            Overhead Squat Analyzer
+            Overhead Squat
           </div>
           <div class="metrics-list">
             <div class="metric-row">
@@ -433,11 +465,15 @@
                 <span id="squat-status-val" class="metric-val text-slate">Awaiting Subject</span>
               </div>
             </div>
+            <div class="metric-row hidden" id="squat-asymmetry-row" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Frontal Asymmetry:</span>
+              <span id="squat-asymmetry-val" style="font-size: 0.85rem; font-weight: 700; color: #10b981;">None</span>
+            </div>
           </div>
         </div>
 
         <!-- Mobility Analysis Dashboard Section -->
-        <div class="panel-section">
+        <div class="panel-section collapsible active-expanded">
           <div class="section-title">Peak Mobility Scores</div>
           <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
             Captures and locks the maximum flexion angles reached during your squat descent.
@@ -450,6 +486,7 @@
               <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
                 <button id="btn-squat-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">LEFT</button>
                 <button id="btn-squat-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">RIGHT</button>
+                <button id="btn-squat-side-frontal" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">FRONTAL</button>
               </div>
             </div>
           </div>
@@ -501,14 +538,14 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
             Reset Peak Metrics
           </button>
-          <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            Save Peaks to Portfolio
+          <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Record Squat Assessment
           </button>
         </div>
 
         <!-- Squat Biomechanics Reference Guide -->
-        <div class="panel-section squat-guide-section">
+        <div class="panel-section squat-guide-section collapsible">
           <div class="section-title guide-title">Form Reference Guide</div>
           <div class="guide-box">
             <div class="guide-item">
@@ -526,7 +563,520 @@
             <div class="guide-item">
               <span class="guide-bullet bullet-ankle" style="color: var(--color-cyan);">●</span>
               <div class="guide-text">
-                <strong>Ankle Dorsiflexion:</strong> Targets 15° - 25° of forward shin tilt. Tracked as <code>max(0, 115° - AnkleAngle)</code>.
+                <strong>Tibial Inclination (Shin Tilt):</strong> Targets 38°+ for optimal mobility, and 30° - 38° for functional mobility. Tracked relative to a vertical plumb line.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ankle Dorsiflexion ROM Dashboard content -->
+      <div id="ankledorsi-sidebar-content" class="hidden">
+         
+         <!-- Performance Overview Card -->
+         <div class="panel-section dorsi-performance-section collapsible">
+          <div class="section-title dorsi-perf-title" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Tibial Inclination ROM
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="dorsi-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+            <div class="metric-row" id="dorsi-asymmetry-row" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.5rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">L/R Shin Asymmetry:</span>
+              <span id="dorsi-asymmetry-val" style="font-size: 0.85rem; font-weight: 700; color: #10b981;">None</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testing Section -->
+        <div class="panel-section collapsible active-expanded">
+          <div class="section-title">Tibial Inclination Test</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Keeping heel flat on the floor, drive your knee forward as far as possible. Peak angles are automatically captured in real-time.
+          </div>
+          
+          <!-- Testing Side Selector -->
+          <div class="dorsi-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-dorsi-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">LEFT</button>
+                <button id="btn-dorsi-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Heel Lifting Autodetection Toggle -->
+          <div class="dorsi-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Auto-Detect Heel:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-auto-heel-on" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">ON</button>
+                <button id="btn-auto-heel-off" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">OFF</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Heel Status / Manual Override Selector -->
+          <div class="dorsi-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <div style="display: flex; flex-direction: column;">
+                <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Heel Position:</span>
+                <span id="lbl-heel-status" style="font-size: 0.65rem; font-weight: 700; color: #10b981; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px;"></span>
+              </div>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-heel-flat" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">FLAT</button>
+                <button id="btn-heel-lifted" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s;">LIFTED</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <!-- Tibial Inclination Row -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Tibial Inclination (L)</div>
+              <div id="dorsi-peak-shin-l" class="angle-val left-color">0°</div>
+              <div id="dorsi-class-shin-l" style="font-size: 0.7rem; font-weight: 700; margin: 3px 0; color: #a7b1b7; text-transform: uppercase; letter-spacing: 0.5px;">--</div>
+              <div class="angle-sub-lbl">Live: <span id="dorsi-live-shin-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Tibial Inclination (R)</div>
+              <div id="dorsi-peak-shin-r" class="angle-val right-color">0°</div>
+              <div id="dorsi-class-shin-r" style="font-size: 0.7rem; font-weight: 700; margin: 3px 0; color: #a7b1b7; text-transform: uppercase; letter-spacing: 0.5px;">--</div>
+              <div class="angle-sub-lbl">Live: <span id="dorsi-live-shin-r">0°</span></div>
+            </div>
+          </div>
+          <!-- Start/Stop Recording Toggle Button -->
+          <style>
+            @keyframes record-pulse {
+              0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+              70% { transform: scale(1.15); opacity: 0.9; box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+              100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            }
+            .recording-active-dot {
+              animation: record-pulse 1.5s infinite !important;
+            }
+          </style>
+          
+          <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+          
+          <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Dorsi Snapshot
+          </button>
+        </div>
+
+        <!-- Tibial Inclination Reference Guide -->
+        <div class="panel-section dorsi-guide-section collapsible">
+          <div class="section-title guide-title">Reference Targets & Guides</div>
+          <div class="guide-box">
+            <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; color: #a7b1b7; letter-spacing: 0.5px;">Tibial Inclination (Shin Forward Tilt)</div>
+            <div class="guide-item" style="margin-bottom: 4px;">
+              <span class="guide-bullet" style="color: #10b981;">●</span>
+              <div class="guide-text">
+                <strong>Optimal (&ge; 38°):</strong> Full squat capacity; no upstream compensation expected.
+              </div>
+            </div>
+            <div class="guide-item" style="margin-bottom: 4px;">
+              <span class="guide-bullet" style="color: #fbbf24;">●</span>
+              <div class="guide-text">
+                <strong>Functional (30°–38°):</strong> Minor limitation; monitor under fatigue.
+              </div>
+            </div>
+            <div class="guide-item" style="margin-bottom: 12px;">
+              <span class="guide-bullet" style="color: #f87171;">●</span>
+              <div class="guide-text">
+                <strong>Restricted (&lt; 30°):</strong> High compensation risk.
+              </div>
+            </div>
+
+
+
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+              <div class="guide-item">
+                <span class="guide-bullet" style="color: #6366f1;">●</span>
+                <div class="guide-text">
+                  <strong>Asymmetry Risk:</strong> A difference of &gt; 5° in tibial inclination between sides is a primary predictor of lower limb athletic injury.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shoulder Flexion Mobility Dashboard content -->
+      <div id="shoulder-sidebar-content" class="hidden">
+        
+        <!-- Shoulder Flexion Performance Overview Card -->
+        <div class="panel-section shoulder-performance-section collapsible">
+          <div class="section-title shoulder-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Shoulder Flexion
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="shoulder-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobility Analysis Dashboard Section -->
+        <div class="panel-section collapsible active-expanded">
+          <div class="section-title">Shoulder Mobility Peak Scores</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Calculates shoulder flexion excursion angle from start (90° raised position) to end frame.
+          </div>
+          
+          <!-- Testing Side Selector -->
+          <div class="shoulder-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Testing Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-shoulder-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: linear-gradient(135deg, #BA0C2F 0%, #8c051e 100%); color: white;">LEFT</button>
+                <button id="btn-shoulder-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: transparent; color: #a7b1b7;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid">
+            <!-- Total Excursion -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Excursion (Angle Change)</div>
+              <div id="shoulder-peak-excursion-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live Forearm: <span id="shoulder-live-angle-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Excursion (Angle Change)</div>
+              <div id="shoulder-peak-excursion-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live Forearm: <span id="shoulder-live-angle-r">0°</span></div>
+            </div>
+
+            <!-- Start Angle -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Start Position Angle</div>
+              <div id="shoulder-start-angle-l" class="angle-val left-color">--</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Start Position Angle</div>
+              <div id="shoulder-start-angle-r" class="angle-val right-color">--</div>
+            </div>
+
+            <!-- End Angle -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">End Position Angle</div>
+              <div id="shoulder-end-angle-l" class="angle-val left-color">--</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">End Position Angle</div>
+              <div id="shoulder-end-angle-r" class="angle-val right-color">--</div>
+            </div>
+          </div>
+          
+          <button id="btn-reset-shoulder-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+          <button id="btn-save-shoulder-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Flexion Snapshot
+          </button>
+        </div>
+
+        <!-- Shoulder Biomechanics Reference Guide -->
+        <div class="panel-section squat-guide-section collapsible">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                <strong>Start Frame:</strong> Captured with arm raised straight upward (near 90° flexion).
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-hip" style="color: var(--color-gold);">●</span>
+              <div class="guide-text">
+                <strong>End Frame:</strong> Captured at the lowest point of the lowering motion.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-ankle" style="color: var(--color-cyan);">●</span>
+              <div class="guide-text">
+                <strong>Excursion Angle:</strong> Total range of motion from initial elevation to terminal lowering.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="shoulder-rotation-sidebar-content" class="hidden">
+        
+        <!-- Shoulder Rotation Performance Overview Card -->
+        <div class="panel-section shoulder-performance-section collapsible">
+          <div class="section-title shoulder-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+            Shoulder Rotation
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="shoulder-rotation-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobility Analysis Dashboard Section -->
+        <div class="panel-section collapsible active-expanded">
+          <div class="section-title">Shoulder Internal/External Rotation Peaks</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Measures internal and external shoulder rotation from a sagittal view. Elbow is bent at 90° with forearm pointing forward at 0° baseline.
+          </div>
+          
+          <!-- Testing Side Selector -->
+          <div class="shoulder-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Testing Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-shoulder-rotation-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: linear-gradient(135deg, #BA0C2F 0%, #8c051e 100%); color: white;">LEFT</button>
+                <button id="btn-shoulder-rotation-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: transparent; color: #a7b1b7;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid">
+            <!-- Max External Rotation -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Max External Rotation</div>
+              <div id="shoulder-rotation-peak-external-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live Angle: <span id="shoulder-rotation-live-angle-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Max External Rotation</div>
+              <div id="shoulder-rotation-peak-external-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live Angle: <span id="shoulder-rotation-live-angle-r">0°</span></div>
+            </div>
+
+            <!-- Max Internal Rotation -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Max Internal Rotation</div>
+              <div id="shoulder-rotation-peak-internal-l" class="angle-val left-color">0°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Max Internal Rotation</div>
+              <div id="shoulder-rotation-peak-internal-r" class="angle-val right-color">0°</div>
+            </div>
+          </div>
+          
+          <button id="btn-reset-shoulder-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+          <button id="btn-save-shoulder-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Rotation Snapshot
+          </button>
+        </div>
+
+        <!-- Shoulder Rotation Biomechanics Reference Guide -->
+        <div class="panel-section squat-guide-section collapsible">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                <strong>0° Baseline Position:</strong> Upper arm vertical, elbow bent 90°, forearm parallel to ground pointing forward.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-hip" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                <strong>External Rotation:</strong> Forearm rotates backward (toward head). Measured as positive angle relative to baseline.
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-ankle" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                <strong>Internal Rotation:</strong> Forearm rotates forward (toward stomach). Measured as negative angle relative to baseline.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="thoracic-sidebar-content" class="hidden">
+        <div class="panel-section shoulder-performance-section collapsible">
+          <div class="section-title shoulder-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
+              <path d="M12 3v18"></path><path d="M3 8l9 4 9-4"></path><path d="M3 16l9 4 9-4"></path>
+            </svg>
+            Thoracic Extension
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="thoracic-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section collapsible active-expanded">
+          <div class="section-title">Live Thoracic Extension</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Tracks the torso line against the hip line to show how much thoracic extension is present.
+          </div>
+          <div class="angle-box-grid">
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Live Angle</div>
+              <div id="thoracic-live-angle" class="angle-val left-color">0°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Peak Angle</div>
+              <div id="thoracic-peak-angle" class="angle-val right-color">0°</div>
+            </div>
+          </div>
+          <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+          
+          <button id="btn-save-thoracic-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Thoracic Snapshot
+          </button>
+        </div>
+
+        <div class="panel-section squat-guide-section collapsible">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-cyan);">●</span>
+              <div class="guide-text">
+                <strong>Thoracic Extension:</strong> A larger angle indicates more opening through the upper back and thoracic spine.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="hip-rotation-sidebar-content" class="hidden">
+        
+        <!-- Hip Rotation Performance Overview Card -->
+        <div class="panel-section shoulder-performance-section collapsible">
+          <div class="section-title shoulder-perf-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+            Hip Rotation
+          </div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <span class="metric-lbl metric-lbl-bold">Active Mode</span>
+              <div class="text-right">
+                <span id="hip-rotation-status-val" class="metric-val text-slate">Awaiting Subject</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobility Analysis Dashboard Section -->
+        <div class="panel-section collapsible active-expanded">
+          <div class="section-title">Hip Internal/External Rotation Peaks</div>
+          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
+            Measures internal and external hip rotation. (Tracking algorithms to be integrated; placeholder overlay displayed).
+          </div>
+          
+          <!-- Testing Side Selector -->
+          <div class="hip-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="metric-lbl" style="font-weight: 600; font-size: 0.8rem; color: #a7b1b7;">Active Testing Side:</span>
+              <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                <button id="btn-hip-rotation-side-left" class="btn-side-toggle active-left" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: linear-gradient(135deg, #BA0C2F 0%, #8c051e 100%); color: white;">LEFT</button>
+                <button id="btn-hip-rotation-side-right" class="btn-side-toggle" style="padding: 3px 12px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; cursor: pointer; border: none; outline: none; transition: all 0.25s; background: transparent; color: #a7b1b7;">RIGHT</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="angle-header-row angle-header-row-spaced">
+            <span class="side-header-left">Left Side</span>
+            <span class="side-header-right">Right Side</span>
+          </div>
+          
+          <div class="angle-box-grid">
+            <!-- Max External Rotation -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Max External Rotation</div>
+              <div id="hip-rotation-peak-external-l" class="angle-val left-color">0°</div>
+              <div class="angle-sub-lbl">Live Angle: <span id="hip-rotation-live-angle-l">0°</span></div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Max External Rotation</div>
+              <div id="hip-rotation-peak-external-r" class="angle-val right-color">0°</div>
+              <div class="angle-sub-lbl">Live Angle: <span id="hip-rotation-live-angle-r">0°</span></div>
+            </div>
+
+            <!-- Max Internal Rotation -->
+            <div class="angle-box left-border">
+              <div class="angle-lbl">Max Internal Rotation</div>
+              <div id="hip-rotation-peak-internal-l" class="angle-val left-color">0°</div>
+            </div>
+            <div class="angle-box right-border">
+              <div class="angle-lbl">Max Internal Rotation</div>
+              <div id="hip-rotation-peak-internal-r" class="angle-val right-color">0°</div>
+            </div>
+          </div>
+          
+          <button id="btn-reset-hip-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+            Reset Peak Metrics
+          </button>
+          <button id="btn-save-hip-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Rotation Snapshot
+          </button>
+        </div>
+
+        <!-- Hip Rotation Biomechanics Reference Guide -->
+        <div class="panel-section squat-guide-section collapsible">
+          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="guide-box">
+            <div class="guide-item">
+              <span class="guide-bullet bullet-knee" style="color: var(--color-cyan);">●</span>
+              <div class="guide-text">
+                <strong>Hip Mobility Test:</strong> Designed for measuring internal and external hip rotation peaks.
               </div>
             </div>
           </div>
@@ -794,265 +1344,778 @@
   <!-- Persistent Profile Details Modal -->
   <div id="profile-details-modal" class="modal">
     <div class="modal-container profile-modal-container">
-      <div class="modal-header">
+      <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
         <div class="modal-title-wrap">
-          <h2 class="modal-title" id="profile-details-title">Subject Profile Summary</h2>
-          <span class="modal-date" id="profile-detail-last-session">Last Session: --</span>
+          <h2 class="modal-title" id="profile-details-title" style="margin: 0;">Subject Profile Summary</h2>
         </div>
-        <div class="session-controls-wrap">
-          <label for="profile-detail-session-select" class="profile-detail-session-label">Session:</label>
-          <select id="profile-detail-session-select" class="profile-detail-session-select">
+        <div class="session-controls-wrap" style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto; height: 32px;">
+          <label for="profile-detail-user-select" class="profile-detail-session-label">User:</label>
+          <select id="profile-detail-user-select" class="profile-detail-session-select" style="min-width: 130px; height: 100%;">
             <!-- Options populated dynamically -->
           </select>
-          <button id="btn-profile-new-session" class="btn btn-profile-new-session">
-            ➕ New Session
+          <label for="profile-detail-session-select" class="profile-detail-session-label" style="margin-left: 0.5rem;">Session:</label>
+          <select id="profile-detail-session-select" class="profile-detail-session-select" style="min-width: 130px; height: 100%;">
+            <!-- Options populated dynamically -->
+          </select>
+          <button id="btn-profile-new-session" class="btn btn-profile-new-session" style="height: 100%; margin: 0; padding: 0 10px; display: flex; align-items: center;">
+            New Session
+          </button>
+          <div class="unit-switcher" style="display: flex; gap: 2px; align-items: center; min-width: 110px; max-width: 140px; margin-left: 0.5rem; height: 100%; padding: 2px;">
+            <button id="modal-unit-inch-btn" class="unit-btn active" style="height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 8px; font-size: 0.75rem; border-radius: 14px;">Inches</button>
+            <button id="modal-unit-cm-btn" class="unit-btn" style="height: 100%; display: flex; align-items: center; justify-content: center; padding: 0 8px; font-size: 0.75rem; border-radius: 14px;">cm</button>
+          </div>
+        </div>
+        <button id="btn-close-profile-details" class="modal-close modal-close-btn" style="font-size: 1.75rem; margin-left: 0.5rem; line-height: 1;">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1.5rem; padding: 1.25rem; max-height: calc(85vh - 60px); overflow-y: auto;">
+        
+        <!-- Top Banner: Subject Profile Summary Card -->
+        <div class="profile-card-header-block" style="display: flex; align-items: center; gap: 1.25rem; padding: 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px;">
+          <div class="profile-avatar-large" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(186, 12, 47, 0.1); border: 1.5px solid #BA0C2F; color: #fff; border-radius: 50%;">
+            <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 2rem;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Athlete Name</span>
+              <h3 id="profile-detail-name" style="margin: 0; font-size: 1.2rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1;">John Doe</h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Active Session</span>
+              <div id="profile-detail-last-session" style="font-size: 0.9rem; font-weight: 500; color: #eee;">Session Date: --</div>
+            </div>
+            <div style="display: none; flex-direction: column; gap: 2px;">
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Spatial Calibration</span>
+              <span id="profile-detail-scale" style="font-size: 0.9rem; font-weight: 600; color: var(--color-cyan);">Uncalibrated</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Athlete Profile Tab Navigation -->
+        <div class="athlete-tabs-nav">
+          <button class="athlete-tab-btn active" data-tab="tab-anthropometrics">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2zM12 2v20M12 7h6M12 12h6M12 17h6"></path></svg>
+            Anthropometrics
+          </button>
+          <button class="athlete-tab-btn" data-tab="tab-mobility">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            Mobility Assessments
+          </button>
+          <button class="athlete-tab-btn" data-tab="tab-compare">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Compare
+          </button>
+          <button class="athlete-tab-btn" data-tab="tab-compare-videos">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            Compare Videos
           </button>
         </div>
-        <button id="btn-close-profile-details" class="modal-close modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body profile-details-grid">
-        
-        <!-- Column 1: Profile & Poses Status -->
-        <div class="profile-details-left">
-          <div class="profile-card-header-block">
-            <div class="profile-avatar-large">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+
+        <!-- TAB 1: Anthropometrics (Static Measurements) -->
+        <div id="tab-anthropometrics" class="athlete-tab-pane">
+          <div class="profile-tab-grid-layout" style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+            
+            <!-- Left Side: Static Pose Image Status Cards -->
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Static Posture Scans</div>
+              
+              <!-- A-Pose -->
+              <div class="pose-status-card collapsible active-expanded" id="detail-card-a" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon bg-scarlet" style="width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">A</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">A-Pose (Stature)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-a" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-a" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-a" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-a" src="" alt="A-Pose Preview" class="pose-card-preview-img" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- T-Pose -->
+              <div class="pose-status-card collapsible" id="detail-card-t" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon bg-cyan" style="width: 24px; height: 24px; border-radius: 50%; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">T</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">T-Pose (Wingspan)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-t" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-t" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-t" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-t" src="" alt="T-Pose Preview" class="pose-card-preview-img" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Overhead Pose -->
+              <div class="pose-status-card collapsible" id="detail-card-overhead" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon bg-gold" style="width: 24px; height: 24px; border-radius: 50%; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">O</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Overhead (Reach)</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-overhead" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-overhead" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-overhead" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-overhead" src="" alt="Overhead Preview" class="pose-card-preview-img" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Anthropometric Tables -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+              <div id="profile-edit-section-postural" class="collapsible active-expanded" style="display: none; margin-bottom: 1rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Consolidated Postural Baseline</div>
+                <div class="profile-metrics-comparison-table">
+                  <table class="profile-details-table">
+                    <thead>
+                      <tr class="profile-details-table-header-row">
+                        <th class="profile-details-th">Biometric Metric</th>
+                        <th class="profile-details-th">A-Pose</th>
+                        <th class="profile-details-th">T-Pose</th>
+                        <th class="profile-details-th">Overhead</th>
+                      </tr>
+                    </thead>
+                    <tbody class="profile-details-tbody">
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Stature Height</td>
+                        <td id="detail-table-height-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-height-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-height-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Wingspan / Reach</td>
+                        <td id="detail-table-wingspan-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-wingspan-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-wingspan-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Torso Length (L/R)</td>
+                        <td id="detail-table-torso-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-torso-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-torso-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Thigh Length (L/R)</td>
+                        <td id="detail-table-thigh-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-thigh-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-thigh-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Shank Length (L/R)</td>
+                        <td id="detail-table-shin-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-shin-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-shin-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Upper Arm (L/R)</td>
+                        <td id="detail-table-upperarm-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-upperarm-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-upperarm-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                      <tr class="profile-details-tr">
+                        <td class="profile-details-td-label">Forearm (L/R)</td>
+                        <td id="detail-table-forearm-a" class="profile-details-td-val">--</td>
+                        <td id="detail-table-forearm-t" class="profile-details-td-val">--</td>
+                        <td id="detail-table-forearm-overhead" class="profile-details-td-val">--</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="profile-baseline-definitive-section collapsible active-expanded">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Consolidated Athlete Baselines (Final)</div>
+                <div class="profile-consolidated-metrics-table">
+                  <table class="profile-details-table">
+                    <thead>
+                      <tr class="profile-consolidated-header-row">
+                        <th class="profile-consolidated-th-1">Consolidated Metric</th>
+                        <th class="profile-consolidated-th-2">Definitive Measurement</th>
+                      </tr>
+                    </thead>
+                    <tbody class="profile-details-tbody">
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Stature Height</td>
+                        <td id="consolidated-val-height" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Wingspan</td>
+                        <td id="consolidated-val-wingspan" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Overhead Reach (L/R)</td>
+                        <td id="consolidated-val-reach" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Torso Length (L/R)</td>
+                        <td id="consolidated-val-torso" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Thigh Length (L/R)</td>
+                        <td id="consolidated-val-thigh" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Shank Length (L/R)</td>
+                        <td id="consolidated-val-shin" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Upper Arm (L/R)</td>
+                        <td id="consolidated-val-upperarm" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                      <tr class="profile-consolidated-tr">
+                        <td class="profile-consolidated-td-label">Forearm (L/R)</td>
+                        <td id="consolidated-val-forearm" class="profile-consolidated-td-val">--</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 2: Mobility Assessments (Dynamic Tests & ROM Scores) -->
+        <div id="tab-mobility" class="athlete-tab-pane hidden">
+          <div class="profile-tab-grid-layout" style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+            
+            <!-- Left Side: Mobility Scans Status & Previews (Videos/Images) -->
+            <div class="profile-tab-mobility-left" style="display: flex; flex-direction: column; gap: 0.75rem; padding-right: 0.5rem; border-right: 1px solid rgba(255,255,255,0.04);">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Mobility Scans Status</div>
+              
+              <!-- Left Overhead Squat -->
+              <div class="pose-status-card collapsible active-expanded" id="detail-card-squat-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #9333ea; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Overhead Squat</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-squat-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-squat-l" src="" alt="Left Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Overhead Squat -->
+              <div class="pose-status-card collapsible" id="detail-card-squat-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Overhead Squat</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-squat-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-squat-r" src="" alt="Right Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Frontal Overhead Squat -->
+              <div class="pose-status-card collapsible" id="detail-card-squat-frontal" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #ec4899; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-F</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Frontal Overhead Squat</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-squat-frontal" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-squat-frontal" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-frontal" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-squat-frontal" src="" alt="Frontal Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Left Shoulder Flexion -->
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #0ea5e9; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Flexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-l" src="" alt="Left Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Shoulder Flexion -->
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #06b6d4; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Flexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-r" src="" alt="Right Shoulder Flexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Left Shoulder Rotation -->
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Shoulder Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-rotation-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-rotation-l" src="" alt="Left Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Shoulder Rotation -->
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Shoulder Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-shoulder-rotation-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-shoulder-rotation-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-shoulder-rotation-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-shoulder-rotation-r" src="" alt="Right Shoulder Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Left Hip Rotation -->
+              <div class="pose-status-card collapsible" id="detail-card-hip-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Hip Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-hip-rotation-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-hip-rotation-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-hip-rotation-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-hip-rotation-l" src="" alt="Left Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Hip Rotation -->
+              <div class="pose-status-card collapsible" id="detail-card-hip-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Hip Rotation</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-hip-rotation-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-hip-rotation-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-hip-rotation-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-hip-rotation-r" src="" alt="Right Hip Rotation Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Left Ankle Dorsiflexion -->
+              <div class="pose-status-card collapsible" id="detail-card-ankle-dorsi-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-L</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Ankle Dorsiflexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-ankle-dorsi-l" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-ankle-dorsi-l" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-ankle-dorsi-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-ankle-dorsi-l" src="" alt="Left Ankle Dorsiflexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Right Ankle Dorsiflexion -->
+              <div class="pose-status-card collapsible" id="detail-card-ankle-dorsi-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-R</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Ankle Dorsiflexion</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-ankle-dorsi-r" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-ankle-dorsi-r" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-ankle-dorsi-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-ankle-dorsi-r" src="" alt="Right Ankle Dorsiflexion Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+
+              <!-- Thoracic Extension -->
+              <div class="pose-status-card collapsible" id="detail-card-thoracic-extension" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #d4a017; color: #fff; font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">T-SPN</div>
+                    <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Thoracic Extension</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span class="pose-card-status" id="detail-status-thoracic-extension" style="font-size: 0.85rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
+                    <button class="btn btn-delete-pose hidden" id="btn-delete-pose-thoracic-extension" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Delete Scan">Delete</button>
+                  </div>
+                </div>
+                <div class="pose-card-preview-container hidden" id="detail-preview-container-thoracic-extension" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
+                  <img id="detail-preview-img-thoracic-extension" src="" alt="Thoracic Extension Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Peak Mobility Metrics & ROM Dashboard -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div class="profile-edit-section-mobility collapsible active-expanded" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Overhead Squat Mobility Peak Records</div>
+                <div class="profile-squat-peaks-grid">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Knee Flexion (L/R)</span>
+                    <span class="squat-peak-detail-val" id="detail-squat-knee">0° / 0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Hip Flexion (L/R)</span>
+                    <span class="squat-peak-detail-val" id="detail-squat-hip">0° / 0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Ankle Dorsi (L/R)</span>
+                    <span class="squat-peak-detail-val" id="detail-squat-ankle">0° / 0°</span>
+                  </div>
+                </div>
+                <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">
+                  Knee Alignment / Tracking: No current squat metrics.
+                </div>
+              </div>
+
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Flexion Mobility Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Excursion</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-excursion-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Excursion</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-excursion-r">0°</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Internal/External Rotation Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-internal-r">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-shoulder-rotation-external-r">0°</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Hip Internal/External Rotation Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-internal-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max Internal</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-internal-r">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-external-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Max External</span>
+                    <span class="squat-peak-detail-val" id="detail-hip-rotation-external-r">0°</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Ankle Dorsiflexion (Tibial Inclination) Peak Records</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Tibial Inclination</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-shin-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Tibial Inclination</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-shin-r">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Left Peak Dorsiflexion</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-l">0°</span>
+                  </div>
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Right Peak Dorsiflexion</span>
+                    <span class="squat-peak-detail-val" id="detail-ankle-dorsi-r">0°</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
+                <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Thoracic Extension Peak Record</div>
+                <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr; gap: 0.5rem;">
+                  <div class="squat-peak-detail-box">
+                    <span class="squat-peak-detail-lbl">Peak Thoracic Extension</span>
+                    <span class="squat-peak-detail-val" id="detail-thoracic-extension">0°</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Shoulder/Hip Rotation ROM Grading Assessment Panel & Coaching Advice -->
+              <div id="shoulder-rotation-grading-panel" style="margin-top: 0.5rem; border-radius: 8px;"></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 3: Compare (Side-by-Side Athlete Comparison) -->
+        <div id="tab-compare" class="athlete-tab-pane hidden">
+          
+          <!-- Selector Dropdown -->
+          <div class="compare-selector-card" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 1.25rem; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(186, 12, 47, 0.08); border: 1px solid rgba(186, 12, 47, 0.25); color: #BA0C2F; display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              </div>
+              <div>
+                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Athlete Comparison Engine</h4>
+                <p style="margin: 0; font-size: 0.75rem; color: #888;">Select an athlete profile below to begin a side-by-side comparative analysis.</p>
+              </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 260px;">
+              <label for="profile-compare-select" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #aaa; letter-spacing: 0.5px;">Compare to:</label>
+              <select id="profile-compare-select" class="profile-detail-session-select" style="flex: 1; height: 34px; background: rgba(10,10,10,0.65); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; padding: 0 10px; font-weight: 600; outline: none; font-size: 0.85rem; transition: border-color 0.25s, box-shadow 0.25s;">
+                <option value="">Select Athlete to Compare</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Empty/Placeholder State -->
+          <div id="compare-placeholder-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 5rem 2rem; border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; background: rgba(255,255,255,0.01); backdrop-filter: blur(10px); text-align: center; transition: all 0.3s ease;">
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; color: #555; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
             </div>
             <div>
-              <h3 id="profile-detail-name" class="profile-detail-name-text">John Doe</h3>
-              <span id="profile-detail-scale" class="profile-detail-scale-text">Calibration: Uncalibrated</span>
+              <h3 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">No Comparison Profile Loaded</h3>
+              <p style="margin: 0; font-size: 0.85rem; color: #666; max-width: 360px; line-height: 1.5; margin: 0 auto;">Choose another subject from the comparison dropdown list to inspect delta measurements, asymmetries, and side-by-side Range of Motion scores.</p>
             </div>
           </div>
 
-          <div class="details-section-title">Posture Scans Status</div>
-          <div class="pose-status-cards-container">
+          <!-- Comparative Tables View -->
+          <div id="compare-content-block" class="hidden" style="display: flex; flex-direction: column; gap: 1.5rem;">
             
-            <!-- A-Pose -->
-            <div class="pose-status-card" id="detail-card-a">
-              <div class="pose-card-main">
-                <div class="pose-card-info-wrap">
-                  <div class="pose-card-icon bg-scarlet">A</div>
-                  <span class="pose-card-title">A-Pose (Stature)</span>
-                </div>
-                <span class="pose-card-status" id="detail-status-a">❌ Missing</span>
+            <!-- Baselines Comparison -->
+            <div class="compare-panel-section">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.85rem; font-size: 1.05rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <span style="display: inline-block; width: 4px; height: 14px; background: #BA0C2F; border-radius: 2px;"></span>
+                Consolidated Baselines Side-by-Side
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-a">
-                <img id="detail-preview-img-a" src="" alt="A-Pose Preview" class="pose-card-preview-img">
-              </div>
-            </div>
-
-            <!-- T-Pose -->
-            <div class="pose-status-card" id="detail-card-t">
-              <div class="pose-card-main">
-                <div class="pose-card-info-wrap">
-                  <div class="pose-card-icon bg-cyan">T</div>
-                  <span class="pose-card-title">T-Pose (Wingspan)</span>
-                </div>
-                <span class="pose-card-status" id="detail-status-t">❌ Missing</span>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-t">
-                <img id="detail-preview-img-t" src="" alt="T-Pose Preview" class="pose-card-preview-img">
+              <div class="compare-metrics-table-wrapper">
+                <table class="compare-details-table">
+                  <thead>
+                    <tr class="compare-header-row">
+                      <th style="text-align: left; width: 32%;">Consolidated Metric</th>
+                      <th id="compare-metric-name-a" style="text-align: center; color: #fff; width: 24%;">Athlete A</th>
+                      <th id="compare-metric-name-b" style="text-align: center; color: #BA0C2F; width: 24%;">Athlete B</th>
+                      <th style="text-align: center; width: 20%;">Asymmetry / Delta</th>
+                    </tr>
+                  </thead>
+                  <tbody id="compare-baselines-tbody" class="compare-details-tbody">
+                    <!-- Populated programmatically -->
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            <!-- Overhead Pose -->
-            <div class="pose-status-card" id="detail-card-overhead">
-              <div class="pose-card-main">
-                <div class="pose-card-info-wrap">
-                  <div class="pose-card-icon bg-gold">O</div>
-                  <span class="pose-card-title">Overhead (Reach)</span>
-                </div>
-                <span class="pose-card-status" id="detail-status-overhead">❌ Missing</span>
+            <!-- Range of Motion Comparison -->
+            <div class="compare-panel-section">
+              <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.85rem; font-size: 1.05rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <span style="display: inline-block; width: 4px; height: 14px; background: #BA0C2F; border-radius: 2px;"></span>
+                Dynamic Range of Motion Comparative Performance
               </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-overhead">
-                <img id="detail-preview-img-overhead" src="" alt="Overhead Preview" class="pose-card-preview-img">
-              </div>
-            </div>
-
-            <!-- Left Overhead Squat -->
-            <div class="pose-status-card" id="detail-card-squat-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #9333ea; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-L</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Left Overhead Squat</span>
-                </div>
-                <span class="pose-card-status" id="detail-status-squat-l" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-l" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-squat-l" src="" alt="Left Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
+              <div class="compare-metrics-table-wrapper">
+                <table class="compare-details-table">
+                  <thead>
+                    <tr class="compare-header-row">
+                      <th style="text-align: left; width: 32%;">Biomechanical ROM test</th>
+                      <th id="compare-rom-name-a" style="text-align: center; color: #fff; width: 24%;">Athlete A</th>
+                      <th id="compare-rom-name-b" style="text-align: center; color: #BA0C2F; width: 24%;">Athlete B</th>
+                      <th style="text-align: center; width: 20%;">Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody id="compare-rom-tbody" class="compare-details-tbody">
+                    <!-- Populated programmatically -->
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            <!-- Right Overhead Squat -->
-            <div class="pose-status-card" id="detail-card-squat-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
-              <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-R</div>
-                  <span class="pose-card-title" style="font-size: 0.85rem; font-weight: 600;">Right Overhead Squat</span>
-                </div>
-                <span class="pose-card-status" id="detail-status-squat-r" style="font-size: 0.8rem; font-weight: 500; color: #ff4d4d;">❌ Missing</span>
-              </div>
-              <div class="pose-card-preview-container hidden" id="detail-preview-container-squat-r" style="width: 100%; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: #000;">
-                <img id="detail-preview-img-squat-r" src="" alt="Right Squat Preview" style="width: 100%; height: auto; max-height: 120px; object-fit: contain; display: block;">
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Saved Video Recordings -->
-          <div class="details-section-title">Saved Video Recordings</div>
-          <div id="profile-details-videos-container" class="profile-details-videos-container">
-            <!-- Central Video Player Display Area (Fixed 16:9 aspect ratio) -->
-            <div id="profile-details-video-player-container" class="profile-details-video-player-container">
-              <video id="profile-details-video-player" controls class="profile-details-video-player"></video>
-              <div id="profile-details-video-placeholder" class="profile-details-video-placeholder">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #555;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-                <span>Select a recording from the playlist below to play</span>
-              </div>
-            </div>
-
-            <!-- Playlist Scroll Container -->
-            <div id="profile-details-videos-list" class="profile-details-videos-list">
-              <!-- Playlist items populated dynamically -->
-            </div>
           </div>
 
         </div>
 
-        <!-- Column 2: Consolidated Metrics Grid & Tables -->
-        <div class="profile-details-right">
+        <!-- TAB 4: Compare Videos Side-by-Side -->
+        <div id="tab-compare-videos" class="athlete-tab-pane hidden">
           
-          <div class="details-section-title flex-row">
-            <span>Consolidated Postural Baseline</span>
-            <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">✏️ Edit Metrics</button>
-          </div>
-          <div class="profile-metrics-comparison-table">
-            <table class="profile-details-table">
-              <thead>
-                <tr class="profile-details-table-header-row">
-                  <th class="profile-details-th">Biometric Metric</th>
-                  <th class="profile-details-th">A-Pose</th>
-                  <th class="profile-details-th">T-Pose</th>
-                  <th class="profile-details-th">Overhead</th>
-                </tr>
-              </thead>
-              <tbody class="profile-details-tbody">
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Stature Height</td>
-                  <td id="detail-table-height-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-height-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-height-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Wingspan / Reach</td>
-                  <td id="detail-table-wingspan-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-wingspan-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-wingspan-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Torso Length (L/R)</td>
-                  <td id="detail-table-torso-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-torso-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-torso-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Thigh Length (L/R)</td>
-                  <td id="detail-table-thigh-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-thigh-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-thigh-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Shank Length (L/R)</td>
-                  <td id="detail-table-shin-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-shin-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-shin-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Upper Arm (L/R)</td>
-                  <td id="detail-table-upperarm-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-upperarm-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-upperarm-overhead" class="profile-details-td-val">--</td>
-                </tr>
-                <tr class="profile-details-tr">
-                  <td class="profile-details-td-label">Forearm (L/R)</td>
-                  <td id="detail-table-forearm-a" class="profile-details-td-val">--</td>
-                  <td id="detail-table-forearm-t" class="profile-details-td-val">--</td>
-                  <td id="detail-table-forearm-overhead" class="profile-details-td-val">--</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Selection & Control Header Card -->
+          <div class="compare-panel-section" style="margin-bottom: 1.5rem;">
+            <div class="compare-video-selectors-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+              
+              <!-- Video A Selection (Active Profile) -->
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 0.5px;">Video A (Current Athlete)</label>
+                <select id="compare-video-select-a" class="athlete-select" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.5rem; border-radius: 6px; outline: none; font-size: 0.85rem;">
+                  <option value="">Select Video A</option>
+                </select>
+              </div>
+
+              <!-- Video B Selection (Select Athlete first, then Video B) -->
+              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <label style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #aaa; letter-spacing: 0.5px;">Video B (Comparison Subject)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <select id="compare-video-athlete-b" class="athlete-select" style="flex: 1; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.5rem; border-radius: 6px; outline: none; font-size: 0.85rem;">
+                    <option value="">Select Athlete B</option>
+                  </select>
+                  <select id="compare-video-select-b" class="athlete-select" style="flex: 1.2; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.5rem; border-radius: 6px; outline: none; font-size: 0.85rem;" disabled>
+                    <option value="">Select Video B</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Unified Sync Control Bar -->
+            <div id="compare-video-controls" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-top: 1.5px solid rgba(255,255,255,0.06); padding-top: 12px;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button id="btn-sync-play" class="btn bg-scarlet" style="padding: 0.4rem 1rem; font-size: 0.8rem; border-radius: 4px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  Sync Play
+                </button>
+                <button id="btn-sync-pause" class="btn" style="padding: 0.4rem 1rem; font-size: 0.8rem; border-radius: 4px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); font-weight: 600; color: #fff;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  Sync Pause
+                </button>
+                <button id="btn-sync-restart" class="btn" style="padding: 0.4rem 1rem; font-size: 0.8rem; border-radius: 4px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); font-weight: 600; color: #eee;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+                  Sync Restart
+                </button>
+              </div>
+
+              <!-- Slow Motion Selector -->
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #aaa; letter-spacing: 0.5px;">Playback Speed:</span>
+                <select id="compare-video-speed" class="athlete-select" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                  <option value="0.25">0.25x (Super Slow)</option>
+                  <option value="0.5">0.50x (Slow Mo)</option>
+                  <option value="1.0" selected>1.00x (Normal)</option>
+                  <option value="1.5">1.50x (Fast)</option>
+                  <option value="2.0">2.00x (Double)</option>
+                </select>
+              </div>
+            </div>
+
           </div>
 
-          <div class="details-section-title">Consolidated Athlete Baselines (Final)</div>
-          <div class="profile-consolidated-metrics-table">
-            <table class="profile-details-table">
-              <thead>
-                <tr class="profile-consolidated-header-row">
-                  <th class="profile-consolidated-th-1">Consolidated Metric</th>
-                  <th class="profile-consolidated-th-2">Definitive Measurement</th>
-                </tr>
-              </thead>
-              <tbody class="profile-details-tbody">
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Stature Height</td>
-                  <td id="consolidated-val-height" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Wingspan</td>
-                  <td id="consolidated-val-wingspan" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Overhead Reach (L/R)</td>
-                  <td id="consolidated-val-reach" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Torso Length (L/R)</td>
-                  <td id="consolidated-val-torso" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Thigh Length (L/R)</td>
-                  <td id="consolidated-val-thigh" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Shank Length (L/R)</td>
-                  <td id="consolidated-val-shin" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Upper Arm (L/R)</td>
-                  <td id="consolidated-val-upperarm" class="profile-consolidated-td-val">--</td>
-                </tr>
-                <tr class="profile-consolidated-tr">
-                  <td class="profile-consolidated-td-label">Forearm (L/R)</td>
-                  <td id="consolidated-val-forearm" class="profile-consolidated-td-val">--</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <!-- Video Viewports Grid -->
+          <div class="compare-video-viewports-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            
+            <!-- Viewport A -->
+            <div class="compare-panel-section" style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; justify-content: center; min-height: 280px; position: relative; overflow: hidden;">
+              <!-- Empty state A -->
+              <div id="compare-video-empty-a" style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: #666; padding: 3rem;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #888;">Select Video A above</div>
+              </div>
+              <!-- Video Player Container A -->
+              <div id="compare-video-wrap-a" class="hidden" style="width: 100%; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #000;">
+                <video id="compare-video-player-a" style="width: 100%; display: block;" playsinline controls muted></video>
+                <div id="compare-video-badge-a" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.15);">Video A</div>
+              </div>
+              <!-- Video Metadata A -->
+              <div id="compare-video-meta-a" class="hidden" style="width: 100%; text-align: left; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+                <!-- Populated programmatically -->
+              </div>
+            </div>
 
-          <div class="details-section-title">Overhead Squat Mobility Peak Records</div>
-          <div class="profile-squat-peaks-grid">
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Knee Flexion (L/R)</span>
-              <span class="squat-peak-detail-val" id="detail-squat-knee">0° / 0°</span>
+            <!-- Viewport B -->
+            <div class="compare-panel-section" style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; justify-content: center; min-height: 280px; position: relative; overflow: hidden;">
+              <!-- Empty state B -->
+              <div id="compare-video-empty-b" style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: #666; padding: 3rem;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                <div style="font-size: 0.85rem; font-weight: 600; color: #888;">Select Athlete B & Video B above</div>
+              </div>
+              <!-- Video Player Container B -->
+              <div id="compare-video-wrap-b" class="hidden" style="width: 100%; position: relative; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: #000;">
+                <video id="compare-video-player-b" style="width: 100%; display: block;" playsinline controls muted></video>
+                <div id="compare-video-badge-b" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.15);">Video B</div>
+              </div>
+              <!-- Video Metadata B -->
+              <div id="compare-video-meta-b" class="hidden" style="width: 100%; text-align: left; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+                <!-- Populated programmatically -->
+              </div>
             </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Hip Flexion (L/R)</span>
-              <span class="squat-peak-detail-val" id="detail-squat-hip">0° / 0°</span>
-            </div>
-            <div class="squat-peak-detail-box">
-              <span class="squat-peak-detail-lbl">Ankle Dorsi (L/R)</span>
-              <span class="squat-peak-detail-val" id="detail-squat-ankle">0° / 0°</span>
-            </div>
+
           </div>
 
         </div>
 
-      </div>
+
       <div class="modal-actions profile-modal-actions">
-        <button id="btn-profile-export-json" class="btn btn-export-json">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Export Consolidated JSON
+        <button id="btn-profile-export-json" class="btn btn-export-json" style="background: linear-gradient(135deg, #d97706, #b45309); border-color: #b45309;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export Profile Bundle (.ZIP)
         </button>
+        <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">Edit Metrics</button>
         <button id="btn-close-profile-details-footer" class="btn btn-close-details">Close Details</button>
       </div>
       </div>
@@ -1065,6 +2128,7 @@
     <div id="lightbox-container" style="max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center; gap: 1rem; z-index: 10000; transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
       <h3 id="lightbox-title" style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.8); text-align: center; font-family: inherit;">Pose Image</h3>
       <img id="lightbox-img" src="" alt="Expanded Preview" style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+      <video id="lightbox-video" controls autoplay style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none;"></video>
     </div>
   </div>
 

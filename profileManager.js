@@ -8,7 +8,7 @@ import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
 import { getDefaultHipRotation } from './hipRotationController.js';
 import { getDefaultThoracicExtension } from './thoracicController.js';
-import { compileAndDownloadCombinedSession } from './reportCompiler.js';
+import { exportProfileBundle, importProfileBundle } from './reportCompiler.js';
 import { pose, calculatePoseMetrics } from './mediapipeLogic.js';
 
 // We import renderDashboard, updateDashboardOfflinePlaceholders, setUnitSystem from userController.js
@@ -475,33 +475,23 @@ export async function initializeProfilesSelector() {
     }
   });
 
-  const btnImportProfileSubmit = document.getElementById('btn-import-profile-submit');
-  const profileImportJsonInput = document.getElementById('profile-import-json-input');
+  const btnImportProfileBundleSubmit = document.getElementById('btn-import-profile-bundle-submit');
+  const profileBundleFileInput = document.getElementById('profile-bundle-file-input');
 
-  if (btnImportProfileSubmit && profileImportJsonInput) {
-    btnImportProfileSubmit.addEventListener('click', async () => {
-      const rawVal = profileImportJsonInput.value.trim();
-      if (!rawVal) {
-        alert("Please paste a player profile JSON in the text area.");
+  if (btnImportProfileBundleSubmit && profileBundleFileInput) {
+    btnImportProfileBundleSubmit.addEventListener('click', async () => {
+      const file = profileBundleFileInput.files[0];
+      if (!file) {
+        alert("Please select a profile bundle .ZIP file first.");
         return;
       }
-
-      try {
-        const data = JSON.parse(rawVal);
-        if (importPriorPortfolioFn) {
-          await importPriorPortfolioFn(data);
-          
-          // Clear inputs on success
-          profileImportJsonInput.value = "";
-          if (importProfileInputContainer) {
-            importProfileInputContainer.classList.add('hidden');
-            importProfileInputContainer.classList.remove('visible-flex');
-          }
-        } else {
-          alert("Import function is not registered yet. Please try again.");
-        }
-      } catch (e) {
-        alert(`Invalid JSON format: ${e.message}\nPlease make sure you are pasting a valid JSON object.`);
+      await importProfileBundle(file);
+      
+      // Clear input and hide the container on success
+      profileBundleFileInput.value = "";
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.add('hidden');
+        importProfileInputContainer.classList.remove('visible-flex');
       }
     });
   }
@@ -644,7 +634,11 @@ export async function initializeProfilesSelector() {
 
   if (btnProfileExportJson) {
     btnProfileExportJson.addEventListener('click', () => {
-      compileAndDownloadCombinedSession();
+      if (state.activeProfileId) {
+        exportProfileBundle(state.activeProfileId);
+      } else {
+        alert("No active profile loaded to export.");
+      }
     });
   }
 

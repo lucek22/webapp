@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
   
+  <!-- JSZip CDN for profile zip bundling -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
 
 
   <link rel="stylesheet" href="styles.css">
@@ -95,7 +97,7 @@
         <div id="profile-select-container" class="profile-controls-row">
           <select id="profile-select" class="profile-dropdown">
             <option value="new" selected>Select Existing Profile</option>
-            <option value="import">Import Profile</option>
+            <option value="import">Import Profile Bundle (.ZIP)</option>
           </select>
         </div>
 
@@ -109,8 +111,9 @@
         </div>
 
         <div id="import-profile-input-container" class="profile-controls-row hidden" style="flex-direction: column; gap: 0.5rem; align-items: stretch; width: 100%;">
-          <textarea id="profile-import-json-input" class="profile-search-input" placeholder="Paste player profile JSON here..." style="height: 100px; font-family: monospace; font-size: 0.75rem; resize: vertical;"></textarea>
-          <button id="btn-import-profile-submit" class="btn success compact-btn" style="width: 100%;">Import Profile</button>
+          <div style="font-size: 0.75rem; opacity: 0.8; margin-bottom: 2px; text-align: left; width: 100%;">Upload a profile .zip bundle:</div>
+          <input type="file" id="profile-bundle-file-input" accept=".zip" style="width: 100%; font-size: 0.8rem; padding: 6px; border: 1px dashed rgba(255,255,255,0.15); border-radius: 4px; background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;">
+          <button id="btn-import-profile-bundle-submit" class="btn success compact-btn" style="width: 100%;">Import .ZIP Bundle</button>
         </div>
         
         <!-- Active Session Selector (placed under profile select name, above active profile status bar) -->
@@ -2108,9 +2111,9 @@
 
 
       <div class="modal-actions profile-modal-actions">
-        <button id="btn-profile-export-json" class="btn btn-export-json">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Export Consolidated JSON
+        <button id="btn-profile-export-json" class="btn btn-export-json" style="background: linear-gradient(135deg, #d97706, #b45309); border-color: #b45309;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export Profile Bundle (.ZIP)
         </button>
         <button id="btn-edit-baseline-metrics" class="btn btn-edit-baseline-metrics">Edit Metrics</button>
         <button id="btn-close-profile-details-footer" class="btn btn-close-details">Close Details</button>

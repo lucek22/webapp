@@ -1231,13 +1231,20 @@ export async function populateProfileDetails(profileId, container, preserveTab =
   if (!state.containerObjectUrls) {
     state.containerObjectUrls = new Map();
   }
+  const globalPlayer = document.getElementById('profile-details-video-player');
+  const activePlayingUrl = globalPlayer ? globalPlayer.src : '';
   const existingUrls = state.containerObjectUrls.get(container) || [];
+  const keptUrls = [];
   existingUrls.forEach(url => {
+    if (activePlayingUrl && activePlayingUrl.includes(url)) {
+      keptUrls.push(url);
+      return;
+    }
     try {
       URL.revokeObjectURL(url);
     } catch (e) {}
   });
-  state.containerObjectUrls.set(container, []);
+  state.containerObjectUrls.set(container, keptUrls);
 
   if (container && container.id === 'profile-details-modal') {
     state.modalObjectUrls = state.containerObjectUrls.get(container);
@@ -4689,20 +4696,14 @@ export function closeProfileDetailsModal() {
     }
   }
 
-  const mainVideoPlayer = document.getElementById('profile-details-video-player');
-  if (mainVideoPlayer) {
-    try {
-      mainVideoPlayer.pause();
-    } catch (e) {}
-  }
-
   setTimeout(() => {
-    const player = document.getElementById('profile-details-video-player');
-    if (player) {
-      player.src = "";
-    }
     if (state.modalObjectUrls) {
+      const mainVideoPlayer = document.getElementById('profile-details-video-player');
+      const activePlayingUrl = mainVideoPlayer ? mainVideoPlayer.src : '';
       state.modalObjectUrls.forEach(url => {
+        if (activePlayingUrl && activePlayingUrl.includes(url)) {
+          return;
+        }
         try {
           URL.revokeObjectURL(url);
         } catch (e) {}

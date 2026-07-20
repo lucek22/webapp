@@ -841,7 +841,10 @@ export function ensureProfileSessions(profile) {
       videoShoulderRotationL: profile.videoShoulderRotationL || null,
       videoShoulderRotationR: profile.videoShoulderRotationR || null,
       videoHipRotationL: profile.videoHipRotationL || null,
-      videoHipRotationR: profile.videoHipRotationR || null
+      videoHipRotationR: profile.videoHipRotationR || null,
+      videoAnkleDorsiL: profile.videoAnkleDorsiL || null,
+      videoAnkleDorsiR: profile.videoAnkleDorsiR || null,
+      videoThoracicExtension: profile.videoThoracicExtension || null
     };
     profile.sessions = [baselineSession];
     profile.activeSessionId = baselineSession.id;
@@ -1138,6 +1141,9 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
 
     if (state.videoHipRotationL !== undefined) session.videoHipRotationL = state.videoHipRotationL;
     if (state.videoHipRotationR !== undefined) session.videoHipRotationR = state.videoHipRotationR;
+    if (state.videoAnkleDorsiL !== undefined) session.videoAnkleDorsiL = state.videoAnkleDorsiL;
+    if (state.videoAnkleDorsiR !== undefined) session.videoAnkleDorsiR = state.videoAnkleDorsiR;
+    if (state.videoThoracicExtension !== undefined) session.videoThoracicExtension = state.videoThoracicExtension;
 
     if (state.imageHipRotationL !== undefined) session.imageHipRotationL = state.imageHipRotationL;
     if (state.imageHipRotationR !== undefined) session.imageHipRotationR = state.imageHipRotationR;
@@ -1173,6 +1179,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.videoShoulderRotationR = session.videoShoulderRotationR;
     profile.videoHipRotationL = session.videoHipRotationL;
     profile.videoHipRotationR = session.videoHipRotationR;
+    profile.videoAnkleDorsiL = session.videoAnkleDorsiL;
+    profile.videoAnkleDorsiR = session.videoAnkleDorsiR;
     profile.videoThoracicExtension = session.videoThoracicExtension;
     profile.jointsOverhead = session.jointsOverhead;
     profile.jointsShoulderL = session.jointsShoulderL;
@@ -1598,7 +1606,11 @@ export async function populateProfileDetails(profileId, container, preserveTab =
         }
         hasData = !!imgSrc || hasVideo || hasAnklePeaks;
       } else if (p.isThoracicExtension) {
-        hasData = !!imgSrc || !!(activeSession.thoracicExtension && activeSession.thoracicExtension.peakAngle > 0);
+        const videoKey = 'videoThoracicExtension';
+        const sVideo = activeSession[videoKey];
+        hasVideo = !!(sVideo && sVideo.blob);
+        let hasThoracicPeaks = !!(activeSession.thoracicExtension && activeSession.thoracicExtension.peakAngle > 0);
+        hasData = !!imgSrc || hasVideo || hasThoracicPeaks;
       } else {
         hasData = !!imgSrc || !!activeSession[p.metricsKey];
       }
@@ -1612,7 +1624,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           containerEl.classList.remove('hidden');
           containerEl.innerHTML = '';
 
-          if ((p.isSquat || p.isShoulderRotation || p.isHipRotation || p.isAnkleDorsi) && hasVideo) {
+          if ((p.isSquat || p.isShoulderRotation || p.isHipRotation || p.isAnkleDorsi || p.isThoracicExtension) && hasVideo) {
             const videoKey = p.key === 'squat-l' ? 'videoSquatL' : 
                              (p.key === 'squat-r' ? 'videoSquatR' : 
                              (p.key === 'squat-frontal' ? 'videoSquatFrontal' : 
@@ -1620,7 +1632,8 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                              (p.key === 'shoulder-rotation-r' ? 'videoShoulderRotationR' : 
                              (p.key === 'hip-rotation-l' ? 'videoHipRotationL' : 
                              (p.key === 'hip-rotation-r' ? 'videoHipRotationR' : 
-                             (p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 'videoAnkleDorsiR')))))));
+                             (p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 
+                             (p.key === 'ankle-dorsi-r' ? 'videoAnkleDorsiR' : 'videoThoracicExtension'))))))));
             const sVideo = activeSession[videoKey];
             const videoUrl = URL.createObjectURL(sVideo.blob);
             state.modalObjectUrls.push(videoUrl);

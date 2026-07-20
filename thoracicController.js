@@ -13,6 +13,15 @@ const btnResetThoracic = document.getElementById('btn-reset-thoracic');
 
 let drawFrameCallback = null;
 
+// Callbacks to prevent circular imports
+let startVideoRecordingFn = null;
+let stopVideoRecordingFn = null;
+
+export function registerThoracicCallbacks(config) {
+  startVideoRecordingFn = config.startVideoRecording;
+  stopVideoRecordingFn = config.stopVideoRecording;
+}
+
 export function registerThoracicDrawCallback(callback) {
   drawFrameCallback = callback;
 }
@@ -72,7 +81,7 @@ export function getDefaultThoracicExtension(existing = null) {
   return {
     peakAngle: existing?.peakAngle ?? 0,
     liveAngle: existing?.liveAngle ?? 0,
-    isRecording: false
+    isRecording: existing?.isRecording ?? false
   };
 }
 
@@ -85,11 +94,24 @@ export function setThoracicExtensionStatus(message, className = 'text-slate') {
 
 export function updateThoracicExtensionSidebarUI() {
   const p = state.thoracicExtension || getDefaultThoracicExtension();
-  if (thoracicLiveAngle) {
-    thoracicLiveAngle.textContent = p.isRecording && p.liveAngle ? `${Math.round(p.liveAngle)}°` : '--';
-  }
-  if (thoracicPeakAngle) {
-    thoracicPeakAngle.textContent = p.peakAngle ? `${Math.round(p.peakAngle)}°` : '--';
+  if (thoracicLiveAngle) thoracicLiveAngle.textContent = `${Math.round(p.liveAngle || 0)}°`;
+  if (thoracicPeakAngle) thoracicPeakAngle.textContent = `${Math.round(p.peakAngle || 0)}°`;
+
+  // Update Status Text
+  if (thoracicStatusVal) {
+    if (p.isRecording) {
+      thoracicStatusVal.textContent = 'Recording Active';
+      thoracicStatusVal.className = 'metric-val text-red';
+      thoracicStatusVal.style.color = '#ef4444';
+    } else if (state.latestPoseResults && state.latestPoseResults.poseLandmarks) {
+      thoracicStatusVal.textContent = 'Ready to Record';
+      thoracicStatusVal.className = 'metric-val text-emerald';
+      thoracicStatusVal.style.color = '#10b981';
+    } else {
+      thoracicStatusVal.textContent = 'Awaiting Subject';
+      thoracicStatusVal.className = 'metric-val text-slate';
+      thoracicStatusVal.style.color = '';
+    }
   }
 }
 

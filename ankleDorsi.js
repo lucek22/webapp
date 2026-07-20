@@ -5,6 +5,15 @@
 import { state, snapshotStore } from './helpers.js';
 import { startVideoRecording, stopVideoRecording } from './videoController.js';
 
+// Callbacks to prevent circular imports
+let startVideoRecordingFn = null;
+let stopVideoRecordingFn = null;
+
+export function registerAnkleDorsiCallbacks(config) {
+  startVideoRecordingFn = config.startVideoRecording;
+  stopVideoRecordingFn = config.stopVideoRecording;
+}
+
 // Extend state with ankle dorsiflexion properties
 state.ankleDorsi = {
   activeSide: 'left',       // 'left' or 'right'
@@ -535,7 +544,21 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
   const btnRecordToggle = document.getElementById('btn-record-dorsi-toggle');
   if (btnRecordToggle) {
     btnRecordToggle.addEventListener('click', () => {
+      const videoElement = document.getElementById('webcam');
+      const isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+
       state.ankleDorsi.isRecording = !state.ankleDorsi.isRecording;
+
+      if (state.ankleDorsi.isRecording) {
+        if (isWebcamLive && startVideoRecordingFn) {
+          startVideoRecordingFn();
+        }
+      } else {
+        if (stopVideoRecordingFn) {
+          stopVideoRecordingFn();
+        }
+      }
+
       updateDorsiLiveUI();
     });
   }

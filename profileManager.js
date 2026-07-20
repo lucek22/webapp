@@ -26,6 +26,20 @@ export function registerProfileCallbacks(config) {
   importPriorPortfolioFn = config.importPriorPortfolio;
 }
 
+// Validates video blobs with robust duck-typing check instead of strict instanceof Blob
+function getSafeVideoBlob(sVideo) {
+  if (!sVideo || !sVideo.blob) return null;
+  const blob = sVideo.blob;
+  // Robust duck-typing to avoid cross-realm/iframe proto mismatch
+  const isBlobLike = blob && typeof blob.slice === 'function' && typeof blob.size === 'number';
+  if (!isBlobLike) {
+    console.warn("[getSafeVideoBlob] sVideo.blob is not a valid Blob/File object:", blob);
+    return null;
+  }
+  return blob;
+}
+
+
 // Drawing overlay helpers from canvasRenderer
 import { drawFullSkeletalMesh, drawSkeletalFramework, drawAngleBadge, drawValgusBadge } from './canvasRenderer.js';
 
@@ -1214,10 +1228,32 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       uploadedVideo.pause();
     } catch (e) {}
   }
-  if (state.modalObjectUrls) {
-    state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
+  if (!state.containerObjectUrls) {
+    state.containerObjectUrls = new Map();
   }
-  state.modalObjectUrls = [];
+  const existingUrls = state.containerObjectUrls.get(container) || [];
+  existingUrls.forEach(url => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch (e) {}
+  });
+  state.containerObjectUrls.set(container, []);
+
+  if (container && container.id === 'profile-details-modal') {
+    state.modalObjectUrls = state.containerObjectUrls.get(container);
+  }
+
+  const trackUrl = (url) => {
+    if (container) {
+      const list = state.containerObjectUrls.get(container);
+      if (list && !list.includes(url)) {
+        list.push(url);
+      }
+    }
+    if (container && container.id === 'profile-details-modal') {
+      state.modalObjectUrls = state.containerObjectUrls.get(container);
+    }
+  };
 
   try {
     let profile = await snapshotStore.getProfile(profileId);
@@ -1629,8 +1665,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                              (p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 
                              (p.key === 'ankle-dorsi-r' ? 'videoAnkleDorsiR' : 'videoThoracicExtension'))))))));
             const sVideo = activeSession[videoKey];
-            const videoUrl = URL.createObjectURL(sVideo.blob);
-            state.modalObjectUrls.push(videoUrl);
+            const safeBlob = getSafeVideoBlob(sVideo);
+            const videoUrl = safeBlob ? URL.createObjectURL(safeBlob) : '';
+            trackUrl(videoUrl);
 
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'premium-video-preview-card';
@@ -1721,8 +1758,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             const videoKey = p.key === 'shoulder-l' ? 'videoShoulderL' : 'videoShoulderR';
             const sVideo = activeSession[videoKey];
             if (sVideo && sVideo.blob) {
-              const videoUrl = URL.createObjectURL(sVideo.blob);
-              state.modalObjectUrls.push(videoUrl);
+              const safeBlob = getSafeVideoBlob(sVideo);
+              const videoUrl = safeBlob ? URL.createObjectURL(safeBlob) : '';
+              trackUrl(videoUrl);
 
               const playOverlayBtn = document.createElement('button');
               playOverlayBtn.className = 'btn';
@@ -2878,7 +2916,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           if (s.videoThoracicExtension) metricVideoIds.add(s.videoThoracicExtension.id);
         });
       }
-      const savedVideos = (profile.videos || []).filter(v => !metricVideoIds.has(v.id));
+      const savedVideos = profile.videos || [];
 
       if (savedVideos.length === 0) {
         if (videoPlaceholder) {
@@ -2899,8 +2937,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           videoRow.setAttribute('data-video-id', video.id);
           videoRow.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; padding: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; transition: all 0.2s;';
           
-          const videoUrl = URL.createObjectURL(video.blob);
-          state.modalObjectUrls.push(videoUrl);
+          const safeBlob = getSafeVideoBlob(video);
+          const videoUrl = safeBlob ? URL.createObjectURL(safeBlob) : '';
+          trackUrl(videoUrl);
           
           const dateStr = video.timestamp ? new Date(video.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unknown Date';
           const sizeMb = (video.blob.size / (1024 * 1024)).toFixed(1);
@@ -3588,8 +3627,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
         const v = listA[videoIndex];
         if (v && v.blob) {
-          currentUrlA = URL.createObjectURL(v.blob);
-          state.modalObjectUrls.push(currentUrlA);
+          const safeBlob = getSafeVideoBlob(v);
+          currentUrlA = safeBlob ? URL.createObjectURL(safeBlob) : '';
+          trackUrl(currentUrlA);
           
           if (playerA) {
             playerA.src = currentUrlA;
@@ -3696,8 +3736,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
         const v = listB[videoIndex];
         if (v && v.blob) {
-          currentUrlB = URL.createObjectURL(v.blob);
-          state.modalObjectUrls.push(currentUrlB);
+          const safeBlob = getSafeVideoBlob(v);
+          currentUrlB = safeBlob ? URL.createObjectURL(safeBlob) : '';
+          trackUrl(currentUrlB);
           
           if (playerB) {
             playerB.src = currentUrlB;

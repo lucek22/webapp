@@ -395,7 +395,8 @@ export async function exportProfileBundle(profileId) {
     // Process top-level videos (backwards-compatibility fallback)
     for (const vidKey of videoKeys) {
       const originalVid = profile[vidKey];
-      if (originalVid && originalVid.blob instanceof Blob) {
+      const isBlobLike = originalVid && originalVid.blob && typeof originalVid.blob.slice === 'function' && typeof originalVid.blob.size === 'number';
+      if (isBlobLike) {
         const fileExt = originalVid.fileExt || 'webm';
         const filename = `profile_${vidKey}.${fileExt}`;
         
@@ -424,7 +425,8 @@ export async function exportProfileBundle(profileId) {
         // Process session videos
         for (const vidKey of videoKeys) {
           const originalVid = originalSession[vidKey];
-          if (originalVid && originalVid.blob instanceof Blob) {
+          const isBlobLike = originalVid && originalVid.blob && typeof originalVid.blob.slice === 'function' && typeof originalVid.blob.size === 'number';
+          if (isBlobLike) {
             const fileExt = originalVid.fileExt || 'webm';
             const filename = `${sessionPrefix}${vidKey}.${fileExt}`;
             
@@ -440,6 +442,27 @@ export async function exportProfileBundle(profileId) {
               fileExt: fileExt,
               filePath: `videos/${filename}`
             };
+          }
+        }
+      }
+    }
+
+    // Process playlist custom videos (profile.videos)
+    if (profile.videos && Array.isArray(profile.videos)) {
+      for (let vIdx = 0; vIdx < profile.videos.length; vIdx++) {
+        const originalVid = profile.videos[vIdx];
+        const metaVid = metadata.videos[vIdx];
+        if (originalVid && originalVid.blob && metaVid) {
+          const isBlobLike = originalVid.blob && typeof originalVid.blob.slice === 'function' && typeof originalVid.blob.size === 'number';
+          if (isBlobLike) {
+            const fileExt = originalVid.fileExt || 'webm';
+            const filename = `playlist_video_${originalVid.id || vIdx}.${fileExt}`;
+            
+            videosFolder.file(filename, originalVid.blob);
+            
+            // Clear empty blob object placeholder and store filePath
+            delete metaVid.blob;
+            metaVid.filePath = `videos/${filename}`;
           }
         }
       }
@@ -558,21 +581,35 @@ export async function importProfileBundle(file) {
       'videoThoracicExtension'
     ];
 
+    // Initialize the playlist videos array so all imported videos can be collected here
+    importedProfile.videos = importedProfile.videos || [];
+
     // 2. Reconstruct top-level videos (backwards-compatibility)
     for (const vidKey of videoKeys) {
       const vidRef = importedProfile[vidKey];
       if (vidRef && vidRef.filePath && typeof vidRef.filePath === 'string') {
         const zipVidFile = zip.file(vidRef.filePath);
         if (zipVidFile) {
-          const videoBlob = await zipVidFile.async("blob");
-          importedProfile[vidKey] = {
-            id: vidRef.id || Date.now(),
+          const rawBlob = await zipVidFile.async("blob");
+          const mimeType = (vidRef.fileExt && vidRef.fileExt.toLowerCase() === 'mp4') ? 'video/mp4' : 'video/webm';
+          const videoBlob = rawBlob.slice(0, rawBlob.size, mimeType);
+          const reconstructedVideo = {
+            id: vidRef.id || (Date.now() + Math.floor(Math.random() * 1000000)),
             name: vidRef.name || "Imported Video",
             duration: vidRef.duration || 0,
             timestamp: vidRef.timestamp || Date.now(),
             fileExt: vidRef.fileExt || 'webm',
             blob: videoBlob
           };
+          importedProfile[vidKey] = reconstructedVideo;
+
+          // Register or replace in the profile-wide playlist archive to overwrite stale metadata empty-blob placeholders
+          const existingIdx = importedProfile.videos.findIndex(v => v.id === reconstructedVideo.id);
+          if (existingIdx !== -1) {
+            importedProfile.videos[existingIdx] = reconstructedVideo;
+          } else {
+            importedProfile.videos.push(reconstructedVideo);
+          }
         } else {
           console.warn(`[ZIP-Import] Video file not found in archive: ${vidRef.filePath}`);
           importedProfile[vidKey] = null;
@@ -591,15 +628,26 @@ export async function importProfileBundle(file) {
           if (vidRef && vidRef.filePath && typeof vidRef.filePath === 'string') {
             const zipVidFile = zip.file(vidRef.filePath);
             if (zipVidFile) {
-              const videoBlob = await zipVidFile.async("blob");
-              session[vidKey] = {
-                id: vidRef.id || Date.now(),
+              const rawBlob = await zipVidFile.async("blob");
+              const mimeType = (vidRef.fileExt && vidRef.fileExt.toLowerCase() === 'mp4') ? 'video/mp4' : 'video/webm';
+              const videoBlob = rawBlob.slice(0, rawBlob.size, mimeType);
+              const reconstructedVideo = {
+                id: vidRef.id || (Date.now() + Math.floor(Math.random() * 1000000)),
                 name: vidRef.name || "Imported Video",
                 duration: vidRef.duration || 0,
                 timestamp: vidRef.timestamp || Date.now(),
                 fileExt: vidRef.fileExt || 'webm',
                 blob: videoBlob
               };
+              session[vidKey] = reconstructedVideo;
+
+              // Register or replace in the profile-wide playlist archive to overwrite stale metadata empty-blob placeholders
+              const existingIdx = importedProfile.videos.findIndex(v => v.id === reconstructedVideo.id);
+              if (existingIdx !== -1) {
+                importedProfile.videos[existingIdx] = reconstructedVideo;
+              } else {
+                importedProfile.videos.push(reconstructedVideo);
+              }
             } else {
               console.warn(`[ZIP-Import] Session video file not found in archive: ${vidRef.filePath}`);
               session[vidKey] = null;
@@ -607,6 +655,41 @@ export async function importProfileBundle(file) {
           }
         }
       }
+    }
+
+    // 4. Reconstruct playlist custom videos (importedProfile.videos)
+    if (importedProfile.videos && Array.isArray(importedProfile.videos)) {
+      for (let vIdx = 0; vIdx < importedProfile.videos.length; vIdx++) {
+        const vidRef = importedProfile.videos[vIdx];
+        const isRealBlob = vidRef && vidRef.blob && typeof vidRef.blob.slice === 'function' && typeof vidRef.blob.size === 'number';
+        if (isRealBlob) {
+          // Already reconstructed and populated via top-level or session step
+          continue;
+        }
+        if (vidRef && vidRef.filePath && typeof vidRef.filePath === 'string') {
+          const zipVidFile = zip.file(vidRef.filePath);
+          if (zipVidFile) {
+            const rawBlob = await zipVidFile.async("blob");
+            const mimeType = (vidRef.fileExt && vidRef.fileExt.toLowerCase() === 'mp4') ? 'video/mp4' : 'video/webm';
+            const videoBlob = rawBlob.slice(0, rawBlob.size, mimeType);
+            importedProfile.videos[vIdx] = {
+              id: vidRef.id || (Date.now() + Math.floor(Math.random() * 1000000)),
+              name: vidRef.name || "Imported Playlist Video",
+              duration: vidRef.duration || 0,
+              timestamp: vidRef.timestamp || Date.now(),
+              fileExt: vidRef.fileExt || 'webm',
+              blob: videoBlob
+            };
+          } else {
+            console.warn(`[ZIP-Import] Playlist video file not found in archive: ${vidRef.filePath}`);
+            importedProfile.videos[vIdx] = null;
+          }
+        } else {
+          importedProfile.videos[vIdx] = null;
+        }
+      }
+      // Filter out any null entries
+      importedProfile.videos = importedProfile.videos.filter(v => v !== null);
     }
 
     // Delete existing id field so IndexedDB generates a new auto-incremented primary key

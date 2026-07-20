@@ -2710,6 +2710,91 @@ div[style*="color: #10b981"] {
     gap: 1.5rem !important;
     padding: 1rem !important;
   }
+
+  /* Responsive fixes for viewing user profile details on mobile */
+  .profile-modal-container .session-controls-wrap {
+    height: auto !important;
+  }
+
+  .profile-tab-grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  .profile-tab-mobility-left {
+    max-height: none !important;
+    overflow-y: visible !important;
+    border-right: none !important;
+    padding-right: 0 !important;
+  }
+
+  .compare-video-selectors-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .compare-video-viewports-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  .profile-card-header-block {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  .profile-card-header-block > div {
+    gap: 1rem !important;
+  }
+
+  .athlete-tabs-nav {
+    display: flex !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-wrap: nowrap !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    padding: 0 8px !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 1.75rem !important;
+    background: rgba(0, 0, 0, 0.25) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .athlete-tabs-nav::-webkit-scrollbar {
+    height: 3px !important;
+    display: block !important;
+  }
+  .athlete-tabs-nav::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.01) !important;
+    border-radius: 10px !important;
+  }
+  .athlete-tabs-nav::-webkit-scrollbar-thumb {
+    background: rgba(186, 12, 47, 0.5) !important;
+    border-radius: 10px !important;
+  }
+
+  .athlete-tab-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    height: 36px !important;
+    padding: 0 0.85rem !important;
+    font-size: 0.75rem !important;
+    border-color: rgba(255, 255, 255, 0.03) !important;
+  }
+
+  .profile-metrics-comparison-table,
+  .profile-consolidated-metrics-table,
+  .compare-metrics-table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* ==========================================================================
@@ -3544,32 +3629,39 @@ div[style*="color: #10b981"] {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: 0.5rem;
   margin-bottom: 1.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(186, 12, 47, 0.4) rgba(255, 255, 255, 0.02);
 }
 
 .athlete-tab-btn {
-  background: none;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.6rem 1.1rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #a7b1b7;
   cursor: pointer;
-  border-radius: 6px;
-  border-bottom: 2px solid transparent;
+  border-radius: 8px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .athlete-tab-btn:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .athlete-tab-btn.active {
-  color: var(--color-scarlet) !important;
-  border-bottom: 2px solid var(--color-scarlet) !important;
-  background: rgba(186, 12, 47, 0.05);
+  color: #fff !important;
+  background: rgba(186, 12, 47, 0.18) !important;
+  border: 1px solid rgba(186, 12, 47, 0.4) !important;
+  box-shadow: 0 0 12px rgba(186, 12, 47, 0.1);
 }
 
 .athlete-tab-pane {

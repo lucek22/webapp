@@ -242,6 +242,8 @@ export const state = {
   latestPoseResults: null,
   activeModalSnapshotId: null,
   pixelsPerCm: null,
+  lockedPixelsPerCm: null,
+  lockedScaleFactor3D: null,
   calLocked: false,
   useInches: true,
   currentFacingMode: "user",

@@ -1085,12 +1085,12 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) session.pixelsPerCm = state.pixelsPerCm;
     
     if (!onlySquat) {
-      if (state.metricsA !== undefined) session.metricsA = state.metricsA;
-      if (state.metricsT !== undefined) session.metricsT = state.metricsT;
-      if (state.metricsOverhead !== undefined) session.metricsOverhead = state.metricsOverhead;
-      if (state.imageA !== undefined) session.imageA = state.imageA;
-      if (state.imageT !== undefined) session.imageT = state.imageT;
-      if (state.imageOverhead !== undefined) session.imageOverhead = state.imageOverhead;
+      if (state.metricsA !== undefined && state.metricsA !== null) session.metricsA = state.metricsA;
+      if (state.metricsT !== undefined && state.metricsT !== null) session.metricsT = state.metricsT;
+      if (state.metricsOverhead !== undefined && state.metricsOverhead !== null) session.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== undefined && state.imageA !== null) session.imageA = state.imageA;
+      if (state.imageT !== undefined && state.imageT !== null) session.imageT = state.imageT;
+      if (state.imageOverhead !== undefined && state.imageOverhead !== null) session.imageOverhead = state.imageOverhead;
     }
     
     if (state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;

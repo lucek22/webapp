@@ -1668,6 +1668,8 @@ export function onPoseResults(results) {
               if (state.autoState === 'WAITING_A') {
                 state.imageA = capturedImage;
                 state.metricsA = JSON.parse(JSON.stringify(liveMetrics));
+                state.lockedPixelsPerCm = state.pixelsPerCm;
+                state.lockedScaleFactor3D = state.scaleFactor3D;
               } else if (state.autoState === 'WAITING_T') {
                 state.imageT = capturedImage;
                 state.metricsT = JSON.parse(JSON.stringify(liveMetrics));
@@ -1848,6 +1850,8 @@ export function cancelAutoSequence() {
   state.currentGroupId = null;
   state.frozenAutoJoints = null;
   state.frozenAutoMetrics = null;
+  state.lockedPixelsPerCm = null;
+  state.lockedScaleFactor3D = null;
   
   const autoSequenceBtn = document.getElementById('auto-sequence-btn');
   if (autoSequenceBtn) {
@@ -4999,6 +5003,8 @@ if (autoSequenceBtn) {
     
     state.frozenAutoJoints = null;
     state.frozenAutoMetrics = null;
+    state.lockedPixelsPerCm = null;
+    state.lockedScaleFactor3D = null;
     state.metricsA = null;
     state.metricsT = null;
     state.metricsOverhead = null;

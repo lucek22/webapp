@@ -50,10 +50,13 @@ export function registerSquatCallbacks(config) {
   getPoseModelFn = config.getPoseModel;
 }
 
-export function calculateValgusFromJoints(joints) {
-  let pctL = 0;
-  let pctR = 0;
-  if (!joints) return { pctL, pctR };
+export function calculateValgusAndVarus(joints) {
+  let valgusL = 0;
+  let valgusR = 0;
+  let varusL = 0;
+  let varusR = 0;
+
+  if (!joints) return { valgusL, valgusR, varusL, varusR };
 
   const leftKnee = joints[25];
   const leftHip = joints[23];
@@ -63,6 +66,7 @@ export function calculateValgusFromJoints(joints) {
   const rightHip = joints[24];
   const rightAnkle = joints[28];
 
+  // Left Leg (Screen Right, X is larger)
   if (leftKnee && leftHip && leftAnkle) {
     const hipX = getCanvasX(leftHip.x);
     const ankleX = getCanvasX(leftAnkle.x);
@@ -70,13 +74,21 @@ export function calculateValgusFromJoints(joints) {
     
     const midX = (hipX + ankleX) / 2;
     const thresh = Math.abs(hipX - ankleX) * 0.15;
+    const denom = Math.abs(hipX - ankleX) * 0.35;
 
+    // Valgus (Cave-In): Knee moves inward (smaller X, toward center)
+    if (kneeX < midX - thresh) {
+      const dev = (midX - thresh) - kneeX;
+      valgusL = Math.min(100, (dev / denom) * 100);
+    }
+    // Varus (Bow-Out): Knee moves outward (larger X, away from center)
     if (kneeX > midX + thresh) {
       const dev = kneeX - (midX + thresh);
-      pctL = Math.min(100, (dev / (Math.abs(hipX - ankleX) * 0.35)) * 100);
+      varusL = Math.min(100, (dev / denom) * 100);
     }
   }
 
+  // Right Leg (Screen Left, X is smaller)
   if (rightKnee && rightHip && rightAnkle) {
     const hipX = getCanvasX(rightHip.x);
     const ankleX = getCanvasX(rightAnkle.x);
@@ -84,14 +96,31 @@ export function calculateValgusFromJoints(joints) {
 
     const midX = (hipX + ankleX) / 2;
     const thresh = Math.abs(hipX - ankleX) * 0.15;
+    const denom = Math.abs(hipX - ankleX) * 0.35;
 
+    // Valgus (Cave-In): Knee moves inward (larger X, toward center)
+    if (kneeX > midX + thresh) {
+      const dev = kneeX - (midX + thresh);
+      valgusR = Math.min(100, (dev / denom) * 100);
+    }
+    // Varus (Bow-Out): Knee moves outward (smaller X, away from center)
     if (kneeX < midX - thresh) {
       const dev = (midX - thresh) - kneeX;
-      pctR = Math.min(100, (dev / (Math.abs(hipX - ankleX) * 0.35)) * 100);
+      varusR = Math.min(100, (dev / denom) * 100);
     }
   }
 
-  return { pctL, pctR };
+  return { valgusL, valgusR, varusL, varusR };
+}
+
+export function calculateValgusFromJoints(joints) {
+  const { valgusL, valgusR } = calculateValgusAndVarus(joints);
+  return { pctL: valgusL, pctR: valgusR };
+}
+
+export function calculateVarusFromJoints(joints) {
+  const { varusL, varusR } = calculateValgusAndVarus(joints);
+  return { pctL: varusL, pctR: varusR };
 }
 
 export function getDefaultSquatPeaks(existing = null) {
@@ -106,7 +135,12 @@ export function getDefaultSquatPeaks(existing = null) {
     maxKneeCaveR: 0,
     valgusFirstTimestamp: null,
     valgusPeakTimestamp: null,
-    valgusPeakScore: 0
+    valgusPeakScore: 0,
+    maxKneeBowL: 0,
+    maxKneeBowR: 0,
+    varusFirstTimestamp: null,
+    varusPeakTimestamp: null,
+    varusPeakScore: 0
   };
   if (existing) {
     return { ...defaults, ...existing };
@@ -240,6 +274,7 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
       const landmarks = calculated ? calculated.landmarks : null;
       if (landmarks) {
         const valgus = calculateValgusFromJoints(landmarks);
+        const varus = calculateVarusFromJoints(landmarks);
         
         if (valgus.pctL > p.maxKneeCaveL) {
           p.maxKneeCaveL = valgus.pctL;
@@ -257,6 +292,25 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
           if (activeScore > p.valgusPeakScore) {
             p.valgusPeakScore = activeScore;
             p.valgusPeakTimestamp = timeSec;
+          }
+        }
+
+        if (varus.pctL > (p.maxKneeBowL || 0)) {
+          p.maxKneeBowL = varus.pctL;
+        }
+        if (varus.pctR > (p.maxKneeBowR || 0)) {
+          p.maxKneeBowR = varus.pctR;
+        }
+
+        const activeVarusScore = Math.max(varus.pctL, varus.pctR);
+        if (activeVarusScore > 5) {
+          const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+          if (p.varusFirstTimestamp === null && timeSec !== null) {
+            p.varusFirstTimestamp = timeSec;
+          }
+          if (activeVarusScore > p.varusPeakScore) {
+            p.varusPeakScore = activeVarusScore;
+            p.varusPeakTimestamp = timeSec;
           }
         }
       }
@@ -287,10 +341,26 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
     if (squatLiveAnkleL) squatLiveAnkleL.textContent = '--';
   } else if (activeSide === 'frontal') {
     const valgus = calculateValgusFromJoints(calculated ? calculated.landmarks : null);
-    const displayScore = Math.max(valgus.pctL, valgus.pctR);
+    const varus = calculateVarusFromJoints(calculated ? calculated.landmarks : null);
 
-    if (squatLiveKneeL) squatLiveKneeL.textContent = valgus.pctL > 5 ? `${Math.round(valgus.pctL)}%` : 'None';
-    if (squatLiveKneeR) squatLiveKneeR.textContent = valgus.pctR > 5 ? `${Math.round(valgus.pctR)}%` : 'None';
+    if (squatLiveKneeL) {
+      if (valgus.pctL > 5) {
+        squatLiveKneeL.textContent = `Valgus: ${Math.round(valgus.pctL)}%`;
+      } else if (varus.pctL > 5) {
+        squatLiveKneeL.textContent = `Varus: ${Math.round(varus.pctL)}%`;
+      } else {
+        squatLiveKneeL.textContent = 'None';
+      }
+    }
+    if (squatLiveKneeR) {
+      if (valgus.pctR > 5) {
+        squatLiveKneeR.textContent = `Valgus: ${Math.round(valgus.pctR)}%`;
+      } else if (varus.pctR > 5) {
+        squatLiveKneeR.textContent = `Varus: ${Math.round(varus.pctR)}%`;
+      } else {
+        squatLiveKneeR.textContent = 'None';
+      }
+    }
     
     if (squatLiveHipL) squatLiveHipL.textContent = '--';
     if (squatLiveHipR) squatLiveHipR.textContent = '--';
@@ -301,16 +371,34 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
   // Update status descriptor bar
   if (squatStatusVal) {
     if (activeSide === 'frontal') {
-      const displayScore = Math.max(p.maxKneeCaveL, p.maxKneeCaveR);
-      if (displayScore > 20) {
-        squatStatusVal.textContent = `Severe Medial Collapse (${Math.round(displayScore)}%)`;
-        squatStatusVal.className = 'text-red font-bold';
-      } else if (displayScore > 8) {
-        squatStatusVal.textContent = `Mild Knee Cave Detected (${Math.round(displayScore)}%)`;
-        squatStatusVal.className = 'text-amber font-bold';
+      const displayScore = Math.max(p.maxKneeCaveL || 0, p.maxKneeCaveR || 0);
+      const displayVarusScore = Math.max(p.maxKneeBowL || 0, p.maxKneeBowR || 0);
+
+      if (displayScore > displayVarusScore) {
+        if (displayScore > 20) {
+          squatStatusVal.textContent = `Severe Medial Collapse (${Math.round(displayScore)}%)`;
+          squatStatusVal.className = 'text-red font-bold';
+        } else if (displayScore > 8) {
+          squatStatusVal.textContent = `Mild Knee Cave Detected (${Math.round(displayScore)}%)`;
+          squatStatusVal.className = 'text-amber font-bold';
+        } else {
+          squatStatusVal.textContent = 'Pristine Alignment (No Cave)';
+          squatStatusVal.className = 'text-emerald font-bold';
+        }
       } else {
-        squatStatusVal.textContent = 'Pristine Alignment (No Cave)';
-        squatStatusVal.className = 'text-emerald font-bold';
+        if (displayVarusScore > 20) {
+          squatStatusVal.textContent = `Severe Knee Varus / Bow-Out (${Math.round(displayVarusScore)}%)`;
+          squatStatusVal.className = 'text-red font-bold';
+        } else if (displayVarusScore > 8) {
+          squatStatusVal.textContent = `Mild Knee Varus / Bow-Out (${Math.round(displayVarusScore)}%)`;
+          squatStatusVal.className = 'text-amber font-bold';
+        } else if (displayVarusScore > 0) {
+          squatStatusVal.textContent = 'Pristine Alignment (No Bow-Out)';
+          squatStatusVal.className = 'text-emerald font-bold';
+        } else {
+          squatStatusVal.textContent = 'Pristine Alignment';
+          squatStatusVal.className = 'text-emerald font-bold';
+        }
       }
     } else {
       squatStatusVal.textContent = 'Active Tracking';
@@ -377,6 +465,11 @@ export async function scanVideoForSquatPeaks(targetSide, durationSec) {
     state.squatPeaks.valgusFirstTimestamp = null;
     state.squatPeaks.valgusPeakTimestamp = null;
     state.squatPeaks.valgusPeakScore = 0;
+    state.squatPeaks.maxKneeBowL = 0;
+    state.squatPeaks.maxKneeBowR = 0;
+    state.squatPeaks.varusFirstTimestamp = null;
+    state.squatPeaks.varusPeakTimestamp = null;
+    state.squatPeaks.varusPeakScore = 0;
   }
 
   const fps = 10;
@@ -548,6 +641,11 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
             state.squatPeaks.valgusFirstTimestamp = null;
             state.squatPeaks.valgusPeakTimestamp = null;
             state.squatPeaks.valgusPeakScore = 0;
+            state.squatPeaks.maxKneeBowL = 0;
+            state.squatPeaks.maxKneeBowR = 0;
+            state.squatPeaks.varusFirstTimestamp = null;
+            state.squatPeaks.varusPeakTimestamp = null;
+            state.squatPeaks.varusPeakScore = 0;
           }
           if (startVideoRecordingFn) {
             startVideoRecordingFn();

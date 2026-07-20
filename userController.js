@@ -30,6 +30,7 @@ import {
   drawFullSkeletalMesh,
   drawAngleBadge,
   drawValgusBadge,
+  drawVarusBadge,
   drawHandMesh,
   drawRoundedRect
 } from './canvasRenderer.js';
@@ -93,6 +94,7 @@ import {
   setupSquatListeners,
   resetSquatPeaks,
   calculateValgusFromJoints,
+  calculateVarusFromJoints,
   getDefaultSquatPeaks,
   scanVideoForSquatPeaks,
   updateSquatDashboardOffline,
@@ -133,6 +135,7 @@ export {
   drawFullSkeletalMesh,
   drawAngleBadge,
   drawValgusBadge,
+  drawVarusBadge,
   drawHandMesh,
   drawRoundedRect
 };
@@ -146,6 +149,7 @@ export {
   processShoulderFlexionFromPreprocessedFrames,
   resetSquatPeaks,
   calculateValgusFromJoints,
+  calculateVarusFromJoints,
   getDefaultSquatPeaks,
   scanVideoForSquatPeaks,
   updateSquatDashboardOffline,
@@ -760,17 +764,18 @@ export function onPoseResults(results) {
           state.jointsOverhead = JSON.parse(JSON.stringify(calculated));
         }
 
-        // Track frontal Knee Valgus/Cave-In peaks during active squat movement (knee flexion >= 30 degrees)
+        // Track frontal Knee Valgus/Cave-In & Varus peaks during active squat movement (knee flexion >= 30 degrees)
         if (state.squatTestingSide === 'frontal') {
           const valgus = calculateValgusFromJoints(calculated);
-          const pctL = valgus.pctL;
-          const pctR = valgus.pctR;
+          const varus = calculateVarusFromJoints(calculated);
           if (kneeMobL >= 30 || kneeMobR >= 30) {
             if (kneeMobL >= 30) {
-              state.squatPeaks.maxKneeCaveL = Math.max(state.squatPeaks.maxKneeCaveL || 0, pctL);
+              state.squatPeaks.maxKneeCaveL = Math.max(state.squatPeaks.maxKneeCaveL || 0, valgus.pctL);
+              state.squatPeaks.maxKneeBowL = Math.max(state.squatPeaks.maxKneeBowL || 0, varus.pctL);
             }
             if (kneeMobR >= 30) {
-              state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, pctR);
+              state.squatPeaks.maxKneeCaveR = Math.max(state.squatPeaks.maxKneeCaveR || 0, valgus.pctR);
+              state.squatPeaks.maxKneeBowR = Math.max(state.squatPeaks.maxKneeBowR || 0, varus.pctR);
             }
           }
         }
@@ -1103,7 +1108,7 @@ export function onPoseResults(results) {
         const activeKnee = side === 'left' ? knee_l : knee_r;
         
         // Draw Tibial Inclination angle badge at the midpoint of the shin
-        if (activeAnkle && activeKnee) {
+        if (activeAnkle && activeKnee && state.ankleDorsi.isRecording) {
           const shinMidpoint = {
             x: (activeAnkle.x + activeKnee.x) / 2,
             y: (activeAnkle.y + activeKnee.y) / 2
@@ -1111,7 +1116,7 @@ export function onPoseResults(results) {
           const liveShinTilt = (side === 'left') ? calculateShinTilt(ankle_l, knee_l) : calculateShinTilt(ankle_r, knee_r);
           drawAngleBadge(canvasCtx, shinMidpoint, liveShinTilt, '#06b6d4'); // Cyan for Tibial Inclination
         }
-      } else {
+      } else if (state.currentMode === 'squat') {
         drawAngleBadge(canvasCtx, knee_l, kneeAngleL, '#10b981');
         drawAngleBadge(canvasCtx, hip_l, hipAngleL, '#d4a017');
         drawAngleBadge(canvasCtx, ankle_l, ankleAngleL, '#06b6d4');
@@ -1120,15 +1125,24 @@ export function onPoseResults(results) {
         drawAngleBadge(canvasCtx, hip_r, hipAngleR, '#d4a017');
         drawAngleBadge(canvasCtx, ankle_r, ankleAngleR, '#06b6d4');
 
-        // Frontal Knee Valgus Badge
+        // Frontal Knee Valgus & Varus Badges
         const valgus = calculateValgusFromJoints(calculated);
+        const varus = calculateVarusFromJoints(calculated);
         const kneeMobL = 180 - (kneeAngleL || 180);
         const kneeMobR = 180 - (kneeAngleR || 180);
-        if (kneeMobL >= 15 && valgus.pctL > 4.0) {
-          drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
+        if (kneeMobL >= 15) {
+          if (valgus.pctL > 4.0) {
+            drawValgusBadge(canvasCtx, knee_l, valgus.pctL);
+          } else if (varus.pctL > 4.0) {
+            drawVarusBadge(canvasCtx, knee_l, varus.pctL);
+          }
         }
-        if (kneeMobR >= 15 && valgus.pctR > 4.0) {
-          drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+        if (kneeMobR >= 15) {
+          if (valgus.pctR > 4.0) {
+            drawValgusBadge(canvasCtx, knee_r, valgus.pctR);
+          } else if (varus.pctR > 4.0) {
+            drawVarusBadge(canvasCtx, knee_r, varus.pctR);
+          }
         }
       }
 
@@ -1370,38 +1384,57 @@ export function onPoseResults(results) {
           }
         }
       } else if (state.currentMode === 'thoracic_extension') {
-        const angle = calculateThoracicExtensionAngle(results.poseLandmarks);
-        if (angle !== null) {
-          state.thoracicExtension.liveAngle = angle;
-          if (angle > (state.thoracicExtension.peakAngle || 0)) {
-            state.thoracicExtension.peakAngle = angle;
-            autoSyncToActiveProfileDebounced();
-          }
-          updateThoracicExtensionSidebarUI();
-          setThoracicExtensionStatus('Active Tracking', 'text-emerald');
+        if (!state.thoracicExtension) {
+          state.thoracicExtension = getDefaultThoracicExtension();
+        }
 
-          canvasCtx.save();
-          canvasCtx.strokeStyle = '#f59e0b';
-          canvasCtx.lineWidth = 3;
-          canvasCtx.setLineDash([6, 6]);
-          canvasCtx.beginPath();
-          const shoulderMid = results.poseLandmarks[11] && results.poseLandmarks[12] ? {
-            x: (getCanvasX(results.poseLandmarks[11].x) + getCanvasX(results.poseLandmarks[12].x)) / 2,
-            y: ((results.poseLandmarks[11].y + results.poseLandmarks[12].y) / 2) * (state.canvasHeight || 480)
-          } : null;
-          const hipMid = results.poseLandmarks[23] && results.poseLandmarks[24] ? {
-            x: (getCanvasX(results.poseLandmarks[23].x) + getCanvasX(results.poseLandmarks[24].x)) / 2,
-            y: ((results.poseLandmarks[23].y + results.poseLandmarks[24].y) / 2) * (state.canvasHeight || 480)
-          } : null;
-          if (shoulderMid && hipMid) {
-            canvasCtx.moveTo(shoulderMid.x, shoulderMid.y);
-            canvasCtx.lineTo(hipMid.x, hipMid.y);
-            canvasCtx.stroke();
+        const isRec = !!state.thoracicExtension.isRecording;
+
+        if (isRec) {
+          const angle = calculateThoracicExtensionAngle(results.poseLandmarks);
+          if (angle !== null) {
+            state.thoracicExtension.liveAngle = angle;
+            
+            if (angle > (state.thoracicExtension.peakAngle || 0)) {
+              state.thoracicExtension.peakAngle = angle;
+              autoSyncToActiveProfileDebounced();
+            }
+            
+            updateThoracicExtensionSidebarUI();
+            setThoracicExtensionStatus('Recording Peak Angles...', 'text-amber');
+
+            canvasCtx.save();
+            canvasCtx.strokeStyle = '#f59e0b';
+            canvasCtx.lineWidth = 3;
+            canvasCtx.setLineDash([6, 6]);
+            canvasCtx.beginPath();
+            const shoulderMid = results.poseLandmarks[11] && results.poseLandmarks[12] ? {
+              x: (getCanvasX(results.poseLandmarks[11].x) + getCanvasX(results.poseLandmarks[12].x)) / 2,
+              y: ((results.poseLandmarks[11].y + results.poseLandmarks[12].y) / 2) * (state.canvasHeight || 480)
+            } : null;
+            const hipMid = results.poseLandmarks[23] && results.poseLandmarks[24] ? {
+              x: (getCanvasX(results.poseLandmarks[23].x) + getCanvasX(results.poseLandmarks[24].x)) / 2,
+              y: ((results.poseLandmarks[23].y + results.poseLandmarks[24].y) / 2) * (state.canvasHeight || 480)
+            } : null;
+            if (shoulderMid && hipMid) {
+              canvasCtx.moveTo(shoulderMid.x, shoulderMid.y);
+              canvasCtx.lineTo(hipMid.x, hipMid.y);
+              canvasCtx.stroke();
+            }
+            canvasCtx.restore();
+            drawAngleBadge(canvasCtx, { x: shoulderMid?.x || 0, y: shoulderMid?.y || 0 }, Math.round(angle), '#f59e0b');
+          } else {
+            setThoracicExtensionStatus('Offline');
           }
-          canvasCtx.restore();
-          drawAngleBadge(canvasCtx, { x: shoulderMid?.x || 0, y: shoulderMid?.y || 0 }, Math.round(angle), '#f59e0b');
         } else {
-          setThoracicExtensionStatus('Offline');
+          // NOT RECORDING - do not measure or draw thoracic extension lines/badges on canvas
+          state.thoracicExtension.liveAngle = 0;
+          updateThoracicExtensionSidebarUI();
+          if (results.poseLandmarks) {
+            setThoracicExtensionStatus('Ready to Record', 'text-emerald');
+          } else {
+            setThoracicExtensionStatus('Awaiting Subject', 'text-slate');
+          }
         }
       } else if (state.currentMode === 'hip_rotation') {
         const side = state.hipRotationTestingSide || 'left';
@@ -2275,6 +2308,45 @@ export function resetAndResume() {
   }
 }
 
+export function stopActiveROMRecordings() {
+  // Safe safeguard: stop any active video recording
+  if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+    try { state.mediaRecorder.stop(); } catch(e){}
+    state.isRecording = false;
+  }
+
+  if (state.thoracicExtension) {
+    state.thoracicExtension.isRecording = false;
+    const btnSaveThoracic = document.getElementById('btn-save-thoracic-results');
+    if (btnSaveThoracic) {
+      btnSaveThoracic.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+        Capture Thoracic Snapshot
+      `;
+      btnSaveThoracic.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      btnSaveThoracic.style.borderColor = '';
+      btnSaveThoracic.classList.remove('recording-pulse');
+    }
+    setThoracicExtensionStatus('Ready to Record', 'text-emerald');
+    updateThoracicExtensionSidebarUI();
+  }
+
+  if (state.ankleDorsi) {
+    state.ankleDorsi.isRecording = false;
+    const btnSaveDorsi = document.getElementById('btn-save-dorsi-results');
+    if (btnSaveDorsi) {
+      btnSaveDorsi.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+        Capture Dorsi Snapshot
+      `;
+      btnSaveDorsi.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      btnSaveDorsi.style.borderColor = '';
+      btnSaveDorsi.classList.remove('recording-pulse');
+    }
+    updateDorsiLiveUI();
+  }
+}
+
 // ==========================================
 // CAMERA STREAM MANAGEMENT
 // ==========================================
@@ -2301,10 +2373,7 @@ export async function startCamera(preferredDeviceId = null) {
   }
 
   // Safe safeguard: stop any active recording on session switch
-  if (state.isRecording && state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
-    try { state.mediaRecorder.stop(); } catch(e){}
-    state.isRecording = false;
-  }
+  stopActiveROMRecordings();
 
   if (uploadedVideo) {
     uploadedVideo.classList.add('hidden');
@@ -5089,6 +5158,7 @@ export function updateDashboardOfflinePlaceholders() {
 // BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
 function setExerciseMode(mode) {
   if (!mode) return;
+  stopActiveROMRecordings();
   state.currentMode = (mode === 'shoulder' ? 'shoulder_flexion' : (mode === 'shoulder-rotation' ? 'shoulder_rotation' : (mode === 'hip-rotation' ? 'hip_rotation' : (mode === 'ankle-dorsi' ? 'ankledorsi' : mode === 'thoracic-extension' ? 'thoracic_extension' : mode))));
 
   if (selectTestMode) {

@@ -216,6 +216,43 @@ export function drawValgusBadge(ctx, point, value) {
   activeCtx.restore();
 }
 
+export function drawVarusBadge(ctx, point, value) {
+  if (!point || value === undefined || value === null || isNaN(value)) return;
+  const activeCtx = ctx || getCanvasCtx();
+  if (!activeCtx) return;
+  
+  activeCtx.save();
+  activeCtx.font = 'bold 10px sans-serif';
+  const text = `VARUS: ${value.toFixed(1)}°`;
+  const paddingX = 6;
+  const paddingY = 4;
+  const textWidth = activeCtx.measureText(text).width;
+  const bgW = textWidth + paddingX * 2;
+  const bgH = 12 + paddingY * 2;
+
+  const offsetX = -bgW / 2;
+  const offsetY = 15;
+  const badgeX = point.x + offsetX;
+  const badgeY = point.y + offsetY;
+
+  activeCtx.fillStyle = 'rgba(15, 22, 38, 0.9)';
+  activeCtx.strokeStyle = '#f97316'; 
+  activeCtx.lineWidth = 1.5;
+  activeCtx.shadowColor = '#f97316';
+  activeCtx.shadowBlur = 6;
+
+  drawRoundedRect(activeCtx, badgeX, badgeY, bgW, bgH, 4);
+  activeCtx.fill();
+  activeCtx.stroke();
+
+  activeCtx.shadowBlur = 0;
+  activeCtx.fillStyle = '#ff9f43'; 
+  activeCtx.textAlign = 'left';
+  activeCtx.textBaseline = 'top';
+  activeCtx.fillText(text, badgeX + paddingX, badgeY + paddingY + 1);
+  activeCtx.restore();
+}
+
 export function drawHandMesh(multiHandLandmarks, multiHandedness, ctx = null) {
   if (!multiHandLandmarks || !Array.isArray(multiHandLandmarks)) return;
   const activeCtx = ctx || getCanvasCtx();

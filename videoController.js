@@ -190,6 +190,11 @@ export function startVideoRecording(updateRecordButtonUI) {
       if (state.currentMode === 'squat') {
         const side = state.squatTestingSide || 'left';
         a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_overhead_squat.${fileExt}`;
+      } else if (state.currentMode === 'ankledorsi') {
+        const side = (state.ankleDorsi && state.ankleDorsi.activeSide) || 'left';
+        a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_tibial_inclination.${fileExt}`;
+      } else if (state.currentMode === 'thoracic_extension') {
+        a.download = `scarlet_biomechanics_${cleanSubjectName}_thoracic_extension.${fileExt}`;
       } else {
         a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${fileExt}`;
       }
@@ -328,6 +333,14 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
             activeSession.ankleDorsiPeaks = state.ankleDorsi.peaks ? JSON.parse(JSON.stringify(state.ankleDorsi.peaks)) : null;
             profileMigrated.ankleDorsiPeaks = activeSession.ankleDorsiPeaks;
           }
+          if (state.thoracicExtension !== undefined) {
+            activeSession.thoracicExtension = state.thoracicExtension ? JSON.parse(JSON.stringify(state.thoracicExtension)) : null;
+            profileMigrated.thoracicExtension = activeSession.thoracicExtension;
+          }
+          if (state.imageThoracicExtension !== undefined) {
+            activeSession.imageThoracicExtension = state.imageThoracicExtension;
+            profileMigrated.imageThoracicExtension = state.imageThoracicExtension;
+          }
           if (state.imageAnkleDorsi !== undefined) {
             activeSession.imageAnkleDorsi = state.imageAnkleDorsi;
             profileMigrated.imageAnkleDorsi = state.imageAnkleDorsi;
@@ -428,6 +441,9 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
               activeSession.videoAnkleDorsiR = videoEntry;
               state.videoAnkleDorsiR = videoEntry;
             }
+          } else if (state.currentMode === 'thoracic_extension') {
+            activeSession.videoThoracicExtension = videoEntry;
+            state.videoThoracicExtension = videoEntry;
           }
         }
       }

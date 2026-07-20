@@ -21,7 +21,7 @@ import {
 
 import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
 import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
-import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt, updateDorsiLiveUI } from './ankleDorsi.js';
+import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt, updateDorsiLiveUI, registerAnkleDorsiCallbacks } from './ankleDorsi.js';
 
 import {
   drawJoint,
@@ -86,7 +86,8 @@ import {
   resetThoracicExtensionUI,
   calculateThoracicExtensionAngle,
   getDefaultThoracicExtension,
-  setThoracicExtensionStatus
+  setThoracicExtensionStatus,
+  registerThoracicCallbacks
 } from './thoracicController.js';
 
 import {
@@ -2463,6 +2464,8 @@ export async function startCamera(preferredDeviceId = null) {
     // Mirror the view only for front/user camera
     videoElement.classList.toggle('mirror-x', state.currentFacingMode === "user");
 
+    let consecutiveErrors = 0;
+
     // Throttled concurrent model inference loop (runs in background)
     async function cameraInferenceLoop() {
       if (!state.activeStream || videoElement.paused || videoElement.ended) {
@@ -2473,14 +2476,65 @@ export async function startCamera(preferredDeviceId = null) {
 
       const startTime = Date.now();
       try {
-          // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
-          if (!state.activeModalVideoProcessing) {
-            await pose.send({ image: videoElement });
-            await hands.send({ image: videoElement });
-          }
+        // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
+        if (!state.activeModalVideoProcessing) {
+          await pose.send({ image: videoElement });
+          await hands.send({ image: videoElement });
+          consecutiveErrors = 0;
         }
+      }
       catch (err) {
         console.error("Camera inference loop error:", err);
+        consecutiveErrors++;
+
+        if (consecutiveErrors >= 5) {
+          console.error("Critical: Multiple consecutive camera inference failures detected. Stopping loop to prevent system freeze.");
+          state.isCameraInferenceLoopRunning = false;
+          
+          // Stop camera track to release hardware lock
+          try {
+            if (state.activeStream) {
+              state.activeStream.getTracks().forEach(track => track.stop());
+              state.activeStream = null;
+            }
+          } catch (e) {
+            console.warn("Could not release active camera stream:", e);
+          }
+          
+          if (startButton) {
+            startButton.classList.remove('hidden');
+          }
+          
+          const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+          let extraTip = "";
+          if (isFirefox) {
+            extraTip = `<br><br><strong style="color: #f59e0b;">Firefox Specific Tip:</strong> Firefox sometimes restricts WebGL context creation due to driver blacklists or performance settings. You can force-enable it by navigating to <code>about:config</code> in a new tab, searching for <code>webgl.force-enabled</code>, and setting it to <code>true</code>.`;
+          }
+          
+          if (statusElement) {
+            statusElement.innerHTML = `
+              <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); padding: 1.25rem; border-radius: 12px; margin-top: 1rem; text-align: left; color: #fecaca; line-height: 1.6; font-family: system-ui, -apple-system, sans-serif;">
+                <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #f87171; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                  <svg width="22" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #ef4444;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  Tracking Initialization Failed (WebGL Error)
+                </h4>
+                <p style="margin-bottom: 0.85rem; font-size: 0.92rem; color: #fca5a5;">
+                  Our real-time biometric analysis engine requires browser-level WebGL graphics acceleration. Your browser or GPU driver currently has hardware acceleration disabled or context creation refused.
+                </p>
+                <div style="font-size: 0.88rem; background: rgba(0,0,0,0.3); padding: 0.85rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                  <strong>How to fix this in under a minute:</strong>
+                  <ol style="margin: 0.5rem 0 0 1.25rem; padding: 0; display: flex; flex-direction: column; gap: 4px;">
+                    <li>Open your browser settings (e.g., in Chrome: <code>Settings &gt; System</code>; in Firefox: <code>Settings &gt; General &gt; Performance</code>).</li>
+                    <li>Toggle <strong>"Use graphics/hardware acceleration when available"</strong> to ON.</li>
+                    <li>Relaunch your browser and reload this page to activate high-precision tracking.</li>
+                  </ol>
+                  ${extraTip}
+                </div>
+              </div>
+            `;
+          }
+          return;
+        }
       }
 
       const elapsed = Date.now() - startTime;
@@ -3128,6 +3182,8 @@ export async function handleUploadedFile(file) {
 }
 
 export function startUploadedMediaLoop() {
+  let consecutiveErrors = 0;
+
   async function videoInferenceLoop() {
     if (!state.isUploadedMedia || state.uploadedMediaType !== 'video' || uploadedVideo.paused || uploadedVideo.ended || state.isRecordingPlayLoop || state.isExportingFrameByFrame || state.activeModalVideoProcessing) {
       state.isVideoInferenceLoopRunning = false;
@@ -3138,13 +3194,27 @@ export function startUploadedMediaLoop() {
     const startTime = Date.now();
     try {
       if (!state.isSnapshotFrozen) {
-
         // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
         await pose.send({ image: uploadedVideo });
         await hands.send({ image: uploadedVideo });
+        consecutiveErrors = 0;
       }
     } catch (err) {
       console.error("Uploaded video processing error:", err);
+      consecutiveErrors++;
+
+      if (consecutiveErrors >= 5) {
+        console.error("Critical: Multiple consecutive failures in uploaded video processing. Pausing video.");
+        state.isVideoInferenceLoopRunning = false;
+        try {
+          uploadedVideo.pause();
+        } catch (e) {}
+
+        if (statusElement) {
+          statusElement.innerHTML = `<span class="text-red font-bold">Inference Engine Error!</span> WebGL context lost or driver crash. Please enable hardware acceleration in browser settings and reload.`;
+        }
+        return;
+      }
     }
 
     const elapsed = Date.now() - startTime;
@@ -4387,6 +4457,7 @@ export async function runVideoFramePreprocessing() {
     });
   }
 
+  let consecutiveErrors = 0;
   try {
     while (currentTime <= duration && state.isExportingFrameByFrame) {
       // 1. Seek video to currentTime
@@ -4400,8 +4471,13 @@ export async function runVideoFramePreprocessing() {
       try {
         await pose.send({ image: uploadedVideo });
         await hands.send({ image: uploadedVideo });
+        consecutiveErrors = 0;
       } catch (err) {
         console.warn(`MediaPipe processing error at t=${currentTime.toFixed(3)}s:`, err);
+        consecutiveErrors++;
+        if (consecutiveErrors >= 5) {
+          throw new Error("Biomechanical tracking failed consecutively. This is typically due to a WebGL context crash or lack of hardware acceleration in your browser.");
+        }
       }
 
       // 4. Cache landmarks & results
@@ -5466,6 +5542,16 @@ registerShoulderRotationCallbacks({
 });
 
 registerHipRotationCallbacks({
+  startVideoRecording,
+  stopVideoRecording
+});
+
+registerAnkleDorsiCallbacks({
+  startVideoRecording,
+  stopVideoRecording
+});
+
+registerThoracicCallbacks({
   startVideoRecording,
   stopVideoRecording
 });

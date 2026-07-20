@@ -3,6 +3,7 @@
 // ==========================================
 
 import { state, snapshotStore } from './helpers.js';
+import { startVideoRecording, stopVideoRecording } from './videoController.js';
 
 // Callbacks to prevent circular imports
 let startVideoRecordingFn = null;
@@ -191,10 +192,14 @@ export function updateDorsiLiveUI(liveShinTilt = 0, liveAnkleDorsi = 0, isHeelLi
   const liveShinLDisp = document.getElementById('dorsi-live-shin-l');
   const liveShinRDisp = document.getElementById('dorsi-live-shin-r');
 
+  // Reset inactive side to --
+  if (liveShinLDisp && side !== 'left') liveShinLDisp.textContent = '--';
+  if (liveShinRDisp && side !== 'right') liveShinRDisp.textContent = '--';
+
   if (side === 'left') {
-    if (liveShinLDisp) liveShinLDisp.textContent = `${Math.round(liveShinTilt)}°`;
+    if (liveShinLDisp) liveShinLDisp.textContent = state.ankleDorsi.isRecording ? `${Math.round(liveShinTilt)}°` : '--';
   } else {
-    if (liveShinRDisp) liveShinRDisp.textContent = `${Math.round(liveShinTilt)}°`;
+    if (liveShinRDisp) liveShinRDisp.textContent = state.ankleDorsi.isRecording ? `${Math.round(liveShinTilt)}°` : '--';
   }
 
   // Update Peak Tibial Inclination angle values
@@ -572,61 +577,151 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
   const btnSaveDorsi = document.getElementById('btn-save-dorsi-results');
   if (btnSaveDorsi) {
     btnSaveDorsi.addEventListener('click', async () => {
-      const peaks = state.ankleDorsi.peaks;
-      if (peaks.shinAngleL === null && peaks.shinAngleR === null) {
-        alert("No peak ROM metrics have been captured yet. Please perform a lunge with flat heels to capture peak angles!");
+      if (!state.activeProfileId) {
+        alert("Please select or load an active athlete profile first.");
         return;
       }
 
-      // Check for active profile
-      let activeProfileName = "Guest";
-      if (state.activeProfileId) {
+      const videoElement = document.getElementById('webcam');
+      let isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+      const side = state.ankleDorsi.activeSide || 'left';
+
+      if (!state.ankleDorsi.isRecording) {
+        // --- START RECORDING ---
+        if (!isWebcamLive) {
+          try {
+            const { startCamera } = await import('./userController.js');
+            await startCamera();
+            isWebcamLive = videoElement && videoElement.srcObject && videoElement.srcObject.active;
+          } catch (err) {
+            console.error("Auto starting camera failed:", err);
+            alert("Failed to start the camera automatically. Please ensure camera access is enabled.");
+            return;
+          }
+        }
+
+        state.ankleDorsi.isRecording = true;
+        
+        // Reset peaks for the active side so they capture fresh during the recording
+        if (side === 'left') {
+          state.ankleDorsi.peaks.shinAngleL = null;
+          state.ankleDorsi.peaks.ankleDorsiL = null;
+        } else {
+          state.ankleDorsi.peaks.shinAngleR = null;
+          state.ankleDorsi.peaks.ankleDorsiR = null;
+        }
+
+        // Add pulse animation styles if not already present
+        if (!document.getElementById('recording-pulse-style')) {
+          const style = document.createElement('style');
+          style.id = 'recording-pulse-style';
+          style.innerHTML = `
+            @keyframes recording-pulse {
+              0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+              70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+              100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            }
+            .recording-pulse {
+              animation: recording-pulse 1.5s infinite !important;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        // Update button UI to recording style
+        btnSaveDorsi.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor"></rect></svg>
+          Stop Capture & Save
+        `;
+        btnSaveDorsi.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        btnSaveDorsi.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        btnSaveDorsi.classList.add('recording-pulse');
+
+        if (isWebcamLive && startVideoRecording) {
+          startVideoRecording();
+        }
+
+      } else {
+        // --- STOP RECORDING & SAVE ---
+        state.ankleDorsi.isRecording = false;
+
+        if (isWebcamLive && stopVideoRecording) {
+          stopVideoRecording();
+        }
+
+        // Restore button UI
+        btnSaveDorsi.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+          Capture Dorsi Snapshot
+        `;
+        btnSaveDorsi.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        btnSaveDorsi.style.borderColor = '';
+        btnSaveDorsi.classList.remove('recording-pulse');
+
+        updateDorsiLiveUI();
+
+        const peaks = state.ankleDorsi.peaks;
+        const hasPeaks = side === 'left' ? (peaks.shinAngleL !== null) : (peaks.shinAngleR !== null);
+        if (!hasPeaks) {
+          alert("No peak angles were recorded. Please ensure your leg and foot are fully in the camera view during recording.");
+          return;
+        }
+
+        // Check for active profile
+        let activeProfileName = "Guest";
+        if (state.activeProfileId) {
+          try {
+            const profile = await snapshotStore.getProfile(state.activeProfileId);
+            if (profile) {
+              activeProfileName = profile.name;
+            }
+          } catch (err) {
+            console.error("Error fetching active profile for peak saving:", err);
+          }
+        }
+
+        const label = state.activeProfileId ? `${activeProfileName} - Tibial Inclination` : "Guest - Tibial Inclination";
+        const canvasElement = document.getElementById('main-canvas');
+
+        const snapshotRecord = {
+          name: label,
+          timestamp: Date.now(),
+          image: canvasElement ? canvasElement.toDataURL('image/png') : null,
+          metrics: {
+            isAnkleDorsi: true,
+            ankleDorsiPeaks: JSON.parse(JSON.stringify(state.ankleDorsi.peaks))
+          }
+        };
+
         try {
-          const profile = await snapshotStore.getProfile(state.activeProfileId);
-          if (profile) {
-            activeProfileName = profile.name;
+          if (state.activeProfileId) {
+            let profile = await snapshotStore.getProfile(state.activeProfileId);
+            if (profile) {
+              if (!profile.sessions) profile.sessions = [];
+              let session = profile.sessions[profile.sessions.length - 1];
+              if (session) {
+                session.ankleDorsiPeaks = JSON.parse(JSON.stringify(state.ankleDorsi.peaks));
+                if (canvasElement) {
+                  session.imageAnkleDorsi = canvasElement.toDataURL('image/png');
+                }
+              }
+              await snapshotStore.saveProfile(profile);
+
+              // Dynamically reload UI
+              const { loadProfileIntoState } = await import('./profileManager.js');
+              await loadProfileIntoState(profile.id);
+
+              alert(`💾 Tibial Inclination results and video successfully recorded to player profile "${profile.name}"!`);
+            }
+          } else {
+            // In Guest Mode, register in the general store if possible
+            await snapshotStore.saveSnapshot(snapshotRecord);
+            alert("💾 Assessment recorded to general local snapshots successfully!");
           }
         } catch (err) {
-          console.error("Error fetching active profile for peak saving:", err);
+          console.error("Failed to record Tibial Inclination assessment:", err);
+          alert("Could not save tibial inclination results. See developer console for errors.");
         }
-      }
-
-      const label = state.activeProfileId ? `${activeProfileName} - Tibial Inclination` : "Guest - Tibial Inclination";
-      const canvasElement = document.getElementById('main-canvas');
-
-      const snapshotRecord = {
-        name: label,
-        timestamp: Date.now(),
-        image: canvasElement ? canvasElement.toDataURL('image/png') : null,
-        metrics: {
-          isAnkleDorsi: true,
-          ankleDorsiPeaks: JSON.parse(JSON.stringify(state.ankleDorsi.peaks))
-        }
-      };
-
-      try {
-        if (state.activeProfileId) {
-          let profile = await snapshotStore.getProfile(state.activeProfileId);
-          if (profile) {
-            if (!profile.sessions) profile.sessions = [];
-            let session = profile.sessions[profile.sessions.length - 1];
-            if (session) {
-              session.ankleDorsiPeaks = JSON.parse(JSON.stringify(state.ankleDorsi.peaks));
-              if (canvasElement) {
-                session.imageAnkleDorsi = canvasElement.toDataURL('image/png');
-              }
-            }
-            await snapshotStore.saveProfile(profile);
-            alert(`💾 Tibial Inclination results successfully recorded to player profile "${profile.name}"!`);
-          }
-        } else {
-          // In Guest Mode, register in the general store if possible
-          await snapshotStore.saveSnapshot(snapshotRecord);
-          alert("💾 Assessment recorded to general local snapshots successfully!");
-        }
-      } catch (err) {
-        console.error("Failed to record Tibial Inclination assessment:", err);
-        alert("Could not save tibial inclination results. See developer console for errors.");
       }
     });
   }

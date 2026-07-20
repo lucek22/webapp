@@ -136,7 +136,7 @@
       <div class="main-mode-dropdown-container" style="margin-bottom: 1.25rem; width: 100%;">
         <label for="select-test-mode" style="display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #a7b1b7; margin-bottom: 6px;">Select Exercise Testing Mode:</label>
         <div style="position: relative; display: flex; width: 100%;">
-          <select id="select-test-mode" style="width: 100%; height: 44px; background: var(--color-dark-gray); border: 2px solid rgba(255, 255, 255, 0.08); border-radius: 10px; color: #f3f4f6; padding: 0 16px; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; transition: all 0.2s ease;">
+          <select id="select-test-mode" autocomplete="off" style="width: 100%; height: 44px; background: var(--color-dark-gray); border: 2px solid rgba(255, 255, 255, 0.08); border-radius: 10px; color: #f3f4f6; padding: 0 16px; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; transition: all 0.2s ease;">
             <option value="posture" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Anthropometric Scan</option>
             <option value="squat" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Overhead Squat</option>
             <option value="shoulder" style="background-color: var(--color-dark-gray); color: #f3f4f6;">Shoulder Flexion</option>
@@ -258,7 +258,7 @@
       
       <div id="posture-sidebar-content">
         <!-- Full-Body Stature -->
-        <div class="panel-section panel-section-stature">
+        <div class="panel-section panel-section-stature collapsible active-expanded">
           <div class="section-title stature-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
             Full-Body Stature
@@ -281,7 +281,7 @@
         </div>
 
         <!-- Real-time Joint Angles -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
         <div class="section-title">Joint Angles (Flexion)</div>
         <div class="angle-header-row angle-header-row-spaced">
           <span class="side-header-left">Left Side</span>
@@ -318,7 +318,7 @@
         </div>
 
         <!-- Lower Body Segments -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">Lower Body Segments</div>
           <div class="angle-header-row">
             <span class="text-left-color">Left</span>
@@ -350,7 +350,7 @@
         </div>
 
         <!-- Upper Body Segments -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">Upper Body Segments</div>
           <div class="metrics-list">
             <div class="metric-row">
@@ -378,7 +378,7 @@
         </div>
 
         <!-- Body Widths -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">Full Body Widths</div>
           <div class="metrics-list">
             <div class="metric-row">
@@ -396,7 +396,7 @@
         </div>
 
         <!-- Hand Metrics -->
-        <div class="panel-section">
+        <div class="panel-section collapsible">
           <div class="section-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
             Hand Metrics
@@ -424,7 +424,7 @@
         </div>
 
         <!-- Pose Landmarks Overlay Section -->
-        <div class="panel-section panel-section-landmarks">
+        <div class="panel-section panel-section-landmarks collapsible">
           <div class="section-title landmarks-title">
             <span class="metric-lbl-flex">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
@@ -450,7 +450,7 @@
       <div id="squat-sidebar-content" class="hidden">
         
         <!-- Overhead Squat Performance Overview Card -->
-        <div class="panel-section squat-performance-section">
+        <div class="panel-section squat-performance-section collapsible">
           <div class="section-title squat-perf-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
             Overhead Squat
@@ -470,7 +470,7 @@
         </div>
 
         <!-- Mobility Analysis Dashboard Section -->
-        <div class="panel-section">
+        <div class="panel-section collapsible active-expanded">
           <div class="section-title">Peak Mobility Scores</div>
           <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
             Captures and locks the maximum flexion angles reached during your squat descent.
@@ -542,7 +542,7 @@
         </div>
 
         <!-- Squat Biomechanics Reference Guide -->
-        <div class="panel-section squat-guide-section">
+        <div class="panel-section squat-guide-section collapsible">
           <div class="section-title guide-title">Form Reference Guide</div>
           <div class="guide-box">
             <div class="guide-item">
@@ -571,7 +571,7 @@
       <div id="ankledorsi-sidebar-content" class="hidden">
          
          <!-- Performance Overview Card -->
-         <div class="panel-section dorsi-performance-section">
+         <div class="panel-section dorsi-performance-section collapsible">
           <div class="section-title dorsi-perf-title" style="display: flex; align-items: center; gap: 8px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
             Tibial Inclination ROM
@@ -591,7 +591,7 @@
         </div>
 
         <!-- Testing Section -->
-        <div class="panel-section">
+        <div class="panel-section collapsible active-expanded">
           <div class="section-title">Tibial Inclination Test</div>
           <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
             Keeping heel flat on the floor, drive your knee forward as far as possible. Peak angles are automatically captured in real-time.
@@ -665,24 +665,19 @@
             }
           </style>
           
-          <button id="btn-record-dorsi-toggle" class="btn" style="margin-top: 1rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: 700; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <span id="dot-record-dorsi" style="width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #ef4444;"></span>
-            <span id="txt-record-dorsi">Start Recording</span>
-          </button>
-
-          <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 0.5rem; width: 100%;">
+          <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Test Results
+            Reset Peak Metrics
           </button>
           
-          <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #2563eb, #1d4ed8);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            Save Test Results
+          <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Dorsi Snapshot
           </button>
         </div>
 
         <!-- Tibial Inclination Reference Guide -->
-        <div class="panel-section dorsi-guide-section">
+        <div class="panel-section dorsi-guide-section collapsible">
           <div class="section-title guide-title">Reference Targets & Guides</div>
           <div class="guide-box">
             <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; color: #a7b1b7; letter-spacing: 0.5px;">Tibial Inclination (Shin Forward Tilt)</div>
@@ -723,7 +718,7 @@
       <div id="shoulder-sidebar-content" class="hidden">
         
         <!-- Shoulder Flexion Performance Overview Card -->
-        <div class="panel-section shoulder-performance-section">
+        <div class="panel-section shoulder-performance-section collapsible">
           <div class="section-title shoulder-perf-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -742,7 +737,7 @@
         </div>
 
         <!-- Mobility Analysis Dashboard Section -->
-        <div class="panel-section">
+        <div class="panel-section collapsible active-expanded">
           <div class="section-title">Shoulder Mobility Peak Scores</div>
           <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
             Calculates shoulder flexion excursion angle from start (90° raised position) to end frame.
@@ -809,7 +804,7 @@
         </div>
 
         <!-- Shoulder Biomechanics Reference Guide -->
-        <div class="panel-section squat-guide-section">
+        <div class="panel-section squat-guide-section collapsible">
           <div class="section-title guide-title">Form Reference Guide</div>
           <div class="guide-box">
             <div class="guide-item">
@@ -837,7 +832,7 @@
       <div id="shoulder-rotation-sidebar-content" class="hidden">
         
         <!-- Shoulder Rotation Performance Overview Card -->
-        <div class="panel-section shoulder-performance-section">
+        <div class="panel-section shoulder-performance-section collapsible">
           <div class="section-title shoulder-perf-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
@@ -855,7 +850,7 @@
         </div>
 
         <!-- Mobility Analysis Dashboard Section -->
-        <div class="panel-section">
+        <div class="panel-section collapsible active-expanded">
           <div class="section-title">Shoulder Internal/External Rotation Peaks</div>
           <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
             Measures internal and external shoulder rotation from a sagittal view. Elbow is bent at 90° with forearm pointing forward at 0° baseline.
@@ -912,7 +907,7 @@
         </div>
 
         <!-- Shoulder Rotation Biomechanics Reference Guide -->
-        <div class="panel-section squat-guide-section">
+        <div class="panel-section squat-guide-section collapsible">
           <div class="section-title guide-title">Form Reference Guide</div>
           <div class="guide-box">
             <div class="guide-item">
@@ -938,7 +933,7 @@
       </div>
 
       <div id="thoracic-sidebar-content" class="hidden">
-        <div class="panel-section shoulder-performance-section">
+        <div class="panel-section shoulder-performance-section collapsible">
           <div class="section-title shoulder-perf-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
               <path d="M12 3v18"></path><path d="M3 8l9 4 9-4"></path><path d="M3 16l9 4 9-4"></path>
@@ -955,7 +950,7 @@
           </div>
         </div>
 
-        <div class="panel-section">
+        <div class="panel-section collapsible active-expanded">
           <div class="section-title">Live Thoracic Extension</div>
           <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
             Tracks the torso line against the hip line to show how much thoracic extension is present.
@@ -970,18 +965,18 @@
               <div id="thoracic-peak-angle" class="angle-val right-color">0°</div>
             </div>
           </div>
-          <button id="btn-record-thoracic-toggle" class="btn" style="margin-top: 1rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: 700; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <span id="dot-record-thoracic" style="width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #ef4444;"></span>
-            <span id="txt-record-thoracic">Start Recording</span>
-          </button>
-
-          <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 0.5rem; width: 100%;">
+          <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Thoracic Track
+            Reset Peak Metrics
+          </button>
+          
+          <button id="btn-save-thoracic-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Thoracic Snapshot
           </button>
         </div>
 
-        <div class="panel-section squat-guide-section">
+        <div class="panel-section squat-guide-section collapsible">
           <div class="section-title guide-title">Form Reference Guide</div>
           <div class="guide-box">
             <div class="guide-item">
@@ -997,7 +992,7 @@
       <div id="hip-rotation-sidebar-content" class="hidden">
         
         <!-- Hip Rotation Performance Overview Card -->
-        <div class="panel-section shoulder-performance-section">
+        <div class="panel-section shoulder-performance-section collapsible">
           <div class="section-title shoulder-perf-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-scarlet); margin-right: 6px; display: inline-block; vertical-align: middle;">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
@@ -1015,7 +1010,7 @@
         </div>
 
         <!-- Mobility Analysis Dashboard Section -->
-        <div class="panel-section">
+        <div class="panel-section collapsible active-expanded">
           <div class="section-title">Hip Internal/External Rotation Peaks</div>
           <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
             Measures internal and external hip rotation. (Tracking algorithms to be integrated; placeholder overlay displayed).
@@ -1072,7 +1067,7 @@
         </div>
 
         <!-- Hip Rotation Biomechanics Reference Guide -->
-        <div class="panel-section squat-guide-section">
+        <div class="panel-section squat-guide-section collapsible">
           <div class="section-title guide-title">Form Reference Guide</div>
           <div class="guide-box">
             <div class="guide-item">
@@ -1393,23 +1388,35 @@
         </div>
 
         <!-- Athlete Profile Tab Navigation -->
-        <div class="athlete-tabs-nav" style="border-bottom: 1.5px solid rgba(255, 255, 255, 0.06); padding-bottom: 6px; margin-bottom: 0.25rem;">
-          <button class="athlete-tab-btn active" data-tab="tab-anthropometrics">Anthropometrics</button>
-          <button class="athlete-tab-btn" data-tab="tab-mobility">Mobility Assessments</button>
-          <button class="athlete-tab-btn" data-tab="tab-compare">Compare</button>
-          <button class="athlete-tab-btn" data-tab="tab-compare-videos">Compare Videos</button>
+        <div class="athlete-tabs-nav">
+          <button class="athlete-tab-btn active" data-tab="tab-anthropometrics">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2zM12 2v20M12 7h6M12 12h6M12 17h6"></path></svg>
+            Anthropometrics
+          </button>
+          <button class="athlete-tab-btn" data-tab="tab-mobility">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            Mobility Assessments
+          </button>
+          <button class="athlete-tab-btn" data-tab="tab-compare">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Compare
+          </button>
+          <button class="athlete-tab-btn" data-tab="tab-compare-videos">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+            Compare Videos
+          </button>
         </div>
 
         <!-- TAB 1: Anthropometrics (Static Measurements) -->
         <div id="tab-anthropometrics" class="athlete-tab-pane">
-          <div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+          <div class="profile-tab-grid-layout" style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
             
             <!-- Left Side: Static Pose Image Status Cards -->
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
               <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Static Posture Scans</div>
               
               <!-- A-Pose -->
-              <div class="pose-status-card" id="detail-card-a" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible active-expanded" id="detail-card-a" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon bg-scarlet" style="width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">A</div>
@@ -1426,7 +1433,7 @@
               </div>
 
               <!-- T-Pose -->
-              <div class="pose-status-card" id="detail-card-t" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-t" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon bg-cyan" style="width: 24px; height: 24px; border-radius: 50%; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">T</div>
@@ -1443,7 +1450,7 @@
               </div>
 
               <!-- Overhead Pose -->
-              <div class="pose-status-card" id="detail-card-overhead" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-overhead" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div class="pose-card-info-wrap" style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon bg-gold" style="width: 24px; height: 24px; border-radius: 50%; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">O</div>
@@ -1462,7 +1469,7 @@
 
             <!-- Right Side: Anthropometric Tables -->
             <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-              <div id="profile-edit-section-postural" style="display: none; margin-bottom: 1rem;">
+              <div id="profile-edit-section-postural" class="collapsible active-expanded" style="display: none; margin-bottom: 1rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Consolidated Postural Baseline</div>
                 <div class="profile-metrics-comparison-table">
                   <table class="profile-details-table">
@@ -1522,7 +1529,7 @@
                 </div>
               </div>
 
-              <div>
+              <div class="profile-baseline-definitive-section collapsible active-expanded">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Consolidated Athlete Baselines (Final)</div>
                 <div class="profile-consolidated-metrics-table">
                   <table class="profile-details-table">
@@ -1576,14 +1583,14 @@
 
         <!-- TAB 2: Mobility Assessments (Dynamic Tests & ROM Scores) -->
         <div id="tab-mobility" class="athlete-tab-pane hidden">
-          <div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+          <div class="profile-tab-grid-layout" style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
             
             <!-- Left Side: Mobility Scans Status & Previews (Videos/Images) -->
-            <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: calc(85vh - 240px); overflow-y: auto; padding-right: 0.5rem; border-right: 1px solid rgba(255,255,255,0.04);">
+            <div class="profile-tab-mobility-left" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: calc(85vh - 240px); overflow-y: auto; padding-right: 0.5rem; border-right: 1px solid rgba(255,255,255,0.04);">
               <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Mobility Scans Status</div>
               
               <!-- Left Overhead Squat -->
-              <div class="pose-status-card" id="detail-card-squat-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible active-expanded" id="detail-card-squat-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #9333ea; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-L</div>
@@ -1600,7 +1607,7 @@
               </div>
 
               <!-- Right Overhead Squat -->
-              <div class="pose-status-card" id="detail-card-squat-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-squat-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #a855f7; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-R</div>
@@ -1617,7 +1624,7 @@
               </div>
 
               <!-- Frontal Overhead Squat -->
-              <div class="pose-status-card" id="detail-card-squat-frontal" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-squat-frontal" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #ec4899; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">S-F</div>
@@ -1634,7 +1641,7 @@
               </div>
 
               <!-- Left Shoulder Flexion -->
-              <div class="pose-status-card" id="detail-card-shoulder-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #0ea5e9; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-L</div>
@@ -1651,7 +1658,7 @@
               </div>
 
               <!-- Right Shoulder Flexion -->
-              <div class="pose-status-card" id="detail-card-shoulder-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #06b6d4; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">SH-R</div>
@@ -1668,7 +1675,7 @@
               </div>
 
               <!-- Left Shoulder Rotation -->
-              <div class="pose-status-card" id="detail-card-shoulder-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-L</div>
@@ -1685,7 +1692,7 @@
               </div>
 
               <!-- Right Shoulder Rotation -->
-              <div class="pose-status-card" id="detail-card-shoulder-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-shoulder-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #00e5ff; color: #000; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ROT-R</div>
@@ -1702,7 +1709,7 @@
               </div>
 
               <!-- Left Hip Rotation -->
-              <div class="pose-status-card" id="detail-card-hip-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-hip-rotation-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-L</div>
@@ -1719,7 +1726,7 @@
               </div>
 
               <!-- Right Hip Rotation -->
-              <div class="pose-status-card" id="detail-card-hip-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-hip-rotation-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">HIP-R</div>
@@ -1736,7 +1743,7 @@
               </div>
 
               <!-- Left Ankle Dorsiflexion -->
-              <div class="pose-status-card" id="detail-card-ankle-dorsi-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-ankle-dorsi-l" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-L</div>
@@ -1753,7 +1760,7 @@
               </div>
 
               <!-- Right Ankle Dorsiflexion -->
-              <div class="pose-status-card" id="detail-card-ankle-dorsi-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-ankle-dorsi-r" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #10b981; color: #fff; font-size: 0.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">ANK-R</div>
@@ -1770,7 +1777,7 @@
               </div>
 
               <!-- Thoracic Extension -->
-              <div class="pose-status-card" id="detail-card-thoracic-extension" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="pose-status-card collapsible" id="detail-card-thoracic-extension" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem;">
                 <div class="pose-card-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <div class="pose-card-icon" style="width: 24px; height: 24px; border-radius: 50%; background: #d4a017; color: #fff; font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; justify-content: center;">T-SPN</div>
@@ -1789,7 +1796,7 @@
 
             <!-- Right Side: Peak Mobility Metrics & ROM Dashboard -->
             <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+              <div class="profile-edit-section-mobility collapsible active-expanded" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Overhead Squat Mobility Peak Records</div>
                 <div class="profile-squat-peaks-grid">
                   <div class="squat-peak-detail-box">
@@ -1806,11 +1813,11 @@
                   </div>
                 </div>
                 <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">
-                  Knee Cave-In Tracking: No current squat metrics.
+                  Knee Alignment / Tracking: No current squat metrics.
                 </div>
               </div>
 
-              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Flexion Mobility Peak Records</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1824,7 +1831,7 @@
                 </div>
               </div>
 
-              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Shoulder Internal/External Rotation Peak Records</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1846,7 +1853,7 @@
                 </div>
               </div>
 
-              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Hip Internal/External Rotation Peak Records</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1868,7 +1875,7 @@
                 </div>
               </div>
               
-              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Ankle Dorsiflexion (Tibial Inclination) Peak Records</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1890,7 +1897,7 @@
                 </div>
               </div>
 
-              <div class="profile-edit-section-mobility" style="display: none; margin-bottom: 0.85rem;">
+              <div class="profile-edit-section-mobility collapsible" style="display: none; margin-bottom: 0.85rem;">
                 <div class="details-section-title" style="margin-top: 0; margin-bottom: 0.5rem;">Thoracic Extension Peak Record</div>
                 <div class="profile-shoulder-peaks-grid" style="display: grid; grid-template-columns: 1fr; gap: 0.5rem;">
                   <div class="squat-peak-detail-box">
@@ -1999,7 +2006,7 @@
           
           <!-- Selection & Control Header Card -->
           <div class="compare-panel-section" style="margin-bottom: 1.5rem;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
+            <div class="compare-video-selectors-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem;">
               
               <!-- Video A Selection (Active Profile) -->
               <div style="display: flex; flex-direction: column; gap: 0.5rem;">
@@ -2057,7 +2064,7 @@
           </div>
 
           <!-- Video Viewports Grid -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+          <div class="compare-video-viewports-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
             
             <!-- Viewport A -->
             <div class="compare-panel-section" style="display: flex; flex-direction: column; align-items: center; gap: 0.75rem; justify-content: center; min-height: 280px; position: relative; overflow: hidden;">

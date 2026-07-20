@@ -181,30 +181,31 @@ export function startVideoRecording(updateRecordButtonUI) {
 
     function triggerDownload(blobToDownload, fileExt, finalDuration) {
       const url = URL.createObjectURL(blobToDownload);
-      const a = document.createElement('a');
-      a.classList.add('hidden');
-      a.href = url;
-      const subjectName = getActiveProfileName(false) || "Subject";
-      const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-      
-      if (state.currentMode === 'squat') {
-        const side = state.squatTestingSide || 'left';
-        a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_overhead_squat.${fileExt}`;
-      } else if (state.currentMode === 'ankledorsi') {
-        const side = (state.ankleDorsi && state.ankleDorsi.activeSide) || 'left';
-        a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_tibial_inclination.${fileExt}`;
-      } else if (state.currentMode === 'thoracic_extension') {
-        a.download = `scarlet_biomechanics_${cleanSubjectName}_thoracic_extension.${fileExt}`;
-      } else {
-        a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${fileExt}`;
+      if (!state.activeProfileId) {
+        const a = document.createElement('a');
+        a.classList.add('hidden');
+        a.href = url;
+        const subjectName = getActiveProfileName(false) || "Subject";
+        const cleanSubjectName = subjectName.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+        
+        if (state.currentMode === 'squat') {
+          const side = state.squatTestingSide || 'left';
+          a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_overhead_squat.${fileExt}`;
+        } else if (state.currentMode === 'ankledorsi') {
+          const side = (state.ankleDorsi && state.ankleDorsi.activeSide) || 'left';
+          a.download = `scarlet_biomechanics_${cleanSubjectName}_${side}_tibial_inclination.${fileExt}`;
+        } else if (state.currentMode === 'thoracic_extension') {
+          a.download = `scarlet_biomechanics_${cleanSubjectName}_thoracic_extension.${fileExt}`;
+        } else {
+          a.download = `scarlet_biomechanics_${cleanSubjectName}_recording.${fileExt}`;
+        }
+        
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+        }, 100);
       }
-      
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      }, 100);
 
       state.isRecording = false;
       if (updateRecordButtonUI) {
@@ -213,14 +214,20 @@ export function startVideoRecording(updateRecordButtonUI) {
       
       const sizeMb = (blobToDownload.size / (1024 * 1024)).toFixed(2);
       const durationSec = (finalDuration / 1000).toFixed(1);
-      const successMsg = `Video exported successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB, Format: ${fileExt.toUpperCase()}]`;
-      console.log(`[ExportDebug] Download triggered. ${successMsg}`);
+      const successMsg = state.activeProfileId 
+        ? `Video saved to profile successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB]`
+        : `Video exported successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB, Format: ${fileExt.toUpperCase()}]`;
+      console.log(`[ExportDebug] Video save complete. ${successMsg}`);
       if (statusElement) {
         statusElement.textContent = successMsg;
       }
 
       if (state.activeProfileId) {
         saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration);
+      } else {
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 1000);
       }
     }
   };
@@ -293,8 +300,10 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
         const side = state.hipRotationTestingSide || 'left';
         labelPrefix = side === 'left' ? "Left Hip Rotation" : "Right Hip Rotation";
       } else if (state.currentMode === 'ankledorsi') {
-        const side = state.ankleDorsiTestingSide || (state.ankleDorsi && state.ankleDorsi.testingSide) || 'left';
+        const side = (state.ankleDorsi && state.ankleDorsi.activeSide) || 'left';
         labelPrefix = side === 'left' ? "Left Tibial Inclination" : "Right Tibial Inclination";
+      } else if (state.currentMode === 'thoracic_extension') {
+        labelPrefix = "Thoracic Extension";
       }
 
       const videoEntry = {
@@ -393,6 +402,14 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
             activeSession.imageShoulderREnd = state.imageShoulderREnd;
             profileMigrated.imageShoulderREnd = state.imageShoulderREnd;
           }
+          if (state.thoracicExtension !== undefined) {
+            activeSession.thoracicExtension = state.thoracicExtension ? JSON.parse(JSON.stringify(state.thoracicExtension)) : null;
+            profileMigrated.thoracicExtension = activeSession.thoracicExtension;
+          }
+          if (state.imageThoracicExtension !== undefined) {
+            activeSession.imageThoracicExtension = state.imageThoracicExtension;
+            profileMigrated.imageThoracicExtension = state.imageThoracicExtension;
+          }
 
           if (state.currentMode === 'squat') {
             if (state.squatTestingSide === 'left') {
@@ -433,7 +450,7 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
               state.videoHipRotationR = videoEntry;
             }
           } else if (state.currentMode === 'ankledorsi') {
-            const side = state.ankleDorsiTestingSide || (state.ankleDorsi && state.ankleDorsi.testingSide) || 'left';
+            const side = (state.ankleDorsi && state.ankleDorsi.activeSide) || 'left';
             if (side === 'left') {
               activeSession.videoAnkleDorsiL = videoEntry;
               state.videoAnkleDorsiL = videoEntry;

@@ -3,7 +3,7 @@
 // =========================================================
 
 import { state, snapshotStore, formatLength, clearSmoothBuffer, getROMThresholds, getDefaultROMThresholds, calculateROMGrade, getDefaultAnkleDorsiPeaks } from './helpers.js';
-import { getDefaultSquatPeaks, calculateValgusFromJoints } from './squatController.js';
+import { getDefaultSquatPeaks, calculateValgusFromJoints, calculateVarusFromJoints } from './squatController.js';
 import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI } from './shoulderController.js';
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
 import { getDefaultHipRotation } from './hipRotationController.js';
@@ -908,6 +908,7 @@ export async function loadProfileIntoState(profileId) {
     state.videoShoulderRotationR = activeSession.videoShoulderRotationR || null;
     state.videoHipRotationL = activeSession.videoHipRotationL || null;
     state.videoHipRotationR = activeSession.videoHipRotationR || null;
+    state.videoThoracicExtension = activeSession.videoThoracicExtension || null;
     state.jointsOverhead = activeSession.jointsOverhead || null;
     state.jointsShoulderL = activeSession.jointsShoulderL || null;
     state.jointsShoulderR = activeSession.jointsShoulderR || null;
@@ -1058,10 +1059,7 @@ export async function loadProfileIntoState(profileId) {
       leftCard.classList.remove('hidden');
       guestCard.classList.add('hidden');
     }
-    const leftSidebar = document.getElementById('left-videos-sidebar');
-    if (leftSidebar) {
-      await populateProfileDetails(profileId, leftSidebar, true);
-    }
+    await updateProfileUI(profileId, true);
 
   } catch (err) {
     console.error("[loadProfile] Error loading profile into state:", err);
@@ -1138,6 +1136,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     if (state.thoracicExtension !== undefined) {
       session.thoracicExtension = state.thoracicExtension ? JSON.parse(JSON.stringify(state.thoracicExtension)) : null;
     }
+
+    if (state.videoThoracicExtension !== undefined) session.videoThoracicExtension = state.videoThoracicExtension;
 
     if (state.videoHipRotationL !== undefined) session.videoHipRotationL = state.videoHipRotationL;
     if (state.videoHipRotationR !== undefined) session.videoHipRotationR = state.videoHipRotationR;
@@ -1545,7 +1545,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           } else if (p.key === 'squat-r') {
             hasPeaks = (activeSession.squatPeaks.kneeR > 0 || activeSession.squatPeaks.kneeRTime > 0 || activeSession.squatPeaks.hipR > 0 || activeSession.squatPeaks.ankleR > 0);
           } else if (p.key === 'squat-frontal') {
-            hasPeaks = (activeSession.squatPeaks.maxKneeCaveL > 0 || activeSession.squatPeaks.maxKneeCaveR > 0);
+            hasPeaks = (activeSession.squatPeaks.maxKneeCaveL > 0 || activeSession.squatPeaks.maxKneeCaveR > 0 || (activeSession.squatPeaks.maxKneeBowL || 0) > 0 || (activeSession.squatPeaks.maxKneeBowR || 0) > 0);
           }
         }
         hasData = !!imgSrc || hasVideo || hasPeaks;
@@ -1793,6 +1793,8 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                   } else if (p.key === 'squat-frontal') {
                     freshActiveSession.squatPeaks.maxKneeCaveL = 0;
                     freshActiveSession.squatPeaks.maxKneeCaveR = 0;
+                    freshActiveSession.squatPeaks.maxKneeBowL = 0;
+                    freshActiveSession.squatPeaks.maxKneeBowR = 0;
                     freshActiveSession.jointsOverhead = null;
                   }
                 }
@@ -1870,6 +1872,12 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                   }
                 }
               } else if (p.isThoracicExtension) {
+                const sVideo = freshActiveSession.videoThoracicExtension;
+                if (sVideo) {
+                  freshProfileMigrated.videos = (freshProfileMigrated.videos || []).filter(v => v.id !== sVideo.id);
+                  freshActiveSession.videoThoracicExtension = null;
+                }
+                freshActiveSession.imageThoracicExtension = null;
                 if (freshActiveSession.thoracicExtension) {
                   freshActiveSession.thoracicExtension.peakAngle = 0;
                   freshActiveSession.thoracicExtension.liveAngle = 0;
@@ -2422,6 +2430,8 @@ export async function populateProfileDetails(profileId, container, preserveTab =
     const sPeaks = getDefaultSquatPeaks(activeSession.squatPeaks);
     if (sPeaks.maxKneeCaveL > 90.0) sPeaks.maxKneeCaveL = 0;
     if (sPeaks.maxKneeCaveR > 90.0) sPeaks.maxKneeCaveR = 0;
+    if ((sPeaks.maxKneeBowL || 0) > 90.0) sPeaks.maxKneeBowL = 0;
+    if ((sPeaks.maxKneeBowR || 0) > 90.0) sPeaks.maxKneeBowR = 0;
 
     if (dsqKnee) dsqKnee.innerHTML = renderSquatPeakEdit('knee', sPeaks.kneeL, sPeaks.kneeR);
     if (dsqHip) dsqHip.innerHTML = renderSquatPeakEdit('hip', sPeaks.hipL, sPeaks.hipR);
@@ -2662,23 +2672,45 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       if (activeSession.jointsOverhead) {
         hasImage = true;
         const valgus = calculateValgusFromJoints(activeSession.jointsOverhead);
-        const imgL = valgus.pctL;
-        const imgR = valgus.pctR;
-        const maxImgCave = Math.max(imgL, imgR);
-        const lStr = `${imgL.toFixed(1)}°`;
-        const rStr = `${imgR.toFixed(1)}°`;
+        const varus = calculateVarusFromJoints(activeSession.jointsOverhead);
         
+        const imgValgusL = valgus.pctL || 0;
+        const imgValgusR = valgus.pctR || 0;
+        const maxImgValgus = Math.max(imgValgusL, imgValgusR);
+        
+        const imgVarusL = varus.pctL || 0;
+        const imgVarusR = varus.pctR || 0;
+        const maxImgVarus = Math.max(imgVarusL, imgVarusR);
+
         let color = "#10b981";
-        let statusText = `Excellent Alignment: Both knees perpendicular to baseline (L: ${lStr}, R: ${rStr}).`;
-        if (maxImgCave > 15.0) {
-          color = "#ef4444";
-          statusText = `Severe Deviation: Significant knee cave-in detected (L: ${lStr}, R: ${rStr}). Focus on stability.`;
-        } else if (maxImgCave > 8.0) {
-          color = "#ff9f43";
-          statusText = `Moderate Deviation: Knees cave inward past baseline (L: ${lStr}, R: ${rStr}).`;
-        } else if (maxImgCave >= 3.0) {
-          color = "#ffb300";
-          statusText = `Mild Deviation: Minor knee tracking variance (L: ${lStr}, R: ${rStr}).`;
+        let statusText = `Excellent Alignment: Both knees perpendicular to baseline.`;
+
+        if (maxImgValgus > maxImgVarus) {
+          const lStr = `${imgValgusL.toFixed(1)}°`;
+          const rStr = `${imgValgusR.toFixed(1)}°`;
+          if (maxImgValgus > 15.0) {
+            color = "#ef4444";
+            statusText = `Severe Medial Deviation: Significant knee cave-in (Valgus) detected (L: ${lStr}, R: ${rStr}). Focus on stability.`;
+          } else if (maxImgValgus > 8.0) {
+            color = "#ff9f43";
+            statusText = `Moderate Medial Deviation: Knees cave inward (Valgus) past baseline (L: ${lStr}, R: ${rStr}).`;
+          } else if (maxImgValgus >= 3.0) {
+            color = "#ffb300";
+            statusText = `Mild Medial Deviation: Minor knee tracking variance (Valgus) (L: ${lStr}, R: ${rStr}).`;
+          }
+        } else {
+          const lStr = `${imgVarusL.toFixed(1)}°`;
+          const rStr = `${imgVarusR.toFixed(1)}°`;
+          if (maxImgVarus > 15.0) {
+            color = "#ef4444";
+            statusText = `Severe Lateral Deviation: Significant knee bow-out (Varus) detected (L: ${lStr}, R: ${rStr}).`;
+          } else if (maxImgVarus > 8.0) {
+            color = "#f97316";
+            statusText = `Moderate Lateral Deviation: Knees bow outward (Varus) past baseline (L: ${lStr}, R: ${rStr}).`;
+          } else if (maxImgVarus >= 3.0) {
+            color = "#ffb300";
+            statusText = `Mild Lateral Deviation: Minor knee tracking variance (Varus) (L: ${lStr}, R: ${rStr}).`;
+          }
         }
 
         imageHtml = `
@@ -2694,46 +2726,86 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       }
 
       let hasVideoData = false;
-      if (sPeaks.maxKneeCaveL > 0 || sPeaks.maxKneeCaveR > 0) {
+      const vidCaveL = sPeaks.maxKneeCaveL || 0;
+      const vidCaveR = sPeaks.maxKneeCaveR || 0;
+      const maxVidCave = Math.max(vidCaveL, vidCaveR);
+
+      const vidBowL = sPeaks.maxKneeBowL || 0;
+      const vidBowR = sPeaks.maxKneeBowR || 0;
+      const maxVidBow = Math.max(vidBowL, vidBowR);
+
+      if (maxVidCave > 0 || maxVidBow > 0) {
         hasVideoData = true;
-        const vidL = sPeaks.maxKneeCaveL || 0;
-        const vidR = sPeaks.maxKneeCaveR || 0;
-        const maxVidCave = Math.max(vidL, vidR);
-        const lStr = `${vidL.toFixed(1)}°`;
-        const rStr = `${vidR.toFixed(1)}°`;
 
         let color = "#10b981";
         let statusTitle = "Stable Knee Alignment (Video Scan)";
-        let explanationText = `Knees tracking cleanly over feet. Peak deviation: L: ${lStr}, R: ${rStr}.`;
+        let explanationText = `Knees tracking cleanly over feet.`;
         let timestampText = "";
 
-        if (maxVidCave > 8.0) {
-          const isSevere = maxVidCave > 15.0;
-          color = isSevere ? "#ef4444" : "#ff9f43";
-          statusTitle = isSevere ? "Severe Knee Valgus (Cave-In) Detected" : "Moderate Knee Valgus (Cave-In) Detected";
+        if (maxVidCave > maxVidBow) {
+          const lStr = `${vidCaveL.toFixed(1)}°`;
+          const rStr = `${vidCaveR.toFixed(1)}°`;
           explanationText = `Knees caved inward past safe tracking boundaries. Peak: L: ${lStr}, R: ${rStr}.`;
           
-          const tFirst = sPeaks.valgusFirstTimestamp;
-          const tPeak = sPeaks.valgusPeakTimestamp;
-          
-          if (tFirst !== null && tFirst !== undefined) {
-            timestampText = `
-              <div style="margin-top: 6px; font-size: 11px; color: #9ca3af; display: flex; flex-direction: column; gap: 2px;">
-                <span>Valgus first appeared at: <strong>${tFirst.toFixed(1)}s</strong> in the video timeline.</span>
-                ${tPeak !== null && tPeak !== undefined ? `<span>Peak Valgus reached at: <strong>${tPeak.toFixed(1)}s</strong> (deviation of ${maxVidCave.toFixed(1)}°).</span>` : ""}
-              </div>
-            `;
-          } else {
-            timestampText = `
-              <div style="margin-top: 6px; font-size: 11px; color: #9ca3af;">
-                Peak deviation of <strong>${maxVidCave.toFixed(1)}°</strong> recorded during scan.
-              </div>
-            `;
+          if (maxVidCave > 8.0) {
+            const isSevere = maxVidCave > 15.0;
+            color = isSevere ? "#ef4444" : "#ff9f43";
+            statusTitle = isSevere ? "Severe Knee Valgus (Cave-In) Detected" : "Moderate Knee Valgus (Cave-In) Detected";
+            
+            const tFirst = sPeaks.valgusFirstTimestamp;
+            const tPeak = sPeaks.valgusPeakTimestamp;
+            
+            if (tFirst !== null && tFirst !== undefined) {
+              timestampText = `
+                <div style="margin-top: 6px; font-size: 11px; color: #9ca3af; display: flex; flex-direction: column; gap: 2px;">
+                  <span>Valgus first appeared at: <strong>${tFirst.toFixed(1)}s</strong> in the video timeline.</span>
+                  ${tPeak !== null && tPeak !== undefined ? `<span>Peak Valgus reached at: <strong>${tPeak.toFixed(1)}s</strong> (deviation of ${maxVidCave.toFixed(1)}°).</span>` : ""}
+                </div>
+              `;
+            } else {
+              timestampText = `
+                <div style="margin-top: 6px; font-size: 11px; color: #9ca3af;">
+                  Peak deviation of <strong>${maxVidCave.toFixed(1)}°</strong> recorded during scan.
+                </div>
+              `;
+            }
+          } else if (maxVidCave >= 3.0) {
+            color = "#ffb300";
+            statusTitle = "Mild Knee Valgus Deviation";
+            explanationText = `Slight knee tracking cave-in during squat video. Peak: L: ${lStr}, R: ${rStr}.`;
           }
-        } else if (maxVidCave >= 3.0) {
-          color = "#ffb300";
-          statusTitle = "Mild Knee Tracking Deviation";
-          explanationText = `Slight knee tracking deviation during squat video. Peak: L: ${lStr}, R: ${rStr}.`;
+        } else {
+          const lStr = `${vidBowL.toFixed(1)}°`;
+          const rStr = `${vidBowR.toFixed(1)}°`;
+          explanationText = `Knees bowed outward past safe tracking boundaries. Peak: L: ${lStr}, R: ${rStr}.`;
+
+          if (maxVidBow > 8.0) {
+            const isSevere = maxVidBow > 15.0;
+            color = isSevere ? "#ef4444" : "#f97316";
+            statusTitle = isSevere ? "Severe Knee Varus (Bow-Out) Detected" : "Moderate Knee Varus (Bow-Out) Detected";
+            
+            const tFirst = sPeaks.varusFirstTimestamp;
+            const tPeak = sPeaks.varusPeakTimestamp;
+            
+            if (tFirst !== null && tFirst !== undefined) {
+              timestampText = `
+                <div style="margin-top: 6px; font-size: 11px; color: #9ca3af; display: flex; flex-direction: column; gap: 2px;">
+                  <span>Varus first appeared at: <strong>${tFirst.toFixed(1)}s</strong> in the video timeline.</span>
+                  ${tPeak !== null && tPeak !== undefined ? `<span>Peak Varus reached at: <strong>${tPeak.toFixed(1)}s</strong> (deviation of ${maxVidBow.toFixed(1)}°).</span>` : ""}
+                </div>
+              `;
+            } else {
+              timestampText = `
+                <div style="margin-top: 6px; font-size: 11px; color: #9ca3af;">
+                  Peak deviation of <strong>${maxVidBow.toFixed(1)}°</strong> recorded during scan.
+                </div>
+              `;
+            }
+          } else if (maxVidBow >= 3.0) {
+            color = "#ffb300";
+            statusTitle = "Mild Knee Varus Deviation";
+            explanationText = `Slight knee tracking bow-out during squat video. Peak: L: ${lStr}, R: ${rStr}.`;
+          }
         }
 
         videoHtml = `
@@ -2807,6 +2879,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           if (s.videoShoulderRotationR) metricVideoIds.add(s.videoShoulderRotationR.id);
           if (s.videoHipRotationL) metricVideoIds.add(s.videoHipRotationL.id);
           if (s.videoHipRotationR) metricVideoIds.add(s.videoHipRotationR.id);
+          if (s.videoAnkleDorsiL) metricVideoIds.add(s.videoAnkleDorsiL.id);
+          if (s.videoAnkleDorsiR) metricVideoIds.add(s.videoAnkleDorsiR.id);
+          if (s.videoThoracicExtension) metricVideoIds.add(s.videoThoracicExtension.id);
         });
       }
       const savedVideos = (profile.videos || []).filter(v => !metricVideoIds.has(v.id));
@@ -3026,6 +3101,13 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                     if (s.videoSquatFrontal && s.videoSquatFrontal.id === video.id) s.videoSquatFrontal = null;
                     if (s.videoShoulderL && s.videoShoulderL.id === video.id) s.videoShoulderL = null;
                     if (s.videoShoulderR && s.videoShoulderR.id === video.id) s.videoShoulderR = null;
+                    if (s.videoShoulderRotationL && s.videoShoulderRotationL.id === video.id) s.videoShoulderRotationL = null;
+                    if (s.videoShoulderRotationR && s.videoShoulderRotationR.id === video.id) s.videoShoulderRotationR = null;
+                    if (s.videoHipRotationL && s.videoHipRotationL.id === video.id) s.videoHipRotationL = null;
+                    if (s.videoHipRotationR && s.videoHipRotationR.id === video.id) s.videoHipRotationR = null;
+                    if (s.videoAnkleDorsiL && s.videoAnkleDorsiL.id === video.id) s.videoAnkleDorsiL = null;
+                    if (s.videoAnkleDorsiR && s.videoAnkleDorsiR.id === video.id) s.videoAnkleDorsiR = null;
+                    if (s.videoThoracicExtension && s.videoThoracicExtension.id === video.id) s.videoThoracicExtension = null;
                   });
                 }
                 
@@ -3412,14 +3494,14 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             addVid(s.videoSquatFrontal, sName, "Squat Frontal");
             addVid(s.videoShoulderL, sName, "Shoulder Left");
             addVid(s.videoShoulderR, sName, "Shoulder Right");
-             addVid(s.videoShoulderRotationL, sName, "Shoulder ER/IR Left");
-             addVid(s.videoShoulderRotationR, sName, "Shoulder ER/IR Right");
-             addVid(s.videoHipRotationL, sName, "Hip ER/IR Left");
-             addVid(s.videoHipRotationR, sName, "Hip ER/IR Right");
-             addVid(s.videoAnkleDorsiL, sName, "Ankle Dorsi Left");
-             addVid(s.videoAnkleDorsiR, sName, "Ankle Dorsi Right");
-             addVid(s.videoThoracicExtension, sName, "Thoracic Extension");
-           });
+            addVid(s.videoShoulderRotationL, sName, "Shoulder ER/IR Left");
+            addVid(s.videoShoulderRotationR, sName, "Shoulder ER/IR Right");
+            addVid(s.videoAnkleDorsiL, sName, "Ankle Dorsi Left");
+            addVid(s.videoAnkleDorsiR, sName, "Ankle Dorsi Right");
+            addVid(s.videoHipRotationL, sName, "Hip Rotation Left");
+            addVid(s.videoHipRotationR, sName, "Hip Rotation Right");
+            addVid(s.videoThoracicExtension, sName, "Thoracic Extension");
+          });
         }
 
         // 2. Check general archive videos
@@ -4368,6 +4450,48 @@ export async function renderShoulderRotationGrading(activeSession, container = d
                 "**Reactive Neuromuscular Training (RNT) Squats**: Perform squats with a resistance band looped around your knees pulling them inward to actively force hip abduction and outward tracking.",
                 "**Lateral Hip Rotator & Glute Strengthening**: Perform clamshells, monster walks, and single-leg glute bridges to strengthen hip abductors.",
                 "**Ankle Dorsiflexion Mobility**: Address restricted calf/soleus tissues and ankle joint capsule limitations using weight-bearing dorsiflexion stretches."
+              ]
+            });
+          }
+
+          // ==========================================
+          // 4.5. KNEE VARUS (BOW-OUT) RULES
+          // ==========================================
+          const staticVarusL = (activeSession.jointsOverhead) ? (calculateVarusFromJoints(activeSession.jointsOverhead).pctL || 0) : 0;
+          const staticVarusR = (activeSession.jointsOverhead) ? (calculateVarusFromJoints(activeSession.jointsOverhead).pctR || 0) : 0;
+          const vidVarusL = sPeaks.maxKneeBowL || 0;
+          const vidVarusR = sPeaks.maxKneeBowR || 0;
+          
+          const maxStaticBow = Math.max(staticVarusL, staticVarusR);
+          const maxVideoBow = Math.max(vidVarusL, vidVarusR);
+          const peakBow = Math.max(maxStaticBow, maxVideoBow);
+          
+          if (peakBow >= 3.0) {
+            let severity = "Mild";
+            if (peakBow > 15.0) {
+              severity = "Severe";
+            } else if (peakBow > 8.0) {
+              severity = "Moderate";
+            }
+            
+            let sourceLabel = maxVideoBow >= maxStaticBow ? "Video" : "Static";
+            let sideLabel = "";
+            let lVal = maxVideoBow >= maxStaticBow ? vidVarusL : staticVarusL;
+            let rVal = maxVideoBow >= maxStaticBow ? vidVarusR : staticVarusR;
+            
+            if (lVal >= 3.0 && rVal >= 3.0) sideLabel = "Bilateral";
+            else if (lVal >= 3.0) sideLabel = "Left Side";
+            else sideLabel = "Right Side";
+            
+            adviceItems.push({
+              metric: `Knee Varus (${sourceLabel}): ${peakBow.toFixed(1)}°`,
+              sides: sideLabel,
+              title: `${severity} Knee Varus (Bow-Out)`,
+              desc: `Knee tracking outward deviation detected during squat assessment (Peak: L: ${lVal.toFixed(1)}°, R: ${rVal.toFixed(1)}°).`,
+              bullets: [
+                "**Outer Hip/TFL Release**: Stretch and roll the Tensor Fasciae Latae (TFL) and lateral hamstring structures which can contribute to outward knee bowing.",
+                "**Adductor Activation and Core Integration**: Perform squeeze-ball squats or adductor slides to strengthen the inner thigh stabilizers.",
+                "**Symmetric Foot/Ankle Loading**: Ensure proper weight distribution across the first metatarsal head (big toe knuckle) to prevent rolling onto the outer edges of the feet."
               ]
             });
           }

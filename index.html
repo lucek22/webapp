@@ -665,19 +665,14 @@
             }
           </style>
           
-          <button id="btn-record-dorsi-toggle" class="btn" style="margin-top: 1rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: 700; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <span id="dot-record-dorsi" style="width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #ef4444;"></span>
-            <span id="txt-record-dorsi">Start Recording</span>
-          </button>
-
-          <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 0.5rem; width: 100%;">
+          <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Test Results
+            Reset Peak Metrics
           </button>
           
-          <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #2563eb, #1d4ed8);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            Save Test Results
+          <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Dorsi Snapshot
           </button>
         </div>
 
@@ -970,9 +965,14 @@
               <div id="thoracic-peak-angle" class="angle-val right-color">0°</div>
             </div>
           </div>
-          <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 1rem;">
+          <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Thoracic Track
+            Reset Peak Metrics
+          </button>
+          
+          <button id="btn-save-thoracic-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Capture Thoracic Snapshot
           </button>
         </div>
 
@@ -1801,7 +1801,7 @@
                   </div>
                 </div>
                 <div id="detail-squat-asymmetry-summary" style="margin-top: 0.6rem; font-size: 0.75rem; text-align: center; padding: 6px 12px; border-radius: 4px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); color: #aaa; transition: all 0.25s;">
-                  Knee Cave-In Tracking: No current squat metrics.
+                  Knee Alignment / Tracking: No current squat metrics.
                 </div>
               </div>
 

@@ -929,10 +929,10 @@ export function onPoseResults(results) {
         statusElement.textContent = "T-Pose captured! Please stand in Overhead Reach (arms extended straight up above your head).";
       } else if (state.autoState === 'WAITING_OVERHEAD') {
         state.autoState = 'COMPLETE';
-        statusElement.textContent = "All poses captured! Compiling session report...";
+        statusElement.textContent = "All poses captured and saved to profile successfully!";
         
-        // Compile and download consolidated session report JSON
-        compileAndDownloadCombinedSession();
+        // Compile and download consolidated session report JSON is disabled to prevent download friction
+        // compileAndDownloadCombinedSession();
         
         // End flow after 3 seconds
         setTimeout(() => {
@@ -5586,7 +5586,7 @@ function initScarletRecorder() {
       if (scarletMediaRecorder && scarletMediaRecorder.state !== 'inactive') scarletMediaRecorder.stop();
       
       recordBtn.textContent = 'Start Recording Video';
-      recordBtn.style.backgroundColor = '#008542'; 
+      recordBtn.style.backgroundColor = ''; 
     }
   });
 }

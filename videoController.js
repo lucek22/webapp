@@ -180,7 +180,9 @@ export function startVideoRecording(updateRecordButtonUI) {
     }
 
     function triggerDownload(blobToDownload, fileExt, finalDuration) {
-      const url = URL.createObjectURL(blobToDownload);
+      const isBlobLike = blobToDownload && typeof blobToDownload.slice === 'function' && typeof blobToDownload.size === 'number';
+      const safeBlob = isBlobLike ? blobToDownload : new Blob([blobToDownload], { type: fileExt === 'mp4' ? 'video/mp4' : 'video/webm' });
+      const url = URL.createObjectURL(safeBlob);
       if (!state.activeProfileId) {
         const a = document.createElement('a');
         a.classList.add('hidden');
@@ -212,7 +214,7 @@ export function startVideoRecording(updateRecordButtonUI) {
         updateRecordButtonUI();
       }
       
-      const sizeMb = (blobToDownload.size / (1024 * 1024)).toFixed(2);
+      const sizeMb = (safeBlob.size / (1024 * 1024)).toFixed(2);
       const durationSec = (finalDuration / 1000).toFixed(1);
       const successMsg = state.activeProfileId 
         ? `Video saved to profile successfully! [Duration: ${durationSec}s, Size: ${sizeMb}MB]`
@@ -223,7 +225,7 @@ export function startVideoRecording(updateRecordButtonUI) {
       }
 
       if (state.activeProfileId) {
-        saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration);
+        saveVideoToActiveProfile(safeBlob, fileExt, finalDuration);
       } else {
         setTimeout(() => {
           window.URL.revokeObjectURL(url);

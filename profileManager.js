@@ -8,7 +8,7 @@ import { getDefaultShoulderPeaks, getShoulderWristAngle, updateShoulderSidebarUI
 import { getDefaultShoulderRotation } from './shoulderRotationController.js';
 import { getDefaultHipRotation } from './hipRotationController.js';
 import { getDefaultThoracicExtension } from './thoracicController.js';
-import { compileAndDownloadCombinedSession } from './reportCompiler.js';
+import { exportProfileBundle, importProfileBundle } from './reportCompiler.js';
 import { pose, calculatePoseMetrics } from './mediapipeLogic.js';
 
 // We import renderDashboard, updateDashboardOfflinePlaceholders, setUnitSystem from userController.js
@@ -25,6 +25,20 @@ export function registerProfileCallbacks(config) {
   setUnitSystemFn = config.setUnitSystem;
   importPriorPortfolioFn = config.importPriorPortfolio;
 }
+
+// Validates video blobs with robust duck-typing check instead of strict instanceof Blob
+function getSafeVideoBlob(sVideo) {
+  if (!sVideo || !sVideo.blob) return null;
+  const blob = sVideo.blob;
+  // Robust duck-typing to avoid cross-realm/iframe proto mismatch
+  const isBlobLike = blob && typeof blob.slice === 'function' && typeof blob.size === 'number';
+  if (!isBlobLike) {
+    console.warn("[getSafeVideoBlob] sVideo.blob is not a valid Blob/File object:", blob);
+    return null;
+  }
+  return blob;
+}
+
 
 // Drawing overlay helpers from canvasRenderer
 import { drawFullSkeletalMesh, drawSkeletalFramework, drawAngleBadge, drawValgusBadge } from './canvasRenderer.js';
@@ -475,33 +489,23 @@ export async function initializeProfilesSelector() {
     }
   });
 
-  const btnImportProfileSubmit = document.getElementById('btn-import-profile-submit');
-  const profileImportJsonInput = document.getElementById('profile-import-json-input');
+  const btnImportProfileBundleSubmit = document.getElementById('btn-import-profile-bundle-submit');
+  const profileBundleFileInput = document.getElementById('profile-bundle-file-input');
 
-  if (btnImportProfileSubmit && profileImportJsonInput) {
-    btnImportProfileSubmit.addEventListener('click', async () => {
-      const rawVal = profileImportJsonInput.value.trim();
-      if (!rawVal) {
-        alert("Please paste a player profile JSON in the text area.");
+  if (btnImportProfileBundleSubmit && profileBundleFileInput) {
+    btnImportProfileBundleSubmit.addEventListener('click', async () => {
+      const file = profileBundleFileInput.files[0];
+      if (!file) {
+        alert("Please select a profile bundle .ZIP file first.");
         return;
       }
-
-      try {
-        const data = JSON.parse(rawVal);
-        if (importPriorPortfolioFn) {
-          await importPriorPortfolioFn(data);
-          
-          // Clear inputs on success
-          profileImportJsonInput.value = "";
-          if (importProfileInputContainer) {
-            importProfileInputContainer.classList.add('hidden');
-            importProfileInputContainer.classList.remove('visible-flex');
-          }
-        } else {
-          alert("Import function is not registered yet. Please try again.");
-        }
-      } catch (e) {
-        alert(`Invalid JSON format: ${e.message}\nPlease make sure you are pasting a valid JSON object.`);
+      await importProfileBundle(file);
+      
+      // Clear input and hide the container on success
+      profileBundleFileInput.value = "";
+      if (importProfileInputContainer) {
+        importProfileInputContainer.classList.add('hidden');
+        importProfileInputContainer.classList.remove('visible-flex');
       }
     });
   }
@@ -644,7 +648,11 @@ export async function initializeProfilesSelector() {
 
   if (btnProfileExportJson) {
     btnProfileExportJson.addEventListener('click', () => {
-      compileAndDownloadCombinedSession();
+      if (state.activeProfileId) {
+        exportProfileBundle(state.activeProfileId);
+      } else {
+        alert("No active profile loaded to export.");
+      }
     });
   }
 
@@ -1220,10 +1228,39 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       uploadedVideo.pause();
     } catch (e) {}
   }
-  if (state.modalObjectUrls) {
-    state.modalObjectUrls.forEach(url => URL.revokeObjectURL(url));
+  if (!state.containerObjectUrls) {
+    state.containerObjectUrls = new Map();
   }
-  state.modalObjectUrls = [];
+  const globalPlayer = document.getElementById('profile-details-video-player');
+  const activePlayingUrl = globalPlayer ? globalPlayer.src : '';
+  const existingUrls = state.containerObjectUrls.get(container) || [];
+  const keptUrls = [];
+  existingUrls.forEach(url => {
+    if (activePlayingUrl && activePlayingUrl.includes(url)) {
+      keptUrls.push(url);
+      return;
+    }
+    try {
+      URL.revokeObjectURL(url);
+    } catch (e) {}
+  });
+  state.containerObjectUrls.set(container, keptUrls);
+
+  if (container && container.id === 'profile-details-modal') {
+    state.modalObjectUrls = state.containerObjectUrls.get(container);
+  }
+
+  const trackUrl = (url) => {
+    if (container) {
+      const list = state.containerObjectUrls.get(container);
+      if (list && !list.includes(url)) {
+        list.push(url);
+      }
+    }
+    if (container && container.id === 'profile-details-modal') {
+      state.modalObjectUrls = state.containerObjectUrls.get(container);
+    }
+  };
 
   try {
     let profile = await snapshotStore.getProfile(profileId);
@@ -1635,8 +1672,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                              (p.key === 'ankle-dorsi-l' ? 'videoAnkleDorsiL' : 
                              (p.key === 'ankle-dorsi-r' ? 'videoAnkleDorsiR' : 'videoThoracicExtension'))))))));
             const sVideo = activeSession[videoKey];
-            const videoUrl = URL.createObjectURL(sVideo.blob);
-            state.modalObjectUrls.push(videoUrl);
+            const safeBlob = getSafeVideoBlob(sVideo);
+            const videoUrl = safeBlob ? URL.createObjectURL(safeBlob) : '';
+            trackUrl(videoUrl);
 
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'premium-video-preview-card';
@@ -1727,8 +1765,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             const videoKey = p.key === 'shoulder-l' ? 'videoShoulderL' : 'videoShoulderR';
             const sVideo = activeSession[videoKey];
             if (sVideo && sVideo.blob) {
-              const videoUrl = URL.createObjectURL(sVideo.blob);
-              state.modalObjectUrls.push(videoUrl);
+              const safeBlob = getSafeVideoBlob(sVideo);
+              const videoUrl = safeBlob ? URL.createObjectURL(safeBlob) : '';
+              trackUrl(videoUrl);
 
               const playOverlayBtn = document.createElement('button');
               playOverlayBtn.className = 'btn';
@@ -2884,7 +2923,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           if (s.videoThoracicExtension) metricVideoIds.add(s.videoThoracicExtension.id);
         });
       }
-      const savedVideos = (profile.videos || []).filter(v => !metricVideoIds.has(v.id));
+      const savedVideos = profile.videos || [];
 
       if (savedVideos.length === 0) {
         if (videoPlaceholder) {
@@ -2905,8 +2944,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           videoRow.setAttribute('data-video-id', video.id);
           videoRow.style.cssText = 'background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 4px; padding: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: pointer; transition: all 0.2s;';
           
-          const videoUrl = URL.createObjectURL(video.blob);
-          state.modalObjectUrls.push(videoUrl);
+          const safeBlob = getSafeVideoBlob(video);
+          const videoUrl = safeBlob ? URL.createObjectURL(safeBlob) : '';
+          trackUrl(videoUrl);
           
           const dateStr = video.timestamp ? new Date(video.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unknown Date';
           const sizeMb = (video.blob.size / (1024 * 1024)).toFixed(1);
@@ -3594,8 +3634,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
         const v = listA[videoIndex];
         if (v && v.blob) {
-          currentUrlA = URL.createObjectURL(v.blob);
-          state.modalObjectUrls.push(currentUrlA);
+          const safeBlob = getSafeVideoBlob(v);
+          currentUrlA = safeBlob ? URL.createObjectURL(safeBlob) : '';
+          trackUrl(currentUrlA);
           
           if (playerA) {
             playerA.src = currentUrlA;
@@ -3702,8 +3743,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
         const v = listB[videoIndex];
         if (v && v.blob) {
-          currentUrlB = URL.createObjectURL(v.blob);
-          state.modalObjectUrls.push(currentUrlB);
+          const safeBlob = getSafeVideoBlob(v);
+          currentUrlB = safeBlob ? URL.createObjectURL(safeBlob) : '';
+          trackUrl(currentUrlB);
           
           if (playerB) {
             playerB.src = currentUrlB;
@@ -4654,20 +4696,14 @@ export function closeProfileDetailsModal() {
     }
   }
 
-  const mainVideoPlayer = document.getElementById('profile-details-video-player');
-  if (mainVideoPlayer) {
-    try {
-      mainVideoPlayer.pause();
-    } catch (e) {}
-  }
-
   setTimeout(() => {
-    const player = document.getElementById('profile-details-video-player');
-    if (player) {
-      player.src = "";
-    }
     if (state.modalObjectUrls) {
+      const mainVideoPlayer = document.getElementById('profile-details-video-player');
+      const activePlayingUrl = mainVideoPlayer ? mainVideoPlayer.src : '';
       state.modalObjectUrls.forEach(url => {
+        if (activePlayingUrl && activePlayingUrl.includes(url)) {
+          return;
+        }
         try {
           URL.revokeObjectURL(url);
         } catch (e) {}

@@ -66,9 +66,10 @@
       <!-- Custom OSU Text Logo Block -->
       <div class="brand-logo-container">
         <img src="https://www.osu.edu/images/osu-logo-stacked.svg" alt="Ohio State Block O" class="brand-logo-img">
-        
-        <div class="brand-title">SCARLET Biomechanics</div>
-        <div class="brand-subtitle">BUCKEYE PERFORMANCE PLATFORM</div>
+        <div class="brand-text-wrapper">
+          <div class="brand-title">SCARLET Biomechanics</div>
+          <div class="brand-subtitle">BUCKEYE PERFORMANCE PLATFORM</div>
+        </div>
       </div>
 
       <!-- Calibration Panel -->
@@ -281,7 +282,7 @@
         </div>
 
         <!-- Real-time Joint Angles -->
-        <div class="panel-section collapsible">
+        <div class="panel-section collapsible" style="display: none;">
         <div class="section-title">Joint Angles (Flexion)</div>
         <div class="angle-header-row angle-header-row-spaced">
           <span class="side-header-left">Left Side</span>
@@ -326,20 +327,20 @@
           </div>
           <div class="metrics-list">
             <div class="metric-row">
-              <span class="metric-lbl">Thigh (Hip➔Knee)</span>
+              <span class="metric-lbl">Thigh</span>
               <div class="side-values">
                 <span id="val-thigh-l" class="side-val-item left-color">--.- cm</span>
                 <span id="val-thigh-r" class="side-val-item right-color">--.- cm</span>
               </div>
             </div>
             <div class="metric-row">
-              <span class="metric-lbl">Shank (Knee➔Ankle)</span>
+              <span class="metric-lbl">Shank</span>
               <div class="side-values">
                 <span id="val-shin-l" class="side-val-item left-color">--.- cm</span>
                 <span id="val-shin-r" class="side-val-item right-color">--.- cm</span>
               </div>
             </div>
-            <div class="metric-row">
+            <div class="metric-row" style="display: none;">
               <span class="metric-lbl">Foot (Ankle➔Toe)</span>
               <div class="side-values">
                 <span id="val-foot-l" class="side-val-item left-color">--.- cm</span>
@@ -354,7 +355,7 @@
           <div class="section-title">Upper Body Segments</div>
           <div class="metrics-list">
             <div class="metric-row">
-              <span class="metric-lbl">Torso (Shld➔Hip)</span>
+              <span class="metric-lbl">Torso</span>
               <div class="side-values">
                 <span id="val-torso-l" class="side-val-item left-color">--.- cm</span>
                 <span id="val-torso-r" class="side-val-item right-color">--.- cm</span>
@@ -388,37 +389,8 @@
             <div class="metric-row">
               <span class="metric-lbl metric-lbl-flex">
                 Wingspan
-                <span class="metric-lbl-sub">(Mid Fingers)</span>
               </span>
               <span id="val-wingspan" class="metric-val">--.- cm</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Hand Metrics -->
-        <div class="panel-section collapsible">
-          <div class="section-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg>
-            Hand Metrics
-          </div>
-          <div class="angle-header-row">
-            <span class="text-left-color">Left</span>
-            <span class="text-right-color">Right</span>
-          </div>
-          <div class="metrics-list">
-            <div class="metric-row">
-              <span class="metric-lbl">Hand Span (Wrist➔Mid)</span>
-              <div class="side-values">
-                <span id="val-span-l" class="side-val-item left-color">--.- cm</span>
-                <span id="val-span-r" class="side-val-item right-color">--.- cm</span>
-              </div>
-            </div>
-            <div class="metric-row">
-              <span class="metric-lbl">Pinch (Thumb➔Index)</span>
-              <div class="side-values">
-                <span id="val-pinch-l" class="side-val-item left-color">--.- cm</span>
-                <span id="val-pinch-r" class="side-val-item right-color">--.- cm</span>
-              </div>
             </div>
           </div>
         </div>
@@ -533,7 +505,7 @@
           
           <button id="btn-reset-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Peak Metrics
+            Reset Values
           </button>
           <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
@@ -661,7 +633,7 @@
           
           <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Peak Metrics
+            Reset Values
           </button>
           
           <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
@@ -786,7 +758,7 @@
           
           <button id="btn-reset-shoulder-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Peak Metrics
+            Reset Values
           </button>
           <button id="btn-save-shoulder-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
@@ -877,7 +849,7 @@
           
           <button id="btn-reset-shoulder-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Peak Metrics
+            Reset Values
           </button>
           <button id="btn-save-shoulder-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
@@ -946,7 +918,7 @@
           </div>
           <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Peak Metrics
+            Reset Values
           </button>
           
           <button id="btn-save-thoracic-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
@@ -1037,7 +1009,7 @@
           
           <button id="btn-reset-hip-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Peak Metrics
+            Reset Values
           </button>
           <button id="btn-save-hip-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
@@ -1292,7 +1264,7 @@
             </div>
             <div class="modal-stats-grid">
               <div class="modal-metric-box col-span-2">
-                <span class="modal-metric-lbl">Pelvic (Hip) Width</span>
+                <span class="modal-metric-lbl">Hip Width</span>
                 <span id="modal-val-hip-w" class="modal-metric-val">--.-</span>
               </div>
             </div>

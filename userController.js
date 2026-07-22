@@ -742,13 +742,51 @@ export function onPoseResults(results) {
         state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
 
         if (state.squatTestingSide === 'left') {
-          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          const activeKneeMob = Math.max(kneeMobL, kneeMobR);
+          const activeHipMob = Math.max(hipMobL, hipMobR);
+          const activeAnkleMob = Math.max(ankleMobL, ankleMobR);
+
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, activeKneeMob);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, activeHipMob);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, activeAnkleMob);
+          if (calculated && calculated.shoulder_l && calculated.hip_l) {
+            const dx = Math.abs(calculated.shoulder_l.x - calculated.hip_l.x);
+            const dy = Math.abs(calculated.hip_l.y - calculated.shoulder_l.y);
+            if (dy > 10) {
+              const trunkLeanDeg = Math.atan2(dx, dy) * (180 / Math.PI);
+              if (activeKneeMob >= 15) {
+                if (trunkLeanDeg > (state.squatPeaks.maxForwardLeanL || 0)) {
+                  state.squatPeaks.maxForwardLeanL = trunkLeanDeg;
+                  state.squatPeaks.forwardLeanKneeL = activeKneeMob;
+                  const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+                  state.squatPeaks.forwardLeanTimestampL = timeSec;
+                }
+              }
+            }
+          }
         } else if (state.squatTestingSide === 'right') {
-          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          const activeKneeMob = Math.max(kneeMobR, kneeMobL);
+          const activeHipMob = Math.max(hipMobR, hipMobL);
+          const activeAnkleMob = Math.max(ankleMobR, ankleMobL);
+
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, activeKneeMob);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, activeHipMob);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, activeAnkleMob);
+          if (calculated && calculated.shoulder_r && calculated.hip_r) {
+            const dx = Math.abs(calculated.shoulder_r.x - calculated.hip_r.x);
+            const dy = Math.abs(calculated.hip_r.y - calculated.shoulder_r.y);
+            if (dy > 10) {
+              const trunkLeanDeg = Math.atan2(dx, dy) * (180 / Math.PI);
+              if (activeKneeMob >= 15) {
+                if (trunkLeanDeg > (state.squatPeaks.maxForwardLeanR || 0)) {
+                  state.squatPeaks.maxForwardLeanR = trunkLeanDeg;
+                  state.squatPeaks.forwardLeanKneeR = activeKneeMob;
+                  const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+                  state.squatPeaks.forwardLeanTimestampR = timeSec;
+                }
+              }
+            }
+          }
         } else if (state.squatTestingSide === 'frontal') {
           if (state.allowFrontalUpdateL) {
             state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
@@ -864,13 +902,21 @@ export function onPoseResults(results) {
       const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
 
       if (state.squatTestingSide === 'left') {
-        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        const activeKneeMob = Math.max(kneeMobL, kneeMobR);
+        const activeHipMob = Math.max(hipMobL, hipMobR);
+        const activeAnkleMob = Math.max(ankleMobL, ankleMobR);
+
+        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, activeKneeMob);
+        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, activeHipMob);
+        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, activeAnkleMob);
       } else if (state.squatTestingSide === 'right') {
-        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        const activeKneeMob = Math.max(kneeMobR, kneeMobL);
+        const activeHipMob = Math.max(hipMobR, hipMobL);
+        const activeAnkleMob = Math.max(ankleMobR, ankleMobL);
+
+        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, activeKneeMob);
+        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, activeHipMob);
+        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, activeAnkleMob);
       } else if (state.squatTestingSide === 'frontal') {
         if (state.allowFrontalUpdateL) {
           state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
@@ -1172,13 +1218,21 @@ export function onPoseResults(results) {
 
       if (state.currentMode === 'squat' && shouldUpdatePeaks) {
         if (state.squatTestingSide === 'left') {
-          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          const activeKneeMob = Math.max(kneeMobL, kneeMobR);
+          const activeHipMob = Math.max(hipMobL, hipMobR);
+          const activeAnkleMob = Math.max(ankleMobL, ankleMobR);
+
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, activeKneeMob);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, activeHipMob);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, activeAnkleMob);
         } else if (state.squatTestingSide === 'right') {
-          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          const activeKneeMob = Math.max(kneeMobR, kneeMobL);
+          const activeHipMob = Math.max(hipMobR, hipMobL);
+          const activeAnkleMob = Math.max(ankleMobR, ankleMobL);
+
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, activeKneeMob);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, activeHipMob);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, activeAnkleMob);
         } else if (state.squatTestingSide === 'frontal') {
           if (state.allowFrontalUpdateL) {
             state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
@@ -3066,6 +3120,9 @@ export async function handleUploadedFile(file) {
               state.squatPeaks.kneeL = 0;
               state.squatPeaks.hipL = 0;
               state.squatPeaks.ankleL = 0;
+              state.squatPeaks.maxForwardLeanL = 0;
+              state.squatPeaks.forwardLeanTimestampL = null;
+              state.squatPeaks.forwardLeanKneeL = null;
               state.imageSquatL = null; // Clear pre-existing static overlay
             } else if (importTarget === 'squat-r') {
               state.squatTestingSide = 'right';
@@ -3074,6 +3131,9 @@ export async function handleUploadedFile(file) {
               state.squatPeaks.kneeR = 0;
               state.squatPeaks.hipR = 0;
               state.squatPeaks.ankleR = 0;
+              state.squatPeaks.maxForwardLeanR = 0;
+              state.squatPeaks.forwardLeanTimestampR = null;
+              state.squatPeaks.forwardLeanKneeR = null;
               state.imageSquatR = null; // Clear pre-existing static overlay
             } else if (importTarget === 'squat-frontal') {
               state.squatTestingSide = 'frontal';

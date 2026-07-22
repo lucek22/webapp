@@ -204,7 +204,13 @@ export const state = {
     maxKneeCaveR: 0,
     valgusFirstTimestamp: null,
     valgusPeakTimestamp: null,
-    valgusPeakScore: 0
+    valgusPeakScore: 0,
+    maxForwardLeanL: 0,
+    maxForwardLeanR: 0,
+    forwardLeanTimestampL: null,
+    forwardLeanTimestampR: null,
+    forwardLeanKneeL: null,
+    forwardLeanKneeR: null
   },
   shoulderTestingSide: "left",
   shoulderPeaks: {

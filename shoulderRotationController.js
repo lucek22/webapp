@@ -432,7 +432,7 @@ export function setupShoulderRotationListeners(onPoseResultsCallback) {
         }
         updateShoulderRotationSidebarUI();
 
-        if (isWebcamLive && startVideoRecordingFn) {
+        if (startVideoRecordingFn) {
           startVideoRecordingFn();
         }
 
@@ -453,16 +453,14 @@ export function setupShoulderRotationListeners(onPoseResultsCallback) {
         // --- STOP RECORDING & SAVE ---
         state.isShoulderRotationRecording = false;
 
-        const canvasElement = document.getElementById('overlay');
-        const capturedImg = canvasElement ? canvasElement.toDataURL('image/png') : null;
         const side = state.shoulderRotationTestingSide || 'left';
         if (side === 'left') {
-          state.imageShoulderRotationL = capturedImg;
+          state.imageShoulderRotationL = null;
         } else {
-          state.imageShoulderRotationR = capturedImg;
+          state.imageShoulderRotationR = null;
         }
 
-        if (isWebcamLive && stopVideoRecordingFn) {
+        if (stopVideoRecordingFn) {
           stopVideoRecordingFn();
         }
 

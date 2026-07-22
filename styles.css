@@ -3164,6 +3164,10 @@ div[style*="color: #10b981"] {
   justify-content: center;
 }
 
+#tab-mobility .pose-card-icon {
+  display: none !important;
+}
+
 .bg-scarlet {
   background-color: var(--color-scarlet);
   color: #fff;

@@ -403,7 +403,7 @@ export function setupShoulderListeners(onPoseResultsCallback, updateDashboardOff
           alert(`Shoulder flexion angle of ${Math.round(curAngle)}° saved successfully for ${activeProfileName}!`);
           // openProfileDetailsModal(state.activeProfileId);
         } else {
-          alert(`You are currently in Guest Mode. Your flexion angle is ${Math.round(curAngle)}°. To save these shoulder flexion scores to a player portfolio, please select or create a profile first, then click Capture Flexion Snapshot again.`);
+          alert(`You are currently in Guest Mode. Your flexion angle is ${Math.round(curAngle)}°. To save these shoulder flexion scores to a player portfolio, please select or create a profile first, then click Capture Snapshot again.`);
         }
       } catch (err) {
         console.error("Failed to save shoulder peak snapshot:", err);

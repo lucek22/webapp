@@ -3173,45 +3173,100 @@ export async function populateProfileDetails(profileId, container, preserveTab =
     // ==========================================
     const compareSelect = container.querySelector('#profile-compare-select');
     if (compareSelect) {
-      compareSelect.innerHTML = '<option value="">Select Athlete to Compare</option>';
+      compareSelect.innerHTML = '<option value="">Select Target to Compare...</option>';
       
       let allProfiles = state.allProfiles || [];
       if (allProfiles.length === 0) {
         allProfiles = await snapshotStore.getAllProfiles();
         state.allProfiles = allProfiles;
       }
-      
+
+      // Group 1: Sessions from THIS Profile
+      if (profile.sessions && Array.isArray(profile.sessions) && profile.sessions.length > 0) {
+        const sessionsGroup = document.createElement('optgroup');
+        sessionsGroup.label = `Sessions of ${profile.name || 'This Athlete'}`;
+        
+        profile.sessions.forEach(s => {
+          const isCurrent = String(s.id) === String(activeSession.id);
+          const option = document.createElement('option');
+          option.value = `session:${s.id}`;
+          const dateStr = s.timestamp ? new Date(s.timestamp).toLocaleDateString() : '';
+          option.textContent = `${s.name || 'Session'}${dateStr ? ` (${dateStr})` : ''}${isCurrent ? ' [Active]' : ''}`;
+          if (state.comparedTargetId && state.comparedTargetId === `session:${s.id}`) {
+            option.selected = true;
+          }
+          sessionsGroup.appendChild(option);
+        });
+        compareSelect.appendChild(sessionsGroup);
+      }
+
+      // Group 2: Other Athlete Profiles
+      const profilesGroup = document.createElement('optgroup');
+      profilesGroup.label = "Other Athlete Profiles";
+      let otherCount = 0;
       allProfiles.forEach(p => {
         if (p.id !== profileId) {
           const option = document.createElement('option');
-          option.value = p.id;
+          option.value = `profile:${p.id}`;
           option.textContent = p.name || `Profile #${p.id}`;
-          if (state.comparedProfileId && p.id === state.comparedProfileId) {
+          if (state.comparedTargetId && (state.comparedTargetId === `profile:${p.id}` || String(state.comparedTargetId) === String(p.id) || (state.comparedProfileId && p.id === state.comparedProfileId))) {
             option.selected = true;
           }
-          compareSelect.appendChild(option);
+          profilesGroup.appendChild(option);
+          otherCount++;
         }
       });
+      if (otherCount > 0) {
+        compareSelect.appendChild(profilesGroup);
+      }
 
       const placeholderCard = container.querySelector('#compare-placeholder-card');
       const contentBlock = container.querySelector('#compare-content-block');
 
-      const renderComparison = async (otherProfileId) => {
-        if (!otherProfileId) {
+      const renderComparison = async (targetVal) => {
+        if (!targetVal) {
           if (placeholderCard) placeholderCard.classList.remove('hidden');
           if (contentBlock) contentBlock.classList.add('hidden');
           return;
         }
 
         try {
-          const otherProfile = await snapshotStore.getProfile(otherProfileId);
+          state.comparedTargetId = targetVal;
+          let otherProfile = null;
+          let otherSession = null;
+          let nameA = "";
+          let nameB = "";
+
+          const strVal = String(targetVal);
+
+          if (strVal.startsWith('session:')) {
+            const targetSessionId = strVal.replace('session:', '');
+            otherProfile = profile;
+            otherSession = profile.sessions ? profile.sessions.find(s => String(s.id) === String(targetSessionId)) : null;
+            
+            const activeSName = activeSession.name || 'Current Session';
+            const compSName = otherSession ? (otherSession.name || 'Target Session') : 'Selected Session';
+            
+            nameA = `${profile.name || 'Athlete'} (${activeSName})`;
+            nameB = `${profile.name || 'Athlete'} (${compSName})`;
+          } else {
+            const targetProfileId = Number(strVal.replace('profile:', ''));
+            otherProfile = await snapshotStore.getProfile(targetProfileId) || (allProfiles.find(p => Number(p.id) === targetProfileId));
+            if (!otherProfile) {
+              if (placeholderCard) placeholderCard.classList.remove('hidden');
+              if (contentBlock) contentBlock.classList.add('hidden');
+              return;
+            }
+            otherSession = otherProfile.sessions ? (otherProfile.sessions.find(s => String(s.id) === String(otherProfile.activeSessionId)) || otherProfile.sessions[otherProfile.sessions.length - 1]) : null;
+            nameA = profile.name || "Subject A";
+            nameB = otherProfile.name || "Subject B";
+          }
+
           if (!otherProfile) {
             if (placeholderCard) placeholderCard.classList.remove('hidden');
             if (contentBlock) contentBlock.classList.add('hidden');
             return;
           }
-
-          const otherSession = otherProfile.sessions ? (otherProfile.sessions.find(s => String(s.id) === String(otherProfile.activeSessionId)) || otherProfile.sessions[otherProfile.sessions.length - 1]) : null;
 
           if (placeholderCard) placeholderCard.classList.add('hidden');
           if (contentBlock) contentBlock.classList.remove('hidden');
@@ -3221,9 +3276,6 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           const nameBEl = container.querySelector('#compare-metric-name-b');
           const romNameAEl = container.querySelector('#compare-rom-name-a');
           const romNameBEl = container.querySelector('#compare-rom-name-b');
-
-          const nameA = profile.name || "Subject A";
-          const nameB = otherProfile.name || "Subject B";
 
           if (nameAEl) nameAEl.textContent = nameA;
           if (nameBEl) nameBEl.textContent = nameB;
@@ -3380,6 +3432,14 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           const ankleLB = ankleDorsiPeaksB.ankleDorsiL || ankleDorsiPeaksB.shinAngleL || 0;
           const ankleRB = ankleDorsiPeaksB.ankleDorsiR || ankleDorsiPeaksB.shinAngleR || 0;
 
+          const tExtA = getDefaultThoracicExtension(activeSession.thoracicExtension);
+          const tExtB = getDefaultThoracicExtension(otherActiveSession.thoracicExtension);
+
+          const fLeanA_L = sPeaksA.maxForwardLeanL || 0;
+          const fLeanA_R = sPeaksA.maxForwardLeanR || 0;
+          const fLeanB_L = sPeaksB.maxForwardLeanL || 0;
+          const fLeanB_R = sPeaksB.maxForwardLeanR || 0;
+
           // ROM rows definition: [Label, leftValA, rightValA, leftValB, rightValB]
           const romRows = [
             ["Shoulder Flexion", shPeaksA.excursionL, shPeaksA.excursionR, shPeaksB.excursionL, shPeaksB.excursionR],
@@ -3388,7 +3448,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             ["Hip External Rotation", hRotA.maxExternalRotationL, hRotA.maxExternalRotationR, hRotB.maxExternalRotationL, hRotB.maxExternalRotationR],
             ["Hip Internal Rotation", hRotA.maxInternalRotationL, hRotA.maxInternalRotationR, hRotB.maxInternalRotationL, hRotB.maxInternalRotationR],
             ["Ankle Dorsiflexion", ankleLA, ankleRA, ankleLB, ankleRB],
-            ["Knee Flexion (OH Squat)", sPeaksA.kneeL, sPeaksA.kneeR, sPeaksB.kneeL, sPeaksB.kneeR]
+            ["Knee Flexion (OH Squat)", sPeaksA.kneeL, sPeaksA.kneeR, sPeaksB.kneeL, sPeaksB.kneeR],
+            ["Forward Trunk Lean (OH Squat)", fLeanA_L, fLeanA_R, fLeanB_L, fLeanB_R],
+            ["Thoracic Extension", tExtA.angle, tExtA.angle, tExtB.angle, tExtB.angle]
           ];
 
           const romTbody = container.querySelector('#compare-rom-tbody');
@@ -3480,18 +3542,25 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       compareSelect.onchange = async (e) => {
         const val = e.target.value;
         if (!val) {
+          state.comparedTargetId = null;
           state.comparedProfileId = null;
           await renderComparison(null);
         } else {
-          const selectedId = Number(val);
-          state.comparedProfileId = selectedId;
-          await renderComparison(selectedId);
+          state.comparedTargetId = val;
+          if (val.startsWith('profile:')) {
+            state.comparedProfileId = Number(val.replace('profile:', ''));
+          } else {
+            state.comparedProfileId = null;
+          }
+          await renderComparison(val);
         }
       };
 
-      // Trigger initial comparison if state has an active compared profile
-      if (state.comparedProfileId && state.comparedProfileId !== profileId) {
-        renderComparison(state.comparedProfileId);
+      // Trigger initial comparison if state has an active compared target
+      if (state.comparedTargetId) {
+        renderComparison(state.comparedTargetId);
+      } else if (state.comparedProfileId && state.comparedProfileId !== profileId) {
+        renderComparison(`profile:${state.comparedProfileId}`);
       } else {
         renderComparison(null);
       }
@@ -3564,13 +3633,23 @@ export async function populateProfileDetails(profileId, container, preserveTab =
       }
 
       // Populate Athlete B selector
-      compareVideoAthleteB.innerHTML = '<option value="">Select Athlete B</option>';
+      compareVideoAthleteB.innerHTML = '<option value="">Select Athlete / Profile B</option>';
+      
+      // Same profile option (to allow comparing videos across different sessions of the same athlete)
+      const sameOption = document.createElement('option');
+      sameOption.value = profile.id;
+      sameOption.textContent = `${profile.name || 'Current Athlete'} (Same Profile Sessions)`;
+      if (state.comparedVideoAthleteBId && Number(state.comparedVideoAthleteBId) === Number(profile.id)) {
+        sameOption.selected = true;
+      }
+      compareVideoAthleteB.appendChild(sameOption);
+
       allProfiles.forEach(p => {
         if (p.id !== profileId) {
           const option = document.createElement('option');
           option.value = p.id;
           option.textContent = p.name || `Profile #${p.id}`;
-          if (state.comparedVideoAthleteBId && p.id === state.comparedVideoAthleteBId) {
+          if (state.comparedVideoAthleteBId && Number(p.id) === Number(state.comparedVideoAthleteBId)) {
             option.selected = true;
           }
           compareVideoAthleteB.appendChild(option);
@@ -3825,6 +3904,258 @@ export async function populateProfileDetails(profileId, container, preserveTab =
         populateVideosB(state.comparedVideoAthleteBId);
       } else {
         populateVideosB("");
+      }
+    }
+
+    // ==========================================
+    // Mobility Exercise Leaderboard Engine Logic
+    // ==========================================
+    const leaderboardSelect = container.querySelector('#leaderboard-exercise-select');
+    if (leaderboardSelect) {
+      const renderLeaderboard = async (exKey) => {
+        const currentRankCard = container.querySelector('#leaderboard-current-rank-card');
+        const top5Container = container.querySelector('#leaderboard-top-5-container');
+        const bottom5Container = container.querySelector('#leaderboard-bottom-5-container');
+
+        if (!top5Container || !bottom5Container) return;
+
+        let allProfs = state.allProfiles || [];
+        if (!allProfs || allProfs.length === 0) {
+          allProfs = await snapshotStore.getAllProfiles();
+          state.allProfiles = allProfs;
+        }
+
+        const entries = [];
+
+        const getExScore = (session) => {
+          if (!session) return { peak: 0, l: 0, r: 0 };
+          const shRot = getDefaultShoulderRotation(session.shoulderRotation);
+          const shPeaks = getDefaultShoulderPeaks(session.shoulderPeaks);
+          const sPeaks = getDefaultSquatPeaks(session.squatPeaks);
+          const hRot = getDefaultHipRotation(session.hipRotation);
+          const ankleDorsiPeaks = getDefaultAnkleDorsiPeaks(session.ankleDorsiPeaks);
+          const tExt = getDefaultThoracicExtension(session.thoracicExtension);
+
+          let l = 0, r = 0, peak = 0;
+
+          switch (exKey) {
+            case 'shoulder_flexion':
+              l = shPeaks.excursionL || 0;
+              r = shPeaks.excursionR || 0;
+              peak = Math.max(l, r);
+              break;
+            case 'shoulder_er':
+              l = shRot.maxExternalRotationL || 0;
+              r = shRot.maxExternalRotationR || 0;
+              peak = Math.max(l, r);
+              break;
+            case 'shoulder_ir':
+              l = shRot.maxInternalRotationL || 0;
+              r = shRot.maxInternalRotationR || 0;
+              peak = Math.max(l, r);
+              break;
+            case 'hip_er':
+              l = hRot.maxExternalRotationL || 0;
+              r = hRot.maxExternalRotationR || 0;
+              peak = Math.max(l, r);
+              break;
+            case 'hip_ir':
+              l = hRot.maxInternalRotationL || 0;
+              r = hRot.maxInternalRotationR || 0;
+              peak = Math.max(l, r);
+              break;
+            case 'ankle_dorsi':
+              l = ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL || 0;
+              r = ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR || 0;
+              peak = Math.max(l, r);
+              break;
+            case 'squat_knee':
+              l = sPeaks.kneeL || 0;
+              r = sPeaks.kneeR || 0;
+              peak = Math.max(l, r);
+              break;
+            case 'thoracic_extension':
+              peak = tExt.angle || 0;
+              l = peak;
+              r = peak;
+              break;
+            default:
+              break;
+          }
+
+          return { peak: Math.round(peak), l: Math.round(l), r: Math.round(r) };
+        };
+
+        allProfs.forEach(p => {
+          const sessions = (p.sessions && Array.isArray(p.sessions) && p.sessions.length > 0)
+            ? p.sessions
+            : [p];
+
+          sessions.forEach(s => {
+            const sc = getExScore(s);
+            if (sc.peak > 0) {
+              entries.push({
+                profileId: p.id,
+                profileName: p.name || `Profile #${p.id}`,
+                sessionId: s.id,
+                sessionName: s.name || 'Session',
+                timestamp: s.timestamp || Date.now(),
+                score: sc.peak,
+                valL: sc.l,
+                valR: sc.r,
+                isCurrent: (Number(p.id) === Number(profile.id) && String(s.id) === String(activeSession.id))
+              });
+            }
+          });
+        });
+
+        // Sort descending
+        entries.sort((a, b) => b.score - a.score || b.timestamp - a.timestamp);
+
+        let currentRank = -1;
+        let currentEntry = null;
+
+        entries.forEach((e, idx) => {
+          e.rank = idx + 1;
+          if (e.isCurrent) {
+            currentRank = e.rank;
+            currentEntry = e;
+          }
+        });
+
+        const exLabel = leaderboardSelect.options[leaderboardSelect.selectedIndex]?.text || 'Selected Exercise';
+
+        // Render Hero Rank Card
+        if (currentRankCard) {
+          if (currentEntry) {
+            const total = entries.length;
+            const percentile = Math.round(((total - currentRank + 1) / total) * 100);
+            
+            let tierTag = "Functional";
+            let tierColor = "#eab308";
+            if (percentile >= 80) { tierTag = "Optimal"; tierColor = "#4ade80"; }
+            else if (percentile <= 30) { tierTag = "Restricted"; tierColor = "#ef4444"; }
+
+            currentRankCard.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #eab308, #ca8a04); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 900; color: #000; box-shadow: 0 0 20px rgba(234,179,8,0.35); border: 2px solid rgba(255,255,255,0.2);">
+                  #${currentRank}
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span style="font-size: 1.05rem; font-weight: 800; color: #fff;">${profile.name || 'Current Athlete'}</span>
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #eab308; background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.3); padding: 2px 8px; border-radius: 4px;">${activeSession.name || 'Active Session'}</span>
+                  </div>
+                  <div style="font-size: 0.8rem; color: #aaa; margin-top: 3px; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <span>Ranked <strong>#${currentRank}</strong> of ${total} recorded session entries</span>
+                    <span>•</span>
+                    <span style="color: ${tierColor}; font-weight: 700;">Top ${Math.max(1, 101 - percentile)}% (${tierTag})</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 1.25rem; background: rgba(0,0,0,0.4); padding: 0.6rem 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="text-align: right;">
+                  <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: 0.5px;">Peak Mobility</div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: #4ade80;">${currentEntry.score}°</div>
+                </div>
+                <div style="text-align: right; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 1.25rem;">
+                  <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: 0.5px;">Side Split</div>
+                  <div style="font-size: 0.85rem; font-weight: 600; color: #ccc;">L: ${currentEntry.valL}° / R: ${currentEntry.valR}°</div>
+                </div>
+              </div>
+            `;
+          } else {
+            currentRankCard.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 700; color: #888;">
+                  --
+                </div>
+                <div>
+                  <div style="font-size: 0.95rem; font-weight: 700; color: #ccc;">${profile.name || 'Current Athlete'} (${activeSession.name || 'Active Session'})</div>
+                  <div style="font-size: 0.8rem; color: #888; margin-top: 2px;">No scan measurement recorded for <strong>${exLabel}</strong> in this active session.</div>
+                </div>
+              </div>
+              <div style="font-size: 0.75rem; color: #eab308; background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600;">
+                Perform scan to enter leaderboard
+              </div>
+            `;
+          }
+        }
+
+        const renderEntryRow = (e, badgeType) => {
+          let badgeHtml = `#${e.rank}`;
+          let badgeBg = "rgba(255,255,255,0.05)";
+          let badgeColor = "#888";
+
+          if (e.rank === 1) {
+            badgeHtml = "🥇 #1";
+            badgeBg = "linear-gradient(135deg, #eab308, #ca8a04)";
+            badgeColor = "#000";
+          } else if (e.rank === 2) {
+            badgeHtml = "🥈 #2";
+            badgeBg = "linear-gradient(135deg, #94a3b8, #64748b)";
+            badgeColor = "#000";
+          } else if (e.rank === 3) {
+            badgeHtml = "🥉 #3";
+            badgeBg = "linear-gradient(135deg, #b45309, #78350f)";
+            badgeColor = "#fff";
+          } else if (badgeType === 'bottom') {
+            badgeBg = "rgba(239, 68, 68, 0.15)";
+            badgeColor = "#f87171";
+          }
+
+          const highlightStyle = e.isCurrent
+            ? "border: 1px solid #eab308; background: rgba(234, 179, 8, 0.12); box-shadow: 0 0 12px rgba(234, 179, 8, 0.15);"
+            : "border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.015);";
+
+          return `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.85rem; border-radius: 8px; transition: all 0.2s ease; ${highlightStyle}">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span style="font-size: 0.75rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: ${badgeBg}; color: ${badgeColor}; min-width: 42px; text-align: center;">
+                  ${badgeHtml}
+                </span>
+                <div>
+                  <div style="font-size: 0.85rem; font-weight: 700; color: ${e.isCurrent ? '#eab308' : '#fff'}; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>${e.profileName}</span>
+                    ${e.isCurrent ? '<span style="font-size: 0.65rem; background: #eab308; color: #000; font-weight: 800; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">YOU</span>' : ''}
+                  </div>
+                  <div style="font-size: 0.72rem; color: #777;">${e.sessionName} • L: ${e.valL}° / R: ${e.valR}°</div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 1rem; font-weight: 800; color: ${badgeType === 'top' ? '#4ade80' : '#f87171'};">${e.score}°</span>
+              </div>
+            </div>
+          `;
+        };
+
+        const top5 = entries.slice(0, 5);
+        if (top5.length === 0) {
+          top5Container.innerHTML = `<div style="font-size: 0.8rem; color: #666; text-align: center; padding: 1.5rem;">No recorded entries found for this exercise.</div>`;
+        } else {
+          top5Container.innerHTML = top5.map(e => renderEntryRow(e, 'top')).join('');
+        }
+
+        const bottom5 = entries.slice(-5);
+        if (bottom5.length === 0) {
+          bottom5Container.innerHTML = `<div style="font-size: 0.8rem; color: #666; text-align: center; padding: 1.5rem;">No recorded entries found for this exercise.</div>`;
+        } else {
+          bottom5Container.innerHTML = bottom5.map(e => renderEntryRow(e, 'bottom')).join('');
+        }
+      };
+
+      leaderboardSelect.onchange = (e) => {
+        renderLeaderboard(e.target.value);
+      };
+
+      renderLeaderboard(leaderboardSelect.value || 'shoulder_flexion');
+
+      const lboardBtn = container.querySelector('.athlete-tab-btn[data-tab="tab-leaderboard"]');
+      if (lboardBtn) {
+        lboardBtn.addEventListener('click', () => {
+          renderLeaderboard(leaderboardSelect.value || 'shoulder_flexion');
+        });
       }
     }
 
@@ -4550,6 +4881,48 @@ export async function renderShoulderRotationGrading(activeSession, container = d
                 "**Outer Hip/TFL Release**: Stretch and roll the Tensor Fasciae Latae (TFL) and lateral hamstring structures which can contribute to outward knee bowing.",
                 "**Adductor Activation and Core Integration**: Perform squeeze-ball squats or adductor slides to strengthen the inner thigh stabilizers.",
                 "**Symmetric Foot/Ankle Loading**: Ensure proper weight distribution across the first metatarsal head (big toe knuckle) to prevent rolling onto the outer edges of the feet."
+              ]
+            });
+          }
+
+          // ==========================================
+          // 4.8. FORWARD TRUNK LEAN RULES
+          // ==========================================
+          const forwardLeanL = sPeaks.maxForwardLeanL || 0;
+          const forwardLeanR = sPeaks.maxForwardLeanR || 0;
+          const peakLean = Math.max(forwardLeanL, forwardLeanR);
+
+          if (peakLean >= 35.0) {
+            let sideLabel = "";
+            if (forwardLeanL >= 35.0 && forwardLeanR >= 35.0) sideLabel = "Bilateral";
+            else if (forwardLeanL >= 35.0) sideLabel = "Left Side";
+            else sideLabel = "Right Side";
+
+            let details = [];
+            if (forwardLeanL >= 35.0) {
+              const tStr = (sPeaks.forwardLeanTimestampL !== null && sPeaks.forwardLeanTimestampL !== undefined)
+                ? ` at ${sPeaks.forwardLeanTimestampL.toFixed(1)}s into recording`
+                : '';
+              const kStr = sPeaks.forwardLeanKneeL ? ` (${Math.round(sPeaks.forwardLeanKneeL)}° knee flexion depth)` : ' at peak depth';
+              details.push(`Left Side peaked at ${forwardLeanL.toFixed(1)}°${tStr}${kStr}`);
+            }
+            if (forwardLeanR >= 35.0) {
+              const tStr = (sPeaks.forwardLeanTimestampR !== null && sPeaks.forwardLeanTimestampR !== undefined)
+                ? ` at ${sPeaks.forwardLeanTimestampR.toFixed(1)}s into recording`
+                : '';
+              const kStr = sPeaks.forwardLeanKneeR ? ` (${Math.round(sPeaks.forwardLeanKneeR)}° knee flexion depth)` : ' at peak depth';
+              details.push(`Right Side peaked at ${forwardLeanR.toFixed(1)}°${tStr}${kStr}`);
+            }
+
+            adviceItems.push({
+              metric: `Forward Lean: ${peakLean.toFixed(1)}°`,
+              sides: sideLabel,
+              title: "Excessive Forward Trunk Lean",
+              desc: `Torso forward tilt exceeded the 35.0° baseline during lateral squat assessment (${details.join('; ')}).`,
+              bullets: [
+                "**Torso & Hip Hinge Control**: Perform wall-supported overhead squats or goblet squats, focusing on maintaining an upright chest and parallel torso/shin alignment.",
+                "**Ankle Dorsiflexion Mobility**: Address gastrocnemius/soleus tightness and ankle joint restrictions with loaded calf stretches and banded joint mobilisations.",
+                "**Posterior Chain & Core Integration**: Strengthen the erector spinae, thoracic extensors, and gluteal complex with quadrupeds, Y-T-W raises, and dead-bugs."
               ]
             });
           }

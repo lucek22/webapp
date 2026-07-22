@@ -438,18 +438,26 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
             if (side === 'left') {
               activeSession.videoShoulderRotationL = videoEntry;
               state.videoShoulderRotationL = videoEntry;
+              activeSession.imageShoulderRotationL = null;
+              state.imageShoulderRotationL = null;
             } else {
               activeSession.videoShoulderRotationR = videoEntry;
               state.videoShoulderRotationR = videoEntry;
+              activeSession.imageShoulderRotationR = null;
+              state.imageShoulderRotationR = null;
             }
           } else if (state.currentMode === 'hip_rotation') {
             const side = state.hipRotationTestingSide || 'left';
             if (side === 'left') {
               activeSession.videoHipRotationL = videoEntry;
               state.videoHipRotationL = videoEntry;
+              activeSession.imageHipRotationL = null;
+              state.imageHipRotationL = null;
             } else {
               activeSession.videoHipRotationR = videoEntry;
               state.videoHipRotationR = videoEntry;
+              activeSession.imageHipRotationR = null;
+              state.imageHipRotationR = null;
             }
           } else if (state.currentMode === 'ankledorsi') {
             const side = (state.ankleDorsi && state.ankleDorsi.activeSide) || 'left';
@@ -537,15 +545,23 @@ export async function saveImportedVideoToProfile(file, target, durationSec) {
         } else if (target === 'shoulder-rotation-l') {
           activeSession.videoShoulderRotationL = videoEntry;
           state.videoShoulderRotationL = videoEntry;
+          activeSession.imageShoulderRotationL = null;
+          state.imageShoulderRotationL = null;
         } else if (target === 'shoulder-rotation-r') {
           activeSession.videoShoulderRotationR = videoEntry;
           state.videoShoulderRotationR = videoEntry;
+          activeSession.imageShoulderRotationR = null;
+          state.imageShoulderRotationR = null;
         } else if (target === 'hip-rotation-l') {
           activeSession.videoHipRotationL = videoEntry;
           state.videoHipRotationL = videoEntry;
+          activeSession.imageHipRotationL = null;
+          state.imageHipRotationL = null;
         } else if (target === 'hip-rotation-r') {
           activeSession.videoHipRotationR = videoEntry;
           state.videoHipRotationR = videoEntry;
+          activeSession.imageHipRotationR = null;
+          state.imageHipRotationR = null;
         }
       }
     }

@@ -1368,6 +1368,10 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
             Compare Videos
           </button>
+          <button class="athlete-tab-btn" data-tab="tab-leaderboard">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-2.34"></path><path d="M14 14.66V17c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.34"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path></svg>
+            Leaderboard
+          </button>
         </div>
 
         <!-- TAB 1: Anthropometrics (Static Measurements) -->
@@ -1887,15 +1891,15 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               </div>
               <div>
-                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Athlete Comparison Engine</h4>
-                <p style="margin: 0; font-size: 0.75rem; color: #888;">Select an athlete profile below to begin a side-by-side comparative analysis.</p>
+                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Comparison Engine</h4>
+                <p style="margin: 0; font-size: 0.75rem; color: #888;">Select another session of this athlete or another profile below to begin a side-by-side comparative analysis.</p>
               </div>
             </div>
             
             <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 260px;">
               <label for="profile-compare-select" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #aaa; letter-spacing: 0.5px;">Compare to:</label>
               <select id="profile-compare-select" class="profile-detail-session-select" style="flex: 1; height: 34px; background: rgba(10,10,10,0.65); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; padding: 0 10px; font-weight: 600; outline: none; font-size: 0.85rem; transition: border-color 0.25s, box-shadow 0.25s;">
-                <option value="">Select Athlete to Compare</option>
+                <option value="">Select Target to Compare</option>
               </select>
             </div>
           </div>
@@ -1906,8 +1910,8 @@
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
             </div>
             <div>
-              <h3 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">No Comparison Profile Loaded</h3>
-              <p style="margin: 0; font-size: 0.85rem; color: #666; max-width: 360px; line-height: 1.5; margin: 0 auto;">Choose another subject from the comparison dropdown list to inspect delta measurements, asymmetries, and side-by-side Range of Motion scores.</p>
+              <h3 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px;">No Comparison Target Loaded</h3>
+              <p style="margin: 0; font-size: 0.85rem; color: #666; max-width: 380px; line-height: 1.5; margin: 0 auto;">Choose another session from this profile or another athlete from the dropdown list to inspect delta measurements, asymmetries, and side-by-side Range of Motion scores.</p>
             </div>
           </div>
 
@@ -2067,6 +2071,75 @@
 
           </div>
 
+        </div>
+
+        <!-- TAB 5: Mobility Exercises Leaderboard -->
+        <div id="tab-leaderboard" class="athlete-tab-pane hidden" style="padding: 0.5rem 0;">
+          
+          <!-- Header Bar with Title & Dropdown -->
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1.25rem 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, rgba(234,179,8,0.2), rgba(234,179,8,0.05)); border: 1px solid rgba(234,179,8,0.3); display: flex; align-items: center; justify-content: center; color: #eab308; box-shadow: 0 4px 15px rgba(234,179,8,0.15);">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-2.34"></path><path d="M14 14.66V17c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.34"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path></svg>
+              </div>
+              <div>
+                <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.5px;">Mobility Leaderboard & Rankings</h4>
+                <p style="margin: 0; font-size: 0.8rem; color: #888;">Inspect top & bottom performers and see how this athlete ranks against all stored profiles.</p>
+              </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 280px;">
+              <label for="leaderboard-exercise-select" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #eab308; letter-spacing: 0.5px; white-space: nowrap;">Exercise:</label>
+              <select id="leaderboard-exercise-select" style="flex: 1; height: 38px; background: rgba(10,10,10,0.85); border: 1px solid rgba(234,179,8,0.35); color: #fff; border-radius: 8px; padding: 0 12px; font-weight: 600; outline: none; font-size: 0.85rem; cursor: pointer;">
+                <option value="shoulder_flexion">Shoulder Flexion (Overhead Reach)</option>
+                <option value="shoulder_er">Shoulder External Rotation</option>
+                <option value="shoulder_ir">Shoulder Internal Rotation</option>
+                <option value="hip_er">Hip External Rotation</option>
+                <option value="hip_ir">Hip Internal Rotation</option>
+                <option value="ankle_dorsi">Ankle Dorsiflexion</option>
+                <option value="squat_knee">Overhead Squat Knee Flexion</option>
+                <option value="thoracic_extension">Thoracic Extension</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Current Athlete Rank Hero Card -->
+          <div id="leaderboard-current-rank-card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <!-- Populated dynamically via JS -->
+          </div>
+
+          <!-- Dual Leaderboards Grid (Top 5 vs Bottom 5) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            
+            <!-- TOP 5 MOST MOBILE -->
+            <div style="background: rgba(20,20,20,0.6); border: 1px solid rgba(34,197,94,0.25); border-radius: 12px; padding: 1.25rem; backdrop-filter: blur(10px);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid rgba(34,197,94,0.15); padding-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 1.1rem;">🏆</span>
+                  <h5 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: 0.5px;">Top 5 Most Mobile</h5>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 700; background: rgba(34,197,94,0.15); color: #4ade80; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(34,197,94,0.3);">HIGHEST SCORES</span>
+              </div>
+              <div id="leaderboard-top-5-container" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <!-- Rows populated dynamically -->
+              </div>
+            </div>
+
+            <!-- BOTTOM 5 LEAST MOBILE -->
+            <div style="background: rgba(20,20,20,0.6); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 1.25rem; backdrop-filter: blur(10px);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid rgba(239,68,68,0.15); padding-bottom: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 1.1rem;">⚠️</span>
+                  <h5 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 0.5px;">Bottom 5 Least Mobile</h5>
+                </div>
+                <span style="font-size: 0.7rem; font-weight: 700; background: rgba(239,68,68,0.15); color: #f87171; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(239,68,68,0.3);">LOWEST SCORES</span>
+              </div>
+              <div id="leaderboard-bottom-5-container" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <!-- Rows populated dynamically -->
+              </div>
+            </div>
+
+          </div>
         </div>
 
 

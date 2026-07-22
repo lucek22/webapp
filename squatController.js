@@ -140,7 +140,13 @@ export function getDefaultSquatPeaks(existing = null) {
     maxKneeBowR: 0,
     varusFirstTimestamp: null,
     varusPeakTimestamp: null,
-    varusPeakScore: 0
+    varusPeakScore: 0,
+    maxForwardLeanL: 0,
+    maxForwardLeanR: 0,
+    forwardLeanTimestampL: null,
+    forwardLeanTimestampR: null,
+    forwardLeanKneeL: null,
+    forwardLeanKneeR: null
   };
   if (existing) {
     return { ...defaults, ...existing };
@@ -251,24 +257,62 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
 
   if (shouldUpdatePeaks) {
     if (activeSide === 'left') {
-      if (kneeMobL > 0 && (p.kneeL === 0 || kneeMobL > p.kneeL)) { // Note: larger knee mobility means a deeper squat!
-        p.kneeL = kneeMobL;
+      const activeKneeMob = Math.max(kneeMobL, kneeMobR);
+      const activeHipMob = Math.max(hipMobL, hipMobR);
+      const activeAnkleMob = Math.max(ankleMobL, ankleMobR);
+
+      if (activeKneeMob > 0 && (p.kneeL === 0 || activeKneeMob > p.kneeL)) {
+        p.kneeL = activeKneeMob;
       }
-      if (hipMobL > 0 && (p.hipL === 0 || hipMobL > p.hipL)) { // Note: deeper squat has larger hip mobility!
-        p.hipL = hipMobL;
+      if (activeHipMob > 0 && (p.hipL === 0 || activeHipMob > p.hipL)) {
+        p.hipL = activeHipMob;
       }
-      if (ankleMobL > 0 && (p.ankleL === 0 || ankleMobL > p.ankleL)) {
-        p.ankleL = ankleMobL;
+      if (activeAnkleMob > 0 && (p.ankleL === 0 || activeAnkleMob > p.ankleL)) {
+        p.ankleL = activeAnkleMob;
+      }
+      if (calculated && calculated.shoulder_l && calculated.hip_l) {
+        const dx = Math.abs(calculated.shoulder_l.x - calculated.hip_l.x);
+        const dy = Math.abs(calculated.hip_l.y - calculated.shoulder_l.y);
+        if (dy > 10) {
+          const trunkLeanDeg = Math.atan2(dx, dy) * (180 / Math.PI);
+          if (activeKneeMob >= 15) {
+            if (trunkLeanDeg > (p.maxForwardLeanL || 0)) {
+              p.maxForwardLeanL = trunkLeanDeg;
+              p.forwardLeanKneeL = activeKneeMob;
+              const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+              p.forwardLeanTimestampL = timeSec;
+            }
+          }
+        }
       }
     } else if (activeSide === 'right') {
-      if (kneeMobR > 0 && (p.kneeR === 0 || kneeMobR > p.kneeR)) {
-        p.kneeR = kneeMobR;
+      const activeKneeMob = Math.max(kneeMobR, kneeMobL);
+      const activeHipMob = Math.max(hipMobR, hipMobL);
+      const activeAnkleMob = Math.max(ankleMobR, ankleMobL);
+
+      if (activeKneeMob > 0 && (p.kneeR === 0 || activeKneeMob > p.kneeR)) {
+        p.kneeR = activeKneeMob;
       }
-      if (hipMobR > 0 && (p.hipR === 0 || hipMobR > p.hipR)) {
-        p.hipR = hipMobR;
+      if (activeHipMob > 0 && (p.hipR === 0 || activeHipMob > p.hipR)) {
+        p.hipR = activeHipMob;
       }
-      if (ankleMobR > 0 && (p.ankleR === 0 || ankleMobR > p.ankleR)) {
-        p.ankleR = ankleMobR;
+      if (activeAnkleMob > 0 && (p.ankleR === 0 || activeAnkleMob > p.ankleR)) {
+        p.ankleR = activeAnkleMob;
+      }
+      if (calculated && calculated.shoulder_r && calculated.hip_r) {
+        const dx = Math.abs(calculated.shoulder_r.x - calculated.hip_r.x);
+        const dy = Math.abs(calculated.hip_r.y - calculated.shoulder_r.y);
+        if (dy > 10) {
+          const trunkLeanDeg = Math.atan2(dx, dy) * (180 / Math.PI);
+          if (activeKneeMob >= 15) {
+            if (trunkLeanDeg > (p.maxForwardLeanR || 0)) {
+              p.maxForwardLeanR = trunkLeanDeg;
+              p.forwardLeanKneeR = activeKneeMob;
+              const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+              p.forwardLeanTimestampR = timeSec;
+            }
+          }
+        }
       }
     } else if (activeSide === 'frontal') {
       const landmarks = calculated ? calculated.landmarks : null;
@@ -326,18 +370,24 @@ export function updateSquatDashboardUI(kneeMobL, kneeMobR, hipMobL, hipMobR, ank
   if (squatPeakAnkleR) squatPeakAnkleR.textContent = p.ankleR ? `${Math.round(p.ankleR)}°` : '--';
 
   if (activeSide === 'left') {
-    if (squatLiveKneeL) squatLiveKneeL.textContent = kneeMobL > 0 ? `${Math.round(kneeMobL)}°` : '--';
+    const liveKnee = Math.max(kneeMobL, kneeMobR);
+    const liveHip = Math.max(hipMobL, hipMobR);
+    const liveAnkle = Math.max(ankleMobL, ankleMobR);
+    if (squatLiveKneeL) squatLiveKneeL.textContent = liveKnee > 0 ? `${Math.round(liveKnee)}°` : '--';
     if (squatLiveKneeR) squatLiveKneeR.textContent = '--';
-    if (squatLiveHipL) squatLiveHipL.textContent = hipMobL > 0 ? `${Math.round(hipMobL)}°` : '--';
+    if (squatLiveHipL) squatLiveHipL.textContent = liveHip > 0 ? `${Math.round(liveHip)}°` : '--';
     if (squatLiveHipR) squatLiveHipR.textContent = '--';
-    if (squatLiveAnkleL) squatLiveAnkleL.textContent = ankleMobL > 0 ? `${Math.round(ankleMobL)}°` : '--';
+    if (squatLiveAnkleL) squatLiveAnkleL.textContent = liveAnkle > 0 ? `${Math.round(liveAnkle)}°` : '--';
     if (squatLiveAnkleR) squatLiveAnkleR.textContent = '--';
   } else if (activeSide === 'right') {
-    if (squatLiveKneeR) squatLiveKneeR.textContent = kneeMobR > 0 ? `${Math.round(kneeMobR)}°` : '--';
+    const liveKnee = Math.max(kneeMobR, kneeMobL);
+    const liveHip = Math.max(hipMobR, hipMobL);
+    const liveAnkle = Math.max(ankleMobR, ankleMobL);
+    if (squatLiveKneeR) squatLiveKneeR.textContent = liveKnee > 0 ? `${Math.round(liveKnee)}°` : '--';
     if (squatLiveKneeL) squatLiveKneeL.textContent = '--';
-    if (squatLiveHipR) squatLiveHipR.textContent = hipMobR > 0 ? `${Math.round(hipMobR)}°` : '--';
+    if (squatLiveHipR) squatLiveHipR.textContent = liveHip > 0 ? `${Math.round(liveHip)}°` : '--';
     if (squatLiveHipL) squatLiveHipL.textContent = '--';
-    if (squatLiveAnkleR) squatLiveAnkleR.textContent = ankleMobR > 0 ? `${Math.round(ankleMobR)}°` : '--';
+    if (squatLiveAnkleR) squatLiveAnkleR.textContent = liveAnkle > 0 ? `${Math.round(liveAnkle)}°` : '--';
     if (squatLiveAnkleL) squatLiveAnkleL.textContent = '--';
   } else if (activeSide === 'frontal') {
     const valgus = calculateValgusFromJoints(calculated ? calculated.landmarks : null);
@@ -455,10 +505,16 @@ export async function scanVideoForSquatPeaks(targetSide, durationSec) {
     state.squatPeaks.kneeL = 0;
     state.squatPeaks.hipL = 0;
     state.squatPeaks.ankleL = 0;
+    state.squatPeaks.maxForwardLeanL = 0;
+    state.squatPeaks.forwardLeanTimestampL = null;
+    state.squatPeaks.forwardLeanKneeL = null;
   } else if (targetSide === 'squat-r') {
     state.squatPeaks.kneeR = 0;
     state.squatPeaks.hipR = 0;
     state.squatPeaks.ankleR = 0;
+    state.squatPeaks.maxForwardLeanR = 0;
+    state.squatPeaks.forwardLeanTimestampR = null;
+    state.squatPeaks.forwardLeanKneeR = null;
   } else if (targetSide === 'squat-frontal') {
     state.squatPeaks.maxKneeCaveL = 0;
     state.squatPeaks.maxKneeCaveR = 0;
@@ -628,11 +684,17 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
             state.squatPeaks.kneeL = 0;
             state.squatPeaks.hipL = 0;
             state.squatPeaks.ankleL = 0;
+            state.squatPeaks.maxForwardLeanL = 0;
+            state.squatPeaks.forwardLeanTimestampL = null;
+            state.squatPeaks.forwardLeanKneeL = null;
           } else if (state.squatTestingSide === 'right') {
             state.imageSquatR = null;
             state.squatPeaks.kneeR = 0;
             state.squatPeaks.hipR = 0;
             state.squatPeaks.ankleR = 0;
+            state.squatPeaks.maxForwardLeanR = 0;
+            state.squatPeaks.forwardLeanTimestampR = null;
+            state.squatPeaks.forwardLeanKneeR = null;
           } else {
             state.imageSquatFrontal = null;
             state.jointsOverhead = null;

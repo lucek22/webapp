@@ -227,7 +227,8 @@ export const state = {
   },
   thoracicExtension: {
     peakAngle: 0,
-    liveAngle: 0
+    liveAngle: 0,
+    isRecording: false
   },
   hipRotation: {
     maxExternalRotationL: 0,

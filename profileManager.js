@@ -88,7 +88,7 @@ export function populateDropdown(filteredProfiles) {
 
   const createOpt = document.createElement('option');
   createOpt.value = 'new';
-  createOpt.textContent = 'Select Existing Profile';
+  createOpt.textContent = 'Create New Profile';
   profileSelect.appendChild(createOpt);
 
   const importOpt = document.createElement('option');
@@ -415,7 +415,7 @@ export async function initializeProfilesSelector() {
         if (sessionContainer) sessionContainer.classList.add('hidden');
 
         if (statusElement) {
-          statusElement.textContent = `Profile deleted successfully. Switched back to Select Existing Profile mode.`;
+          statusElement.textContent = `Profile deleted successfully. Switched back to Create New Profile mode.`;
         }
       } catch (err) {
         console.error("[initializeProfilesSelector] Failed to delete profile:", err);
@@ -3932,6 +3932,22 @@ export async function renderShoulderRotationGrading(activeSession, container = d
   panel.innerHTML = `
     <div style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; font-family: inherit;">
       <span style="display: flex; align-items: center; gap: 6px;">COMPREHENSIVE RANGE OF MOTION (ROM) ASSESSMENT</span>
+    </div>
+    
+    <!-- Mobility Level Definitions -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 0.6rem; margin-bottom: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.04); font-size: 0.725rem; line-height: 1.4;">
+      <div style="border-left: 3px solid #ef4444; padding-left: 6px;">
+        <strong style="color: #ef4444; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Restricted</strong>
+        <span style="color: #cbd5e1;">High risk of injury for the tested body part; movement is limited, compensatory, or dysfunctional.</span>
+      </div>
+      <div style="border-left: 3px solid #f59e0b; padding-left: 6px;">
+        <strong style="color: #f59e0b; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Functional</strong>
+        <span style="color: #cbd5e1;">Movement is adequate and safe for sport, but not yet efficient or fully expressed.</span>
+      </div>
+      <div style="border-left: 3px solid #10b981; padding-left: 6px;">
+        <strong style="color: #10b981; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Optimal</strong>
+        <span style="color: #cbd5e1;">Movement is efficient, controlled, and expressed through the intended joint or segment with no compensation.</span>
+      </div>
     </div>
     
     <div style="display: flex; flex-direction: column; gap: 1rem; font-family: inherit;">

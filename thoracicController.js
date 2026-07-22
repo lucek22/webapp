@@ -122,7 +122,7 @@ export async function resetThoracicExtensionUI() {
   if (btnSaveThoracic) {
     btnSaveThoracic.innerHTML = `
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-      Capture Thoracic Snapshot
+      Record Movement
     `;
     btnSaveThoracic.style.background = 'linear-gradient(135deg, #10b981, #059669)';
   }
@@ -242,7 +242,7 @@ export function setupThoracicExtensionListeners(onPoseResultsCallback) {
         // Restore button UI
         btnSaveThoracic.innerHTML = `
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-          Capture Thoracic Snapshot
+          Record Movement
         `;
         btnSaveThoracic.style.background = 'linear-gradient(135deg, #10b981, #059669)';
         btnSaveThoracic.style.borderColor = '';

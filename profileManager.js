@@ -88,7 +88,7 @@ export function populateDropdown(filteredProfiles) {
 
   const createOpt = document.createElement('option');
   createOpt.value = 'new';
-  createOpt.textContent = 'Select Existing Profile';
+  createOpt.textContent = 'Create New Profile';
   profileSelect.appendChild(createOpt);
 
   const importOpt = document.createElement('option');
@@ -415,7 +415,7 @@ export async function initializeProfilesSelector() {
         if (sessionContainer) sessionContainer.classList.add('hidden');
 
         if (statusElement) {
-          statusElement.textContent = `Profile deleted successfully. Switched back to Select Existing Profile mode.`;
+          statusElement.textContent = `Profile deleted successfully. Switched back to Create New Profile mode.`;
         }
       } catch (err) {
         console.error("[initializeProfilesSelector] Failed to delete profile:", err);

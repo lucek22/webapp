@@ -96,7 +96,7 @@
 
         <div id="profile-select-container" class="profile-controls-row">
           <select id="profile-select" class="profile-dropdown">
-            <option value="new" selected>Select Existing Profile</option>
+            <option value="new" selected>Create New Profile</option>
             <option value="import">Import Profile Bundle (.ZIP)</option>
           </select>
         </div>
@@ -159,9 +159,6 @@
         <div id="panel-height" class="cal-panel">
           <div class="calibration-row cal-status-success">
             <span id="height-status-text"></span>
-          </div>
-          <div class="calibration-row cal-status-info">
-            The scale calibrates automatically in real-time as you stand in view of the camera based on your profile's height.
           </div>
         </div>
 
@@ -540,30 +537,24 @@
           </button>
           <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Record Squat Assessment
+            Record Movement
           </button>
         </div>
 
         <!-- Squat Biomechanics Reference Guide -->
         <div class="panel-section squat-guide-section collapsible">
-          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="section-title guide-title">Instructions</div>
           <div class="guide-box">
             <div class="guide-item">
               <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Knee Mobility:</strong> Flexion targets 110° - 130° at full depth. Tracked as <code>180° - KneeAngle</code>.
+                Stand with left side facing the camera, click Record Movement, and perform an overhead squat
               </div>
             </div>
             <div class="guide-item">
-              <span class="guide-bullet bullet-hip" style="color: var(--color-gold);">●</span>
+              <span class="guide-bullet bullet-hip" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Hip Mobility:</strong> Flexion targets 90° - 110° at depth. Tracked as <code>180° - HipAngle</code>.
-              </div>
-            </div>
-            <div class="guide-item">
-              <span class="guide-bullet bullet-ankle" style="color: var(--color-cyan);">●</span>
-              <div class="guide-text">
-                <strong>Tibial Inclination (Shin Tilt):</strong> Targets 38°+ for optimal mobility, and 30° - 38° for functional mobility. Tracked relative to a vertical plumb line.
+                Repeat procedure for the right and frontal views
               </div>
             </div>
           </div>
@@ -675,42 +666,42 @@
           
           <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Capture Dorsi Snapshot
+            Record Movement
           </button>
         </div>
 
         <!-- Tibial Inclination Reference Guide -->
         <div class="panel-section dorsi-guide-section collapsible">
-          <div class="section-title guide-title">Reference Targets & Guides</div>
+          <div class="section-title guide-title">Instructions</div>
           <div class="guide-box">
-            <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; color: #a7b1b7; letter-spacing: 0.5px;">Tibial Inclination (Shin Forward Tilt)</div>
             <div class="guide-item" style="margin-bottom: 4px;">
-              <span class="guide-bullet" style="color: #10b981;">●</span>
+              <span class="guide-bullet" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Optimal (&ge; 38°):</strong> Full squat capacity; no upstream compensation expected.
+                Assume lunge position with left foot facing a wall
               </div>
             </div>
             <div class="guide-item" style="margin-bottom: 4px;">
-              <span class="guide-bullet" style="color: #fbbf24;">●</span>
+              <span class="guide-bullet" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Functional (30°–38°):</strong> Minor limitation; monitor under fatigue.
+                Position camera in sagittal view
               </div>
             </div>
-            <div class="guide-item" style="margin-bottom: 12px;">
-              <span class="guide-bullet" style="color: #f87171;">●</span>
+            <div class="guide-item" style="margin-bottom: 4px;">
+              <span class="guide-bullet" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Restricted (&lt; 30°):</strong> High compensation risk.
+                Drive knee forward to touch the wall while keeping heel flat on the floor, move left foot back in small increments until you reach the maximum distance from the wall where you can touch the knee while maintaining heel contact
               </div>
             </div>
-
-
-
-            <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
-              <div class="guide-item">
-                <span class="guide-bullet" style="color: #6366f1;">●</span>
-                <div class="guide-text">
-                  <strong>Asymmetry Risk:</strong> A difference of &gt; 5° in tibial inclination between sides is a primary predictor of lower limb athletic injury.
-                </div>
+            <div class="guide-item" style="margin-bottom: 4px;">
+              <span class="guide-bullet" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                Start recording at established maximum distance and touch knee to wall
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                Switch testing side to right, repeat the procedure
               </div>
             </div>
           </div>
@@ -742,9 +733,6 @@
         <!-- Mobility Analysis Dashboard Section -->
         <div class="panel-section collapsible active-expanded">
           <div class="section-title">Shoulder Mobility Peak Scores</div>
-          <div class="landmarks-desc" style="margin-bottom: 0.75rem;">
-            Calculates shoulder flexion excursion angle from start (90° raised position) to end frame.
-          </div>
           
           <!-- Testing Side Selector -->
           <div class="shoulder-side-selector-container" style="margin-top: 0.5rem; margin-bottom: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
@@ -802,30 +790,18 @@
           </button>
           <button id="btn-save-shoulder-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Capture Flexion Snapshot
+            Capture Snapshot
           </button>
         </div>
 
         <!-- Shoulder Biomechanics Reference Guide -->
         <div class="panel-section squat-guide-section collapsible">
-          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="section-title guide-title">Instructions</div>
           <div class="guide-box">
             <div class="guide-item">
-              <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
+              <span class="guide-bullet bullet-ankle" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Start Frame:</strong> Captured with arm raised straight upward (near 90° flexion).
-              </div>
-            </div>
-            <div class="guide-item">
-              <span class="guide-bullet bullet-hip" style="color: var(--color-gold);">●</span>
-              <div class="guide-text">
-                <strong>End Frame:</strong> Captured at the lowest point of the lowering motion.
-              </div>
-            </div>
-            <div class="guide-item">
-              <span class="guide-bullet bullet-ankle" style="color: var(--color-cyan);">●</span>
-              <div class="guide-text">
-                <strong>Excursion Angle:</strong> Total range of motion from initial elevation to terminal lowering.
+                Slowly raise arm in the sagital plane and capture the snapshot at maximum flexion
               </div>
             </div>
           </div>
@@ -905,30 +881,30 @@
           </button>
           <button id="btn-save-shoulder-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Capture Rotation Snapshot
+            Record Movement
           </button>
         </div>
 
         <!-- Shoulder Rotation Biomechanics Reference Guide -->
         <div class="panel-section squat-guide-section collapsible">
-          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="section-title guide-title">Instructions</div>
           <div class="guide-box">
             <div class="guide-item">
               <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>0° Baseline Position:</strong> Upper arm vertical, elbow bent 90°, forearm parallel to ground pointing forward.
+                Begin recording in a neutral position with left arm abducted 90 degrees, elbow flexed 90 degrees, and with palm facing the ground
               </div>
             </div>
             <div class="guide-item">
               <span class="guide-bullet bullet-hip" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>External Rotation:</strong> Forearm rotates backward (toward head). Measured as positive angle relative to baseline.
+                Externally rotate shoulder to maximum, then internally rotate shoulder to maximum
               </div>
             </div>
             <div class="guide-item">
               <span class="guide-bullet bullet-ankle" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Internal Rotation:</strong> Forearm rotates forward (toward stomach). Measured as negative angle relative to baseline.
+                Switch testing side to right and repeat procedure with right arm
               </div>
             </div>
           </div>
@@ -975,15 +951,15 @@
           
           <button id="btn-save-thoracic-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Capture Thoracic Snapshot
+            Record Movement
           </button>
         </div>
 
         <div class="panel-section squat-guide-section collapsible">
-          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="section-title guide-title">Instructions</div>
           <div class="guide-box">
             <div class="guide-item">
-              <span class="guide-bullet bullet-knee" style="color: var(--color-cyan);">●</span>
+              <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
                 <strong>Thoracic Extension:</strong> A larger angle indicates more opening through the upper back and thoracic spine.
               </div>
@@ -1065,18 +1041,30 @@
           </button>
           <button id="btn-save-hip-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Capture Rotation Snapshot
+            Record Movement
           </button>
         </div>
 
         <!-- Hip Rotation Biomechanics Reference Guide -->
         <div class="panel-section squat-guide-section collapsible">
-          <div class="section-title guide-title">Form Reference Guide</div>
+          <div class="section-title guide-title">Instructions</div>
           <div class="guide-box">
             <div class="guide-item">
-              <span class="guide-bullet bullet-knee" style="color: var(--color-cyan);">●</span>
+              <span class="guide-bullet bullet-knee" style="color: var(--color-scarlet);">●</span>
               <div class="guide-text">
-                <strong>Hip Mobility Test:</strong> Designed for measuring internal and external hip rotation peaks.
+                Sit on elevated surface with feet off the ground, position camera level with the knee
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-hip" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                Start recording and move left foot medially to the maximum and then laterally to the maximum
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-bullet bullet-ankle" style="color: var(--color-scarlet);">●</span>
+              <div class="guide-text">
+                Switch testing side to right, repeat procedure with right leg
               </div>
             </div>
           </div>

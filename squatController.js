@@ -692,7 +692,10 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
           return;
         } else {
           state.isRecordingAssessment = false;
-          btnSaveSquatPeaks.innerHTML = `Record Squat Assessment`;
+          btnSaveSquatPeaks.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            Record Movement
+          `;
           btnSaveSquatPeaks.style.background = 'linear-gradient(135deg, #BA0C2F, #8A0824)';
           btnSaveSquatPeaks.style.borderColor = 'rgba(186, 12, 47, 0.4)';
           btnSaveSquatPeaks.style.boxShadow = 'none';

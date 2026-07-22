@@ -435,10 +435,7 @@ export function calculatePoseMetrics(results) {
     // --- DETERMINE 3D LANDMARK SCALE FACTOR ---
     let scaleFactor3D = null;
 
-    const shouldFreezeCalibration = state.autoActive && state.autoState !== 'WAITING_A';
-    if (shouldFreezeCalibration && state.lockedScaleFactor3D) {
-      scaleFactor3D = state.lockedScaleFactor3D;
-    } else if (state.activeCalMethod === 'height') {
+    if (state.activeCalMethod === 'height') {
       if (state.inputHeightCm && skeletal_height_wl > 10) {
         const rawScale3D = state.inputHeightCm / skeletal_height_wl;
         scaleFactor3D = smooth('scale_factor_3d_height', rawScale3D, 8, 0.25);
@@ -603,10 +600,7 @@ export function calculatePoseMetrics(results) {
     state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
     let activePixelsPerCm = state.pixelsPerCm;
-    const shouldFreezeCalibration2D = state.autoActive && state.autoState !== 'WAITING_A';
-    if (shouldFreezeCalibration2D && state.lockedPixelsPerCm) {
-      activePixelsPerCm = state.lockedPixelsPerCm;
-    } else if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
       const rawScale = skeletal_height_px / state.inputHeightCm;
       activePixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
       state.pixelsPerCm = activePixelsPerCm;

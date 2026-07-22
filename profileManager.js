@@ -1094,12 +1094,12 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) session.pixelsPerCm = state.pixelsPerCm;
     
     if (!onlySquat) {
-      if (state.metricsA !== undefined && state.metricsA !== null) session.metricsA = state.metricsA;
-      if (state.metricsT !== undefined && state.metricsT !== null) session.metricsT = state.metricsT;
-      if (state.metricsOverhead !== undefined && state.metricsOverhead !== null) session.metricsOverhead = state.metricsOverhead;
-      if (state.imageA !== undefined && state.imageA !== null) session.imageA = state.imageA;
-      if (state.imageT !== undefined && state.imageT !== null) session.imageT = state.imageT;
-      if (state.imageOverhead !== undefined && state.imageOverhead !== null) session.imageOverhead = state.imageOverhead;
+      if (state.metricsA !== undefined) session.metricsA = state.metricsA;
+      if (state.metricsT !== undefined) session.metricsT = state.metricsT;
+      if (state.metricsOverhead !== undefined) session.metricsOverhead = state.metricsOverhead;
+      if (state.imageA !== undefined) session.imageA = state.imageA;
+      if (state.imageT !== undefined) session.imageT = state.imageT;
+      if (state.imageOverhead !== undefined) session.imageOverhead = state.imageOverhead;
     }
     
     if (state.imageSquatL !== undefined) session.imageSquatL = state.imageSquatL;
@@ -4261,22 +4261,6 @@ export async function renderShoulderRotationGrading(activeSession, container = d
       <div style="background: rgba(186, 12, 47, 0.02); border: 1px dashed rgba(186, 12, 47, 0.25); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem;">
         <div style="font-size: 0.8rem; font-weight: bold; color: #BA0C2F; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid rgba(186, 12, 47, 0.15); padding-bottom: 0.25rem; text-transform: uppercase;">
           <span>Dynamic Corrective Advice & Coaching</span>
-        </div>
-        
-        <!-- Mobility Level Definitions -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 0.6rem; margin-bottom: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.04); font-size: 0.725rem; line-height: 1.4;">
-          <div style="border-left: 3px solid #ef4444; padding-left: 6px;">
-            <strong style="color: #ef4444; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Restricted</strong>
-            <span style="color: #cbd5e1;">High risk of injury for the tested body part; movement is limited, compensatory, or dysfunctional.</span>
-          </div>
-          <div style="border-left: 3px solid #f59e0b; padding-left: 6px;">
-            <strong style="color: #f59e0b; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Functional</strong>
-            <span style="color: #cbd5e1;">Movement is adequate and safe for sport, but not yet efficient or fully expressed.</span>
-          </div>
-          <div style="border-left: 3px solid #10b981; padding-left: 6px;">
-            <strong style="color: #10b981; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Optimal</strong>
-            <span style="color: #cbd5e1;">Movement is efficient, controlled, and expressed through the intended joint or segment with no compensation.</span>
-          </div>
         </div>
         
         ${(() => {

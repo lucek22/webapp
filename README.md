@@ -1,65 +1,34 @@
 # Running the WebApp Steps
-    1. Under Subject Profile, select an existing player profile.
-    2. If the player does not have a profile:
-        Click Create New Profile
-        Enter the player's name
-        Click Create
-    3. Select the session you wish to record
-    Note: All exercises should be done without shoes on for maximum accuracy.
+    1. Underneath Subject Profile, select a pre-existing player profile. 
+        a. If player profile does not currently exist, click create new profile
+            i. Enter the player's name
+            ii. Create
+    2. Select the session that you wish to record for
 ## Posture and Stature Scan
-    1. Enter the player's height
-    2. Click Start Biomechanical Tracking
-    3. Position the player
-        Standing fully visible in the camera frame
-        Back against a wall
-        Shoes removed
-    4. Choose your capture method:
-        Single Snapshot:
-            Position the player in the desired pose (A, T, or Overhead)
-            Click Start 5s Capture Screenshot
-        Full Measurement Set: 
-            Start in A-Pose with back against the wall
-            Click Hands-Free Autocapture
-            After A‑pose is captured, transition to T‑pose, then Overhead Reach
+    1. Input your height
+    2. Start Biomechanical Tracking
+    3. Have the player stand in full view of the camera with their back against a wall. 
+    4. 
+        a. If you only need to take one picture, have the player stand in the desired pose (A/T/Overhead) and click Start 5s Capture Snapshot
+        b. If you wish to take all the measurements, have the player stand in the A pose with their back against the wall and start hands free autocapture
+            i. Once A-pose is taken, transition to T pose, and then subsequently, overhead reach
 ## Overhead Squat Analyzer
-    1. Click Start Biomechanical Tracking.
-    2. Select the side you want to record.
-    3. Run the squat assessment:
-        Click Record Squat Assessment
-        Perform the Squat
-        Click Record Squat Assessment
+    1. Start Biomechanical Tracking
+    2. Select the side to record
+    3. Record Squat Assessment
+        a. Perform the Squat
+        b. Click record squat assessment again.
 ## Shoulder Flexion Analyzer
     1. Start Biomechanical Tracking
-    2. Select the side you want to record.
-    3. Capture the flexion image:
-        Raise your arm straight overhead
-        Take the picture
+    2. Select the side to record
+    3. Take a picture of your arm straight up
 ## Shoulder Rotation Analyzer
-    1. Click Start Biomechanical Tracking.
-    2. Select the side you want to record.
-    3. Click Capture Rotation Screenshot.
-    4. Position the arm:
-        Elbow at 90°
-        Hand parallel to the ground
-    5. Perform:
-        External rotation
-        Internal rotation
-    6. Click Capture Rotation Screenshot again.
-## Ankle Dorsiflexion
-    1. Click Start Biomechanical Tracking.
-    2. Select the side you want to record.
-    3. Click Capture Rotation Screenshot.
-    4. Move into a lunge position.
-        Lean forward
-        Stop when your heel begins to lift off the ground
-    5. Click Capture Rotation Screenshot again.    
-## Thoracic Extension
-    1. Click Start Biomechanical Tracking.
-    2. Click Capture Rotation Screenshot.
-    3. Stand with one side facing the camera
-        Lean backwards as far as you can limbo style
-        Return to starting position
-    5. Click Capture Rotation Screenshot again.   
+    1. Start Biomechanical Tracking
+    2. Select the side to record
+    3. Pick a side to record
+    4. Start with your hand parallel to the ground in a 90 degree angle
+        a. Perform an external rotation
+        b. Perform an internal rotation
 # Managing the ROM grades
     Grades are stored in the following format
     Exercise Low | High

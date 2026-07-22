@@ -3934,6 +3934,22 @@ export async function renderShoulderRotationGrading(activeSession, container = d
       <span style="display: flex; align-items: center; gap: 6px;">COMPREHENSIVE RANGE OF MOTION (ROM) ASSESSMENT</span>
     </div>
     
+    <!-- Mobility Level Definitions -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 0.6rem; margin-bottom: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.04); font-size: 0.725rem; line-height: 1.4;">
+      <div style="border-left: 3px solid #ef4444; padding-left: 6px;">
+        <strong style="color: #ef4444; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Restricted</strong>
+        <span style="color: #cbd5e1;">High risk of injury for the tested body part; movement is limited, compensatory, or dysfunctional.</span>
+      </div>
+      <div style="border-left: 3px solid #f59e0b; padding-left: 6px;">
+        <strong style="color: #f59e0b; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Functional</strong>
+        <span style="color: #cbd5e1;">Movement is adequate and safe for sport, but not yet efficient or fully expressed.</span>
+      </div>
+      <div style="border-left: 3px solid #10b981; padding-left: 6px;">
+        <strong style="color: #10b981; display: block; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px;">Optimal</strong>
+        <span style="color: #cbd5e1;">Movement is efficient, controlled, and expressed through the intended joint or segment with no compensation.</span>
+      </div>
+    </div>
+    
     <div style="display: flex; flex-direction: column; gap: 1rem; font-family: inherit;">
       <!-- CATEGORY 1: SHOULDER INTERNAL/EXTERNAL ROTATION -->
       <div style="background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 0.75rem;">

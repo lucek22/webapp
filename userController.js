@@ -19,7 +19,7 @@ import {
   getDomMeasurementCm
 } from './helpers.js';
 
-import { pose, hands, calculatePoseMetrics } from './mediapipeLogic.js';
+import { pose, calculatePoseMetrics } from './mediapipeLogic.js';
 import { downloadSnapshotImage, compileAndDownloadCombinedSession, downloadIndividualSnapshotJson } from './reportCompiler.js';
 import { setupAnkleDorsiEvents, processAnkleDorsi, calculateShinTilt, updateDorsiLiveUI, registerAnkleDorsiCallbacks } from './ankleDorsi.js';
 
@@ -2506,7 +2506,6 @@ export async function startCamera(preferredDeviceId = null) {
           reject(new Error("TIMEOUT: getUserMedia took longer than " + (timeoutMs/1000) + "s. This usually indicates that Firefox Android (Fennec) has a silent permission block, a hardware lock, or is waiting for user consent that is not surfacing on screen."));
         }, timeoutMs);
 
-        console.log("Calling getUserMedia with constraints:", JSON.stringify(constraints));
         navigator.mediaDevices.getUserMedia(constraints)
           .then(stream => {
             if (isTimedOut) {
@@ -2550,31 +2549,25 @@ export async function startCamera(preferredDeviceId = null) {
     }
 
     try {
-      console.log("Attempting primary camera stream...");
       state.activeStream = await getUserMediaWithTimeout({
         audio: false,
         video: primaryVideoConstraints
       }, 7000);
-      console.log("Primary camera stream successfully acquired!");
     } catch (hdErr) {
       console.warn("Primary camera stream request failed or timed out:", hdErr.message || hdErr);
       try {
-        console.log("Attempting fallback camera stream...");
         // Fallback to standard definition if primary constraints fail or time out
         state.activeStream = await getUserMediaWithTimeout({
           audio: false,
           video: fallbackVideoConstraints
         }, 7000);
-        console.log("Fallback camera stream successfully acquired!");
       } catch (fallbackErr) {
         console.warn("Fallback camera stream request failed or timed out:", fallbackErr.message || fallbackErr);
-        console.log("Attempting absolute raw camera stream fallback ({ video: true })...");
         // Absolute fallback with zero formatting or facing constraints to bypass constraint parsing blocks
         state.activeStream = await getUserMediaWithTimeout({
           audio: false,
           video: true
         }, 7000);
-        console.log("Absolute raw camera stream successfully acquired!");
       }
     }
     
@@ -2672,7 +2665,6 @@ export async function startCamera(preferredDeviceId = null) {
         // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
         if (!state.activeModalVideoProcessing) {
           await pose.send({ image: videoElement });
-          await hands.send({ image: videoElement });
           consecutiveErrors = 0;
         }
       }
@@ -3367,7 +3359,6 @@ export async function handleUploadedFile(file) {
         // Send once to cache pose & hand landmarks
         try {
           await pose.send({ image: uploadedImage });
-          await hands.send({ image: uploadedImage });
           statusElement.textContent = "Static image processed. Drag manual calibration scale or trigger snapshot captures.";
         } catch (err) {
           console.error("Error processing static image:", err);
@@ -3399,7 +3390,6 @@ export function startUploadedMediaLoop() {
       if (!state.isSnapshotFrozen) {
         // Sequential model calls - avoids Emscripten concurrent initialization/runtime namespace memory collision errors!
         await pose.send({ image: uploadedVideo });
-        await hands.send({ image: uploadedVideo });
         consecutiveErrors = 0;
       }
     } catch (err) {
@@ -4673,7 +4663,6 @@ export async function runVideoFramePreprocessing() {
       // 3. Process video frame via MediaPipe Pose and Hands models
       try {
         await pose.send({ image: uploadedVideo });
-        await hands.send({ image: uploadedVideo });
         consecutiveErrors = 0;
       } catch (err) {
         console.warn(`MediaPipe processing error at t=${currentTime.toFixed(3)}s:`, err);
@@ -5778,7 +5767,7 @@ setupHipRotationListeners(onPoseResults);
 setupThoracicExtensionListeners(onPoseResults);
 setupSquatListeners(onPoseResults, updateDashboardOfflinePlaceholders);
 setupAnkleDorsiEvents(onPoseResults);
-setupVideoControls(pose, hands, onPoseResults, drawHandMesh);
+setupVideoControls(pose, onPoseResults, drawHandMesh);
 
 // Initial UI sync for side selectors
 setTimeout(() => {

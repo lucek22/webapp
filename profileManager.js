@@ -1576,7 +1576,6 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
         let hasPeaks = false;
         if (activeSession.squatPeaks) {
-          console.log('[DEBUG-SQUAT-L] squatPeaks:', JSON.stringify(activeSession.squatPeaks), 'kneeL:', activeSession.squatPeaks.kneeL, 'kneeLTime:', activeSession.squatPeaks.kneeLTime, 'hipL:', activeSession.squatPeaks.hipL, 'ankleL:', activeSession.squatPeaks.ankleL);
           if (p.key === 'squat-l') {
             hasPeaks = (activeSession.squatPeaks.kneeL > 0 || activeSession.squatPeaks.kneeLTime > 0 || activeSession.squatPeaks.hipL > 0 || activeSession.squatPeaks.ankleL > 0);
           } else if (p.key === 'squat-r') {

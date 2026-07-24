@@ -26,6 +26,8 @@ import {
   FINGER_COLORS
 } from './helpers.js';
 
+const WINGSPAN_A_POSE_OFFSET = 1.12;
+
 // MediaPipe Holistic Setup (exported as pose for backward compatibility and minimal churn)
 export const pose = new Holistic({
   locateFile: (file) => {
@@ -34,26 +36,16 @@ export const pose = new Holistic({
 });
 
 // Configure Holistic options (combines pose and hands tracking in a single optimized pass)
-// On mobile, we use modelComplexity: 1 (Full) and on desktop we use 2 (Heavy) for maximum accuracy,
+// We use modelComplexity: 2 (Heavy) overall for maximum accuracy on both mobile and desktop,
 // made possible by our decoupled render loop which prevents UI thread blocking.
 pose.setOptions({
-  modelComplexity: state.isMobile ? 1 : 2,
+  modelComplexity: 2,
   smoothLandmarks: true,
   enableSegmentation: state.yoloModeActive, 
   refineFaceLandmarks: false,
   minDetectionConfidence: 0.5,
   minTrackingConfidence: 0.5
 });
-
-// Dummy hands object with no-op send function to prevent errors from sequential send loops
-export const hands = {
-  send: async () => {
-    // No-op: Holistic processes both hands and pose in a single unified execution!
-  },
-  onResults: () => {
-    // No-op: Callback registration is handled by our unified holistic listener
-  }
-};
 
 // Callbacks registered dynamically
 let onPoseResults = null;
@@ -396,16 +388,30 @@ export function calculatePoseMetrics(results) {
     const fingerToToeL_wl = Math.hypot(wl_middle_finger_l.x - wl_toe_l.x, wl_middle_finger_l.y - wl_toe_l.y, wl_middle_finger_l.z - wl_toe_l.z) * 100;
     const fingerToToeR_wl = Math.hypot(wl_middle_finger_r.x - wl_toe_r.x, wl_middle_finger_r.y - wl_toe_r.y, wl_middle_finger_r.z - wl_toe_r.z) * 100;
 
-    // Posture-independent, segment-summed path for 3D wingspan:
-    // (Left hand + Left forearm + Left upper arm + Shoulder width + Right upper arm + Right forearm + Right hand)
-    const wingspan_wl = (upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl);
+    // Direct straight fingertip-to-fingertip distance (posture-dependent Euclidean path)
+    // If hand tracking is offline, we use the incredibly robust wrist-to-wrist Euclidean distance + cached hand lengths
+    let wingspan_straight_wl = 0;
+    const is_hands_offline = (!leftHandWorld || !leftHandWorld[0] || !leftHandWorld[12] || !rightHandWorld || !rightHandWorld[0] || !rightHandWorld[12]);
+    if (is_hands_offline) {
+      const wrist_to_wrist_wl = Math.hypot(
+        wl_wrist_l.x - wl_wrist_r.x,
+        wl_wrist_l.y - wl_wrist_r.y,
+        wl_wrist_l.z - wl_wrist_r.z
+      ) * 100;
+      wingspan_straight_wl = wrist_to_wrist_wl + hand_l_wl + hand_r_wl;
+    } else {
+      wingspan_straight_wl = Math.hypot(
+        wl_middle_finger_l.x - wl_middle_finger_r.x,
+        wl_middle_finger_l.y - wl_middle_finger_r.y,
+        wl_middle_finger_l.z - wl_middle_finger_r.z
+      ) * 100;
+    }
 
-    // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
-    const wingspan_straight_wl = Math.hypot(
-      wl_left_index.x - wl_right_index.x,
-      wl_left_index.y - wl_right_index.y,
-      wl_left_index.z - wl_right_index.z
-    ) * 100 * 1.42;
+    // Raw posture-independent, segment-summed path for 3D wingspan (without compensation factor offset):
+    // (Left hand + Left forearm + Left upper arm + Shoulder width + Right upper arm + Right forearm + Right hand)
+    const raw_segmented_wl = upperarm_l_wl + forearm_l_wl + hand_l_wl + shoulderW_wl + upperarm_r_wl + forearm_r_wl + hand_r_wl;
+
+
 
     // Skeletal (posture-independent) stature calculation in 3D
     const head_segment_wl = Math.hypot(wl_head_top.x - wl_shoulder_mid.x, wl_head_top.y - wl_shoulder_mid.y, wl_head_top.z - wl_shoulder_mid.z) * 100;
@@ -526,7 +532,7 @@ export function calculatePoseMetrics(results) {
         fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_wl * scaleFactor3D, 8, 0.25),
         shoulderW: smooth('shoulderW', shoulderW_wl * scaleFactor3D, 8, 0.25),
         hipW: smooth('hipW', hipW_wl * scaleFactor3D, 8, 0.25),
-        wingspan: smooth('wingspan_distance', wingspan_wl * scaleFactor3D, 8, 0.25),
+        wingspan: raw_segmented_wl * scaleFactor3D * WINGSPAN_A_POSE_OFFSET,
 
         skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm, 8, 0.25),
         live_height: smooth('body_height_live', wl_vertical_height_cm * scaleFactor3D, 8, 0.25),
@@ -544,10 +550,16 @@ export function calculatePoseMetrics(results) {
 
         if (wingspanRatio > 0.83) {
           detectedPose = "T-Pose";
-        } else if (fingerToToeRatio > 1.20) {
-          detectedPose = "Overhead Reach";
+          // Use direct Euclidean path (with robust wrist-to-wrist fallback) when locked in T-Pose
+          liveMetrics.wingspan = smooth('wingspan_distance', wingspan_straight_wl * scaleFactor3D, 8, 0.25);
         } else {
-          detectedPose = "A-Pose";
+          if (fingerToToeRatio > 1.20) {
+            detectedPose = "Overhead Reach";
+          } else {
+            detectedPose = "A-Pose";
+          }
+          // Default to pure posture-independent raw segmented sum with offset when not in T-Pose
+          liveMetrics.wingspan = smooth('wingspan_distance', raw_segmented_wl * scaleFactor3D * WINGSPAN_A_POSE_OFFSET, 8, 0.25);
         }
       }
       liveMetrics.pose = detectedPose;
@@ -626,13 +638,23 @@ export function calculatePoseMetrics(results) {
     const right_hand_is_fallback = !state.latestRightMiddleTip;
     const hand_r_px = Math.hypot(wrist_r.x - finger_r.x, wrist_r.y - finger_r.y) * (right_hand_is_fallback ? 1.42 : 1.0);
 
-    // Apply the same 1.11x compensation factor to align with 3D and correct for MediaPipe skeletal deficits
-    const wingspan_px = (upperarm_l_px + forearm_l_px + hand_l_px + shoulderW_px + upperarm_r_px + forearm_r_px + hand_r_px) * 1.11;
-    const wingspan_cm = wingspan_px / activePixelsPerCm;
+    // Raw posture-independent, segment-summed path for 2D wingspan (without compensation factor offset):
+    const raw_segmented_px = upperarm_l_px + forearm_l_px + hand_l_px + shoulderW_px + upperarm_r_px + forearm_r_px + hand_r_px;
 
     // Direct straight fingertip-to-fingertip distance for pose detection (posture-dependent)
-    const straight_wingspan_px = Math.hypot(finger_l.x - finger_r.x, finger_l.y - finger_r.y) * (left_hand_is_fallback || right_hand_is_fallback ? 1.42 : 1.0) * 1.11;
+    // If hand tracking is offline, we use the incredibly robust wrist-to-wrist Euclidean distance + estimated hand lengths
+    let straight_wingspan_px = 0;
+    if (left_hand_is_fallback || right_hand_is_fallback) {
+      const wrist_to_wrist_px = Math.hypot(wrist_l.x - wrist_r.x, wrist_l.y - wrist_r.y);
+      straight_wingspan_px = wrist_to_wrist_px + hand_l_px + hand_r_px;
+    } else {
+      straight_wingspan_px = Math.hypot(finger_l.x - finger_r.x, finger_l.y - finger_r.y);
+    }
     const straight_wingspan_cm = straight_wingspan_px / activePixelsPerCm;
+
+
+
+    const raw_segmented_cm = raw_segmented_px / activePixelsPerCm;
 
     liveMetrics = {
       thigh_l: smooth('thigh_l', thigh_l_px / activePixelsPerCm),
@@ -653,7 +675,7 @@ export function calculatePoseMetrics(results) {
       fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_px / activePixelsPerCm),
       shoulderW: smooth('shoulderW', shoulderW_px / activePixelsPerCm),
       hipW: smooth('hipW', hipW_px / activePixelsPerCm),
-      wingspan: smooth('wingspan_distance', wingspan_cm),
+      wingspan: raw_segmented_cm * WINGSPAN_A_POSE_OFFSET,
 
       skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm),
       live_height: smooth('body_height_live', live_height_cm),
@@ -670,10 +692,16 @@ export function calculatePoseMetrics(results) {
 
       if (wingspanRatio > 0.83) {
         detectedPose = "T-Pose";
-      } else if (fingerToToeRatio > 1.20) {
-        detectedPose = "Overhead Reach";
+        // Use direct Euclidean path (with robust wrist-to-wrist fallback) when locked in T-Pose
+        liveMetrics.wingspan = smooth('wingspan_distance', straight_wingspan_cm);
       } else {
-        detectedPose = "A-Pose";
+        if (fingerToToeRatio > 1.20) {
+          detectedPose = "Overhead Reach";
+        } else {
+          detectedPose = "A-Pose";
+        }
+        // Default to pure posture-independent raw segmented sum with offset when not in T-Pose
+        liveMetrics.wingspan = smooth('wingspan_distance', raw_segmented_cm * WINGSPAN_A_POSE_OFFSET);
       }
     }
     liveMetrics.pose = detectedPose;

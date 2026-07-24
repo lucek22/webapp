@@ -2497,6 +2497,34 @@ export async function startCamera(preferredDeviceId = null) {
   }
 
   try {
+    // Helper function to request getUserMedia with an explicit timeout to detect silent browser hangs
+    const getUserMediaWithTimeout = (constraints, timeoutMs = 7000) => {
+      return new Promise((resolve, reject) => {
+        let isTimedOut = false;
+        const timer = setTimeout(() => {
+          isTimedOut = true;
+          reject(new Error("TIMEOUT: getUserMedia took longer than " + (timeoutMs/1000) + "s. This usually indicates that Firefox Android (Fennec) has a silent permission block, a hardware lock, or is waiting for user consent that is not surfacing on screen."));
+        }, timeoutMs);
+
+        console.log("Calling getUserMedia with constraints:", JSON.stringify(constraints));
+        navigator.mediaDevices.getUserMedia(constraints)
+          .then(stream => {
+            if (isTimedOut) {
+              console.warn("getUserMedia eventually resolved after timeout, stopping tracks.");
+              stream.getTracks().forEach(t => t.stop());
+              return;
+            }
+            clearTimeout(timer);
+            resolve(stream);
+          })
+          .catch(err => {
+            if (isTimedOut) return;
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
+    };
+
     // Attempt standard resolution on mobile to save bandwidth/computation, but HD/FHD on desktop
     const primaryVideoConstraints = state.isMobile ? {
       width: { ideal: 640 },
@@ -2522,18 +2550,32 @@ export async function startCamera(preferredDeviceId = null) {
     }
 
     try {
-      // Attempt HD/FHD stream for high tracking accuracy (min 720p, ideal 1080p)
-      state.activeStream = await navigator.mediaDevices.getUserMedia({
+      console.log("Attempting primary camera stream...");
+      state.activeStream = await getUserMediaWithTimeout({
         audio: false,
         video: primaryVideoConstraints
-      });
+      }, 7000);
+      console.log("Primary camera stream successfully acquired!");
     } catch (hdErr) {
-      console.warn("HD/FHD camera request failed, falling back to 640x480:", hdErr);
-      // Fallback to standard definition if HD is overconstrained or unsupported
-      state.activeStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: fallbackVideoConstraints
-      });
+      console.warn("Primary camera stream request failed or timed out:", hdErr.message || hdErr);
+      try {
+        console.log("Attempting fallback camera stream...");
+        // Fallback to standard definition if primary constraints fail or time out
+        state.activeStream = await getUserMediaWithTimeout({
+          audio: false,
+          video: fallbackVideoConstraints
+        }, 7000);
+        console.log("Fallback camera stream successfully acquired!");
+      } catch (fallbackErr) {
+        console.warn("Fallback camera stream request failed or timed out:", fallbackErr.message || fallbackErr);
+        console.log("Attempting absolute raw camera stream fallback ({ video: true })...");
+        // Absolute fallback with zero formatting or facing constraints to bypass constraint parsing blocks
+        state.activeStream = await getUserMediaWithTimeout({
+          audio: false,
+          video: true
+        }, 7000);
+        console.log("Absolute raw camera stream successfully acquired!");
+      }
     }
     
     videoElement.srcObject = state.activeStream;

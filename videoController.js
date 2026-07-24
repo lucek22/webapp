@@ -224,8 +224,9 @@ export function startVideoRecording(updateRecordButtonUI) {
         statusElement.textContent = successMsg;
       }
 
-      if (state.activeProfileId) {
-        saveVideoToActiveProfile(safeBlob, fileExt, finalDuration);
+      const targetProfileId = state.recordingProfileId || state.activeProfileId;
+      if (targetProfileId) {
+        saveVideoToActiveProfile(safeBlob, fileExt, finalDuration, targetProfileId);
       } else {
         setTimeout(() => {
           window.URL.revokeObjectURL(url);
@@ -236,6 +237,7 @@ export function startVideoRecording(updateRecordButtonUI) {
 
   state.isRecording = true;
   state.recordingStartTime = Date.now();
+  state.recordingProfileId = state.activeProfileId;
   state.mediaRecorder.start();
   if (updateRecordButtonUI) {
     updateRecordButtonUI();
@@ -283,9 +285,12 @@ export function stopVideoRecording() {
   }
 }
 
-export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration) {
+export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDuration, targetProfileId = null) {
   try {
-    const profile = await snapshotStore.getProfile(state.activeProfileId);
+    const profileIdToUse = targetProfileId || state.activeProfileId;
+    if (!profileIdToUse) return;
+
+    const profile = await snapshotStore.getProfile(profileIdToUse);
     if (profile) {
       profile.videos = profile.videos || [];
       
@@ -318,13 +323,15 @@ export async function saveVideoToActiveProfile(blobToDownload, fileExt, finalDur
       };
 
       profile.videos.push(videoEntry);
-      state.videos = profile.videos;
+      if (String(state.activeProfileId) === String(profileIdToUse)) {
+        state.videos = profile.videos;
+      }
 
       const profileMigrated = ensureProfileSessions(profile);
-      const activeSessionId = state.activeSessionId || profileMigrated.activeSessionId || (profileMigrated.sessions && profileMigrated.sessions[0] ? profileMigrated.sessions[0].id : null);
+      const activeSessionId = (String(state.activeProfileId) === String(profileIdToUse) && state.activeSessionId) || profileMigrated.activeSessionId || (profileMigrated.sessions && profileMigrated.sessions[0] ? profileMigrated.sessions[0].id : null);
       if (activeSessionId) {
         const activeSession = profileMigrated.sessions.find(s => String(s.id) === String(activeSessionId));
-        if (activeSession) {
+        if (activeSession && String(state.activeProfileId) === String(profileIdToUse)) {
           // --- PREVENT RACE CONDITIONS AND CLOBBERING DURING ASYNC VIDEO SAVE ---
           // Ensure all active peak angles and calculated metrics currently in state are synced 
           // to this active session before we persist it back to the database.

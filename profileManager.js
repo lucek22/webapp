@@ -173,12 +173,19 @@ export async function initializeProfilesSelector() {
   }
 
   const handleProfileChange = async (selectedVal) => {
+    if (state.autoSyncTimer) {
+      clearTimeout(state.autoSyncTimer);
+      state.autoSyncTimer = null;
+    }
     if (state.isExportingFrameByFrame || state.isRecordingPlayLoop) {
       alert("An export is currently in progress. Please wait until the export completes before switching profiles.");
       if (profileSelect) profileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
       if (calProfileSelect) calProfileSelect.value = state.activeProfileId ? String(state.activeProfileId) : '';
       return;
     }
+
+    clearStateProfileMetrics();
+
     if (selectedVal === 'import') {
       state.activeProfileId = null;
       localStorage.removeItem('activeProfileId');
@@ -241,19 +248,8 @@ export async function initializeProfilesSelector() {
       if (profileSelect) profileSelect.value = '';
       if (calProfileSelect) calProfileSelect.value = '';
 
-      // Cleanly reset Guest state caches
       state.activeProfileId = null;
       localStorage.removeItem('activeProfileId');
-      state.metricsA = null;
-      state.metricsT = null;
-      state.metricsOverhead = null;
-      state.imageA = null;
-      state.imageT = null;
-      state.imageOverhead = null;
-      state.importedPortfolioMetrics = null;
-      state.pixelsPerCm = null;
-      state.calLocked = false;
-      state.squatPeaks = getDefaultSquatPeaks();
 
       if (updateDashboardOfflinePlaceholdersFn) updateDashboardOfflinePlaceholdersFn();
 
@@ -863,10 +859,75 @@ export function ensureProfileSessions(profile) {
   return profile;
 }
 
+export function clearStateProfileMetrics() {
+  if (state.autoSyncTimer) {
+    clearTimeout(state.autoSyncTimer);
+    state.autoSyncTimer = null;
+  }
+
+  state.activeSessionId = null;
+  state.metricsA = null;
+  state.metricsT = null;
+  state.metricsOverhead = null;
+  state.importedPortfolioMetrics = null;
+
+  state.squatPeaks = getDefaultSquatPeaks();
+  state.shoulderPeaks = getDefaultShoulderPeaks();
+  state.shoulderRotation = getDefaultShoulderRotation();
+  state.hipRotation = getDefaultHipRotation();
+  if (!state.ankleDorsi) state.ankleDorsi = {};
+  state.ankleDorsi.peaks = getDefaultAnkleDorsiPeaks();
+  state.ankleDorsi.isRecording = false;
+  state.thoracicExtension = getDefaultThoracicExtension();
+
+  state.imageA = null;
+  state.imageT = null;
+  state.imageOverhead = null;
+  state.imageSquatL = null;
+  state.imageSquatR = null;
+  state.imageSquatFrontal = null;
+  state.imageShoulderLStart = null;
+  state.imageShoulderLEnd = null;
+  state.imageShoulderRStart = null;
+  state.imageShoulderREnd = null;
+  state.imageShoulderRotationL = null;
+  state.imageShoulderRotationR = null;
+  state.imageHipRotationL = null;
+  state.imageHipRotationR = null;
+  state.imageThoracicExtension = null;
+  state.imageAnkleDorsi = null;
+
+  state.videoSquatL = null;
+  state.videoSquatR = null;
+  state.videoSquatFrontal = null;
+  state.videoShoulderL = null;
+  state.videoShoulderR = null;
+  state.videoShoulderRotationL = null;
+  state.videoShoulderRotationR = null;
+  state.videoHipRotationL = null;
+  state.videoHipRotationR = null;
+  state.videoAnkleDorsiL = null;
+  state.videoAnkleDorsiR = null;
+  state.videoThoracicExtension = null;
+
+  state.jointsOverhead = null;
+  state.jointsShoulderL = null;
+  state.jointsShoulderR = null;
+  state.pixelsPerCm = null;
+  state.calLocked = false;
+}
+
 export async function loadProfileIntoState(profileId) {
   try {
+    if (state.autoSyncTimer) {
+      clearTimeout(state.autoSyncTimer);
+      state.autoSyncTimer = null;
+    }
+
     let profile = await snapshotStore.getProfile(profileId);
     if (!profile) return;
+
+    clearStateProfileMetrics();
 
     const hadSessions = !!profile.sessions && Array.isArray(profile.sessions) && profile.sessions.length > 0;
     profile = ensureProfileSessions(profile);
@@ -878,10 +939,7 @@ export async function loadProfileIntoState(profileId) {
     localStorage.setItem('activeProfileId', String(profile.id));
     state.videos = profile.videos || [];
     
-    let activeSession = profile.sessions.find(s => String(s.id) === String(state.activeSessionId));
-    if (!activeSession) {
-      activeSession = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
-    }
+    let activeSession = profile.sessions.find(s => String(s.id) === String(profile.activeSessionId));
     if (!activeSession) {
       activeSession = profile.sessions[profile.sessions.length - 1];
     }
@@ -907,6 +965,13 @@ export async function loadProfileIntoState(profileId) {
     state.imageShoulderLEnd = activeSession.imageShoulderLEnd || null;
     state.imageShoulderRStart = activeSession.imageShoulderRStart || null;
     state.imageShoulderREnd = activeSession.imageShoulderREnd || null;
+    state.imageShoulderRotationL = activeSession.imageShoulderRotationL || null;
+    state.imageShoulderRotationR = activeSession.imageShoulderRotationR || null;
+    state.imageHipRotationL = activeSession.imageHipRotationL || null;
+    state.imageHipRotationR = activeSession.imageHipRotationR || null;
+    state.imageThoracicExtension = activeSession.imageThoracicExtension || null;
+    state.imageAnkleDorsi = activeSession.imageAnkleDorsi || null;
+
     state.videoSquatL = activeSession.videoSquatL || null;
     state.videoSquatR = activeSession.videoSquatR || null;
     state.videoSquatFrontal = activeSession.videoSquatFrontal || null;
@@ -916,6 +981,8 @@ export async function loadProfileIntoState(profileId) {
     state.videoShoulderRotationR = activeSession.videoShoulderRotationR || null;
     state.videoHipRotationL = activeSession.videoHipRotationL || null;
     state.videoHipRotationR = activeSession.videoHipRotationR || null;
+    state.videoAnkleDorsiL = activeSession.videoAnkleDorsiL || null;
+    state.videoAnkleDorsiR = activeSession.videoAnkleDorsiR || null;
     state.videoThoracicExtension = activeSession.videoThoracicExtension || null;
     state.jointsOverhead = activeSession.jointsOverhead || null;
     state.jointsShoulderL = activeSession.jointsShoulderL || null;
@@ -1074,8 +1141,12 @@ export async function loadProfileIntoState(profileId) {
   }
 }
 
-export async function autoSyncToActiveProfile(onlySquat = false) {
+export async function autoSyncToActiveProfile(onlySquat = false, expectedProfileId = null) {
   if (!state.activeProfileId || !state.dbInitialized) return;
+  if (expectedProfileId && String(state.activeProfileId) !== String(expectedProfileId)) {
+    console.warn(`[autoSync] Active profile changed from ${expectedProfileId} to ${state.activeProfileId}. Sync aborted.`);
+    return;
+  }
   try {
     let profile = await snapshotStore.getProfile(state.activeProfileId);
     if (!profile) return;
@@ -1089,7 +1160,9 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     if (!session) {
       session = profile.sessions[profile.sessions.length - 1];
     }
+    if (!session) return;
     
+    state.activeSessionId = session.id;
     session.timestamp = Date.now();
     if (state.pixelsPerCm !== null && state.pixelsPerCm !== undefined) session.pixelsPerCm = state.pixelsPerCm;
     
@@ -1145,16 +1218,20 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
       session.thoracicExtension = state.thoracicExtension ? JSON.parse(JSON.stringify(state.thoracicExtension)) : null;
     }
 
-    if (state.videoThoracicExtension !== undefined) session.videoThoracicExtension = state.videoThoracicExtension;
+    if (state.ankleDorsi && state.ankleDorsi.peaks !== undefined) {
+      session.ankleDorsiPeaks = state.ankleDorsi.peaks ? JSON.parse(JSON.stringify(state.ankleDorsi.peaks)) : null;
+    }
 
+    if (state.videoThoracicExtension !== undefined) session.videoThoracicExtension = state.videoThoracicExtension;
     if (state.videoHipRotationL !== undefined) session.videoHipRotationL = state.videoHipRotationL;
     if (state.videoHipRotationR !== undefined) session.videoHipRotationR = state.videoHipRotationR;
     if (state.videoAnkleDorsiL !== undefined) session.videoAnkleDorsiL = state.videoAnkleDorsiL;
     if (state.videoAnkleDorsiR !== undefined) session.videoAnkleDorsiR = state.videoAnkleDorsiR;
-    if (state.videoThoracicExtension !== undefined) session.videoThoracicExtension = state.videoThoracicExtension;
 
     if (state.imageHipRotationL !== undefined) session.imageHipRotationL = state.imageHipRotationL;
     if (state.imageHipRotationR !== undefined) session.imageHipRotationR = state.imageHipRotationR;
+    if (state.imageThoracicExtension !== undefined) session.imageThoracicExtension = state.imageThoracicExtension;
+    if (state.imageAnkleDorsi !== undefined) session.imageAnkleDorsi = state.imageAnkleDorsi;
 
     profile.metricsA = session.metricsA;
     profile.metricsT = session.metricsT;
@@ -1164,6 +1241,7 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.shoulderRotation = session.shoulderRotation;
     profile.hipRotation = session.hipRotation;
     profile.thoracicExtension = session.thoracicExtension;
+    profile.ankleDorsiPeaks = session.ankleDorsiPeaks;
     profile.imageA = session.imageA;
     profile.imageT = session.imageT;
     profile.imageOverhead = session.imageOverhead;
@@ -1178,6 +1256,8 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
     profile.imageShoulderRotationR = session.imageShoulderRotationR;
     profile.imageHipRotationL = session.imageHipRotationL;
     profile.imageHipRotationR = session.imageHipRotationR;
+    profile.imageThoracicExtension = session.imageThoracicExtension;
+    profile.imageAnkleDorsi = session.imageAnkleDorsi;
     profile.videoSquatL = session.videoSquatL;
     profile.videoSquatR = session.videoSquatR;
     profile.videoSquatFrontal = session.videoSquatFrontal;
@@ -1202,12 +1282,13 @@ export async function autoSyncToActiveProfile(onlySquat = false) {
   }
 }
 
-export function autoSyncToActiveProfileDebounced() {
+export function autoSyncToActiveProfileDebounced(expectedProfileId = null) {
+  const targetId = expectedProfileId || state.activeProfileId;
   if (state.autoSyncTimer) {
     clearTimeout(state.autoSyncTimer);
   }
   state.autoSyncTimer = setTimeout(() => {
-    autoSyncToActiveProfile();
+    autoSyncToActiveProfile(false, targetId);
   }, 1000);
 }
 

@@ -2473,7 +2473,11 @@ export async function startCamera(preferredDeviceId = null) {
   }
 
   try {
-    const primaryVideoConstraints = {
+    // Attempt standard resolution on mobile to save bandwidth/computation, but HD/FHD on desktop
+    const primaryVideoConstraints = state.isMobile ? {
+      width: { ideal: 640 },
+      height: { ideal: 480 }
+    } : {
       width: { min: 1280, ideal: 1920 },
       height: { min: 720, ideal: 1080 }
     };
@@ -2661,7 +2665,11 @@ export async function startCamera(preferredDeviceId = null) {
       }
 
       const elapsed = Date.now() - startTime;
-      const delay = Math.max(50 - elapsed, 1); // target ~20fps inference to prevent CPU starvation
+      // Target FPS: ~20fps on desktop (50ms interval), ~15fps on mobile (67ms interval) to prevent CPU starvation & thermal throttling
+      const targetInterval = state.isMobile ? 67 : 50;
+      // Guarantee a minimum pause (15ms on mobile, 1ms on desktop) to let the browser's UI thread process user touches and layout updates
+      const minPause = state.isMobile ? 15 : 1;
+      const delay = Math.max(targetInterval - elapsed, minPause);
       setTimeout(cameraInferenceLoop, delay);
     }
 
@@ -5122,6 +5130,14 @@ if (inputUserHeight) {
 // Background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {
   state.yoloModeActive = !state.yoloModeActive;
+  
+  // Dynamically toggle segmentation on/off to preserve immense CPU/GPU computational resources when inactive
+  try {
+    pose.setOptions({ enableSegmentation: state.yoloModeActive });
+  } catch (err) {
+    console.warn("Failed to dynamically update MediaPipe options:", err);
+  }
+
   if (state.yoloModeActive) {
     yoloToggleBtn.textContent = "Disable Background Isolation";
     yoloToggleBtn.classList.add('active');

@@ -185,10 +185,16 @@ export const RIGHT_FOOT_INDEX = 32;
 
 export const MARKER_PHYSICAL_SIZE_CM = 20.0;
 
+export function isMobileDevice() {
+  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    || (window.innerWidth <= 992);
+}
+
 // ==========================================
 // GLOBAL STATE VARIABLES (SHARED)
 // ==========================================
 export const state = {
+  isMobile: isMobileDevice(),
   canvasWidth: 640,
   canvasHeight: 480,
   currentMode: "posture",

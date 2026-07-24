@@ -34,11 +34,10 @@ export const pose = new Holistic({
 });
 
 // Configure Holistic options (combines pose and hands tracking in a single optimized pass)
-// On mobile, we dynamically use modelComplexity: 0 to gain massive (3x - 5x) frame rate improvements.
-// By default, enableSegmentation is set to false on both desktop and mobile to avoid massive CPU overhead,
-// and is toggled dynamically only when background isolation (YOLO mode) is explicitly enabled.
+// On mobile, we use modelComplexity: 1 (Full) and on desktop we use 2 (Heavy) for maximum accuracy,
+// made possible by our decoupled render loop which prevents UI thread blocking.
 pose.setOptions({
-  modelComplexity: state.isMobile ? 0 : 1,
+  modelComplexity: state.isMobile ? 1 : 2,
   smoothLandmarks: true,
   enableSegmentation: state.yoloModeActive, 
   refineFaceLandmarks: false,

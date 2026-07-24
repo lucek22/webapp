@@ -275,6 +275,7 @@ export const state = {
   frozenJoints: null,
   frozenMetrics: null,
   yoloModeActive: false,
+  showSnapshotSkeletons: true,
   frameCount: 0,
   latestLeftMiddleTip: null,
   latestRightMiddleTip: null,

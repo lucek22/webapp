@@ -73,7 +73,8 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
       if (!state.isSnapshotFrozen) return;
       const nameInput = document.getElementById('snapshot-name-input');
       const label = nameInput ? nameInput.value.trim() : 'biomechanical-snapshot';
-      const dataUrl = frozenFrameCanvas.toDataURL('image/png');
+      const includeSkeleton = document.getElementById('toggle-snapshot-skeleton')?.checked ?? true;
+      const dataUrl = includeSkeleton ? canvasElement.toDataURL('image/png') : frozenFrameCanvas.toDataURL('image/png');
       downloadSnapshotImage(dataUrl, label);
     });
   }
@@ -106,7 +107,8 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
         span_r_cm
       };
 
-      const capturedImg = frozenFrameCanvas.toDataURL('image/png');
+      const includeSkeleton = document.getElementById('toggle-snapshot-skeleton')?.checked ?? true;
+      const capturedImg = includeSkeleton ? canvasElement.toDataURL('image/png') : frozenFrameCanvas.toDataURL('image/png');
       if (state.currentMode === 'squat') {
         if (state.squatTestingSide === 'left') {
           state.imageSquatL = capturedImg;

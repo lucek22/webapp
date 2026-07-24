@@ -713,14 +713,20 @@ export function drawActiveMediaBackground() {
   }
 }
 
-export function onPoseResults(results) {
+export function onPoseResults(results, isRenderOnly = false) {
   try {
+    const isNewResults = !isRenderOnly;
     let calculated = null;
     state.latestPoseResults = results;
 
     // Run core metrics calculation during frame-by-frame preprocessing (and other phases) to ensure peaks are fully analyzed
     if (results && results.poseLandmarks) {
-      calculated = calculatePoseMetrics(results);
+      if (isNewResults) {
+        calculated = calculatePoseMetrics(results);
+        state.cachedCalculated = calculated;
+      } else {
+        calculated = state.cachedCalculated || null;
+      }
       if (calculated) {
         if (state.currentMode === 'ankledorsi') {
           processAnkleDorsi(calculated);
@@ -1626,7 +1632,9 @@ export function onPoseResults(results) {
 
       // Draw real-time biometrics to dashboard and ruler if calibrated
       if (state.pixelsPerCm && liveMetrics) {
-        renderDashboard(liveMetrics);
+        if (isNewResults) {
+          renderDashboard(liveMetrics);
+        }
 
         // Position ruler on whichever side has more margin
         const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
@@ -1668,7 +1676,9 @@ export function onPoseResults(results) {
           }
 
           if (isPoseMatched) {
-            state.holdTimerMs += dt;
+            if (isNewResults) {
+              state.holdTimerMs += dt;
+            }
             const progress = Math.min(state.holdTimerMs / state.REQ_HOLD_MS, 1.0);
             
             // Draw glassmorphic holding progress bar
@@ -1740,6 +1750,18 @@ export function onPoseResults(results) {
               }
               frozenFrameCtx.restore();
               
+              if (state.showSnapshotSkeletons) {
+                drawFullSkeletalMesh(all_landmarks, frozenFrameCtx);
+                drawSkeletalFramework({
+                  shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+                  shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+                  head_top, ground_y, ruler_x, live_feet_inches_str,
+                  smoothed_live_height: liveMetrics.live_height,
+                  kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+                  all_landmarks: all_landmarks
+                }, frozenFrameCtx);
+              }
+
               // Cache joints & metrics for lockout screen and consolidation
               state.frozenAutoJoints = JSON.parse(JSON.stringify({
                 shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
@@ -1771,7 +1793,9 @@ export function onPoseResults(results) {
               state.lockoutTimerMs = state.LOCKOUT_MS;
             }
           } else {
-            state.holdTimerMs = 0;
+            if (isNewResults) {
+              state.holdTimerMs = 0;
+            }
           }
         }
 
@@ -2139,7 +2163,7 @@ function drawFrozenSnapshot() {
   canvasCtx.drawImage(frozenFrameCanvas, 0, 0, canvasElement.width, canvasElement.height);
 
   // 2. Draw the frozen skeleton
-  if (state.frozenJoints) {
+  if (state.frozenJoints && state.showSnapshotSkeletons) {
     const {
       shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
       shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
@@ -2163,7 +2187,7 @@ function drawFrozenSnapshot() {
   }
 
   // Draw frozen hand skeletons if available
-  if (state.frozenHandResults) {
+  if (state.frozenHandResults && state.showSnapshotSkeletons) {
     drawHandMesh(state.frozenHandResults.multiHandLandmarks, state.frozenHandResults.multiHandedness);
   }
 
@@ -2271,7 +2295,7 @@ export function startUiRenderLoop() {
         if (state.latestPoseResults && !state.activeModalVideoProcessing) {
           // If YOLO mode is active, we let the async callback handle drawing to avoid WebGL recycled resource flashing
           if (!state.yoloModeActive) {
-            onPoseResults(state.latestPoseResults);
+            onPoseResults(state.latestPoseResults, true);
           }
         } else if (!state.latestPoseResults) {
           // If no results yet, clear canvas, draw background, and draw manual calibration box if active
@@ -5726,5 +5750,16 @@ setTimeout(() => {
   updateThoracicExtensionSidebarUI();
   updateDorsiLiveUI();
 }, 200);
+
+// Setup toggle snapshot skeleton listener
+const toggleSnapshotSkeleton = document.getElementById('toggle-snapshot-skeleton');
+if (toggleSnapshotSkeleton) {
+  toggleSnapshotSkeleton.addEventListener('change', (e) => {
+    state.showSnapshotSkeletons = e.target.checked;
+    if (state.isSnapshotFrozen) {
+      drawFrozenSnapshot();
+    }
+  });
+}
 
 window.addEventListener('load', initScarletRecorder);

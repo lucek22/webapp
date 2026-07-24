@@ -3927,8 +3927,10 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
         const entries = [];
 
+        const thresholds = await getROMThresholds();
+
         const getExScore = (session) => {
-          if (!session) return { peak: 0, l: 0, r: 0 };
+          if (!session) return { peak: 0, l: 0, r: 0, count3s: 0, count2s: 0, count1s: 0 };
           const shRot = getDefaultShoulderRotation(session.shoulderRotation);
           const shPeaks = getDefaultShoulderPeaks(session.shoulderPeaks);
           const sPeaks = getDefaultSquatPeaks(session.squatPeaks);
@@ -3937,45 +3939,99 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           const tExt = getDefaultThoracicExtension(session.thoracicExtension);
 
           let l = 0, r = 0, peak = 0;
+          let count3s = 0, count2s = 0, count1s = 0;
+
+          if (exKey === 'overall_mobility') {
+            const extThresh = thresholds["External Rotation"] || { low: 60, high: 85 };
+            const intThresh = thresholds["Internal Rotation"] || { low: 50, high: 75 };
+            const flexThresh = thresholds["Shoulder Flexion"] || { low: 150, high: 170 };
+            const kneeThresh = thresholds["Knee Flexion"] || { low: 80, high: 110 };
+            const hipExtThresh = thresholds["Hip External Rotation"] || { low: 30, high: 45 };
+            const hipIntThresh = thresholds["Hip Internal Rotation"] || { low: 30, high: 45 };
+            const ankleDorsiThresh = thresholds["Ankle Dorsiflexion"] || { low: 30, high: 38 };
+            const thoracicThresh = thresholds["Thoracic Extension"] || { low: 15, high: 25 };
+
+            const getGrade = (val, thresh) => {
+              const absVal = Math.abs(val || 0);
+              if (absVal === 0 || isNaN(absVal)) return null;
+              if (absVal <= thresh.low) return 1;
+              if (absVal <= thresh.high) return 2;
+              return 3;
+            };
+
+            const items = [
+              { val: shPeaks.excursionL, thresh: flexThresh },
+              { val: shPeaks.excursionR, thresh: flexThresh },
+              { val: shRot.maxExternalRotationL, thresh: extThresh },
+              { val: shRot.maxExternalRotationR, thresh: extThresh },
+              { val: shRot.maxInternalRotationL, thresh: intThresh },
+              { val: shRot.maxInternalRotationR, thresh: intThresh },
+              { val: hRot.maxExternalRotationL, thresh: hipExtThresh },
+              { val: hRot.maxExternalRotationR, thresh: hipExtThresh },
+              { val: hRot.maxInternalRotationL, thresh: hipIntThresh },
+              { val: hRot.maxInternalRotationR, thresh: hipIntThresh },
+              { val: ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL, thresh: ankleDorsiThresh },
+              { val: ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR, thresh: ankleDorsiThresh },
+              { val: sPeaks.kneeL, thresh: kneeThresh },
+              { val: sPeaks.kneeR, thresh: kneeThresh },
+              { val: tExt.peakAngle || tExt.angle || 0, thresh: thoracicThresh }
+            ];
+
+            let totalMobilityScore = 0;
+            items.forEach(item => {
+              const g = getGrade(item.val, item.thresh);
+              if (g !== null) {
+                totalMobilityScore += g;
+                if (g === 3) count3s++;
+                else if (g === 2) count2s++;
+                else if (g === 1) count1s++;
+              }
+            });
+
+            return { peak: totalMobilityScore, l: 0, r: 0, count3s, count2s, count1s };
+          }
 
           switch (exKey) {
             case 'shoulder_flexion':
               l = shPeaks.excursionL || 0;
               r = shPeaks.excursionR || 0;
-              peak = Math.max(l, r);
               break;
             case 'shoulder_er':
               l = shRot.maxExternalRotationL || 0;
               r = shRot.maxExternalRotationR || 0;
-              peak = Math.max(l, r);
               break;
             case 'shoulder_ir':
               l = shRot.maxInternalRotationL || 0;
               r = shRot.maxInternalRotationR || 0;
-              peak = Math.max(l, r);
               break;
             case 'hip_er':
               l = hRot.maxExternalRotationL || 0;
               r = hRot.maxExternalRotationR || 0;
-              peak = Math.max(l, r);
               break;
             case 'hip_ir':
               l = hRot.maxInternalRotationL || 0;
               r = hRot.maxInternalRotationR || 0;
-              peak = Math.max(l, r);
               break;
             case 'ankle_dorsi':
               l = ankleDorsiPeaks.ankleDorsiL || ankleDorsiPeaks.shinAngleL || 0;
               r = ankleDorsiPeaks.ankleDorsiR || ankleDorsiPeaks.shinAngleR || 0;
-              peak = Math.max(l, r);
+              break;
+            case 'squat_knee_l':
+              l = sPeaks.kneeL || 0;
+              r = 0;
+              peak = l;
+              break;
+            case 'squat_knee_r':
+              l = 0;
+              r = sPeaks.kneeR || 0;
+              peak = r;
               break;
             case 'squat_knee':
               l = sPeaks.kneeL || 0;
               r = sPeaks.kneeR || 0;
-              peak = Math.max(l, r);
               break;
             case 'thoracic_extension':
-              peak = tExt.angle || 0;
+              peak = tExt.peakAngle || tExt.angle || 0;
               l = peak;
               r = peak;
               break;
@@ -3983,7 +4039,15 @@ export async function populateProfileDetails(profileId, container, preserveTab =
               break;
           }
 
-          return { peak: Math.round(peak), l: Math.round(l), r: Math.round(r) };
+          if (exKey !== 'thoracic_extension' && exKey !== 'overall_mobility') {
+            if (l > 0 && r > 0) {
+              peak = (l + r) / 2;
+            } else {
+              peak = Math.max(l, r);
+            }
+          }
+
+          return { peak: Math.round(peak * 10) / 10, l: Math.round(l), r: Math.round(r), count3s: 0, count2s: 0, count1s: 0 };
         };
 
         allProfs.forEach(p => {
@@ -4003,20 +4067,48 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                 score: sc.peak,
                 valL: sc.l,
                 valR: sc.r,
+                count3s: sc.count3s,
+                count2s: sc.count2s,
+                count1s: sc.count1s,
                 isCurrent: (Number(p.id) === Number(profile.id) && String(s.id) === String(activeSession.id))
               });
             }
           });
         });
 
-        // Sort descending
-        entries.sort((a, b) => b.score - a.score || b.timestamp - a.timestamp);
+        // Sort descending with tiebreaking
+        entries.sort((a, b) => {
+          if (exKey === 'overall_mobility') {
+            if (b.score !== a.score) return b.score - a.score;
+            if (b.count3s !== a.count3s) return b.count3s - a.count3s;
+            if (b.count2s !== a.count2s) return b.count2s - a.count2s;
+            return b.timestamp - a.timestamp;
+          } else {
+            if (b.score !== a.score) return b.score - a.score;
+            return b.timestamp - a.timestamp;
+          }
+        });
 
         let currentRank = -1;
         let currentEntry = null;
 
+        let assignRank = 1;
         entries.forEach((e, idx) => {
-          e.rank = idx + 1;
+          if (idx > 0) {
+            const prev = entries[idx - 1];
+            let isTied = false;
+            if (exKey === 'overall_mobility') {
+              isTied = (e.score === prev.score && e.count3s === prev.count3s && e.count2s === prev.count2s);
+            } else {
+              isTied = (e.score === prev.score);
+            }
+            if (!isTied) {
+              assignRank = idx + 1;
+            }
+          } else {
+            assignRank = 1;
+          }
+          e.rank = assignRank;
           if (e.isCurrent) {
             currentRank = e.rank;
             currentEntry = e;
@@ -4035,6 +4127,26 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             let tierColor = "#eab308";
             if (percentile >= 80) { tierTag = "Optimal"; tierColor = "#4ade80"; }
             else if (percentile <= 30) { tierTag = "Restricted"; tierColor = "#ef4444"; }
+
+            let peakMetricLabel = "Average Mobility";
+            let peakMetricVal = `${currentEntry.score}°`;
+            let sideDetailLabel = "Side Split";
+            let sideDetailVal = `L: ${currentEntry.valL}° / R: ${currentEntry.valR}°`;
+
+            if (exKey === 'overall_mobility') {
+              peakMetricLabel = "Overall Mobility";
+              peakMetricVal = `${currentEntry.score} pts`;
+              sideDetailLabel = "Grades Breakdown";
+              sideDetailVal = `3s: ${currentEntry.count3s} / 2s: ${currentEntry.count2s} / 1s: ${currentEntry.count1s}`;
+            } else if (exKey === 'squat_knee_l') {
+              peakMetricLabel = "Left Squat Knee";
+              sideDetailLabel = "Left Side";
+              sideDetailVal = `${currentEntry.valL}°`;
+            } else if (exKey === 'squat_knee_r') {
+              peakMetricLabel = "Right Squat Knee";
+              sideDetailLabel = "Right Side";
+              sideDetailVal = `${currentEntry.valR}°`;
+            }
 
             currentRankCard.innerHTML = `
               <div style="display: flex; align-items: center; gap: 1rem;">
@@ -4056,12 +4168,12 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
               <div style="display: flex; align-items: center; gap: 1.25rem; background: rgba(0,0,0,0.4); padding: 0.6rem 1.25rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
                 <div style="text-align: right;">
-                  <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: 0.5px;">Peak Mobility</div>
-                  <div style="font-size: 1.25rem; font-weight: 800; color: #4ade80;">${currentEntry.score}°</div>
+                  <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: 0.5px;">${peakMetricLabel}</div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: #4ade80;">${peakMetricVal}</div>
                 </div>
                 <div style="text-align: right; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 1.25rem;">
-                  <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: 0.5px;">Side Split</div>
-                  <div style="font-size: 0.85rem; font-weight: 600; color: #ccc;">L: ${currentEntry.valL}° / R: ${currentEntry.valR}°</div>
+                  <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #888; letter-spacing: 0.5px;">${sideDetailLabel}</div>
+                  <div style="font-size: 0.85rem; font-weight: 600; color: #ccc;">${sideDetailVal}</div>
                 </div>
               </div>
             `;
@@ -4109,6 +4221,19 @@ export async function populateProfileDetails(profileId, container, preserveTab =
             ? "border: 1px solid #eab308; background: rgba(234, 179, 8, 0.12); box-shadow: 0 0 12px rgba(234, 179, 8, 0.15);"
             : "border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.015);";
 
+          let subDetailStr = `${e.sessionName} • L: ${e.valL}° / R: ${e.valR}° (Avg: ${e.score}°)`;
+          if (exKey === 'overall_mobility') {
+            subDetailStr = `${e.sessionName} • 3s: ${e.count3s} | 2s: ${e.count2s} | 1s: ${e.count1s}`;
+          } else if (exKey === 'squat_knee_l') {
+            subDetailStr = `${e.sessionName} • Left Knee: ${e.valL}°`;
+          } else if (exKey === 'squat_knee_r') {
+            subDetailStr = `${e.sessionName} • Right Knee: ${e.valR}°`;
+          }
+
+          const scoreStr = (exKey === 'overall_mobility')
+            ? `${e.score} pts`
+            : `${e.score}°`;
+
           return `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.85rem; border-radius: 8px; transition: all 0.2s ease; ${highlightStyle}">
               <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -4120,11 +4245,11 @@ export async function populateProfileDetails(profileId, container, preserveTab =
                     <span>${e.profileName}</span>
                     ${e.isCurrent ? '<span style="font-size: 0.65rem; background: #eab308; color: #000; font-weight: 800; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">YOU</span>' : ''}
                   </div>
-                  <div style="font-size: 0.72rem; color: #777;">${e.sessionName} • L: ${e.valL}° / R: ${e.valR}°</div>
+                  <div style="font-size: 0.72rem; color: #777;">${subDetailStr}</div>
                 </div>
               </div>
               <div style="text-align: right;">
-                <span style="font-size: 1rem; font-weight: 800; color: ${badgeType === 'top' ? '#4ade80' : '#f87171'};">${e.score}°</span>
+                <span style="font-size: 1rem; font-weight: 800; color: ${badgeType === 'top' ? '#4ade80' : '#f87171'};">${scoreStr}</span>
               </div>
             </div>
           `;
@@ -4149,12 +4274,12 @@ export async function populateProfileDetails(profileId, container, preserveTab =
         renderLeaderboard(e.target.value);
       };
 
-      renderLeaderboard(leaderboardSelect.value || 'shoulder_flexion');
+      renderLeaderboard(leaderboardSelect.value || 'overall_mobility');
 
       const lboardBtn = container.querySelector('.athlete-tab-btn[data-tab="tab-leaderboard"]');
       if (lboardBtn) {
         lboardBtn.addEventListener('click', () => {
-          renderLeaderboard(leaderboardSelect.value || 'shoulder_flexion');
+          renderLeaderboard(leaderboardSelect.value || 'overall_mobility');
         });
       }
     }

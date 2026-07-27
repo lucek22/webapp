@@ -441,7 +441,7 @@ export function setupHipRotationListeners(onPoseResultsCallback) {
         }
         updateHipRotationSidebarUI();
 
-        if (isWebcamLive && startVideoRecordingFn) {
+        if (startVideoRecordingFn) {
           startVideoRecordingFn();
         }
 
@@ -461,16 +461,14 @@ export function setupHipRotationListeners(onPoseResultsCallback) {
         // --- STOP RECORDING & SAVE ---
         state.isHipRotationRecording = false;
 
-        const canvasElement = document.getElementById('overlay');
-        const capturedImg = canvasElement ? canvasElement.toDataURL('image/png') : null;
         const side = state.hipRotationTestingSide || 'left';
         if (side === 'left') {
-          state.imageHipRotationL = capturedImg;
+          state.imageHipRotationL = null;
         } else {
-          state.imageHipRotationR = capturedImg;
+          state.imageHipRotationR = null;
         }
 
-        if (isWebcamLive && stopVideoRecordingFn) {
+        if (stopVideoRecordingFn) {
           stopVideoRecordingFn();
         }
 

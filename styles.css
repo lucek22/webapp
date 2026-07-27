@@ -871,6 +871,14 @@
   font-weight: bold;
 }
 
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -886,7 +894,6 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  margin: 0;
   padding: 1rem;
 }
 
@@ -1821,9 +1828,14 @@ canvas {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    width: 100%;
+    box-sizing: border-box;
   }
   .container:not(.gallery-section) {
     order: 1;
+    width: 100%;
+    box-sizing: border-box;
+    align-self: stretch;
   }
   .dashboard-panel {
     order: 2;
@@ -1832,17 +1844,37 @@ canvas {
     overflow: visible !important;
     overflow-y: visible !important;
     position: static !important;
+    width: 100%;
+    box-sizing: border-box;
+    align-self: stretch;
   }
   .gallery-section {
     order: 3;
     margin-top: 0;
     overflow: visible !important;
+    width: 100%;
+    box-sizing: border-box;
+    align-self: stretch;
   }
 }
 
 @media (max-width: 640px) {
   body {
     padding: 0.5rem;
+  }
+  .brand-logo-container {
+    gap: 12px;
+    padding-left: 12px;
+    margin-bottom: 1.25rem;
+  }
+  .brand-logo-img {
+    height: 60px;
+  }
+  .brand-title {
+    font-size: 1.4rem;
+  }
+  .brand-subtitle {
+    font-size: 0.7rem;
   }
   .container {
     padding: 1rem;
@@ -1910,6 +1942,20 @@ canvas {
 }
 
 @media (max-width: 480px) {
+  .brand-logo-container {
+    gap: 10px;
+    padding-left: 10px;
+    margin-bottom: 1rem;
+  }
+  .brand-logo-img {
+    height: 48px;
+  }
+  .brand-title {
+    font-size: 1.1rem;
+  }
+  .brand-subtitle {
+    font-size: 0.62rem;
+  }
   .capture-buttons-row,
   .save-row {
     flex-direction: column !important;

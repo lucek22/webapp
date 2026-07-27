@@ -185,10 +185,16 @@ export const RIGHT_FOOT_INDEX = 32;
 
 export const MARKER_PHYSICAL_SIZE_CM = 20.0;
 
+export function isMobileDevice() {
+  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    || (window.innerWidth <= 992);
+}
+
 // ==========================================
 // GLOBAL STATE VARIABLES (SHARED)
 // ==========================================
 export const state = {
+  isMobile: isMobileDevice(),
   canvasWidth: 640,
   canvasHeight: 480,
   currentMode: "posture",
@@ -204,7 +210,13 @@ export const state = {
     maxKneeCaveR: 0,
     valgusFirstTimestamp: null,
     valgusPeakTimestamp: null,
-    valgusPeakScore: 0
+    valgusPeakScore: 0,
+    maxForwardLeanL: 0,
+    maxForwardLeanR: 0,
+    forwardLeanTimestampL: null,
+    forwardLeanTimestampR: null,
+    forwardLeanKneeL: null,
+    forwardLeanKneeR: null
   },
   shoulderTestingSide: "left",
   shoulderPeaks: {
@@ -263,6 +275,7 @@ export const state = {
   frozenJoints: null,
   frozenMetrics: null,
   yoloModeActive: false,
+  showSnapshotSkeletons: true,
   frameCount: 0,
   latestLeftMiddleTip: null,
   latestRightMiddleTip: null,

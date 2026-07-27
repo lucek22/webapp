@@ -713,14 +713,20 @@ export function drawActiveMediaBackground() {
   }
 }
 
-export function onPoseResults(results) {
+export function onPoseResults(results, isRenderOnly = false) {
   try {
+    const isNewResults = !isRenderOnly;
     let calculated = null;
     state.latestPoseResults = results;
 
     // Run core metrics calculation during frame-by-frame preprocessing (and other phases) to ensure peaks are fully analyzed
     if (results && results.poseLandmarks) {
-      calculated = calculatePoseMetrics(results);
+      if (isNewResults) {
+        calculated = calculatePoseMetrics(results);
+        state.cachedCalculated = calculated;
+      } else {
+        calculated = state.cachedCalculated || null;
+      }
       if (calculated) {
         if (state.currentMode === 'ankledorsi') {
           processAnkleDorsi(calculated);
@@ -742,13 +748,51 @@ export function onPoseResults(results) {
         state.squatPeaks = getDefaultSquatPeaks(state.squatPeaks);
 
         if (state.squatTestingSide === 'left') {
-          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          const activeKneeMob = Math.max(kneeMobL, kneeMobR);
+          const activeHipMob = Math.max(hipMobL, hipMobR);
+          const activeAnkleMob = Math.max(ankleMobL, ankleMobR);
+
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, activeKneeMob);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, activeHipMob);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, activeAnkleMob);
+          if (calculated && calculated.shoulder_l && calculated.hip_l) {
+            const dx = Math.abs(calculated.shoulder_l.x - calculated.hip_l.x);
+            const dy = Math.abs(calculated.hip_l.y - calculated.shoulder_l.y);
+            if (dy > 10) {
+              const trunkLeanDeg = Math.atan2(dx, dy) * (180 / Math.PI);
+              if (activeKneeMob >= 15) {
+                if (trunkLeanDeg > (state.squatPeaks.maxForwardLeanL || 0)) {
+                  state.squatPeaks.maxForwardLeanL = trunkLeanDeg;
+                  state.squatPeaks.forwardLeanKneeL = activeKneeMob;
+                  const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+                  state.squatPeaks.forwardLeanTimestampL = timeSec;
+                }
+              }
+            }
+          }
         } else if (state.squatTestingSide === 'right') {
-          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          const activeKneeMob = Math.max(kneeMobR, kneeMobL);
+          const activeHipMob = Math.max(hipMobR, hipMobL);
+          const activeAnkleMob = Math.max(ankleMobR, ankleMobL);
+
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, activeKneeMob);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, activeHipMob);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, activeAnkleMob);
+          if (calculated && calculated.shoulder_r && calculated.hip_r) {
+            const dx = Math.abs(calculated.shoulder_r.x - calculated.hip_r.x);
+            const dy = Math.abs(calculated.hip_r.y - calculated.shoulder_r.y);
+            if (dy > 10) {
+              const trunkLeanDeg = Math.atan2(dx, dy) * (180 / Math.PI);
+              if (activeKneeMob >= 15) {
+                if (trunkLeanDeg > (state.squatPeaks.maxForwardLeanR || 0)) {
+                  state.squatPeaks.maxForwardLeanR = trunkLeanDeg;
+                  state.squatPeaks.forwardLeanKneeR = activeKneeMob;
+                  const timeSec = uploadedVideo ? uploadedVideo.currentTime : null;
+                  state.squatPeaks.forwardLeanTimestampR = timeSec;
+                }
+              }
+            }
+          }
         } else if (state.squatTestingSide === 'frontal') {
           if (state.allowFrontalUpdateL) {
             state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
@@ -864,13 +908,21 @@ export function onPoseResults(results) {
       const ankleMobR = Math.max(0, 115 - (ankleAngleR || 115));
 
       if (state.squatTestingSide === 'left') {
-        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+        const activeKneeMob = Math.max(kneeMobL, kneeMobR);
+        const activeHipMob = Math.max(hipMobL, hipMobR);
+        const activeAnkleMob = Math.max(ankleMobL, ankleMobR);
+
+        state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, activeKneeMob);
+        state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, activeHipMob);
+        state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, activeAnkleMob);
       } else if (state.squatTestingSide === 'right') {
-        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+        const activeKneeMob = Math.max(kneeMobR, kneeMobL);
+        const activeHipMob = Math.max(hipMobR, hipMobL);
+        const activeAnkleMob = Math.max(ankleMobR, ankleMobL);
+
+        state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, activeKneeMob);
+        state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, activeHipMob);
+        state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, activeAnkleMob);
       } else if (state.squatTestingSide === 'frontal') {
         if (state.allowFrontalUpdateL) {
           state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
@@ -1172,13 +1224,21 @@ export function onPoseResults(results) {
 
       if (state.currentMode === 'squat' && shouldUpdatePeaks) {
         if (state.squatTestingSide === 'left') {
-          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
-          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, hipMobL);
-          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, ankleMobL);
+          const activeKneeMob = Math.max(kneeMobL, kneeMobR);
+          const activeHipMob = Math.max(hipMobL, hipMobR);
+          const activeAnkleMob = Math.max(ankleMobL, ankleMobR);
+
+          state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, activeKneeMob);
+          state.squatPeaks.hipL = Math.max(state.squatPeaks.hipL, activeHipMob);
+          state.squatPeaks.ankleL = Math.max(state.squatPeaks.ankleL, activeAnkleMob);
         } else if (state.squatTestingSide === 'right') {
-          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, kneeMobR);
-          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, hipMobR);
-          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, ankleMobR);
+          const activeKneeMob = Math.max(kneeMobR, kneeMobL);
+          const activeHipMob = Math.max(hipMobR, hipMobL);
+          const activeAnkleMob = Math.max(ankleMobR, ankleMobL);
+
+          state.squatPeaks.kneeR = Math.max(state.squatPeaks.kneeR, activeKneeMob);
+          state.squatPeaks.hipR = Math.max(state.squatPeaks.hipR, activeHipMob);
+          state.squatPeaks.ankleR = Math.max(state.squatPeaks.ankleR, activeAnkleMob);
         } else if (state.squatTestingSide === 'frontal') {
           if (state.allowFrontalUpdateL) {
             state.squatPeaks.kneeL = Math.max(state.squatPeaks.kneeL, kneeMobL);
@@ -1572,7 +1632,9 @@ export function onPoseResults(results) {
 
       // Draw real-time biometrics to dashboard and ruler if calibrated
       if (state.pixelsPerCm && liveMetrics) {
-        renderDashboard(liveMetrics);
+        if (isNewResults) {
+          renderDashboard(liveMetrics);
+        }
 
         // Position ruler on whichever side has more margin
         const body_xs = [shoulder_l, shoulder_r, hip_l, hip_r, knee_l, knee_r, ankle_l, ankle_r]
@@ -1614,7 +1676,9 @@ export function onPoseResults(results) {
           }
 
           if (isPoseMatched) {
-            state.holdTimerMs += dt;
+            if (isNewResults) {
+              state.holdTimerMs += dt;
+            }
             const progress = Math.min(state.holdTimerMs / state.REQ_HOLD_MS, 1.0);
             
             // Draw glassmorphic holding progress bar
@@ -1686,6 +1750,18 @@ export function onPoseResults(results) {
               }
               frozenFrameCtx.restore();
               
+              if (state.showSnapshotSkeletons) {
+                drawFullSkeletalMesh(all_landmarks, frozenFrameCtx);
+                drawSkeletalFramework({
+                  shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
+                  shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
+                  head_top, ground_y, ruler_x, live_feet_inches_str,
+                  smoothed_live_height: liveMetrics.live_height,
+                  kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
+                  all_landmarks: all_landmarks
+                }, frozenFrameCtx);
+              }
+
               // Cache joints & metrics for lockout screen and consolidation
               state.frozenAutoJoints = JSON.parse(JSON.stringify({
                 shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
@@ -1717,7 +1793,9 @@ export function onPoseResults(results) {
               state.lockoutTimerMs = state.LOCKOUT_MS;
             }
           } else {
-            state.holdTimerMs = 0;
+            if (isNewResults) {
+              state.holdTimerMs = 0;
+            }
           }
         }
 
@@ -2003,7 +2081,7 @@ export function saveCombinedSessionSnapshot() {
     pose: "Combined",
     isCombinedSession: true,
     skeletal_height: mA.skeletal_height,
-    wingspan: mT.wingspan,
+    wingspan: mA.wingspan,
     fingerToToeL: mO.fingerToToeL,
     fingerToToeR: mO.fingerToToeR,
     hipW: mA.hipW,
@@ -2085,7 +2163,7 @@ function drawFrozenSnapshot() {
   canvasCtx.drawImage(frozenFrameCanvas, 0, 0, canvasElement.width, canvasElement.height);
 
   // 2. Draw the frozen skeleton
-  if (state.frozenJoints) {
+  if (state.frozenJoints && state.showSnapshotSkeletons) {
     const {
       shoulder_l, elbow_l, wrist_l, hip_l, knee_l, ankle_l, heel_l, toe_l,
       shoulder_r, elbow_r, wrist_r, hip_r, knee_r, ankle_r, heel_r, toe_r,
@@ -2109,7 +2187,7 @@ function drawFrozenSnapshot() {
   }
 
   // Draw frozen hand skeletons if available
-  if (state.frozenHandResults) {
+  if (state.frozenHandResults && state.showSnapshotSkeletons) {
     drawHandMesh(state.frozenHandResults.multiHandLandmarks, state.frozenHandResults.multiHandedness);
   }
 
@@ -2217,7 +2295,7 @@ export function startUiRenderLoop() {
         if (state.latestPoseResults && !state.activeModalVideoProcessing) {
           // If YOLO mode is active, we let the async callback handle drawing to avoid WebGL recycled resource flashing
           if (!state.yoloModeActive) {
-            onPoseResults(state.latestPoseResults);
+            onPoseResults(state.latestPoseResults, true);
           }
         } else if (!state.latestPoseResults) {
           // If no results yet, clear canvas, draw background, and draw manual calibration box if active
@@ -2419,7 +2497,39 @@ export async function startCamera(preferredDeviceId = null) {
   }
 
   try {
-    const primaryVideoConstraints = {
+    // Helper function to request getUserMedia with an explicit timeout to detect silent browser hangs
+    const getUserMediaWithTimeout = (constraints, timeoutMs = 7000) => {
+      return new Promise((resolve, reject) => {
+        let isTimedOut = false;
+        const timer = setTimeout(() => {
+          isTimedOut = true;
+          reject(new Error("TIMEOUT: getUserMedia took longer than " + (timeoutMs/1000) + "s. This usually indicates that Firefox Android (Fennec) has a silent permission block, a hardware lock, or is waiting for user consent that is not surfacing on screen."));
+        }, timeoutMs);
+
+        console.log("Calling getUserMedia with constraints:", JSON.stringify(constraints));
+        navigator.mediaDevices.getUserMedia(constraints)
+          .then(stream => {
+            if (isTimedOut) {
+              console.warn("getUserMedia eventually resolved after timeout, stopping tracks.");
+              stream.getTracks().forEach(t => t.stop());
+              return;
+            }
+            clearTimeout(timer);
+            resolve(stream);
+          })
+          .catch(err => {
+            if (isTimedOut) return;
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
+    };
+
+    // Attempt standard resolution on mobile to save bandwidth/computation, but HD/FHD on desktop
+    const primaryVideoConstraints = state.isMobile ? {
+      width: { ideal: 640 },
+      height: { ideal: 480 }
+    } : {
       width: { min: 1280, ideal: 1920 },
       height: { min: 720, ideal: 1080 }
     };
@@ -2440,18 +2550,32 @@ export async function startCamera(preferredDeviceId = null) {
     }
 
     try {
-      // Attempt HD/FHD stream for high tracking accuracy (min 720p, ideal 1080p)
-      state.activeStream = await navigator.mediaDevices.getUserMedia({
+      console.log("Attempting primary camera stream...");
+      state.activeStream = await getUserMediaWithTimeout({
         audio: false,
         video: primaryVideoConstraints
-      });
+      }, 7000);
+      console.log("Primary camera stream successfully acquired!");
     } catch (hdErr) {
-      console.warn("HD/FHD camera request failed, falling back to 640x480:", hdErr);
-      // Fallback to standard definition if HD is overconstrained or unsupported
-      state.activeStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: fallbackVideoConstraints
-      });
+      console.warn("Primary camera stream request failed or timed out:", hdErr.message || hdErr);
+      try {
+        console.log("Attempting fallback camera stream...");
+        // Fallback to standard definition if primary constraints fail or time out
+        state.activeStream = await getUserMediaWithTimeout({
+          audio: false,
+          video: fallbackVideoConstraints
+        }, 7000);
+        console.log("Fallback camera stream successfully acquired!");
+      } catch (fallbackErr) {
+        console.warn("Fallback camera stream request failed or timed out:", fallbackErr.message || fallbackErr);
+        console.log("Attempting absolute raw camera stream fallback ({ video: true })...");
+        // Absolute fallback with zero formatting or facing constraints to bypass constraint parsing blocks
+        state.activeStream = await getUserMediaWithTimeout({
+          audio: false,
+          video: true
+        }, 7000);
+        console.log("Absolute raw camera stream successfully acquired!");
+      }
     }
     
     videoElement.srcObject = state.activeStream;
@@ -2607,7 +2731,11 @@ export async function startCamera(preferredDeviceId = null) {
       }
 
       const elapsed = Date.now() - startTime;
-      const delay = Math.max(50 - elapsed, 1); // target ~20fps inference to prevent CPU starvation
+      // Target FPS: ~20fps on desktop (50ms interval), ~15fps on mobile (67ms interval) to prevent CPU starvation & thermal throttling
+      const targetInterval = state.isMobile ? 67 : 50;
+      // Guarantee a minimum pause (15ms on mobile, 1ms on desktop) to let the browser's UI thread process user touches and layout updates
+      const minPause = state.isMobile ? 15 : 1;
+      const delay = Math.max(targetInterval - elapsed, minPause);
       setTimeout(cameraInferenceLoop, delay);
     }
 
@@ -3066,6 +3194,9 @@ export async function handleUploadedFile(file) {
               state.squatPeaks.kneeL = 0;
               state.squatPeaks.hipL = 0;
               state.squatPeaks.ankleL = 0;
+              state.squatPeaks.maxForwardLeanL = 0;
+              state.squatPeaks.forwardLeanTimestampL = null;
+              state.squatPeaks.forwardLeanKneeL = null;
               state.imageSquatL = null; // Clear pre-existing static overlay
             } else if (importTarget === 'squat-r') {
               state.squatTestingSide = 'right';
@@ -3074,6 +3205,9 @@ export async function handleUploadedFile(file) {
               state.squatPeaks.kneeR = 0;
               state.squatPeaks.hipR = 0;
               state.squatPeaks.ankleR = 0;
+              state.squatPeaks.maxForwardLeanR = 0;
+              state.squatPeaks.forwardLeanTimestampR = null;
+              state.squatPeaks.forwardLeanKneeR = null;
               state.imageSquatR = null; // Clear pre-existing static overlay
             } else if (importTarget === 'squat-frontal') {
               state.squatTestingSide = 'frontal';
@@ -5062,6 +5196,14 @@ if (inputUserHeight) {
 // Background isolation click handler
 yoloToggleBtn.addEventListener('click', () => {
   state.yoloModeActive = !state.yoloModeActive;
+  
+  // Dynamically toggle segmentation on/off to preserve immense CPU/GPU computational resources when inactive
+  try {
+    pose.setOptions({ enableSegmentation: state.yoloModeActive });
+  } catch (err) {
+    console.warn("Failed to dynamically update MediaPipe options:", err);
+  }
+
   if (state.yoloModeActive) {
     yoloToggleBtn.textContent = "Disable Background Isolation";
     yoloToggleBtn.classList.add('active');
@@ -5650,5 +5792,16 @@ setTimeout(() => {
   updateThoracicExtensionSidebarUI();
   updateDorsiLiveUI();
 }, 200);
+
+// Setup toggle snapshot skeleton listener
+const toggleSnapshotSkeleton = document.getElementById('toggle-snapshot-skeleton');
+if (toggleSnapshotSkeleton) {
+  toggleSnapshotSkeleton.addEventListener('change', (e) => {
+    state.showSnapshotSkeletons = e.target.checked;
+    if (state.isSnapshotFrozen) {
+      drawFrozenSnapshot();
+    }
+  });
+}
 
 window.addEventListener('load', initScarletRecorder);

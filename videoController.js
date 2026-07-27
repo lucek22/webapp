@@ -59,7 +59,7 @@ export function updateVideoControlsUI() {
   videoTimeDisplay.textContent = `${formatTime(current)} / ${formatTime(duration)}`;
 }
 
-export async function renderSingleVideoFrame(poseModel) {
+export async function renderSingleVideoFrame(poseModel, handsModel) {
   if (state.uploadedMediaType === 'video') return;
   if (!state.isUploadedMedia || !uploadedVideo) return;
   
@@ -73,6 +73,7 @@ export async function renderSingleVideoFrame(poseModel) {
   
   try {
     if (poseModel) await poseModel.send({ image: uploadedVideo });
+    if (handsModel) await handsModel.send({ image: uploadedVideo });
     
     if (state.latestPoseResults && drawPoseResultsCallback) {
       drawPoseResultsCallback(state.latestPoseResults);
@@ -85,7 +86,7 @@ export async function renderSingleVideoFrame(poseModel) {
   } finally {
     isSeekingInferenceRunning = false;
     if (pendingInferenceRequest) {
-      renderSingleVideoFrame(poseModel);
+      renderSingleVideoFrame(poseModel, handsModel);
     }
   }
 }
@@ -686,7 +687,7 @@ export function toggleVideoRecording() {
 }
 
 // Bind custom Buckeye floating playbar control hooks
-export function setupVideoControls(poseModel, onPoseResults, drawHandMesh) {
+export function setupVideoControls(poseModel, handsModel, onPoseResults, drawHandMesh) {
   registerVideoCallbacks(onPoseResults, drawHandMesh);
 
   if (uploadedVideo) {
@@ -708,7 +709,7 @@ export function setupVideoControls(poseModel, onPoseResults, drawHandMesh) {
 
     uploadedVideo.addEventListener('seeked', () => {
       if (uploadedVideo.paused && !state.isExportingFrameByFrame && !state.isRecordingPlayLoop && !state.isRecording) {
-        renderSingleVideoFrame(poseModel);
+        renderSingleVideoFrame(poseModel, handsModel);
       }
     });
   }

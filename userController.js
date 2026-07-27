@@ -2081,7 +2081,7 @@ export function saveCombinedSessionSnapshot() {
     pose: "Combined",
     isCombinedSession: true,
     skeletal_height: mA.skeletal_height,
-    wingspan: mT.wingspan,
+    wingspan: mA.wingspan,
     fingerToToeL: mO.fingerToToeL,
     fingerToToeR: mO.fingerToToeR,
     hipW: mA.hipW,

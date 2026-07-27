@@ -34,10 +34,10 @@ export const pose = new Holistic({
 });
 
 // Configure Holistic options (combines pose and hands tracking in a single optimized pass)
-// On mobile, we use modelComplexity: 1 (Full) and on desktop we use 2 (Heavy) for maximum accuracy,
+// We use complexity 2 (Heavy) for maximum accuracy,
 // made possible by our decoupled render loop which prevents UI thread blocking.
 pose.setOptions({
-  modelComplexity: state.isMobile ? 1 : 2,
+  modelComplexity: 2,
   smoothLandmarks: true,
   enableSegmentation: state.yoloModeActive, 
   refineFaceLandmarks: false,

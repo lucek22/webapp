@@ -650,17 +650,23 @@ export function renderDashboard(metrics) {
   }
 
   // Render height
-  const skeletal_inches = metrics.skeletal_height / 2.54;
-  const skeletal_feet = Math.floor(skeletal_inches / 12);
-  const skeletal_inches_left = skeletal_inches % 12;
-  const skeletal_feet_inches_str = `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
+  const rawH = (metrics && typeof metrics.skeletal_height === 'number' && !isNaN(metrics.skeletal_height)) ? metrics.skeletal_height : null;
+  if (rawH !== null) {
+    const skeletal_inches = rawH / 2.54;
+    const skeletal_feet = Math.floor(skeletal_inches / 12);
+    const skeletal_inches_left = skeletal_inches % 12;
+    const skeletal_feet_inches_str = `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
 
-  if (state.useInches) {
-    heightCmDisp.textContent = skeletal_feet_inches_str;
-    heightFtDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm (Stature)`;
+    if (state.useInches) {
+      if (heightCmDisp) heightCmDisp.textContent = skeletal_feet_inches_str;
+      if (heightFtDisp) heightFtDisp.textContent = `${rawH.toFixed(1)} cm (Stature)`;
+    } else {
+      if (heightCmDisp) heightCmDisp.textContent = `${rawH.toFixed(1)} cm`;
+      if (heightFtDisp) heightFtDisp.textContent = `${skeletal_feet_inches_str} (Stature)`;
+    }
   } else {
-    heightCmDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm`;
-    heightFtDisp.textContent = `${skeletal_feet_inches_str} (Stature)`;
+    if (heightCmDisp) heightCmDisp.textContent = "--.-";
+    if (heightFtDisp) heightFtDisp.textContent = "--.-";
   }
 
   // Render angles
@@ -882,7 +888,8 @@ export function onPoseResults(results, isRenderOnly = false) {
       const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
 
       // Compute feet & inches string for ruler label
-      const live_inches = liveMetrics.live_height / 2.54;
+      const lh = (liveMetrics && typeof liveMetrics.live_height === 'number' && !isNaN(liveMetrics.live_height)) ? liveMetrics.live_height : 0;
+      const live_inches = lh / 2.54;
       const live_feet = Math.floor(live_inches / 12);
       const live_inches_left = live_inches % 12;
       const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
@@ -1346,8 +1353,15 @@ export function onPoseResults(results, isRenderOnly = false) {
             if (shoulderRotationLiveAngleL) shoulderRotationLiveAngleL.textContent = '--°';
           }
 
+          const isCheating = state.liveShoulderRotationMeasurer.isCurrentlyCheatingER || state.liveShoulderRotationMeasurer.isCurrentlyCheatingIR;
+          const cheatingReasons = state.liveShoulderRotationMeasurer.isCurrentlyCheatingER ? state.liveShoulderRotationMeasurer.currentERCheating : state.liveShoulderRotationMeasurer.currentIRCheating;
+          const themeColor = isCheating ? '#ef4444' : '#00e5ff';
+
           if (shoulderRotationStatusVal) {
-            if (isRecording) {
+            if (isCheating) {
+              shoulderRotationStatusVal.textContent = `⚠️ Cheating (${cheatingReasons[0] || 'Detected'})`;
+              shoulderRotationStatusVal.className = 'text-red';
+            } else if (isRecording) {
               shoulderRotationStatusVal.textContent = 'Recording Peak Angles...';
               shoulderRotationStatusVal.className = 'text-amber';
             } else {
@@ -1386,7 +1400,7 @@ export function onPoseResults(results, isRenderOnly = false) {
             // 2. Draw angle arc at the elbow
             const r = Math.min(30, forearmLen / 2);
             canvasCtx.save();
-            canvasCtx.strokeStyle = '#00e5ff'; // Glowing cyan
+            canvasCtx.strokeStyle = themeColor;
             canvasCtx.lineWidth = 2.5;
             canvasCtx.beginPath();
             const forearmAngleRad = Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x);
@@ -1395,11 +1409,11 @@ export function onPoseResults(results, isRenderOnly = false) {
             canvasCtx.stroke();
             canvasCtx.restore();
 
-            // 3. Draw premium glowing line for the forearm (elbow to wrist)
+            // 3. Draw glowing line for forearm (elbow to wrist)
             canvasCtx.save();
-            canvasCtx.strokeStyle = '#00e5ff';
+            canvasCtx.strokeStyle = themeColor;
             canvasCtx.lineWidth = 4;
-            canvasCtx.shadowColor = '#00e5ff';
+            canvasCtx.shadowColor = themeColor;
             canvasCtx.shadowBlur = 10;
             canvasCtx.beginPath();
             canvasCtx.moveTo(elbow.x, elbow.y);
@@ -1409,7 +1423,7 @@ export function onPoseResults(results, isRenderOnly = false) {
 
             // 4. Draw vertical upper arm line (shoulder to elbow)
             canvasCtx.save();
-            canvasCtx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
+            canvasCtx.strokeStyle = isCheating ? 'rgba(239, 68, 68, 0.7)' : 'rgba(0, 229, 255, 0.5)';
             canvasCtx.lineWidth = 3;
             canvasCtx.beginPath();
             canvasCtx.moveTo(shoulder.x, shoulder.y);
@@ -1417,8 +1431,43 @@ export function onPoseResults(results, isRenderOnly = false) {
             canvasCtx.stroke();
             canvasCtx.restore();
 
-            // 5. Draw floating angle badge near the wrist
-            drawAngleBadge(canvasCtx, wrist, Math.round(angle), '#00e5ff');
+            // 5. Draw cheating warning card overlay on canvas if cheating is active
+            if (isCheating && cheatingReasons.length > 0) {
+              canvasCtx.save();
+              const cardX = Math.max(10, elbow.x - 110);
+              const cardY = Math.max(10, elbow.y - 75);
+              const cardW = 220;
+              const cardH = 24 + cheatingReasons.length * 16;
+
+              canvasCtx.fillStyle = 'rgba(20, 10, 15, 0.88)';
+              canvasCtx.strokeStyle = '#ef4444';
+              canvasCtx.lineWidth = 1.5;
+              canvasCtx.shadowColor = 'rgba(239, 68, 68, 0.6)';
+              canvasCtx.shadowBlur = 10;
+
+              canvasCtx.beginPath();
+              if (canvasCtx.roundRect) {
+                canvasCtx.roundRect(cardX, cardY, cardW, cardH, 6);
+              } else {
+                canvasCtx.rect(cardX, cardY, cardW, cardH);
+              }
+              canvasCtx.fill();
+              canvasCtx.stroke();
+
+              canvasCtx.fillStyle = '#ef4444';
+              canvasCtx.font = 'bold 11px Inter, sans-serif';
+              canvasCtx.fillText('⚠️ CHEATING DETECTED', cardX + 10, cardY + 15);
+
+              canvasCtx.fillStyle = '#fee2e2';
+              canvasCtx.font = '10px Inter, sans-serif';
+              cheatingReasons.forEach((r, idx) => {
+                canvasCtx.fillText(`• ${r}`, cardX + 10, cardY + 30 + idx * 14);
+              });
+              canvasCtx.restore();
+            }
+
+            // 6. Draw floating angle badge near the wrist
+            drawAngleBadge(canvasCtx, wrist, Math.round(angle), themeColor);
           }
 
           if (isRecording) {
@@ -1429,10 +1478,26 @@ export function onPoseResults(results, isRenderOnly = false) {
             if (side === 'left') {
               state.shoulderRotation.maxExternalRotationL = res.maxExternalRotation;
               state.shoulderRotation.maxInternalRotationL = res.maxInternalRotation;
+              state.shoulderRotation.cheatingL = {
+                hasCheatedER: res.hasCheatedER,
+                hasCheatedIR: res.hasCheatedIR,
+                reasonsER: res.cheatingReasonsER,
+                reasonsIR: res.cheatingReasonsIR,
+                uncappedER: res.uncappedMaxExternalRotation,
+                uncappedIR: res.uncappedMaxInternalRotation
+              };
               state.shoulderRotation.timeSeriesL = res.timeSeries;
             } else {
               state.shoulderRotation.maxExternalRotationR = res.maxExternalRotation;
               state.shoulderRotation.maxInternalRotationR = res.maxInternalRotation;
+              state.shoulderRotation.cheatingR = {
+                hasCheatedER: res.hasCheatedER,
+                hasCheatedIR: res.hasCheatedIR,
+                reasonsER: res.cheatingReasonsER,
+                reasonsIR: res.cheatingReasonsIR,
+                uncappedER: res.uncappedMaxExternalRotation,
+                uncappedIR: res.uncappedMaxInternalRotation
+              };
               state.shoulderRotation.timeSeriesR = res.timeSeries;
             }
 
@@ -1646,7 +1711,8 @@ export function onPoseResults(results, isRenderOnly = false) {
         const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
 
         // Compute feet & inches string for ruler label
-        const live_inches = liveMetrics.live_height / 2.54;
+        const lh = (liveMetrics && typeof liveMetrics.live_height === 'number' && !isNaN(liveMetrics.live_height)) ? liveMetrics.live_height : 0;
+        const live_inches = lh / 2.54;
         const live_feet = Math.floor(live_inches / 12);
         const live_inches_left = live_inches % 12;
         const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
@@ -4383,7 +4449,8 @@ export function exportCombinedAssessmentCard() {
     const ruler_margin = 40 * scale;
     const ruler_x = max_x + ruler_margin < width - 20 * scale ? max_x + ruler_margin : min_x - ruler_margin > 20 * scale ? min_x - ruler_margin : 50 * scale;
 
-    const live_inches = liveMetrics.live_height / 2.54;
+    const lh = (liveMetrics && typeof liveMetrics.live_height === 'number' && !isNaN(liveMetrics.live_height)) ? liveMetrics.live_height : 0;
+    const live_inches = lh / 2.54;
     const live_feet = Math.floor(live_inches / 12);
     const live_inches_left = live_inches % 12;
     const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;

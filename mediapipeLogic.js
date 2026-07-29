@@ -34,15 +34,13 @@ export const pose = new Holistic({
 });
 
 // Configure Holistic options (combines pose and hands tracking in a single optimized pass)
-// We use complexity 2 (Heavy) for maximum accuracy,
-// made possible by our decoupled render loop which prevents UI thread blocking.
 pose.setOptions({
-  modelComplexity: 1,
+  modelComplexity: 2,
   smoothLandmarks: true,
   enableSegmentation: state.yoloModeActive, 
   refineFaceLandmarks: false,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
+  minDetectionConfidence: 0.65,
+  minTrackingConfidence: 0.65
 });
 
 // Dummy hands object with no-op send function to prevent errors from sequential send loops
@@ -438,8 +436,8 @@ export function calculatePoseMetrics(results) {
     let scaleFactor3D = null;
 
     if (state.activeCalMethod === 'height') {
-      if (state.inputHeightCm && wl_vertical_height_cm > 10) {
-        const rawScale3D = state.inputHeightCm / wl_vertical_height_cm;
+      if (state.inputHeightCm && skeletal_height_wl > 10) {
+        const rawScale3D = state.inputHeightCm / skeletal_height_wl;
         scaleFactor3D = smooth('scale_factor_3d_height', rawScale3D, 8, 0.25);
         state.scaleFactor3D = scaleFactor3D;
       }
@@ -496,8 +494,8 @@ export function calculatePoseMetrics(results) {
         state.pixelsPerCm = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
         state.calLocked = true;
       }
-    } else if (state.activeCalMethod === 'height' && state.inputHeightCm && vertical_height_px > 10) {
-      const rawScale = vertical_height_px / state.inputHeightCm;
+    } else if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+      const rawScale = skeletal_height_px / state.inputHeightCm;
       state.pixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
     }
 
@@ -526,7 +524,7 @@ export function calculatePoseMetrics(results) {
         fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_wl * scaleFactor3D, 8, 0.25),
         shoulderW: smooth('shoulderW', shoulderW_wl * scaleFactor3D, 8, 0.25),
         hipW: smooth('hipW', hipW_wl * scaleFactor3D, 8, 0.25),
-        wingspan: smooth('wingspan_distance', wingspan_wl * scaleFactor3D, 8, 0.25),
+        wingspan: smooth('wingspan_distance', wingspan_wl * scaleFactor3D, 25, 0.08),
 
         skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm, 8, 0.25),
         live_height: smooth('body_height_live', wl_vertical_height_cm * scaleFactor3D, 8, 0.25),
@@ -537,7 +535,7 @@ export function calculatePoseMetrics(results) {
       // Real-time Pose Detection Logic
       let detectedPose = "A-Pose";
       if (liveMetrics.skeletal_height > 0) {
-        const wingspanStraightCm = smooth('wingspan_straight', wingspan_straight_wl * scaleFactor3D, 8, 0.25);
+        const wingspanStraightCm = smooth('wingspan_straight', wingspan_straight_wl * scaleFactor3D, 25, 0.08);
         const wingspanRatio = wingspanStraightCm / liveMetrics.skeletal_height;
         const avgFingerToToe = (liveMetrics.fingerToToeL + liveMetrics.fingerToToeR) / 2;
         const fingerToToeRatio = avgFingerToToe / liveMetrics.skeletal_height;
@@ -602,8 +600,8 @@ export function calculatePoseMetrics(results) {
     state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
     let activePixelsPerCm = state.pixelsPerCm;
-    if (state.activeCalMethod === 'height' && state.inputHeightCm && vertical_height_px > 10) {
-      const rawScale = vertical_height_px / state.inputHeightCm;
+    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+      const rawScale = skeletal_height_px / state.inputHeightCm;
       activePixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
       state.pixelsPerCm = activePixelsPerCm;
     } else if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {
@@ -653,7 +651,7 @@ export function calculatePoseMetrics(results) {
       fingerToToeR: smooth('finger_to_toe_r', fingerToToeR_px / activePixelsPerCm),
       shoulderW: smooth('shoulderW', shoulderW_px / activePixelsPerCm),
       hipW: smooth('hipW', hipW_px / activePixelsPerCm),
-      wingspan: smooth('wingspan_distance', wingspan_cm),
+      wingspan: smooth('wingspan_distance', wingspan_cm, 25, 0.08),
 
       skeletal_height: state.activeCalMethod === 'height' && state.inputHeightCm ? state.inputHeightCm : smooth('body_height_skeletal', skeletal_height_cm),
       live_height: smooth('body_height_live', live_height_cm),
@@ -663,7 +661,7 @@ export function calculatePoseMetrics(results) {
 
     let detectedPose = "A-Pose";
     if (liveMetrics.skeletal_height > 0) {
-      const wingspanStraightCm = smooth('wingspan_straight', straight_wingspan_cm);
+      const wingspanStraightCm = smooth('wingspan_straight', straight_wingspan_cm, 25, 0.08);
       const wingspanRatio = wingspanStraightCm / liveMetrics.skeletal_height;
       const avgFingerToToe = (liveMetrics.fingerToToeL + liveMetrics.fingerToToeR) / 2;
       const fingerToToeRatio = avgFingerToToe / liveMetrics.skeletal_height;

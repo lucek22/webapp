@@ -650,17 +650,23 @@ export function renderDashboard(metrics) {
   }
 
   // Render height
-  const skeletal_inches = metrics.skeletal_height / 2.54;
-  const skeletal_feet = Math.floor(skeletal_inches / 12);
-  const skeletal_inches_left = skeletal_inches % 12;
-  const skeletal_feet_inches_str = `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
+  const rawH = (metrics && typeof metrics.skeletal_height === 'number' && !isNaN(metrics.skeletal_height)) ? metrics.skeletal_height : null;
+  if (rawH !== null) {
+    const skeletal_inches = rawH / 2.54;
+    const skeletal_feet = Math.floor(skeletal_inches / 12);
+    const skeletal_inches_left = skeletal_inches % 12;
+    const skeletal_feet_inches_str = `${skeletal_feet}' ${skeletal_inches_left.toFixed(1)}"`;
 
-  if (state.useInches) {
-    heightCmDisp.textContent = skeletal_feet_inches_str;
-    heightFtDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm (Stature)`;
+    if (state.useInches) {
+      if (heightCmDisp) heightCmDisp.textContent = skeletal_feet_inches_str;
+      if (heightFtDisp) heightFtDisp.textContent = `${rawH.toFixed(1)} cm (Stature)`;
+    } else {
+      if (heightCmDisp) heightCmDisp.textContent = `${rawH.toFixed(1)} cm`;
+      if (heightFtDisp) heightFtDisp.textContent = `${skeletal_feet_inches_str} (Stature)`;
+    }
   } else {
-    heightCmDisp.textContent = `${metrics.skeletal_height.toFixed(1)} cm`;
-    heightFtDisp.textContent = `${skeletal_feet_inches_str} (Stature)`;
+    if (heightCmDisp) heightCmDisp.textContent = "--.-";
+    if (heightFtDisp) heightFtDisp.textContent = "--.-";
   }
 
   // Render angles
@@ -882,7 +888,8 @@ export function onPoseResults(results, isRenderOnly = false) {
       const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
 
       // Compute feet & inches string for ruler label
-      const live_inches = liveMetrics.live_height / 2.54;
+      const lh = (liveMetrics && typeof liveMetrics.live_height === 'number' && !isNaN(liveMetrics.live_height)) ? liveMetrics.live_height : 0;
+      const live_inches = lh / 2.54;
       const live_feet = Math.floor(live_inches / 12);
       const live_inches_left = live_inches % 12;
       const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
@@ -1346,8 +1353,15 @@ export function onPoseResults(results, isRenderOnly = false) {
             if (shoulderRotationLiveAngleL) shoulderRotationLiveAngleL.textContent = '--°';
           }
 
+          const isCheating = state.liveShoulderRotationMeasurer.isCurrentlyCheatingER || state.liveShoulderRotationMeasurer.isCurrentlyCheatingIR;
+          const cheatingReasons = state.liveShoulderRotationMeasurer.isCurrentlyCheatingER ? state.liveShoulderRotationMeasurer.currentERCheating : state.liveShoulderRotationMeasurer.currentIRCheating;
+          const themeColor = isCheating ? '#ef4444' : '#00e5ff';
+
           if (shoulderRotationStatusVal) {
-            if (isRecording) {
+            if (isCheating) {
+              shoulderRotationStatusVal.textContent = `⚠️ Cheating (${cheatingReasons[0] || 'Detected'})`;
+              shoulderRotationStatusVal.className = 'text-red';
+            } else if (isRecording) {
               shoulderRotationStatusVal.textContent = 'Recording Peak Angles...';
               shoulderRotationStatusVal.className = 'text-amber';
             } else {
@@ -1386,7 +1400,7 @@ export function onPoseResults(results, isRenderOnly = false) {
             // 2. Draw angle arc at the elbow
             const r = Math.min(30, forearmLen / 2);
             canvasCtx.save();
-            canvasCtx.strokeStyle = '#00e5ff'; // Glowing cyan
+            canvasCtx.strokeStyle = themeColor;
             canvasCtx.lineWidth = 2.5;
             canvasCtx.beginPath();
             const forearmAngleRad = Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x);
@@ -1395,11 +1409,11 @@ export function onPoseResults(results, isRenderOnly = false) {
             canvasCtx.stroke();
             canvasCtx.restore();
 
-            // 3. Draw premium glowing line for the forearm (elbow to wrist)
+            // 3. Draw glowing line for forearm (elbow to wrist)
             canvasCtx.save();
-            canvasCtx.strokeStyle = '#00e5ff';
+            canvasCtx.strokeStyle = themeColor;
             canvasCtx.lineWidth = 4;
-            canvasCtx.shadowColor = '#00e5ff';
+            canvasCtx.shadowColor = themeColor;
             canvasCtx.shadowBlur = 10;
             canvasCtx.beginPath();
             canvasCtx.moveTo(elbow.x, elbow.y);
@@ -1409,7 +1423,7 @@ export function onPoseResults(results, isRenderOnly = false) {
 
             // 4. Draw vertical upper arm line (shoulder to elbow)
             canvasCtx.save();
-            canvasCtx.strokeStyle = 'rgba(0, 229, 255, 0.5)';
+            canvasCtx.strokeStyle = isCheating ? 'rgba(239, 68, 68, 0.7)' : 'rgba(0, 229, 255, 0.5)';
             canvasCtx.lineWidth = 3;
             canvasCtx.beginPath();
             canvasCtx.moveTo(shoulder.x, shoulder.y);
@@ -1417,8 +1431,43 @@ export function onPoseResults(results, isRenderOnly = false) {
             canvasCtx.stroke();
             canvasCtx.restore();
 
-            // 5. Draw floating angle badge near the wrist
-            drawAngleBadge(canvasCtx, wrist, Math.round(angle), '#00e5ff');
+            // 5. Draw cheating warning card overlay on canvas if cheating is active
+            if (isCheating && cheatingReasons.length > 0) {
+              canvasCtx.save();
+              const cardX = Math.max(10, elbow.x - 110);
+              const cardY = Math.max(10, elbow.y - 75);
+              const cardW = 220;
+              const cardH = 24 + cheatingReasons.length * 16;
+
+              canvasCtx.fillStyle = 'rgba(20, 10, 15, 0.88)';
+              canvasCtx.strokeStyle = '#ef4444';
+              canvasCtx.lineWidth = 1.5;
+              canvasCtx.shadowColor = 'rgba(239, 68, 68, 0.6)';
+              canvasCtx.shadowBlur = 10;
+
+              canvasCtx.beginPath();
+              if (canvasCtx.roundRect) {
+                canvasCtx.roundRect(cardX, cardY, cardW, cardH, 6);
+              } else {
+                canvasCtx.rect(cardX, cardY, cardW, cardH);
+              }
+              canvasCtx.fill();
+              canvasCtx.stroke();
+
+              canvasCtx.fillStyle = '#ef4444';
+              canvasCtx.font = 'bold 11px Inter, sans-serif';
+              canvasCtx.fillText('⚠️ CHEATING DETECTED', cardX + 10, cardY + 15);
+
+              canvasCtx.fillStyle = '#fee2e2';
+              canvasCtx.font = '10px Inter, sans-serif';
+              cheatingReasons.forEach((r, idx) => {
+                canvasCtx.fillText(`• ${r}`, cardX + 10, cardY + 30 + idx * 14);
+              });
+              canvasCtx.restore();
+            }
+
+            // 6. Draw floating angle badge near the wrist
+            drawAngleBadge(canvasCtx, wrist, Math.round(angle), themeColor);
           }
 
           if (isRecording) {
@@ -1429,10 +1478,26 @@ export function onPoseResults(results, isRenderOnly = false) {
             if (side === 'left') {
               state.shoulderRotation.maxExternalRotationL = res.maxExternalRotation;
               state.shoulderRotation.maxInternalRotationL = res.maxInternalRotation;
+              state.shoulderRotation.cheatingL = {
+                hasCheatedER: res.hasCheatedER,
+                hasCheatedIR: res.hasCheatedIR,
+                reasonsER: res.cheatingReasonsER,
+                reasonsIR: res.cheatingReasonsIR,
+                uncappedER: res.uncappedMaxExternalRotation,
+                uncappedIR: res.uncappedMaxInternalRotation
+              };
               state.shoulderRotation.timeSeriesL = res.timeSeries;
             } else {
               state.shoulderRotation.maxExternalRotationR = res.maxExternalRotation;
               state.shoulderRotation.maxInternalRotationR = res.maxInternalRotation;
+              state.shoulderRotation.cheatingR = {
+                hasCheatedER: res.hasCheatedER,
+                hasCheatedIR: res.hasCheatedIR,
+                reasonsER: res.cheatingReasonsER,
+                reasonsIR: res.cheatingReasonsIR,
+                uncappedER: res.uncappedMaxExternalRotation,
+                uncappedIR: res.uncappedMaxInternalRotation
+              };
               state.shoulderRotation.timeSeriesR = res.timeSeries;
             }
 
@@ -1646,7 +1711,8 @@ export function onPoseResults(results, isRenderOnly = false) {
         const ruler_x = max_x + 40 < 620 ? max_x + 40 : min_x - 40 > 20 ? min_x - 40 : 50;
 
         // Compute feet & inches string for ruler label
-        const live_inches = liveMetrics.live_height / 2.54;
+        const lh = (liveMetrics && typeof liveMetrics.live_height === 'number' && !isNaN(liveMetrics.live_height)) ? liveMetrics.live_height : 0;
+        const live_inches = lh / 2.54;
         const live_feet = Math.floor(live_inches / 12);
         const live_inches_left = live_inches % 12;
         const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
@@ -1760,6 +1826,9 @@ export function onPoseResults(results, isRenderOnly = false) {
                   kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
                   all_landmarks: all_landmarks
                 }, frozenFrameCtx);
+                if (state.latestHandResults) {
+                  drawHandMesh(state.latestHandResults.multiHandLandmarks, state.latestHandResults.multiHandedness, frozenFrameCtx);
+                }
               }
 
               // Cache joints & metrics for lockout screen and consolidation
@@ -1774,7 +1843,7 @@ export function onPoseResults(results, isRenderOnly = false) {
               state.frozenAutoMetrics = JSON.parse(JSON.stringify(liveMetrics));
               
               // Capture and store specific frame image and metrics for combined report
-              const capturedImage = frozenFrameCanvas.toDataURL('image/png');
+              const capturedImage = frozenFrameCanvas.toDataURL('image/jpeg', 0.8);
               if (state.autoState === 'WAITING_A') {
                 state.imageA = capturedImage;
                 state.metricsA = JSON.parse(JSON.stringify(liveMetrics));
@@ -1923,8 +1992,36 @@ function captureSnapshot(joints, metrics, results) {
   
   statusElement.textContent = "SNAPSHOT CAPTURED! Biomechanical statistics frozen on screen.";
   
-  // Set default label in input
+  // Set default label in input and bind manual pose selector
   const nameInput = document.getElementById('snapshot-name-input');
+  const selectPose = document.getElementById('select-snapshot-pose');
+  const poseName = (metrics && metrics.pose) ? metrics.pose : "A-Pose";
+
+  if (selectPose) {
+    let selectVal = "A-Pose";
+    if (poseName === "T-Pose") selectVal = "T-Pose";
+    else if (poseName === "Overhead Reach" || poseName === "Overhead Pose") selectVal = "Overhead Reach";
+    selectPose.value = selectVal;
+
+    selectPose.onchange = () => {
+      const newPose = selectPose.value;
+      if (state.frozenMetrics) {
+        state.frozenMetrics.pose = newPose;
+      }
+      
+      const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      const dateStr = new Date().toLocaleDateString('en-US', options);
+      const subjectName = getActiveProfileName(false);
+      if (nameInput) {
+        if (subjectName) {
+          nameInput.value = `${subjectName} - ${newPose} - ${dateStr}`;
+        } else {
+          nameInput.value = `${newPose} - ${dateStr}`;
+        }
+      }
+    };
+  }
+
   if (nameInput) {
     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     const dateStr = new Date().toLocaleDateString('en-US', options);
@@ -1932,12 +2029,12 @@ function captureSnapshot(joints, metrics, results) {
     // Retrieve active subject name from profile or input fallback
     const subjectName = getActiveProfileName(false);
     
-    const poseName = (metrics && metrics.pose) ? metrics.pose : "Posture Scan";
+    const finalPoseName = selectPose ? selectPose.value : (poseName || "Posture Scan");
     
     if (subjectName) {
-      nameInput.value = `${subjectName} - ${poseName} - ${dateStr}`;
+      nameInput.value = `${subjectName} - ${finalPoseName} - ${dateStr}`;
     } else {
-      nameInput.value = `${poseName} - ${dateStr}`;
+      nameInput.value = `${finalPoseName} - ${dateStr}`;
     }
   }
 
@@ -2475,14 +2572,9 @@ export async function startCamera(preferredDeviceId = null) {
   startButton.classList.add('hidden');
   yoloToggleBtn.classList.remove('hidden');
   yoloToggleBtn.classList.add('visible-block');
-  captureBtn.classList.remove('hidden');
-  captureBtn.classList.add('visible-block');
 
-  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
-  if (autoSequenceBtn) {
-    autoSequenceBtn.classList.remove('hidden');
-    autoSequenceBtn.classList.add('visible-block');
-  }
+  // Update visibility of tracking controls (record-btn, upload-media-btn, capture-btn, auto-sequence-btn)
+  updateTrackingControlsVisibility();
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
@@ -2758,6 +2850,8 @@ export async function startCamera(preferredDeviceId = null) {
   } catch (err) {
     console.error("Camera access failed:", err);
     startButton.classList.remove('hidden');
+    // Update tracking controls visibility since startButton is now visible again (meaning tracking is inactive)
+    updateTrackingControlsVisibility();
     if (err.name === 'NotAllowedError') {
       statusElement.innerHTML = `<span class="text-red font-bold">Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
     } else if (err.name === 'NotReadableError') {
@@ -2817,7 +2911,7 @@ export function showImportDestinationModal(file) {
     // 3. Create content
     card.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; text-align: center;">
-        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #818cf8, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Import Video Recording</h2>
+        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #BA0C2F, #8A061A); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Import Video Recording</h2>
         <p style="font-size: 13px; color: #9ca3af; margin: 0; word-break: break-all;">${file.name} (${fileSizeMB} MB)</p>
       </div>
       
@@ -2851,13 +2945,13 @@ export function showImportDestinationModal(file) {
           <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
             <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select perspective option:</div>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="squat-sub" value="squat-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Sagittal Squat
+              <input type="radio" name="squat-sub" value="squat-l" checked style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Left Sagittal Squat
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="squat-sub" value="squat-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Sagittal Squat
+              <input type="radio" name="squat-sub" value="squat-r" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Right Sagittal Squat
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="squat-sub" value="squat-frontal" style="width: 14px; height: 14px; accent-color: #818cf8;"> Frontal Squat (Knee Valgus)
+              <input type="radio" name="squat-sub" value="squat-frontal" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Frontal Squat (Knee Valgus)
             </label>
           </div>
         </div>
@@ -2876,10 +2970,10 @@ export function showImportDestinationModal(file) {
           <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
             <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-sub" value="shoulder-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Flexion
+              <input type="radio" name="shoulder-sub" value="shoulder-l" checked style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Left Shoulder Flexion
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-sub" value="shoulder-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Flexion
+              <input type="radio" name="shoulder-sub" value="shoulder-r" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Right Shoulder Flexion
             </label>
           </div>
         </div>
@@ -2898,10 +2992,10 @@ export function showImportDestinationModal(file) {
           <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
             <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Rotation
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-l" checked style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Left Shoulder Rotation
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Rotation
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-r" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Right Shoulder Rotation
             </label>
           </div>
         </div>
@@ -2977,11 +3071,11 @@ export function showImportDestinationModal(file) {
           const radio = otherCard.querySelector('.import-radio');
           const dot = otherCard.querySelector('.import-radio-dot');
           if (otherCard.dataset.value === selectedValue) {
-            otherCard.style.background = 'rgba(129, 140, 248, 0.12)';
-            otherCard.style.borderColor = '#818cf8';
-            otherCard.style.boxShadow = '0 0 12px rgba(129, 140, 248, 0.2)';
-            radio.style.borderColor = '#818cf8';
-            radio.style.background = '#818cf8';
+            otherCard.style.background = 'rgba(186, 12, 47, 0.12)';
+            otherCard.style.borderColor = '#BA0C2F';
+            otherCard.style.boxShadow = '0 0 12px rgba(186, 12, 47, 0.2)';
+            radio.style.borderColor = '#BA0C2F';
+            radio.style.background = '#BA0C2F';
             dot.style.display = 'block';
           } else {
             otherCard.style.background = 'rgba(255, 255, 255, 0.02)';
@@ -2995,10 +3089,10 @@ export function showImportDestinationModal(file) {
 
         // Enable confirm button
         confirmBtn.removeAttribute('disabled');
-        confirmBtn.style.background = 'linear-gradient(135deg, #818cf8, #ec4899)';
+        confirmBtn.style.background = 'linear-gradient(135deg, #BA0C2F, #8A061A)';
         confirmBtn.style.color = '#fff';
         confirmBtn.style.cursor = 'pointer';
-        confirmBtn.style.boxShadow = '0 4px 12px rgba(129, 140, 248, 0.25)';
+        confirmBtn.style.boxShadow = '0 4px 12px rgba(186, 12, 47, 0.25)';
       });
     });
 
@@ -3088,8 +3182,6 @@ export async function handleUploadedFile(file) {
   startButton.classList.add('hidden');
   yoloToggleBtn.classList.remove('hidden');
   yoloToggleBtn.classList.add('visible-block');
-  captureBtn.classList.remove('hidden');
-  captureBtn.classList.add('visible-block');
 
   const exportCombinedBtn = document.getElementById('btn-export-combined');
   if (exportCombinedBtn) {
@@ -3117,11 +3209,8 @@ export async function handleUploadedFile(file) {
     state.isRecording = false;
   }
 
-  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
-  if (autoSequenceBtn) {
-    autoSequenceBtn.classList.remove('hidden');
-    autoSequenceBtn.classList.add('visible-block');
-  }
+  // Update visibility of tracking controls (record-btn, upload-media-btn, capture-btn, auto-sequence-btn)
+  updateTrackingControlsVisibility();
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
@@ -4383,7 +4472,8 @@ export function exportCombinedAssessmentCard() {
     const ruler_margin = 40 * scale;
     const ruler_x = max_x + ruler_margin < width - 20 * scale ? max_x + ruler_margin : min_x - ruler_margin > 20 * scale ? min_x - ruler_margin : 50 * scale;
 
-    const live_inches = liveMetrics.live_height / 2.54;
+    const lh = (liveMetrics && typeof liveMetrics.live_height === 'number' && !isNaN(liveMetrics.live_height)) ? liveMetrics.live_height : 0;
+    const live_inches = lh / 2.54;
     const live_feet = Math.floor(live_inches / 12);
     const live_inches_left = live_inches % 12;
     const live_feet_inches_str = `${live_feet}' ${live_inches_left.toFixed(1)}"`;
@@ -5373,6 +5463,99 @@ export function updateDashboardOfflinePlaceholders() {
   });
 }
 
+// Function to update the visibility of recording, uploading, and capturing controls
+// based on the current active mode (Anthropometric Scan / Posture vs ROM testing modes)
+export function updateTrackingControlsVisibility() {
+  const recordBtn = document.getElementById('record-btn');
+  const uploadMediaBtn = document.getElementById('upload-media-btn');
+  const captureBtn = document.getElementById('capture-btn');
+  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
+  const startButton = document.getElementById('start-btn');
+  const romControlsRow = document.getElementById('rom-controls-row');
+
+  const isPostureMode = (state.currentMode === 'posture');
+  const isTrackingActive = !!(state.activeStream || state.isUploadedMedia || (startButton && startButton.classList.contains('hidden')));
+
+  // 1. Record button
+  if (recordBtn) {
+    if (isPostureMode) {
+      recordBtn.classList.remove('hidden');
+    } else {
+      recordBtn.classList.add('hidden');
+    }
+  }
+
+  // 2. Upload media button
+  if (uploadMediaBtn) {
+    if (isPostureMode) {
+      uploadMediaBtn.classList.remove('hidden');
+    } else {
+      uploadMediaBtn.classList.add('hidden');
+    }
+  }
+
+  // 3. Capture button
+  if (captureBtn) {
+    if (isPostureMode && isTrackingActive) {
+      captureBtn.classList.remove('hidden');
+      captureBtn.classList.add('visible-block');
+    } else {
+      captureBtn.classList.add('hidden');
+      captureBtn.classList.remove('visible-block');
+    }
+  }
+
+  // 4. Auto Sequence button
+  if (autoSequenceBtn) {
+    if (isPostureMode && isTrackingActive) {
+      autoSequenceBtn.classList.remove('hidden');
+      autoSequenceBtn.classList.add('visible-block');
+    } else {
+      autoSequenceBtn.classList.add('hidden');
+      autoSequenceBtn.classList.remove('visible-block');
+    }
+  }
+
+  // 5. ROM testing modes teleportation
+  const romConfigs = {
+    'squat': { containerId: 'squat-controls-container', placeholderId: 'squat-controls-placeholder' },
+    'ankledorsi': { containerId: 'ankledorsi-controls-container', placeholderId: 'ankledorsi-controls-placeholder' },
+    'shoulder_flexion': { containerId: 'shoulder-controls-container', placeholderId: 'shoulder-controls-placeholder' },
+    'shoulder_rotation': { containerId: 'shoulder-rotation-controls-container', placeholderId: 'shoulder-rotation-controls-placeholder' },
+    'thoracic_extension': { containerId: 'thoracic-controls-container', placeholderId: 'thoracic-controls-placeholder' },
+    'hip_rotation': { containerId: 'hip-rotation-controls-container', placeholderId: 'hip-rotation-controls-placeholder' }
+  };
+
+  // Return all ROM containers to sidebars first
+  Object.keys(romConfigs).forEach(mode => {
+    const config = romConfigs[mode];
+    const container = document.getElementById(config.containerId);
+    const placeholder = document.getElementById(config.placeholderId);
+    if (container && placeholder && container.parentNode !== placeholder) {
+      placeholder.appendChild(container);
+    }
+  });
+
+  if (romControlsRow) {
+    if (!isPostureMode && isTrackingActive) {
+      const activeConfig = romConfigs[state.currentMode];
+      if (activeConfig) {
+        const container = document.getElementById(activeConfig.containerId);
+        if (container) {
+          romControlsRow.appendChild(container);
+          romControlsRow.classList.remove('hidden');
+        } else {
+          romControlsRow.classList.add('hidden');
+        }
+      } else {
+        romControlsRow.classList.add('hidden');
+      }
+    } else {
+      romControlsRow.classList.add('hidden');
+    }
+  }
+}
+
 // BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
 function setExerciseMode(mode) {
   if (!mode) return;
@@ -5459,6 +5642,7 @@ function setExerciseMode(mode) {
       updateHipRotationSidebarUI();
     }
   }
+  updateTrackingControlsVisibility();
 }
 
 // Bind dropdown selection change event

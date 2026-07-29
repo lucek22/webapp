@@ -685,7 +685,7 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
         const snapshotRecord = {
           name: label,
           timestamp: Date.now(),
-          image: canvasElement ? canvasElement.toDataURL('image/png') : null,
+          image: canvasElement ? canvasElement.toDataURL('image/jpeg', 0.8) : null,
           metrics: {
             isAnkleDorsi: true,
             ankleDorsiPeaks: JSON.parse(JSON.stringify(state.ankleDorsi.peaks))
@@ -701,7 +701,7 @@ export function setupAnkleDorsiEvents(onPoseResultsCallback) {
               if (session) {
                 session.ankleDorsiPeaks = JSON.parse(JSON.stringify(state.ankleDorsi.peaks));
                 if (canvasElement) {
-                  session.imageAnkleDorsi = canvasElement.toDataURL('image/png');
+                  session.imageAnkleDorsi = canvasElement.toDataURL('image/jpeg', 0.8);
                 }
               }
               await snapshotStore.saveProfile(profile);

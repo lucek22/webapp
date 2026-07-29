@@ -150,6 +150,28 @@
   margin-top: 0.5rem;
   width: 100%;
 }
+.rom-controls-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+.rom-controls-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.rom-controls-row .rom-controls-container {
+  flex-direction: row !important;
+  gap: 0.5rem;
+}
+.rom-controls-row .rom-controls-container button {
+  flex: 1;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  width: 100%;
+}
 .metric-lbl-flex {
   display: flex;
   align-items: center;
@@ -3421,6 +3443,7 @@ div[style*="color: #10b981"] {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.75rem 1.25rem;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
   background: rgba(0, 0, 0, 0.2);
@@ -3778,14 +3801,20 @@ div[style*="color: #10b981"] {
   background: rgba(186, 12, 47, 0.4);
 }
 
-/* Modal Actions Footer edit button styling */
+/* Modal Actions Footer button styling overrides */
 .profile-modal-actions .btn-edit-baseline-metrics,
 .profile-modal-actions .btn-save-metrics,
-.profile-modal-actions .btn-cancel-metrics {
+.profile-modal-actions .btn-cancel-metrics,
+.profile-modal-actions .btn-export-json,
+.profile-modal-actions .btn-close-details {
   padding: 0.5rem 1rem !important;
   font-size: 0.85rem !important;
   border-radius: 4px !important;
   margin: 0 !important;
+  flex: 1 !important; /* Forces buttons to expand and divide the available width equally, spanning the whole div */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* ==========================================================================

@@ -1760,6 +1760,9 @@ export function onPoseResults(results, isRenderOnly = false) {
                   kneeAngleL, kneeAngleR, hipAngleL, hipAngleR, elbowAngleL, elbowAngleR,
                   all_landmarks: all_landmarks
                 }, frozenFrameCtx);
+                if (state.latestHandResults) {
+                  drawHandMesh(state.latestHandResults.multiHandLandmarks, state.latestHandResults.multiHandedness, frozenFrameCtx);
+                }
               }
 
               // Cache joints & metrics for lockout screen and consolidation
@@ -1923,8 +1926,36 @@ function captureSnapshot(joints, metrics, results) {
   
   statusElement.textContent = "SNAPSHOT CAPTURED! Biomechanical statistics frozen on screen.";
   
-  // Set default label in input
+  // Set default label in input and bind manual pose selector
   const nameInput = document.getElementById('snapshot-name-input');
+  const selectPose = document.getElementById('select-snapshot-pose');
+  const poseName = (metrics && metrics.pose) ? metrics.pose : "A-Pose";
+
+  if (selectPose) {
+    let selectVal = "A-Pose";
+    if (poseName === "T-Pose") selectVal = "T-Pose";
+    else if (poseName === "Overhead Reach" || poseName === "Overhead Pose") selectVal = "Overhead Reach";
+    selectPose.value = selectVal;
+
+    selectPose.onchange = () => {
+      const newPose = selectPose.value;
+      if (state.frozenMetrics) {
+        state.frozenMetrics.pose = newPose;
+      }
+      
+      const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      const dateStr = new Date().toLocaleDateString('en-US', options);
+      const subjectName = getActiveProfileName(false);
+      if (nameInput) {
+        if (subjectName) {
+          nameInput.value = `${subjectName} - ${newPose} - ${dateStr}`;
+        } else {
+          nameInput.value = `${newPose} - ${dateStr}`;
+        }
+      }
+    };
+  }
+
   if (nameInput) {
     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     const dateStr = new Date().toLocaleDateString('en-US', options);
@@ -1932,12 +1963,12 @@ function captureSnapshot(joints, metrics, results) {
     // Retrieve active subject name from profile or input fallback
     const subjectName = getActiveProfileName(false);
     
-    const poseName = (metrics && metrics.pose) ? metrics.pose : "Posture Scan";
+    const finalPoseName = selectPose ? selectPose.value : (poseName || "Posture Scan");
     
     if (subjectName) {
-      nameInput.value = `${subjectName} - ${poseName} - ${dateStr}`;
+      nameInput.value = `${subjectName} - ${finalPoseName} - ${dateStr}`;
     } else {
-      nameInput.value = `${poseName} - ${dateStr}`;
+      nameInput.value = `${finalPoseName} - ${dateStr}`;
     }
   }
 
@@ -2817,7 +2848,7 @@ export function showImportDestinationModal(file) {
     // 3. Create content
     card.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 24px; text-align: center;">
-        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #818cf8, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Import Video Recording</h2>
+        <h2 style="font-size: 20px; font-weight: 700; margin: 0; background: linear-gradient(135deg, #BA0C2F, #8A061A); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Import Video Recording</h2>
         <p style="font-size: 13px; color: #9ca3af; margin: 0; word-break: break-all;">${file.name} (${fileSizeMB} MB)</p>
       </div>
       
@@ -2851,13 +2882,13 @@ export function showImportDestinationModal(file) {
           <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
             <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select perspective option:</div>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="squat-sub" value="squat-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Sagittal Squat
+              <input type="radio" name="squat-sub" value="squat-l" checked style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Left Sagittal Squat
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="squat-sub" value="squat-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Sagittal Squat
+              <input type="radio" name="squat-sub" value="squat-r" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Right Sagittal Squat
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="squat-sub" value="squat-frontal" style="width: 14px; height: 14px; accent-color: #818cf8;"> Frontal Squat (Knee Valgus)
+              <input type="radio" name="squat-sub" value="squat-frontal" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Frontal Squat (Knee Valgus)
             </label>
           </div>
         </div>
@@ -2876,10 +2907,10 @@ export function showImportDestinationModal(file) {
           <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
             <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-sub" value="shoulder-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Flexion
+              <input type="radio" name="shoulder-sub" value="shoulder-l" checked style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Left Shoulder Flexion
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-sub" value="shoulder-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Flexion
+              <input type="radio" name="shoulder-sub" value="shoulder-r" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Right Shoulder Flexion
             </label>
           </div>
         </div>
@@ -2898,10 +2929,10 @@ export function showImportDestinationModal(file) {
           <div class="import-sub-options-panel" style="display: none; margin-left: 38px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; flex-direction: column; gap: 10px;">
             <div style="font-size: 12px; color: #9ca3af; font-weight: 500; margin-bottom: 2px;">Select side to test:</div>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-l" checked style="width: 14px; height: 14px; accent-color: #818cf8;"> Left Shoulder Rotation
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-l" checked style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Left Shoulder Rotation
             </label>
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #e5e7eb;">
-              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-r" style="width: 14px; height: 14px; accent-color: #818cf8;"> Right Shoulder Rotation
+              <input type="radio" name="shoulder-rotation-sub" value="shoulder-rotation-r" style="width: 14px; height: 14px; accent-color: #BA0C2F;"> Right Shoulder Rotation
             </label>
           </div>
         </div>
@@ -2977,11 +3008,11 @@ export function showImportDestinationModal(file) {
           const radio = otherCard.querySelector('.import-radio');
           const dot = otherCard.querySelector('.import-radio-dot');
           if (otherCard.dataset.value === selectedValue) {
-            otherCard.style.background = 'rgba(129, 140, 248, 0.12)';
-            otherCard.style.borderColor = '#818cf8';
-            otherCard.style.boxShadow = '0 0 12px rgba(129, 140, 248, 0.2)';
-            radio.style.borderColor = '#818cf8';
-            radio.style.background = '#818cf8';
+            otherCard.style.background = 'rgba(186, 12, 47, 0.12)';
+            otherCard.style.borderColor = '#BA0C2F';
+            otherCard.style.boxShadow = '0 0 12px rgba(186, 12, 47, 0.2)';
+            radio.style.borderColor = '#BA0C2F';
+            radio.style.background = '#BA0C2F';
             dot.style.display = 'block';
           } else {
             otherCard.style.background = 'rgba(255, 255, 255, 0.02)';
@@ -2995,10 +3026,10 @@ export function showImportDestinationModal(file) {
 
         // Enable confirm button
         confirmBtn.removeAttribute('disabled');
-        confirmBtn.style.background = 'linear-gradient(135deg, #818cf8, #ec4899)';
+        confirmBtn.style.background = 'linear-gradient(135deg, #BA0C2F, #8A061A)';
         confirmBtn.style.color = '#fff';
         confirmBtn.style.cursor = 'pointer';
-        confirmBtn.style.boxShadow = '0 4px 12px rgba(129, 140, 248, 0.25)';
+        confirmBtn.style.boxShadow = '0 4px 12px rgba(186, 12, 47, 0.25)';
       });
     });
 

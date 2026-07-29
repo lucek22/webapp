@@ -6,6 +6,11 @@ import {
   snapshotStore,
   getDomMeasurementCm
 } from './helpers.js';
+import {
+  drawFullSkeletalMesh,
+  drawSkeletalFramework,
+  drawHandMesh
+} from './canvasRenderer.js';
 
 /**
  * Sanitizes a filename to ensure safe downloading on various OS systems.
@@ -74,7 +79,31 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
       const nameInput = document.getElementById('snapshot-name-input');
       const label = nameInput ? nameInput.value.trim() : 'biomechanical-snapshot';
       const includeSkeleton = document.getElementById('toggle-snapshot-skeleton')?.checked ?? true;
-      const dataUrl = includeSkeleton ? canvasElement.toDataURL('image/png') : frozenFrameCanvas.toDataURL('image/png');
+      
+      let dataUrl;
+      if (includeSkeleton) {
+        if (state.frozenJoints || state.frozenHandResults) {
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = frozenFrameCanvas.width;
+          exportCanvas.height = frozenFrameCanvas.height;
+          const exportCtx = exportCanvas.getContext('2d');
+          exportCtx.drawImage(frozenFrameCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+          
+          if (state.frozenJoints) {
+            drawFullSkeletalMesh(state.frozenJoints.all_landmarks, exportCtx);
+            drawSkeletalFramework(state.frozenJoints, exportCtx);
+          }
+          if (state.frozenHandResults) {
+            drawHandMesh(state.frozenHandResults.multiHandLandmarks, state.frozenHandResults.multiHandedness, exportCtx);
+          }
+          dataUrl = exportCanvas.toDataURL('image/png');
+        } else {
+          dataUrl = canvasElement.toDataURL('image/png');
+        }
+      } else {
+        dataUrl = frozenFrameCanvas.toDataURL('image/png');
+      }
+      
       downloadSnapshotImage(dataUrl, label);
     });
   }
@@ -108,7 +137,31 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
       };
 
       const includeSkeleton = document.getElementById('toggle-snapshot-skeleton')?.checked ?? true;
-      const capturedImg = includeSkeleton ? canvasElement.toDataURL('image/jpeg', 0.8) : frozenFrameCanvas.toDataURL('image/jpeg', 0.8);
+      
+      let capturedImg;
+      if (includeSkeleton) {
+        if (state.frozenJoints || state.frozenHandResults) {
+          const exportCanvas = document.createElement('canvas');
+          exportCanvas.width = frozenFrameCanvas.width;
+          exportCanvas.height = frozenFrameCanvas.height;
+          const exportCtx = exportCanvas.getContext('2d');
+          exportCtx.drawImage(frozenFrameCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+          
+          if (state.frozenJoints) {
+            drawFullSkeletalMesh(state.frozenJoints.all_landmarks, exportCtx);
+            drawSkeletalFramework(state.frozenJoints, exportCtx);
+          }
+          if (state.frozenHandResults) {
+            drawHandMesh(state.frozenHandResults.multiHandLandmarks, state.frozenHandResults.multiHandedness, exportCtx);
+          }
+          capturedImg = exportCanvas.toDataURL('image/jpeg', 0.8);
+        } else {
+          capturedImg = canvasElement.toDataURL('image/jpeg', 0.8);
+        }
+      } else {
+        capturedImg = frozenFrameCanvas.toDataURL('image/jpeg', 0.8);
+      }
+
       if (state.currentMode === 'squat') {
         if (state.squatTestingSide === 'left') {
           state.imageSquatL = capturedImg;

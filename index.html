@@ -212,12 +212,16 @@
         Upload Image / Video File
       </button>
       <input type="file" id="media-upload-input" accept="image/*,video/*" class="hidden" style="display: none;">
-      <button id="yolo-toggle-btn" class="btn">Enable Background Isolation</button>
 
       <div class="capture-buttons-row">
         <button id="capture-btn" class="btn btn-capture hidden">Start 5s Capture Snapshot</button>
         <button id="auto-sequence-btn" class="btn hidden">Hands-Free Auto Capture</button>
       </div>
+      
+      <!-- Dynamically filled container for active ROM mode's capture and reset buttons -->
+      <div id="rom-controls-row" class="hidden rom-controls-row"></div>
+
+      <button id="yolo-toggle-btn" class="btn">Enable Background Isolation</button>
       
       <!-- Snapshot Saving Controls (shown when snapshot is frozen) -->
       <div id="save-controls-panel" class="save-panel hidden">
@@ -511,14 +515,18 @@
             </div>
           </div>
           
-          <button id="btn-reset-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Values
-          </button>
-          <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Record Movement
-          </button>
+          <div id="squat-controls-placeholder" class="rom-controls-placeholder">
+            <div id="squat-controls-container" class="rom-controls-container">
+              <button id="btn-reset-peaks" class="btn btn-capture-reset" style="margin-top: 0.5rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                Reset Values
+              </button>
+              <button id="btn-save-squat-peaks" class="btn btn-capture-success" style="margin-top: 0; background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                Record Movement
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Squat Biomechanics Reference Guide -->
@@ -639,15 +647,19 @@
             }
           </style>
           
-          <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Values
-          </button>
-          
-          <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Record Movement
-          </button>
+          <div id="ankledorsi-controls-placeholder" class="rom-controls-placeholder">
+            <div id="ankledorsi-controls-container" class="rom-controls-container">
+              <button id="btn-reset-dorsi" class="btn btn-capture-reset" style="margin-top: 0.5rem; width: 100%;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                Reset Values
+              </button>
+              
+              <button id="btn-save-dorsi-results" class="btn btn-capture-success" style="margin-top: 0; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                Record Movement
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Tibial Inclination Reference Guide -->
@@ -764,14 +776,18 @@
             </div>
           </div>
           
-          <button id="btn-reset-shoulder-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Values
-          </button>
-          <button id="btn-save-shoulder-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Capture Snapshot
-          </button>
+          <div id="shoulder-controls-placeholder" class="rom-controls-placeholder">
+            <div id="shoulder-controls-container" class="rom-controls-container">
+              <button id="btn-reset-shoulder-peaks" class="btn btn-capture-reset" style="margin-top: 0.5rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                Reset Values
+              </button>
+              <button id="btn-save-shoulder-peaks" class="btn btn-capture-success" style="margin-top: 0; background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                Capture Snapshot
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Shoulder Biomechanics Reference Guide -->
@@ -866,19 +882,23 @@
             </div>
             <div id="shoulder-rotation-cheating-timestamp" style="font-size: 0.70rem; font-weight: 600; color: #fca5a5; margin-bottom: 4px; display: none;"></div>
             <div id="shoulder-rotation-cheating-reasons" style="font-size: 0.72rem; color: #fee2e2; line-height: 1.35; margin-bottom: 4px;"></div>
-            <div id="shoulder-rotation-capped-note" style="font-size: 0.68rem; color: #9ca3af; font-style: italic; border-top: 1px solid rgba(255,255,255,0.06); pt-1; margin-top: 4px; padding-top: 4px;">
+            <div id="shoulder-rotation-capped-note" style="font-size: 0.68rem; color: #9ca3af; font-style: italic; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; padding-top: 4px;">
               Peak value marked at last uncheated angle.
             </div>
           </div>
           
-          <button id="btn-reset-shoulder-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Values
-          </button>
-          <button id="btn-save-shoulder-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Record Movement
-          </button>
+          <div id="shoulder-rotation-controls-placeholder" class="rom-controls-placeholder">
+            <div id="shoulder-rotation-controls-container" class="rom-controls-container">
+              <button id="btn-reset-shoulder-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 0.5rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                Reset Values
+              </button>
+              <button id="btn-save-shoulder-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0; background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                Record Movement
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Shoulder Rotation Biomechanics Reference Guide -->
@@ -940,15 +960,19 @@
               <div id="thoracic-peak-angle" class="angle-val right-color">0°</div>
             </div>
           </div>
-          <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 1rem; width: 100%;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Values
-          </button>
-          
-          <button id="btn-save-thoracic-results" class="btn btn-capture-success" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Record Movement
-          </button>
+          <div id="thoracic-controls-placeholder" class="rom-controls-placeholder">
+            <div id="thoracic-controls-container" class="rom-controls-container">
+              <button id="btn-reset-thoracic" class="btn btn-capture-reset" style="margin-top: 0.5rem; width: 100%;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                Reset Values
+              </button>
+              
+              <button id="btn-save-thoracic-results" class="btn btn-capture-success" style="margin-top: 0; width: 100%; background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                Record Movement
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="panel-section squat-guide-section collapsible">
@@ -1031,14 +1055,18 @@
             </div>
           </div>
           
-          <button id="btn-reset-hip-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 1rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
-            Reset Values
-          </button>
-          <button id="btn-save-hip-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0.5rem; background: linear-gradient(135deg, #10b981, #059669);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
-            Record Movement
-          </button>
+          <div id="hip-rotation-controls-placeholder" class="rom-controls-placeholder">
+            <div id="hip-rotation-controls-container" class="rom-controls-container">
+              <button id="btn-reset-hip-rotation-peaks" class="btn btn-capture-reset" style="margin-top: 0.5rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                Reset Values
+              </button>
+              <button id="btn-save-hip-rotation-peaks" class="btn btn-capture-success" style="margin-top: 0; background: linear-gradient(135deg, #10b981, #059669);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+                Record Movement
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Hip Rotation Biomechanics Reference Guide -->

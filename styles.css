@@ -150,6 +150,28 @@
   margin-top: 0.5rem;
   width: 100%;
 }
+.rom-controls-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+.rom-controls-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.rom-controls-row .rom-controls-container {
+  flex-direction: row !important;
+  gap: 0.5rem;
+}
+.rom-controls-row .rom-controls-container button {
+  flex: 1;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  width: 100%;
+}
 .metric-lbl-flex {
   display: flex;
   align-items: center;

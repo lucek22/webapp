@@ -2572,14 +2572,9 @@ export async function startCamera(preferredDeviceId = null) {
   startButton.classList.add('hidden');
   yoloToggleBtn.classList.remove('hidden');
   yoloToggleBtn.classList.add('visible-block');
-  captureBtn.classList.remove('hidden');
-  captureBtn.classList.add('visible-block');
 
-  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
-  if (autoSequenceBtn) {
-    autoSequenceBtn.classList.remove('hidden');
-    autoSequenceBtn.classList.add('visible-block');
-  }
+  // Update visibility of tracking controls (record-btn, upload-media-btn, capture-btn, auto-sequence-btn)
+  updateTrackingControlsVisibility();
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
@@ -2855,6 +2850,8 @@ export async function startCamera(preferredDeviceId = null) {
   } catch (err) {
     console.error("Camera access failed:", err);
     startButton.classList.remove('hidden');
+    // Update tracking controls visibility since startButton is now visible again (meaning tracking is inactive)
+    updateTrackingControlsVisibility();
     if (err.name === 'NotAllowedError') {
       statusElement.innerHTML = `<span class="text-red font-bold">Camera Permission Denied!</span><br>Please click the camera/lock icon in your browser address bar and change camera permissions to 'Allow'.`;
     } else if (err.name === 'NotReadableError') {
@@ -3185,8 +3182,6 @@ export async function handleUploadedFile(file) {
   startButton.classList.add('hidden');
   yoloToggleBtn.classList.remove('hidden');
   yoloToggleBtn.classList.add('visible-block');
-  captureBtn.classList.remove('hidden');
-  captureBtn.classList.add('visible-block');
 
   const exportCombinedBtn = document.getElementById('btn-export-combined');
   if (exportCombinedBtn) {
@@ -3214,11 +3209,8 @@ export async function handleUploadedFile(file) {
     state.isRecording = false;
   }
 
-  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
-  if (autoSequenceBtn) {
-    autoSequenceBtn.classList.remove('hidden');
-    autoSequenceBtn.classList.add('visible-block');
-  }
+  // Update visibility of tracking controls (record-btn, upload-media-btn, capture-btn, auto-sequence-btn)
+  updateTrackingControlsVisibility();
 
   const subjectPanel = document.getElementById('subject-profile-panel');
   if (subjectPanel) {
@@ -5471,6 +5463,99 @@ export function updateDashboardOfflinePlaceholders() {
   });
 }
 
+// Function to update the visibility of recording, uploading, and capturing controls
+// based on the current active mode (Anthropometric Scan / Posture vs ROM testing modes)
+export function updateTrackingControlsVisibility() {
+  const recordBtn = document.getElementById('record-btn');
+  const uploadMediaBtn = document.getElementById('upload-media-btn');
+  const captureBtn = document.getElementById('capture-btn');
+  const autoSequenceBtn = document.getElementById('auto-sequence-btn');
+  const startButton = document.getElementById('start-btn');
+  const romControlsRow = document.getElementById('rom-controls-row');
+
+  const isPostureMode = (state.currentMode === 'posture');
+  const isTrackingActive = !!(state.activeStream || state.isUploadedMedia || (startButton && startButton.classList.contains('hidden')));
+
+  // 1. Record button
+  if (recordBtn) {
+    if (isPostureMode) {
+      recordBtn.classList.remove('hidden');
+    } else {
+      recordBtn.classList.add('hidden');
+    }
+  }
+
+  // 2. Upload media button
+  if (uploadMediaBtn) {
+    if (isPostureMode) {
+      uploadMediaBtn.classList.remove('hidden');
+    } else {
+      uploadMediaBtn.classList.add('hidden');
+    }
+  }
+
+  // 3. Capture button
+  if (captureBtn) {
+    if (isPostureMode && isTrackingActive) {
+      captureBtn.classList.remove('hidden');
+      captureBtn.classList.add('visible-block');
+    } else {
+      captureBtn.classList.add('hidden');
+      captureBtn.classList.remove('visible-block');
+    }
+  }
+
+  // 4. Auto Sequence button
+  if (autoSequenceBtn) {
+    if (isPostureMode && isTrackingActive) {
+      autoSequenceBtn.classList.remove('hidden');
+      autoSequenceBtn.classList.add('visible-block');
+    } else {
+      autoSequenceBtn.classList.add('hidden');
+      autoSequenceBtn.classList.remove('visible-block');
+    }
+  }
+
+  // 5. ROM testing modes teleportation
+  const romConfigs = {
+    'squat': { containerId: 'squat-controls-container', placeholderId: 'squat-controls-placeholder' },
+    'ankledorsi': { containerId: 'ankledorsi-controls-container', placeholderId: 'ankledorsi-controls-placeholder' },
+    'shoulder_flexion': { containerId: 'shoulder-controls-container', placeholderId: 'shoulder-controls-placeholder' },
+    'shoulder_rotation': { containerId: 'shoulder-rotation-controls-container', placeholderId: 'shoulder-rotation-controls-placeholder' },
+    'thoracic_extension': { containerId: 'thoracic-controls-container', placeholderId: 'thoracic-controls-placeholder' },
+    'hip_rotation': { containerId: 'hip-rotation-controls-container', placeholderId: 'hip-rotation-controls-placeholder' }
+  };
+
+  // Return all ROM containers to sidebars first
+  Object.keys(romConfigs).forEach(mode => {
+    const config = romConfigs[mode];
+    const container = document.getElementById(config.containerId);
+    const placeholder = document.getElementById(config.placeholderId);
+    if (container && placeholder && container.parentNode !== placeholder) {
+      placeholder.appendChild(container);
+    }
+  });
+
+  if (romControlsRow) {
+    if (!isPostureMode && isTrackingActive) {
+      const activeConfig = romConfigs[state.currentMode];
+      if (activeConfig) {
+        const container = document.getElementById(activeConfig.containerId);
+        if (container) {
+          romControlsRow.appendChild(container);
+          romControlsRow.classList.remove('hidden');
+        } else {
+          romControlsRow.classList.add('hidden');
+        }
+      } else {
+        romControlsRow.classList.add('hidden');
+      }
+    } else {
+      romControlsRow.classList.add('hidden');
+    }
+  }
+}
+
 // BIND UNIFIED EXERCISE MODE SELECTION SELECTOR
 function setExerciseMode(mode) {
   if (!mode) return;
@@ -5557,6 +5642,7 @@ function setExerciseMode(mode) {
       updateHipRotationSidebarUI();
     }
   }
+  updateTrackingControlsVisibility();
 }
 
 // Bind dropdown selection change event

@@ -228,6 +228,14 @@
         <div class="save-row">
           <input type="text" id="snapshot-name-input" class="save-input" placeholder="Snapshot Label">
         </div>
+        <div class="save-row" style="flex-direction: column; align-items: stretch; gap: 4px; margin-bottom: 8px; width: 100%;">
+          <label for="select-snapshot-pose" style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; margin-left: 2px;">Manual Pose Selection</label>
+          <select id="select-snapshot-pose" class="save-input" style="width: 100%; cursor: pointer;">
+            <option value="A-Pose">A-Pose (Calibration / Wingspan)</option>
+            <option value="T-Pose">T-Pose (Horizontal Wingspan)</option>
+            <option value="Overhead Reach">Overhead Reach (Vertical Extension)</option>
+          </select>
+        </div>
         <div class="save-row toggle-row" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 8px;">
           <input type="checkbox" id="toggle-snapshot-skeleton" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #d4a017;">
           <label for="toggle-snapshot-skeleton" style="font-size: 13px; color: #cbd5e1; cursor: pointer; user-select: none;">Include Tracking Skeleton Overlay</label>
@@ -1353,11 +1361,15 @@
           <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 2rem;">
             <div style="display: flex; flex-direction: column; gap: 2px;">
               <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Athlete Name</span>
-              <h3 id="profile-detail-name" style="margin: 0; font-size: 1.2rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1;">John Doe</h3>
+              <h3 id="profile-detail-name" style="margin: 0; font-size: 1.2rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.1; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap;">John Doe</h3>
             </div>
             <div style="display: flex; flex-direction: column; gap: 2px;">
               <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Active Session</span>
               <div id="profile-detail-last-session" style="font-size: 0.9rem; font-weight: 500; color: #eee;">Session Date: --</div>
+            </div>
+            <div id="profile-detail-height-container" style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Profile Height</span>
+              <div id="profile-detail-height-display" style="font-size: 0.9rem; font-weight: 500; color: #eee; display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">--</div>
             </div>
             <div style="display: none; flex-direction: column; gap: 2px;">
               <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888;">Spatial Calibration</span>

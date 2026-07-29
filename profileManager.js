@@ -1525,6 +1525,66 @@ export async function populateProfileDetails(profileId, container, preserveTab =
         });
       }
     }
+    const detailHeightDisplay = container.querySelector('#profile-detail-height-display');
+    if (detailHeightDisplay) {
+      const activeHeightCm = (state.importedPortfolioMetrics && state.importedPortfolioMetrics.skeletal_height) || profile.heightCm;
+      if (activeHeightCm) {
+        const heightStr = state.useInches ? `${(activeHeightCm / 2.54).toFixed(1)} in` : `${activeHeightCm.toFixed(1)} cm`;
+        detailHeightDisplay.innerHTML = `
+          ${heightStr}
+          <button class="btn btn-edit-profile-height" title="Edit Profile Height" style="background: none; border: none; padding: 0; color: var(--color-gold); cursor: pointer; display: flex; align-items: center; justify-content: center; margin-left: 2px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+          </button>
+        `;
+
+        const editHeightBtn = detailHeightDisplay.querySelector('.btn-edit-profile-height');
+        if (editHeightBtn) {
+          editHeightBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const currentHeightVal = state.useInches ? (activeHeightCm / 2.54).toFixed(1) : activeHeightCm.toFixed(1);
+            const unitLabel = state.useInches ? "inches" : "cm";
+            const newHeightInput = prompt(`Enter new height in ${unitLabel}:`, currentHeightVal);
+            if (newHeightInput === null) return;
+            const val = parseFloat(newHeightInput);
+            if (isNaN(val) || val <= 0) {
+              alert("Please enter a valid positive height value.");
+              return;
+            }
+
+            const heightCm = state.useInches ? val * 2.54 : val;
+            try {
+              const freshProfile = await snapshotStore.getProfile(profileId);
+              if (freshProfile) {
+                freshProfile.heightCm = heightCm;
+                await snapshotStore.saveProfile(freshProfile);
+                
+                state.allProfiles = await snapshotStore.getAllProfiles();
+                if (state.activeProfileId === profileId) {
+                  state.inputHeightCm = heightCm;
+                  const inputUserHeight = document.getElementById('input-user-height');
+                  if (inputUserHeight) {
+                    inputUserHeight.value = state.useInches ? (heightCm / 2.54).toFixed(1) : heightCm.toFixed(1);
+                    inputUserHeight.dispatchEvent(new Event('input'));
+                  }
+                  await loadProfileIntoState(profileId);
+                }
+                
+                alert(`Profile height updated to ${state.useInches ? (heightCm / 2.54).toFixed(1) + " in" : heightCm.toFixed(1) + " cm"} successfully!`);
+                updateProfileUI(profileId);
+              }
+            } catch (err) {
+              console.error("[ProfileHeightUpdate] Failed to update height:", err);
+              alert("Failed to update height: " + err.message);
+            }
+          });
+        }
+      } else {
+        detailHeightDisplay.textContent = "--";
+      }
+    }
 
     const sessionPixelsPerCm = activeSession.pixelsPerCm || profile.pixelsPerCm;
     if (detailScale) {
@@ -2263,7 +2323,7 @@ export async function populateProfileDetails(profileId, container, preserveTab =
           cancelBtn.id = 'btn-cancel-baseline-metrics';
           cancelBtn.className = 'btn btn-cancel-metrics';
           cancelBtn.innerHTML = 'Cancel';
-          editBtn.parentNode.appendChild(cancelBtn);
+          editBtn.parentNode.insertBefore(cancelBtn, editBtn.nextSibling);
         }
         
         cancelBtn.onclick = () => {

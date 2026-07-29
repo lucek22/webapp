@@ -272,7 +272,7 @@ export function setupThoracicExtensionListeners(onPoseResultsCallback) {
         const snapshotRecord = {
           name: label,
           timestamp: Date.now(),
-          image: canvasElement ? canvasElement.toDataURL('image/png') : null,
+          image: canvasElement ? canvasElement.toDataURL('image/jpeg', 0.8) : null,
           metrics: {
             isThoracicExtension: true,
             thoracicExtension: JSON.parse(JSON.stringify(p))
@@ -288,7 +288,7 @@ export function setupThoracicExtensionListeners(onPoseResultsCallback) {
               if (session) {
                 session.thoracicExtension = JSON.parse(JSON.stringify(p));
                 if (canvasElement) {
-                  session.imageThoracicExtension = canvasElement.toDataURL('image/png');
+                  session.imageThoracicExtension = canvasElement.toDataURL('image/jpeg', 0.8);
                 }
               }
               await snapshotStore.saveProfile(profile);

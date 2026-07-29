@@ -37,12 +37,12 @@ export const pose = new Holistic({
 // We use complexity 2 (Heavy) for maximum accuracy,
 // made possible by our decoupled render loop which prevents UI thread blocking.
 pose.setOptions({
-  modelComplexity: 1,
+  modelComplexity: 2,
   smoothLandmarks: true,
   enableSegmentation: state.yoloModeActive, 
   refineFaceLandmarks: false,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
+  minDetectionConfidence: 0.65,
+  minTrackingConfidence: 0.65
 });
 
 // Dummy hands object with no-op send function to prevent errors from sequential send loops

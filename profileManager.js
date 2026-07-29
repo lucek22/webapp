@@ -2517,7 +2517,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
 
     if (dshRotExtL) {
       if (!state.isEditingProfileMetrics) {
-        dshRotExtL.innerHTML = shRot.maxExternalRotationL ? `${shRot.maxExternalRotationL.toFixed(1)}°` : '0°';
+        const valStr = shRot.maxExternalRotationL ? `${shRot.maxExternalRotationL.toFixed(1)}°` : '0°';
+        const cheatBadge = shRot.cheatingL?.hasCheatedER ? ` <span style="font-size:0.65rem; color:#ef4444; background:rgba(239,68,68,0.15); padding:1px 5px; border-radius:4px; border:1px solid rgba(239,68,68,0.3);" title="Capped due to: ${(shRot.cheatingL.reasonsER || []).join(', ')}">⚠️ Capped</span>` : '';
+        dshRotExtL.innerHTML = valStr + cheatBadge;
       } else {
         dshRotExtL.innerHTML = `
           <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
@@ -2531,7 +2533,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
     }
     if (dshRotIntL) {
       if (!state.isEditingProfileMetrics) {
-        dshRotIntL.innerHTML = shRot.maxInternalRotationL ? `${shRot.maxInternalRotationL.toFixed(1)}°` : '0°';
+        const valStr = shRot.maxInternalRotationL ? `${shRot.maxInternalRotationL.toFixed(1)}°` : '0°';
+        const cheatBadge = shRot.cheatingL?.hasCheatedIR ? ` <span style="font-size:0.65rem; color:#ef4444; background:rgba(239,68,68,0.15); padding:1px 5px; border-radius:4px; border:1px solid rgba(239,68,68,0.3);" title="Capped due to: ${(shRot.cheatingL.reasonsIR || []).join(', ')}">⚠️ Capped</span>` : '';
+        dshRotIntL.innerHTML = valStr + cheatBadge;
       } else {
         dshRotIntL.innerHTML = `
           <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
@@ -2545,7 +2549,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
     }
     if (dshRotExtR) {
       if (!state.isEditingProfileMetrics) {
-        dshRotExtR.innerHTML = shRot.maxExternalRotationR ? `${shRot.maxExternalRotationR.toFixed(1)}°` : '0°';
+        const valStr = shRot.maxExternalRotationR ? `${shRot.maxExternalRotationR.toFixed(1)}°` : '0°';
+        const cheatBadge = shRot.cheatingR?.hasCheatedER ? ` <span style="font-size:0.65rem; color:#ef4444; background:rgba(239,68,68,0.15); padding:1px 5px; border-radius:4px; border:1px solid rgba(239,68,68,0.3);" title="Capped due to: ${(shRot.cheatingR.reasonsER || []).join(', ')}">⚠️ Capped</span>` : '';
+        dshRotExtR.innerHTML = valStr + cheatBadge;
       } else {
         dshRotExtR.innerHTML = `
           <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
@@ -2559,7 +2565,9 @@ export async function populateProfileDetails(profileId, container, preserveTab =
     }
     if (dshRotIntR) {
       if (!state.isEditingProfileMetrics) {
-        dshRotIntR.innerHTML = shRot.maxInternalRotationR ? `${shRot.maxInternalRotationR.toFixed(1)}°` : '0°';
+        const valStr = shRot.maxInternalRotationR ? `${shRot.maxInternalRotationR.toFixed(1)}°` : '0°';
+        const cheatBadge = shRot.cheatingR?.hasCheatedIR ? ` <span style="font-size:0.65rem; color:#ef4444; background:rgba(239,68,68,0.15); padding:1px 5px; border-radius:4px; border:1px solid rgba(239,68,68,0.3);" title="Capped due to: ${(shRot.cheatingR.reasonsIR || []).join(', ')}">⚠️ Capped</span>` : '';
+        dshRotIntR.innerHTML = valStr + cheatBadge;
       } else {
         dshRotIntR.innerHTML = `
           <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">

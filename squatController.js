@@ -763,7 +763,7 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
           btnSaveSquatPeaks.style.boxShadow = 'none';
           btnSaveSquatPeaks.classList.remove('recording-pulse');
           
-          const capturedImg = canvasElement.toDataURL('image/png');
+          const capturedImg = canvasElement.toDataURL('image/jpeg', 0.8);
           if (state.squatTestingSide === 'left') {
             state.imageSquatL = capturedImg;
           } else if (state.squatTestingSide === 'right') {
@@ -832,7 +832,7 @@ export function setupSquatListeners(onPoseResultsCallback, updateDashboardOfflin
 
       try {
         if (state.activeProfileId) {
-          const capturedImg = canvasElement.toDataURL('image/png');
+          const capturedImg = canvasElement.toDataURL('image/jpeg', 0.8);
           if (state.squatTestingSide === 'left') {
             state.imageSquatL = capturedImg;
           } else if (state.squatTestingSide === 'right') {

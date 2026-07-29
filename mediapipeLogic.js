@@ -34,10 +34,8 @@ export const pose = new Holistic({
 });
 
 // Configure Holistic options (combines pose and hands tracking in a single optimized pass)
-// We use complexity 2 (Heavy) for maximum accuracy,
-// made possible by our decoupled render loop which prevents UI thread blocking.
 pose.setOptions({
-  modelComplexity: 1,
+  modelComplexity: state.isMobile ? 1 : 2,
   smoothLandmarks: true,
   enableSegmentation: state.yoloModeActive, 
   refineFaceLandmarks: false,
@@ -438,8 +436,8 @@ export function calculatePoseMetrics(results) {
     let scaleFactor3D = null;
 
     if (state.activeCalMethod === 'height') {
-      if (state.inputHeightCm && wl_vertical_height_cm > 10) {
-        const rawScale3D = state.inputHeightCm / wl_vertical_height_cm;
+      if (state.inputHeightCm && skeletal_height_wl > 10) {
+        const rawScale3D = state.inputHeightCm / skeletal_height_wl;
         scaleFactor3D = smooth('scale_factor_3d_height', rawScale3D, 8, 0.25);
         state.scaleFactor3D = scaleFactor3D;
       }
@@ -496,8 +494,8 @@ export function calculatePoseMetrics(results) {
         state.pixelsPerCm = skeletal_height_px / state.importedPortfolioMetrics.skeletal_height;
         state.calLocked = true;
       }
-    } else if (state.activeCalMethod === 'height' && state.inputHeightCm && vertical_height_px > 10) {
-      const rawScale = vertical_height_px / state.inputHeightCm;
+    } else if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+      const rawScale = skeletal_height_px / state.inputHeightCm;
       state.pixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
     }
 
@@ -602,8 +600,8 @@ export function calculatePoseMetrics(results) {
     state.lastSkeletalHeightPx = skeletal_height_px; // Save for input-based calibration
 
     let activePixelsPerCm = state.pixelsPerCm;
-    if (state.activeCalMethod === 'height' && state.inputHeightCm && vertical_height_px > 10) {
-      const rawScale = vertical_height_px / state.inputHeightCm;
+    if (state.activeCalMethod === 'height' && state.inputHeightCm && skeletal_height_px > 10) {
+      const rawScale = skeletal_height_px / state.inputHeightCm;
       activePixelsPerCm = smooth('height_scale_calibration', rawScale, 8, 0.25);
       state.pixelsPerCm = activePixelsPerCm;
     } else if (state.autoActive && state.metricsA && state.metricsA.skeletal_height) {

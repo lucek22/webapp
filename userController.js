@@ -1774,7 +1774,7 @@ export function onPoseResults(results, isRenderOnly = false) {
               state.frozenAutoMetrics = JSON.parse(JSON.stringify(liveMetrics));
               
               // Capture and store specific frame image and metrics for combined report
-              const capturedImage = frozenFrameCanvas.toDataURL('image/png');
+              const capturedImage = frozenFrameCanvas.toDataURL('image/jpeg', 0.8);
               if (state.autoState === 'WAITING_A') {
                 state.imageA = capturedImage;
                 state.metricsA = JSON.parse(JSON.stringify(liveMetrics));

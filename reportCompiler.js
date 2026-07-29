@@ -108,7 +108,7 @@ export function setupReportCompiler({ canvasElement, frozenFrameCanvas, statusEl
       };
 
       const includeSkeleton = document.getElementById('toggle-snapshot-skeleton')?.checked ?? true;
-      const capturedImg = includeSkeleton ? canvasElement.toDataURL('image/png') : frozenFrameCanvas.toDataURL('image/png');
+      const capturedImg = includeSkeleton ? canvasElement.toDataURL('image/jpeg', 0.8) : frozenFrameCanvas.toDataURL('image/jpeg', 0.8);
       if (state.currentMode === 'squat') {
         if (state.squatTestingSide === 'left') {
           state.imageSquatL = capturedImg;

@@ -180,7 +180,7 @@ export async function processShoulderFlexionFromPreprocessedFrames() {
   if (drawFrameCallback) {
     drawFrameCallback(startResults);
   }
-  const startImg = canvasElement.toDataURL('image/png');
+  const startImg = canvasElement.toDataURL('image/jpeg', 0.8);
 
   // Render and capture End Frame
   await seekVideoTo(endFrame.time);
@@ -191,7 +191,7 @@ export async function processShoulderFlexionFromPreprocessedFrames() {
   if (drawFrameCallback) {
     drawFrameCallback(endResults);
   }
-  const endImg = canvasElement.toDataURL('image/png');
+  const endImg = canvasElement.toDataURL('image/jpeg', 0.8);
 
   // Save to state
   if (side === 'left') {
@@ -339,7 +339,7 @@ export function setupShoulderListeners(onPoseResultsCallback, updateDashboardOff
       const side = state.shoulderTestingSide || 'left';
       const recordStatus = document.getElementById('shoulder-recording-status');
 
-      const capturedImg = canvasElement.toDataURL('image/png');
+      const capturedImg = canvasElement.toDataURL('image/jpeg', 0.8);
       let curAngle = 0;
       if (state.latestPoseResults && state.latestPoseResults.poseLandmarks) {
         const info = getShoulderWristAngle(state.latestPoseResults.poseLandmarks, side);
